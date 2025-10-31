@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import api from '../lib/api'
 import { RetargetingCustomer, RetargetingHistory } from '../types'
 import { useAuthStore } from '../store/authStore'
@@ -29,32 +29,56 @@ export default function RetargetingPage() {
   
   const [phoneNumbers, setPhoneNumbers] = useState<string[]>([''])
   const [instagramAccounts, setInstagramAccounts] = useState<string[]>([''])
+  const lastFetchedId = useRef<string | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     fetchCustomers()
+  }, [])
+  
+  useEffect(() => {
+    if (selectedCustomer?.id && selectedCustomer.id !== lastFetchedId.current) {
+      lastFetchedId.current = selectedCustomer.id
+      
+      // 이전 요청 취소
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      
+      // 새 요청 생성
+      abortControllerRef.current = new AbortController()
+      
+      fetchCustomerDetail(selectedCustomer.id, abortControllerRef.current.signal)
+      fetchHistory(selectedCustomer.id, abortControllerRef.current.signal)
+    }
+  }, [selectedCustomer?.id])
+  
+  // 컴포넌트 언마운트 시 요청 취소
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
   }, [])
   
   const fetchCustomers = async () => {
     try {
     const response = await api.get('/retargeting')
     setCustomers(response.data)
-    // 첫 번째 고객을 자동으로 선택 + 상세 로드(필드 초기화 포함)
+    // 첫 번째 고객을 자동으로 선택
     if (response.data.length > 0 && !selectedCustomer) {
-      const first = response.data[0]
-      setSelectedCustomer(first)
-      await fetchCustomerDetail(first.id)
-      await fetchHistory(first.id)
+      setSelectedCustomer(response.data[0])
     }
     } catch (error) {
       console.error('Failed to fetch retargeting customers:', error)
     }
   }
   
-  const fetchCustomerDetail = async (id: string) => {
+  const fetchCustomerDetail = async (id: string, signal?: AbortSignal) => {
     try {
-      const response = await api.get(`/retargeting/${id}`)
+      const response = await api.get(`/retargeting/${id}`, { signal })
       const customer = response.data
-      console.log('Fetched customer data:', customer) // 디버깅용
       // 날짜 필드 정규화
       if (customer.registeredAt && customer.registeredAt.includes('T')) {
         customer.registeredAt = customer.registeredAt.split('T')[0]
@@ -62,21 +86,27 @@ export default function RetargetingPage() {
       if (customer.lastContactDate && customer.lastContactDate.includes('T')) {
         customer.lastContactDate = customer.lastContactDate.split('T')[0]
       }
-      setSelectedCustomer(customer)
       // 전화번호와 인스타그램 배열 초기화
       setPhoneNumbers(customer.phone ? [customer.phone] : [''])
       setInstagramAccounts(customer.instagram ? [customer.instagram] : [''])
-    } catch (error) {
-      console.error('Failed to fetch customer detail:', error)
+      // setSelectedCustomer를 호출하지 않음 - 이미 리스트에서 선택된 상태이므로
+    } catch (error: any) {
+      // AbortError는 무시 (요청이 취소된 경우)
+      if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+        console.error('Failed to fetch customer detail:', error)
+      }
     }
   }
   
-  const fetchHistory = async (id: string) => {
+  const fetchHistory = async (id: string, signal?: AbortSignal) => {
     try {
-      const response = await api.get(`/retargeting/${id}/history`)
+      const response = await api.get(`/retargeting/${id}/history`, { signal })
       setHistory(response.data)
-    } catch (error) {
-      console.error('Failed to fetch history:', error)
+    } catch (error: any) {
+      // AbortError는 무시 (요청이 취소된 경우)
+      if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+        console.error('Failed to fetch history:', error)
+      }
     }
   }
   
@@ -94,10 +124,7 @@ export default function RetargetingPage() {
     const newPhoneNumbers = [...phoneNumbers]
     newPhoneNumbers[index] = value
     setPhoneNumbers(newPhoneNumbers)
-    // 첫 번째 전화번호를 selectedCustomer의 phone에 저장
-    if (selectedCustomer) {
-      setSelectedCustomer({...selectedCustomer, phone: newPhoneNumbers[0] || ''})
-    }
+    // selectedCustomer를 업데이트하지 않음 - 저장 시에만 서버에 반영
   }
 
   const addInstagramAccount = () => {
@@ -114,10 +141,7 @@ export default function RetargetingPage() {
     const newInstagramAccounts = [...instagramAccounts]
     newInstagramAccounts[index] = value
     setInstagramAccounts(newInstagramAccounts)
-    // 첫 번째 인스타그램을 selectedCustomer의 instagram에 저장
-    if (selectedCustomer) {
-      setSelectedCustomer({...selectedCustomer, instagram: newInstagramAccounts[0] || ''})
-    }
+    // selectedCustomer를 업데이트하지 않음 - 저장 시에만 서버에 반영
   }
 
   const handleSave = async () => {
@@ -603,11 +627,7 @@ export default function RetargetingPage() {
             return (
               <div
                 key={customer.id}
-                onClick={() => {
-                  setSelectedCustomer(customer)
-                  fetchCustomerDetail(customer.id)
-                  fetchHistory(customer.id)
-                }}
+                onClick={() => setSelectedCustomer(customer)}
                 className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${getContactStatusColor(days)} ${
                   selectedCustomer?.id === customer.id ? 'bg-blue-50 border-blue-300' : ''
                 }`}
