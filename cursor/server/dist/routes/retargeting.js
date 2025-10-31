@@ -249,14 +249,20 @@ router.post('/:id/history', auth_1.authMiddleware, async (req, res) => {
         }
         const customer = customerResult.rows[0];
         // Check if user is the manager of this customer (or admin)
+        // Trim spaces for comparison
+        const userName = req.user?.name?.trim() || '';
+        const customerManager = customer.manager?.trim() || '';
         console.log('Retargeting history permission check:', {
             userRole: req.user?.role,
-            userName: req.user?.name,
-            customerManager: customer.manager,
+            userName: userName,
+            customerManager: customerManager,
             isAdmin: req.user?.role === 'admin',
-            managerMatch: customer.manager === req.user?.name
+            managerMatch: customerManager === userName,
+            userNameLength: userName.length,
+            managerLength: customerManager.length
         });
-        if (req.user?.role !== 'admin' && customer.manager !== req.user?.name) {
+        if (req.user?.role !== 'admin' && customerManager !== userName) {
+            console.log('Permission denied:', { customerManager, userName, match: false });
             return res.status(403).json({ message: 'You can only add history to retargeting customers assigned to you' });
         }
         const result = await db_1.pool.query('INSERT INTO retargeting_history (retargeting_customer_id, user_id, user_name, type, content) VALUES ($1, $2, $3, $4, $5) RETURNING *', [id, req.user?.id, req.user?.name, type, content]);
