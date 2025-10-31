@@ -1,0 +1,34 @@
+.DS_Store
+cursor/.DS_Store
+**/*.DS_Store
+
+# SQL dump files
+dev_db_complete_dump.sql
+*.sql.bak
+*_backup.sql
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
