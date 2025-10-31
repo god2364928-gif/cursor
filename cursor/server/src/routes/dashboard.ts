@@ -137,7 +137,7 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
 })
 
 // 12개월 매출 추이 데이터
-router.get('/sales-trend', async (req, res) => {
+router.get('/sales-trend', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { manager } = req.query
     const userId = req.user?.id
@@ -146,7 +146,7 @@ router.get('/sales-trend', async (req, res) => {
     console.log('Sales trend request:', { userId, userName, manager })
 
     // 최근 12개월 데이터 생성 (로컬 타임존 기준 라벨링)
-    const months = []
+    const months: string[] = []
     const currentDate = new Date()
     for (let i = 11; i >= 0; i--) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
@@ -154,7 +154,7 @@ router.get('/sales-trend', async (req, res) => {
       months.push(label) // YYYY-MM 형식
     }
 
-    let salesTrendData = []
+    let salesTrendData: any
 
     if (manager && manager !== 'all') {
       // 특정 담당자의 매출 추이
@@ -174,7 +174,7 @@ router.get('/sales-trend', async (req, res) => {
       const salesResult = await pool.query(salesQuery, [manager, twelveMonthsAgo])
       
       // 월별 데이터 매핑
-      const salesMap = {}
+      const salesMap: Record<string, number> = {}
       salesResult.rows.forEach(row => {
         salesMap[row.month] = parseInt(row.amount)
       })
@@ -197,12 +197,12 @@ router.get('/sales-trend', async (req, res) => {
       `
       
       const totalSalesResult = await pool.query(totalSalesQuery, [twelveMonthsAgo])
-      const totalSalesMap = {}
+      const totalSalesMap: Record<string, number> = {}
       totalSalesResult.rows.forEach(row => {
         totalSalesMap[row.month] = parseInt(row.amount)
       })
       
-      salesTrendData = salesTrendData.map(item => ({
+      salesTrendData = salesTrendData.map((item: any) => ({
         ...item,
         totalSales: totalSalesMap[item.month] || 0
       }))
@@ -220,7 +220,7 @@ router.get('/sales-trend', async (req, res) => {
       const twelveMonthsAgo = new Date(currentDate.getFullYear(), currentDate.getMonth() - 11, 1)
       const usersResult = await pool.query(allUsersQuery, [twelveMonthsAgo])
       
-      const userSalesData = {}
+      const userSalesData: Record<string, any[]> = {}
       
       for (const user of usersResult.rows) {
         const userSalesQuery = `
@@ -236,7 +236,7 @@ router.get('/sales-trend', async (req, res) => {
         `
         
         const userSalesResult = await pool.query(userSalesQuery, [user.name, twelveMonthsAgo])
-        const userSalesMap = {}
+        const userSalesMap: Record<string, number> = {}
         userSalesResult.rows.forEach(row => {
           userSalesMap[row.month] = parseInt(row.amount)
         })
@@ -259,7 +259,7 @@ router.get('/sales-trend', async (req, res) => {
       `
       
       const totalSalesResult = await pool.query(totalSalesQuery, [twelveMonthsAgo])
-      const totalSalesMap = {}
+      const totalSalesMap: Record<string, number> = {}
       totalSalesResult.rows.forEach(row => {
         totalSalesMap[row.month] = parseInt(row.amount)
       })
