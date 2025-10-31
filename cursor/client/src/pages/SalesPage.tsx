@@ -126,6 +126,7 @@ export default function SalesPage() {
 
   const handleAddSale = async () => {
     const companyName = (document.getElementById('add-companyName') as HTMLInputElement)?.value
+    const payerName = (document.getElementById('add-payerName') as HTMLInputElement)?.value
     const salesType = (document.getElementById('add-salesType') as HTMLSelectElement)?.value
     const sourceType = (document.getElementById('add-sourceType') as HTMLSelectElement)?.value
     let amount = parseFormattedNumber((document.getElementById('add-amount') as HTMLInputElement)?.value || '0')
@@ -145,6 +146,7 @@ export default function SalesPage() {
     try {
       await api.post('/sales', {
         companyName,
+        payerName,
         salesType,
         sourceType,
         amount, // 계산된 세전 금액 저장
@@ -154,6 +156,7 @@ export default function SalesPage() {
       
       // 폼 초기화
       ;(document.getElementById('add-companyName') as HTMLInputElement).value = ''
+      ;(document.getElementById('add-payerName') as HTMLInputElement).value = ''
       ;(document.getElementById('add-salesType') as HTMLSelectElement).value = ''
       ;(document.getElementById('add-sourceType') as HTMLSelectElement).value = ''
       ;(document.getElementById('add-amount') as HTMLInputElement).value = ''
@@ -170,6 +173,7 @@ export default function SalesPage() {
   const handleUpdateSale = async () => {
     if (!editingSale) return
 
+    const payerName = (document.getElementById('edit-payerName') as HTMLInputElement)?.value
     const salesType = (document.getElementById('edit-salesType') as HTMLSelectElement)?.value
     const sourceType = (document.getElementById('edit-sourceType') as HTMLSelectElement)?.value
     let amount = parseFormattedNumber((document.getElementById('edit-amount') as HTMLInputElement)?.value || '0')
@@ -184,6 +188,7 @@ export default function SalesPage() {
     try {
       await api.put(`/sales/${editingSale.id}`, {
         companyName: editingSale.companyName,
+        payerName,
         salesType,
         sourceType,
         amount, // 계산된 세전 금액 저장
@@ -405,6 +410,11 @@ export default function SalesPage() {
                   id="add-companyName" 
                   className="w-64 flex-shrink-0 mb-2 focus-visible:ring-offset-0" 
                 />
+                <Input 
+                  placeholder={t('payerName')} 
+                  id="add-payerName" 
+                  className="w-48 flex-shrink-0 mb-2 focus-visible:ring-offset-0" 
+                />
                 <select className="border rounded px-3 py-2 w-28 flex-shrink-0 h-10" id="add-salesType">
                   <option value="">{t('salesType')}</option>
                   <option value="신규매출">{t('newSales')}</option>
@@ -478,6 +488,14 @@ export default function SalesPage() {
                       <>
                         <td className="px-2 py-3 text-sm">{sale.userName}</td>
                         <td className="px-2 py-3 text-sm">{sale.companyName}</td>
+                        <td className="px-2 py-3 text-sm">
+                          <Input 
+                            type="text" 
+                            defaultValue={sale.payerName || ''} 
+                            id="edit-payerName"
+                            className="w-full"
+                          />
+                        </td>
                         <td className="px-2 py-3 text-sm">
                           <select className="border rounded px-2 py-1 w-full" id="edit-salesType" defaultValue={sale.salesType}>
                             <option value="신규매출">{t('newSales')}</option>

@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS sales (
   customer_id UUID REFERENCES customers(id),
   user_id UUID REFERENCES users(id) NOT NULL,
   company_name VARCHAR(255),
+  payer_name VARCHAR(200),
   sales_type VARCHAR(50) NOT NULL,
   source_type VARCHAR(50),
   amount INTEGER NOT NULL,
