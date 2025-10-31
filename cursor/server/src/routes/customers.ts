@@ -241,15 +241,22 @@ router.post('/:id/history', authMiddleware, async (req: AuthRequest, res: Respon
     const customer = customerResult.rows[0]
     
     // Check if user is the manager of this customer (or admin)
+    // Trim spaces for comparison
+    const userName = req.user?.name?.trim() || ''
+    const customerManager = customer.manager?.trim() || ''
+    
     console.log('History permission check:', {
       userRole: req.user?.role,
-      userName: req.user?.name,
-      customerManager: customer.manager,
+      userName: userName,
+      customerManager: customerManager,
       isAdmin: req.user?.role === 'admin',
-      managerMatch: customer.manager === req.user?.name
+      managerMatch: customerManager === userName,
+      userNameLength: userName.length,
+      managerLength: customerManager.length
     })
     
-    if (req.user?.role !== 'admin' && customer.manager !== req.user?.name) {
+    if (req.user?.role !== 'admin' && customerManager !== userName) {
+      console.log('Permission denied:', { customerManager, userName, match: false })
       return res.status(403).json({ message: 'You can only add history to customers assigned to you' })
     }
     
