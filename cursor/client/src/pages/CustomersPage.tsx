@@ -6,12 +6,14 @@ import { useI18nStore } from '../i18n'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardContent } from '../components/ui/card'
+import { useToast } from '../components/ui/toast'
 import { Phone, PhoneOff, MessageSquare, FileText, ExternalLink, Copy, Calendar, Pin, PinOff, Check, Trash2 } from 'lucide-react'
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
 
 export default function CustomersPage() {
   const { t } = useI18nStore()
   const user = useAuthStore(state => state.user)
+  const { showToast } = useToast()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [history, setHistory] = useState<CustomerHistory[]>([])
@@ -133,7 +135,7 @@ export default function CustomersPage() {
     const managerTeam = user?.team || ''
     
     if (!companyName || !industry || !customerName || !phone1) {
-      alert('필수 항목을 입력해주세요')
+      showToast('필수 항목을 입력해주세요', 'error')
       return
     }
     
@@ -143,11 +145,11 @@ export default function CustomersPage() {
         monthlyBudget, region, inflowPath,
         manager, managerTeam, status: '契約中'
       })
-      alert(t('customer') + '이 추가되었습니다')
+      showToast(t('customer') + '이 추가되었습니다', 'success')
       setShowAddForm(false)
       fetchCustomers()
     } catch (error) {
-      alert(t('add') + ' 실패')
+      showToast(t('add') + ' 실패', 'error')
     }
   }
   
@@ -156,11 +158,11 @@ export default function CustomersPage() {
     
     try {
       await api.delete(`/customers/${id}`)
-      alert('삭제되었습니다')
+      showToast('삭제되었습니다', 'success')
       setSelectedCustomer(null)
       fetchCustomers()
     } catch (error: any) {
-      alert(error.response?.data?.message || '삭제 실패 (어드민만 가능)')
+      showToast(error.response?.data?.message || '삭제 실패 (어드민만 가능)', 'error')
     }
   }
   
@@ -175,13 +177,13 @@ export default function CustomersPage() {
         phone3: phoneNumbers[2] || '',
       }
       await api.put(`/customers/${selectedCustomer.id}`, payload)
-      alert(t('save') + '되었습니다')
+      showToast(t('save') + '되었습니다', 'success')
       fetchCustomers()
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert('본인만 내용을 수정 가능합니다')
+        showToast('본인만 내용을 수정 가능합니다', 'error')
       } else {
-        alert(error.response?.data?.message || t('save') + ' 실패')
+        showToast(error.response?.data?.message || t('save') + ' 실패', 'error')
       }
     }
   }
@@ -196,10 +198,10 @@ export default function CustomersPage() {
         phone3: phoneNumbers[2] || '',
       }
       await api.put(`/customers/${selectedCustomer.id}`, { ...selectedCustomer, ...payload })
-      alert(t('save') + '되었습니다')
+      showToast(t('save') + '되었습니다', 'success')
       fetchCustomers()
     } catch (error: any) {
-      alert(error.response?.data?.message || t('save') + ' 실패')
+      showToast(error.response?.data?.message || t('save') + ' 실패', 'error')
     } finally {
       setSavingPhones(false)
       setInitialPhoneCount(phoneNumbers.length)
@@ -213,12 +215,12 @@ export default function CustomersPage() {
     try {
       await api.post(`/customers/${selectedCustomer.id}/extend`)
       fetchHistory(selectedCustomer.id, abortControllerRef.current?.signal)
-      alert('계약이 연장되었습니다')
+      showToast('계약이 연장되었습니다', 'success')
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert('본인만 내용을 수정 가능합니다')
+        showToast('본인만 내용을 수정 가능합니다', 'error')
       } else {
-        alert(error.response?.data?.message || '연장 실패')
+        showToast(error.response?.data?.message || '연장 실패', 'error')
       }
     }
   }
@@ -264,10 +266,10 @@ export default function CustomersPage() {
     try {
       await api.delete(`/customers/${selectedCustomer.id}/history/${historyId}`)
       fetchHistory(selectedCustomer.id)
-      alert('히스토리가 삭제되었습니다')
+      showToast('히스토리가 삭제되었습니다', 'success')
     } catch (error: any) {
       console.error('Failed to delete history:', error)
-      alert(error.response?.data?.message || '히스토리 삭제에 실패했습니다')
+      showToast(error.response?.data?.message || '히스토리 삭제에 실패했습니다', 'error')
     }
   }
 
@@ -290,7 +292,7 @@ export default function CustomersPage() {
       })
     } catch (error) {
       console.error('Failed to toggle history pin:', error)
-      alert('히스토리 고정 상태 변경에 실패했습니다')
+      showToast('히스토리 고정 상태 변경에 실패했습니다', 'error')
     }
   }
 
@@ -319,9 +321,9 @@ export default function CustomersPage() {
         fetchHistory(selectedCustomer.id)
       } catch (error: any) {
         if (error.response?.status === 403) {
-          alert('본인만 내용을 수정 가능합니다')
+          showToast('본인만 내용을 수정 가능합니다', 'error')
         } else {
-          alert(error.response?.data?.message || t('record') + ' 추가 실패')
+          showToast(error.response?.data?.message || t('record') + ' 추가 실패', 'error')
         }
       }
       return
@@ -339,9 +341,9 @@ export default function CustomersPage() {
       fetchHistory(selectedCustomer.id)
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert('본인만 내용을 수정 가능합니다')
+        showToast('본인만 내용을 수정 가능합니다', 'error')
       } else {
-        alert(error.response?.data?.message || t('record') + ' 추가 실패')
+        showToast(error.response?.data?.message || t('record') + ' 추가 실패', 'error')
       }
     }
   }
@@ -581,7 +583,12 @@ export default function CustomersPage() {
       <div className="w-2/5 overflow-y-auto p-4">
         {selectedCustomer ? (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
+              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+                {t('save')}
+              </Button>
+            </div>
             
             {/* Basic Info */}
             <Card>
