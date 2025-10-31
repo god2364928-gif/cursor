@@ -34,8 +34,15 @@ app.use(express.json())
 
 // Add request logging for debugging
 app.use((req, res, next) => {
+  const startTime = Date.now()
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`)
   console.log(`Origin: ${req.headers.origin}`)
+  
+  res.on('finish', () => {
+    const duration = Date.now() - startTime
+    console.log(`[${req.method} ${req.path}] ${res.statusCode} ${duration}ms`)
+  })
+  
   next()
 })
 
