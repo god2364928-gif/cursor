@@ -51,8 +51,11 @@ export default function SalesPage() {
   useEffect(() => {
     ;(async () => {
       try {
+        console.log('Loading users for manager filter...')
         const res = await api.get('/auth/users')
+        console.log('Users loaded:', res.data)
         const names = (res.data || []).map((u: any) => u.name).sort()
+        console.log('Manager options set:', names)
         setManagerOptions(names)
       } catch (e) {
         console.error('Failed to load users for manager filter', e)
