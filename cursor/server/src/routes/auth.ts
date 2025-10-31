@@ -37,12 +37,12 @@ router.post('/login', async (req: Request, res: Response) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name, role: user.role },
+      { id: user.id, email: user.email, name: user.name, role: user.role, team: user.team },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     )
 
-    console.log(`Login success: ${email}`)
+    console.log(`Login success: ${email}, name: ${user.name}, role: ${user.role}, team: ${user.team}`)
     res.json({
       user: {
         id: user.id,
