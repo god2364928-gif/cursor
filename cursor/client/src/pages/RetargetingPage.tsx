@@ -316,7 +316,6 @@ export default function RetargetingPage() {
   }
 
   const normalizeName = (name?: string) => (name || '').replace('﨑', '崎').trim()
-  const myCustomers = customers.filter(c => normalizeName(c.manager) === normalizeName(user?.name))
   const statCustomers = managerFilter === 'all'
     ? customers
     : customers.filter(c => normalizeName(c.manager) === normalizeName(managerFilter))
