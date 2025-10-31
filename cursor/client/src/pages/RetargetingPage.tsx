@@ -40,6 +40,10 @@ export default function RetargetingPage() {
     if (selectedCustomer?.id && selectedCustomer.id !== lastFetchedId.current) {
       lastFetchedId.current = selectedCustomer.id
       
+      // 즉시 리스트 데이터로 초기화 (빠른 반응)
+      setPhoneNumbers(selectedCustomer.phone ? [selectedCustomer.phone] : [''])
+      setInstagramAccounts(selectedCustomer.instagram ? [selectedCustomer.instagram] : [''])
+      
       // 이전 요청 취소
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
