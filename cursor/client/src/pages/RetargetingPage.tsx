@@ -6,6 +6,7 @@ import { useI18nStore } from '../i18n'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardContent } from '../components/ui/card'
+import { useToast } from '../components/ui/toast'
 import { Phone, PhoneOff, MessageSquare, FileText, Target, ExternalLink, Copy, Pin, PinOff, Trash2 } from 'lucide-react'
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
 
@@ -14,6 +15,7 @@ const RETARGETING_TARGET = 200
 export default function RetargetingPage() {
   const { t } = useI18nStore()
   const user = useAuthStore(state => state.user)
+  const { showToast } = useToast()
   const isAdmin = user?.role === 'admin'
   const [customers, setCustomers] = useState<RetargetingCustomer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<RetargetingCustomer | null>(null)
@@ -154,13 +156,13 @@ export default function RetargetingPage() {
     
     try {
       await api.put(`/retargeting/${selectedCustomer.id}`, selectedCustomer)
-      alert('저장되었습니다')
+      showToast('저장되었습니다', 'success')
       fetchCustomers()
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert('본인만 내용을 수정 가능합니다')
+        showToast('본인만 내용을 수정 가능합니다', 'error')
       } else {
-        alert(error.response?.data?.message || '저장 실패')
+        showToast(error.response?.data?.message || '저장 실패', 'error')
       }
     }
   }
@@ -172,10 +174,10 @@ export default function RetargetingPage() {
     try {
       await api.delete(`/retargeting/${selectedCustomer.id}/history/${historyId}`)
       fetchHistory(selectedCustomer.id)
-      alert('히스토리가 삭제되었습니다')
+      showToast('히스토리가 삭제되었습니다', 'success')
     } catch (error: any) {
       console.error('Failed to delete history:', error)
-      alert(error.response?.data?.message || '히스토리 삭제에 실패했습니다')
+      showToast(error.response?.data?.message || '히스토리 삭제에 실패했습니다', 'error')
     }
   }
 
@@ -198,7 +200,7 @@ export default function RetargetingPage() {
       })
     } catch (error) {
       console.error('Failed to toggle history pin:', error)
-      alert('히스토리 고정 상태 변경에 실패했습니다')
+      showToast('히스토리 고정 상태 변경에 실패했습니다', 'error')
     }
   }
 
@@ -244,9 +246,9 @@ export default function RetargetingPage() {
         fetchCustomers()
       } catch (error: any) {
         if (error.response?.status === 403) {
-          alert('본인만 내용을 수정 가능합니다')
+          showToast('본인만 내용을 수정 가능합니다', 'error')
         } else {
-          alert(error.response?.data?.message || t('history') + ' 추가 실패')
+          showToast(error.response?.data?.message || t('history') + ' 추가 실패', 'error')
         }
       }
       return
@@ -276,30 +278,30 @@ export default function RetargetingPage() {
       fetchCustomers()
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert('본인만 내용을 수정 가능합니다')
+        showToast('본인만 내용을 수정 가능합니다', 'error')
       } else {
-        alert(error.response?.data?.message || t('history') + ' 추가 실패')
+        showToast(error.response?.data?.message || t('history') + ' 추가 실패', 'error')
       }
     }
   }
   
   const handleConvert = async () => {
     if (!selectedCustomer || !convertData.monthlyBudget || !convertData.contractStartDate || !convertData.contractExpirationDate) {
-      alert('모든 필드를 입력해주세요')
+      showToast('모든 필드를 입력해주세요', 'error')
       return
     }
     
     try {
       await api.post(`/retargeting/${selectedCustomer.id}/convert`, convertData)
-      alert('계약완료되었습니다')
+      showToast('계약완료되었습니다', 'success')
       setShowConvertModal(false)
       setSelectedCustomer(null)
       fetchCustomers()
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert('본인만 내용을 수정 가능합니다')
+        showToast('본인만 내용을 수정 가능합니다', 'error')
       } else {
-        alert(error.response?.data?.message || '계약완료 실패')
+        showToast(error.response?.data?.message || '계약완료 실패', 'error')
       }
     }
   }
@@ -313,7 +315,7 @@ export default function RetargetingPage() {
     const inflowPath = (document.getElementById('new-inflowPath') as HTMLSelectElement)?.value
     
     if (!companyName || !industry || !customerName || !phone) {
-      alert('필수 필드를 입력해주세요')
+      showToast('필수 필드를 입력해주세요', 'error')
       return
     }
     
@@ -343,10 +345,11 @@ export default function RetargetingPage() {
       ;(document.getElementById('new-region') as HTMLInputElement).value = ''
       ;(document.getElementById('new-inflowPath') as HTMLSelectElement).value = ''
       
+      showToast('고객이 추가되었습니다', 'success')
       setShowAddForm(false)
       fetchCustomers()
     } catch (error) {
-      alert(t('add') + ' 실패')
+      showToast(t('add') + ' 실패', 'error')
     }
   }
   
@@ -691,7 +694,12 @@ export default function RetargetingPage() {
       }}>
         {selectedCustomer ? (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
+              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+                {t('save')}
+              </Button>
+            </div>
             
             {/* Basic Info */}
         <Card>
@@ -945,8 +953,6 @@ export default function RetargetingPage() {
             
             {/* Actions */}
             <div className="flex gap-2">
-              <Button onClick={handleSave} className="flex-1">{t('save')}</Button>
-              
               {/* trash 상태에 따른 버튼 표시 */}
               {(selectedCustomer.status === 'trash' || selectedCustomer.status === 'ゴミ箱') ? (
                 <Button 
@@ -957,13 +963,13 @@ export default function RetargetingPage() {
                     try {
                       await api.put(`/retargeting/${selectedCustomer.id}`, updated)
                       setSelectedCustomer(updated)
-                      alert('영업중으로 이동되었습니다')
+                      showToast('영업중으로 이동되었습니다', 'success')
                       fetchCustomers()
                     } catch (error: any) {
                       if (error.response?.status === 403) {
-                        alert('본인만 내용을 수정 가능합니다')
+                        showToast('본인만 내용을 수정 가능합니다', 'error')
                       } else {
-                        alert(error.response?.data?.message || '이동 실패')
+                        showToast(error.response?.data?.message || '이동 실패', 'error')
                       }
                     }
                   }}
@@ -980,13 +986,13 @@ export default function RetargetingPage() {
                     try {
                       await api.put(`/retargeting/${selectedCustomer.id}`, updated)
                       setSelectedCustomer(updated)
-                      alert('trash으로 이동되었습니다')
+                      showToast('trash으로 이동되었습니다', 'success')
                       fetchCustomers()
                     } catch (error: any) {
                       if (error.response?.status === 403) {
-                        alert('본인만 내용을 수정 가능합니다')
+                        showToast('본인만 내용을 수정 가능합니다', 'error')
                       } else {
-                        alert(error.response?.data?.message || '이동 실패')
+                        showToast(error.response?.data?.message || '이동 실패', 'error')
                       }
                     }
                   }}
