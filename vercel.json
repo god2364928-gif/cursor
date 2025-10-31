@@ -1,7 +1,7 @@
 {
-  "buildCommand": "cd cursor && npm install && npm run build:client",
-  "outputDirectory": "cursor/client/dist",
-  "installCommand": "echo 'Skip root install'",
+  "buildCommand": "npm install && npm run build:client",
+  "outputDirectory": "client/dist",
+  "installCommand": "npm install",
   "env": {
     "DATABASE_URL": "postgresql://postgres:tsFzikkSDWQYOxvVmJBnPUsXYwLApQhI@nozomi.proxy.rlwy.net:53548/railway",
     "JWT_SECRET": "your-secret-key-here"

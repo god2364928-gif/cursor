@@ -20,7 +20,7 @@ yarn-error.log*
 
 # Dependencies
 node_modules/
-package-lock.json
+# package-lock.json  # Vercel needs this file
 
 # Build outputs
 dist/
