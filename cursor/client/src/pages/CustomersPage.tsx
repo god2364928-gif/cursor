@@ -6,7 +6,7 @@ import { useI18nStore } from '../i18n'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardContent } from '../components/ui/card'
-import { Phone, PhoneOff, MessageSquare, FileText, ExternalLink, Copy, Calendar, Pin, PinOff, Check } from 'lucide-react'
+import { Phone, PhoneOff, MessageSquare, FileText, ExternalLink, Copy, Calendar, Pin, PinOff, Check, Trash2 } from 'lucide-react'
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
 
 export default function CustomersPage() {
@@ -19,7 +19,7 @@ export default function CustomersPage() {
   const [managerFilter, setManagerFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
-  const [historyType, setHistoryType] = useState<'call_attempt' | 'call_success' | 'kakao' | 'memo'>('memo')
+  const [historyType, setHistoryType] = useState<'call_attempt' | 'call_success' | 'line' | 'memo'>('memo')
   const [historyContent, setHistoryContent] = useState('')
   const [phoneNumbers, setPhoneNumbers] = useState<string[]>([''])
   const [instagramAccounts, setInstagramAccounts] = useState<string[]>([''])
@@ -257,6 +257,20 @@ export default function CustomersPage() {
     // selectedCustomer를 업데이트하지 않음 - 저장 시에만 서버에 반영
   }
 
+  const handleDeleteHistory = async (historyId: string) => {
+    if (!selectedCustomer) return
+    if (!confirm('정말로 이 히스토리를 삭제하시겠습니까?')) return
+    
+    try {
+      await api.delete(`/customers/${selectedCustomer.id}/history/${historyId}`)
+      fetchHistory(selectedCustomer.id)
+      alert('히스토리가 삭제되었습니다')
+    } catch (error: any) {
+      console.error('Failed to delete history:', error)
+      alert(error.response?.data?.message || '히스토리 삭제에 실패했습니다')
+    }
+  }
+
   const toggleHistoryPin = async (historyId: string, isPinned: boolean) => {
     if (!selectedCustomer) return
     
@@ -416,7 +430,8 @@ export default function CustomersPage() {
     switch (type) {
       case 'call_attempt': return <Phone className="h-4 w-4 text-gray-500" />
       case 'call_success': return <Phone className="h-4 w-4 text-green-600" />
-      case 'kakao': return <MessageSquare className="h-4 w-4 text-blue-600" />
+      case 'kakao':
+      case 'line': return <MessageSquare className="h-4 w-4 text-blue-600" />
       case 'contract_extended': return <Calendar className="h-4 w-4 text-green-600" />
       default: return <FileText className="h-4 w-4 text-gray-500" />
     }
@@ -890,8 +905,8 @@ export default function CustomersPage() {
               </Button>
               <Button
                 size="sm"
-                variant={historyType === 'kakao' ? 'default' : 'outline'}
-                onClick={() => setHistoryType('kakao')}
+                variant={historyType === 'line' ? 'default' : 'outline'}
+                onClick={() => setHistoryType('line')}
               >
                 <MessageSquare className="h-4 w-4 mr-1" />{t('kakaoTalk')}
               </Button>
@@ -929,11 +944,18 @@ export default function CustomersPage() {
                   </span>
                 )}
                 <span className="text-xs text-gray-500">{formatDateTime(item.createdAt)}</span>
+                {isAdmin && (
+                  <button
+                    onClick={() => handleDeleteHistory(item.id)}
+                    className="ml-auto p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600"
+                    title="삭제"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
                 <button
                   onClick={() => toggleHistoryPin(item.id, !item.isPinned)}
-                  className={`ml-auto p-1 rounded hover:bg-gray-100 ${
-                    item.isPinned ? 'text-yellow-600' : 'text-gray-400'
-                  }`}
+                  className="p-1 rounded hover:bg-gray-100 text-gray-400"
                   title={item.isPinned ? t('unpin') : t('pin')}
                 >
                   {item.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}

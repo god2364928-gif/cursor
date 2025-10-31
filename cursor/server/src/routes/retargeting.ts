@@ -158,7 +158,11 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
     const customer = customerResult.rows[0]
     
     // Check if user is the manager of this customer (or admin)
-    if (req.user?.role !== 'admin' && customer.manager !== req.user?.name) {
+    // Trim spaces for comparison
+    const userName = req.user?.name?.trim() || ''
+    const customerManager = customer.manager?.trim() || ''
+    
+    if (req.user?.role !== 'admin' && customerManager !== userName) {
       return res.status(403).json({ message: 'You can only edit retargeting customers assigned to you' })
     }
     
@@ -195,7 +199,11 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
     const customer = customerResult.rows[0]
     
     // Check if user is the manager of this customer (or admin)
-    if (req.user?.role !== 'admin' && customer.manager !== req.user?.name) {
+    // Trim spaces for comparison
+    const userName = req.user?.name?.trim() || ''
+    const customerManager = customer.manager?.trim() || ''
+    
+    if (req.user?.role !== 'admin' && customerManager !== userName) {
       return res.status(403).json({ message: 'You can only delete retargeting customers assigned to you' })
     }
     
@@ -289,6 +297,36 @@ router.post('/:id/history', authMiddleware, async (req: AuthRequest, res: Respon
     res.json(camelCaseHistory)
   } catch (error) {
     console.error('Error adding retargeting history:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// Delete history (admin only)
+router.delete('/:id/history/:historyId', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    // Check if user is admin
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' })
+    }
+    
+    const { id, historyId } = req.params
+    
+    // Check if history exists and belongs to this retargeting customer
+    const historyCheck = await pool.query(
+      'SELECT id FROM retargeting_history WHERE id = $1 AND retargeting_customer_id = $2',
+      [historyId, id]
+    )
+    
+    if (historyCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'History not found' })
+    }
+    
+    // Delete history
+    await pool.query('DELETE FROM retargeting_history WHERE id = $1', [historyId])
+    
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting retargeting history:', error)
     res.status(500).json({ message: 'Internal server error' })
   }
 })

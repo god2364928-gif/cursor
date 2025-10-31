@@ -172,7 +172,7 @@ const translations: Record<Language, Translation> = {
     // History Types
     missedCall: '不在',
     callSuccess: '通話成功',
-    kakaoTalk: 'カトク',
+    kakaoTalk: 'ライン',
     
     // Settings
     userManagement: 'ユーザー管理',
@@ -374,7 +374,7 @@ const translations: Record<Language, Translation> = {
     // History Types
     missedCall: '부재중',
     callSuccess: '통화성공',
-    kakaoTalk: '카톡',
+    kakaoTalk: '라인',
     
     // Settings
     userManagement: '직원 관리',
