@@ -188,7 +188,12 @@ export default function RetargetingPage() {
   }
 
   const handleAddHistory = async () => {
-    if (!selectedCustomer) return
+    if (!selectedCustomer) {
+      console.log('handleAddHistory: No selected customer')
+      return
+    }
+    
+    console.log('handleAddHistory called:', { historyType, historyContent, selectedCustomerId: selectedCustomer.id })
     
     // 부재중과 통화성공 처리
     if (historyType === 'missed_call' || historyType === 'call_success') {
