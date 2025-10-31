@@ -65,7 +65,7 @@ app.get('/api/test/customers', async (req, res) => {
     const result = await pool.query('SELECT COUNT(*) FROM customers')
     res.json({ count: result.rows[0].count, message: 'Database connection OK' })
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) })
   }
 })
 
