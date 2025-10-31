@@ -27,6 +27,7 @@ export default function CustomersPage() {
   const [initialPhoneCount, setInitialPhoneCount] = useState(0)
   const isAdmin = user?.role === 'admin'
   const lastFetchedId = useRef<string | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     fetchCustomers()
@@ -35,10 +36,28 @@ export default function CustomersPage() {
   useEffect(() => {
     if (selectedCustomer?.id && selectedCustomer.id !== lastFetchedId.current) {
       lastFetchedId.current = selectedCustomer.id
-      fetchCustomerDetail(selectedCustomer.id)
-      fetchHistory(selectedCustomer.id)
+      
+      // 이전 요청 취소
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      
+      // 새 요청 생성
+      abortControllerRef.current = new AbortController()
+      
+      fetchCustomerDetail(selectedCustomer.id, abortControllerRef.current.signal)
+      fetchHistory(selectedCustomer.id, abortControllerRef.current.signal)
     }
   }, [selectedCustomer?.id])
+  
+  // 컴포넌트 언마운트 시 요청 취소
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [])
 
   const fetchCustomers = async () => {
     try {
@@ -53,9 +72,9 @@ export default function CustomersPage() {
     }
   }
   
-  const fetchCustomerDetail = async (id: string) => {
+  const fetchCustomerDetail = async (id: string, signal?: AbortSignal) => {
     try {
-      const response = await api.get(`/customers/${id}`)
+      const response = await api.get(`/customers/${id}`, { signal })
       const customer = response.data
       // 날짜 필드 정규화
       if (customer.contractStartDate && customer.contractStartDate.includes('T')) {
@@ -73,17 +92,23 @@ export default function CustomersPage() {
       setInitialPhoneCount(phones.length)
       setInstagramAccounts(customer.instagram ? [customer.instagram] : [''])
       setSelectedCustomer(customer)
-    } catch (error) {
-      console.error('Failed to fetch customer detail:', error)
+    } catch (error: any) {
+      // AbortError는 무시 (요청이 취소된 경우)
+      if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+        console.error('Failed to fetch customer detail:', error)
+      }
     }
   }
   
-  const fetchHistory = async (id: string) => {
+  const fetchHistory = async (id: string, signal?: AbortSignal) => {
     try {
-      const response = await api.get(`/customers/${id}/history`)
+      const response = await api.get(`/customers/${id}/history`, { signal })
       setHistory(response.data)
-    } catch (error) {
-      console.error('Failed to fetch history:', error)
+    } catch (error: any) {
+      // AbortError는 무시 (요청이 취소된 경우)
+      if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+        console.error('Failed to fetch history:', error)
+      }
     }
   }
   
