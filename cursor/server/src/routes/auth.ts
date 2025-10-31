@@ -109,14 +109,9 @@ router.post('/users', authMiddleware, async (req: AuthRequest, res: Response) =>
   }
 })
 
-// Get all users (admin only)
+// Get all users (all authenticated users can access)
 router.get('/users', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    // Check if user is admin
-    if (req.user?.role !== 'admin') {
-      return res.status(403).json({ message: 'Admin access required' })
-    }
-
     const result = await pool.query(
       'SELECT id, name, email, team, role, created_at FROM users ORDER BY created_at DESC'
     )
