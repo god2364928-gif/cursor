@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import api from '../lib/api'
 import { Customer, CustomerHistory } from '../types'
 import { useAuthStore } from '../store/authStore'
@@ -26,13 +26,15 @@ export default function CustomersPage() {
   const [savingPhones, setSavingPhones] = useState(false)
   const [initialPhoneCount, setInitialPhoneCount] = useState(0)
   const isAdmin = user?.role === 'admin'
+  const lastFetchedId = useRef<string | null>(null)
 
   useEffect(() => {
     fetchCustomers()
   }, [])
   
   useEffect(() => {
-    if (selectedCustomer?.id) {
+    if (selectedCustomer?.id && selectedCustomer.id !== lastFetchedId.current) {
+      lastFetchedId.current = selectedCustomer.id
       fetchCustomerDetail(selectedCustomer.id)
       fetchHistory(selectedCustomer.id)
     }
@@ -62,7 +64,6 @@ export default function CustomersPage() {
       if (customer.contractExpirationDate && customer.contractExpirationDate.includes('T')) {
         customer.contractExpirationDate = customer.contractExpirationDate.split('T')[0]
       }
-      setSelectedCustomer(customer)
       // 전화번호와 인스타그램 배열 초기화 (phone1~3 모두 반영)
       const phones: string[] = []
       if (customer.phone1) phones.push(customer.phone1)
@@ -71,6 +72,7 @@ export default function CustomersPage() {
       setPhoneNumbers(phones.length > 0 ? phones : [''])
       setInitialPhoneCount(phones.length)
       setInstagramAccounts(customer.instagram ? [customer.instagram] : [''])
+      setSelectedCustomer(customer)
     } catch (error) {
       console.error('Failed to fetch customer detail:', error)
     }
