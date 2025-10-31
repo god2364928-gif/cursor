@@ -91,7 +91,7 @@ export default function CustomersPage() {
       setPhoneNumbers(phones.length > 0 ? phones : [''])
       setInitialPhoneCount(phones.length)
       setInstagramAccounts(customer.instagram ? [customer.instagram] : [''])
-      setSelectedCustomer(customer)
+      // setSelectedCustomer를 호출하지 않음 - 이미 리스트에서 선택된 상태이므로
     } catch (error: any) {
       // AbortError는 무시 (요청이 취소된 경우)
       if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
@@ -202,12 +202,8 @@ export default function CustomersPage() {
     if (!confirm('계약을 1개월 연장하시겠습니까?')) return
     
     try {
-      const response = await api.post(`/customers/${selectedCustomer.id}/extend`)
-      setSelectedCustomer({
-        ...selectedCustomer,
-        contractExpirationDate: response.data.newExpirationDate
-      })
-      fetchHistory(selectedCustomer.id)
+      await api.post(`/customers/${selectedCustomer.id}/extend`)
+      fetchHistory(selectedCustomer.id, abortControllerRef.current?.signal)
       alert('계약이 연장되었습니다')
     } catch (error: any) {
       if (error.response?.status === 403) {
@@ -232,14 +228,7 @@ export default function CustomersPage() {
     const newPhoneNumbers = [...phoneNumbers]
     newPhoneNumbers[index] = value
     setPhoneNumbers(newPhoneNumbers)
-    // selectedCustomer의 phone1~3 동기화
-    if (selectedCustomer) {
-      const patch: any = { ...selectedCustomer }
-      patch.phone1 = newPhoneNumbers[0] || ''
-      patch.phone2 = newPhoneNumbers[1] || ''
-      patch.phone3 = newPhoneNumbers[2] || ''
-      setSelectedCustomer(patch)
-    }
+    // selectedCustomer를 업데이트하지 않음 - 저장 시에만 서버에 반영
   }
 
   const addInstagramAccount = () => {
@@ -256,10 +245,7 @@ export default function CustomersPage() {
     const newInstagramAccounts = [...instagramAccounts]
     newInstagramAccounts[index] = value
     setInstagramAccounts(newInstagramAccounts)
-    // 첫 번째 인스타그램을 selectedCustomer의 instagram에 저장
-    if (selectedCustomer) {
-      setSelectedCustomer({...selectedCustomer, instagram: newInstagramAccounts[0] || ''})
-    }
+    // selectedCustomer를 업데이트하지 않음 - 저장 시에만 서버에 반영
   }
 
   const toggleHistoryPin = async (historyId: string, isPinned: boolean) => {
