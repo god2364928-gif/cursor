@@ -118,11 +118,13 @@ CREATE TABLE IF NOT EXISTS sales (
 CREATE INDEX IF NOT EXISTS idx_customers_manager ON customers(manager);
 CREATE INDEX IF NOT EXISTS idx_customers_status ON customers(status);
 CREATE INDEX IF NOT EXISTS idx_customer_history_customer_id ON customer_history(customer_id);
+CREATE INDEX IF NOT EXISTS idx_customer_history_user_id ON customer_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_retargeting_customers_manager ON retargeting_customers(manager);
 CREATE INDEX IF NOT EXISTS idx_retargeting_customers_status ON retargeting_customers(status);
 CREATE INDEX IF NOT EXISTS idx_retargeting_history_customer_id ON retargeting_history(retargeting_customer_id);
 CREATE INDEX IF NOT EXISTS idx_sales_user_id ON sales(user_id);
 CREATE INDEX IF NOT EXISTS idx_sales_contract_date ON sales(contract_date);
+CREATE INDEX IF NOT EXISTS idx_sales_sales_type ON sales(sales_type);
 
 -- =============================
 -- Performance tracking (real payments)
