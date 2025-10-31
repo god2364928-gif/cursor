@@ -1,0 +1,9 @@
+[phases.setup]
+nixPkgs = ['nodejs-18_x']
+
+[phases.build]
+cmds = ['cd cursor/server && npm install && npm run build']
+
+[start]
+cmd = 'cd cursor/server && npm start'
+
