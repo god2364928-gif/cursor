@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm install && npm run build:client",
+  "outputDirectory": "client/dist",
+  "env": {
+    "DATABASE_URL": "postgresql://postgres:tsFzikkSDWQYOxvVmJBnPUsXYwLApQhI@nozomi.proxy.rlwy.net:53548/railway",
+    "JWT_SECRET": "your-secret-key-here"
+  }
+}
