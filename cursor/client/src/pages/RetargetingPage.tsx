@@ -169,13 +169,13 @@ export default function RetargetingPage() {
     
     try {
       await api.put(`/retargeting/${selectedCustomer.id}`, selectedCustomer)
-      showToast('저장되었습니다', 'success')
+      showToast(t('saved'), 'success')
       fetchCustomers()
     } catch (error: any) {
       if (error.response?.status === 403) {
-        showToast('본인만 내용을 수정 가능합니다', 'error')
+        showToast(t('onlyOwnerCanModify'), 'error')
       } else {
-        showToast(error.response?.data?.message || '저장 실패', 'error')
+        showToast(error.response?.data?.message || t('saveFailed'), 'error')
       }
     }
   }
@@ -187,10 +187,10 @@ export default function RetargetingPage() {
     try {
       await api.delete(`/retargeting/${selectedCustomer.id}/history/${historyId}`)
       fetchHistory(selectedCustomer.id)
-      showToast('히스토리가 삭제되었습니다', 'success')
+      showToast(t('historyDeleted'), 'success')
     } catch (error: any) {
       console.error('Failed to delete history:', error)
-      showToast(error.response?.data?.message || '히스토리 삭제에 실패했습니다', 'error')
+      showToast(error.response?.data?.message || t('historyDeleteFailed'), 'error')
     }
   }
 
@@ -260,7 +260,7 @@ export default function RetargetingPage() {
       link.remove()
       window.URL.revokeObjectURL(url)
     } catch (error: any) {
-      showToast(error.response?.data?.message || '파일 다운로드 실패', 'error')
+      showToast(error.response?.data?.message || t('fileDownloadFailed'), 'error')
     }
   }
 
@@ -274,7 +274,7 @@ export default function RetargetingPage() {
       // Update local state
       setFiles(prev => prev.map(f => f.id === fileId ? { ...f, fileName: newFileName } : f))
     } catch (error: any) {
-      showToast(error.response?.data?.message || '파일명 변경 실패', 'error')
+      showToast(error.response?.data?.message || t('fileRenameFailed'), 'error')
       // Revert to original name
       fetchFiles(selectedCustomer.id)
     }
@@ -294,7 +294,7 @@ export default function RetargetingPage() {
       fetchFiles(selectedCustomer.id)
       showToast(t('fileDeleted'), 'success')
     } catch (error: any) {
-      showToast(error.response?.data?.message || '파일 삭제 실패', 'error')
+      showToast(error.response?.data?.message || t('fileDeleteFailed'), 'error')
     }
   }
 
@@ -371,9 +371,9 @@ export default function RetargetingPage() {
         fetchCustomers()
       } catch (error: any) {
         if (error.response?.status === 403) {
-          showToast('본인만 내용을 수정 가능합니다', 'error')
+          showToast(t('onlyOwnerCanModify'), 'error')
         } else {
-          showToast(error.response?.data?.message || t('history') + ' 추가 실패', 'error')
+          showToast(error.response?.data?.message || t('addFailed'), 'error')
         }
       }
       return
@@ -403,9 +403,9 @@ export default function RetargetingPage() {
       fetchCustomers()
     } catch (error: any) {
       if (error.response?.status === 403) {
-        showToast('본인만 내용을 수정 가능합니다', 'error')
+        showToast(t('onlyOwnerCanModify'), 'error')
       } else {
-        showToast(error.response?.data?.message || t('history') + ' 추가 실패', 'error')
+        showToast(error.response?.data?.message || t('addFailed'), 'error')
       }
     }
   }
@@ -418,15 +418,15 @@ export default function RetargetingPage() {
     
     try {
       await api.post(`/retargeting/${selectedCustomer.id}/convert`, convertData)
-      showToast('계약완료되었습니다', 'success')
+      showToast(t('customerConverted'), 'success')
       setShowConvertModal(false)
       setSelectedCustomer(null)
       fetchCustomers()
     } catch (error: any) {
       if (error.response?.status === 403) {
-        showToast('본인만 내용을 수정 가능합니다', 'error')
+        showToast(t('onlyOwnerCanModify'), 'error')
       } else {
-        showToast(error.response?.data?.message || '계약완료 실패', 'error')
+        showToast(error.response?.data?.message || t('convertFailed'), 'error')
       }
     }
   }
@@ -1142,9 +1142,9 @@ export default function RetargetingPage() {
                       fetchCustomers()
                     } catch (error: any) {
                       if (error.response?.status === 403) {
-                        showToast('본인만 내용을 수정 가능합니다', 'error')
+                        showToast(t('onlyOwnerCanModify'), 'error')
                       } else {
-                        showToast(error.response?.data?.message || '이동 실패', 'error')
+                        showToast(error.response?.data?.message || t('moveFailed'), 'error')
                       }
                     }
                   }}
@@ -1165,9 +1165,9 @@ export default function RetargetingPage() {
                       fetchCustomers()
                     } catch (error: any) {
                       if (error.response?.status === 403) {
-                        showToast('본인만 내용을 수정 가능합니다', 'error')
+                        showToast(t('onlyOwnerCanModify'), 'error')
                       } else {
-                        showToast(error.response?.data?.message || '이동 실패', 'error')
+                        showToast(error.response?.data?.message || t('moveFailed'), 'error')
                       }
                     }
                   }}

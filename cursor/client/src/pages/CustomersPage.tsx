@@ -189,11 +189,11 @@ export default function CustomersPage() {
     
     try {
       await api.delete(`/customers/${id}`)
-      showToast('삭제되었습니다', 'success')
+      showToast(t('deleted'), 'success')
       setSelectedCustomer(null)
       fetchCustomers()
     } catch (error: any) {
-      showToast(error.response?.data?.message || '삭제 실패 (어드민만 가능)', 'error')
+      showToast(error.response?.data?.message || t('deleteFailedAdmin'), 'error')
     }
   }
   
@@ -208,13 +208,13 @@ export default function CustomersPage() {
         phone3: phoneNumbers[2] || '',
       }
       await api.put(`/customers/${selectedCustomer.id}`, payload)
-      showToast(t('save') + '되었습니다', 'success')
+      showToast(t('saved'), 'success')
       fetchCustomers()
     } catch (error: any) {
       if (error.response?.status === 403) {
-        showToast('본인만 내용을 수정 가능합니다', 'error')
+        showToast(t('onlyOwnerCanModify'), 'error')
       } else {
-        showToast(error.response?.data?.message || t('save') + ' 실패', 'error')
+        showToast(error.response?.data?.message || t('saveFailed'), 'error')
       }
     }
   }
@@ -229,10 +229,10 @@ export default function CustomersPage() {
         phone3: phoneNumbers[2] || '',
       }
       await api.put(`/customers/${selectedCustomer.id}`, { ...selectedCustomer, ...payload })
-      showToast(t('save') + '되었습니다', 'success')
+      showToast(t('saved'), 'success')
       fetchCustomers()
     } catch (error: any) {
-      showToast(error.response?.data?.message || t('save') + ' 실패', 'error')
+      showToast(error.response?.data?.message || t('saveFailed'), 'error')
     } finally {
       setSavingPhones(false)
       setInitialPhoneCount(phoneNumbers.length)
@@ -246,12 +246,12 @@ export default function CustomersPage() {
     try {
       await api.post(`/customers/${selectedCustomer.id}/extend`)
       fetchHistory(selectedCustomer.id, abortControllerRef.current?.signal)
-      showToast('계약이 연장되었습니다', 'success')
+      showToast(t('contractExtended'), 'success')
     } catch (error: any) {
       if (error.response?.status === 403) {
-        showToast('본인만 내용을 수정 가능합니다', 'error')
+        showToast(t('onlyOwnerCanModify'), 'error')
       } else {
-        showToast(error.response?.data?.message || '연장 실패', 'error')
+        showToast(error.response?.data?.message || t('extensionFailed'), 'error')
       }
     }
   }
@@ -297,10 +297,10 @@ export default function CustomersPage() {
     try {
       await api.delete(`/customers/${selectedCustomer.id}/history/${historyId}`)
       fetchHistory(selectedCustomer.id)
-      showToast('히스토리가 삭제되었습니다', 'success')
+      showToast(t('historyDeleted'), 'success')
     } catch (error: any) {
       console.error('Failed to delete history:', error)
-      showToast(error.response?.data?.message || '히스토리 삭제에 실패했습니다', 'error')
+      showToast(error.response?.data?.message || t('historyDeleteFailed'), 'error')
     }
   }
 
@@ -370,7 +370,7 @@ export default function CustomersPage() {
       link.remove()
       window.URL.revokeObjectURL(url)
     } catch (error: any) {
-      showToast(error.response?.data?.message || '파일 다운로드 실패', 'error')
+      showToast(error.response?.data?.message || t('fileDownloadFailed'), 'error')
     }
   }
 
@@ -384,7 +384,7 @@ export default function CustomersPage() {
       // Update local state
       setFiles(prev => prev.map(f => f.id === fileId ? { ...f, fileName: newFileName } : f))
     } catch (error: any) {
-      showToast(error.response?.data?.message || '파일명 변경 실패', 'error')
+      showToast(error.response?.data?.message || t('fileRenameFailed'), 'error')
       // Revert to original name
       fetchFiles(selectedCustomer.id)
     }
@@ -404,7 +404,7 @@ export default function CustomersPage() {
       fetchFiles(selectedCustomer.id)
       showToast(t('fileDeleted'), 'success')
     } catch (error: any) {
-      showToast(error.response?.data?.message || '파일 삭제 실패', 'error')
+      showToast(error.response?.data?.message || t('fileDeleteFailed'), 'error')
     }
   }
 
@@ -464,9 +464,9 @@ export default function CustomersPage() {
         fetchHistory(selectedCustomer.id)
       } catch (error: any) {
         if (error.response?.status === 403) {
-          showToast('본인만 내용을 수정 가능합니다', 'error')
+          showToast(t('onlyOwnerCanModify'), 'error')
         } else {
-          showToast(error.response?.data?.message || t('record') + ' 추가 실패', 'error')
+          showToast(error.response?.data?.message || t('addFailed'), 'error')
         }
       }
       return
@@ -484,9 +484,9 @@ export default function CustomersPage() {
       fetchHistory(selectedCustomer.id)
     } catch (error: any) {
       if (error.response?.status === 403) {
-        showToast('본인만 내용을 수정 가능합니다', 'error')
+        showToast(t('onlyOwnerCanModify'), 'error')
       } else {
-        showToast(error.response?.data?.message || t('record') + ' 추가 실패', 'error')
+        showToast(error.response?.data?.message || t('addFailed'), 'error')
       }
     }
   }
