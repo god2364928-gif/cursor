@@ -872,22 +872,18 @@ export default function RetargetingPage() {
         height: '100vh'
       }}>
         {selectedCustomer ? (
-          <>
-            {/* Fixed header */}
-            <div style={{ flexShrink: 0, padding: '16px', backgroundColor: 'white', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 10 }}>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
-                <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
-                  {t('save')}
-                </Button>
-              </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
+              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+                {t('save')}
+              </Button>
             </div>
+            <div className="border-t border-gray-200"></div>
             
-            {/* Scrollable content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
-              <div className="space-y-4">
-                {/* Basic Info */}
-        <Card>
+            {/* Basic Info */}
+            <Card>
               <CardContent className="p-4">
                 <h3 className="font-semibold mb-3">{t('basicInfo')}</h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -1177,14 +1173,13 @@ export default function RetargetingPage() {
                   {t('moveToTrash')}
                 </Button>
               )}
-                
-                {normalizeStatus(selectedCustomer.status) !== 'ゴミ箱' && (
-                  <Button onClick={() => setShowConvertModal(true)} className="bg-green-600">{t('convertToCustomer')}</Button>
-                )}
-              </div>
-              </div>
+              
+              {normalizeStatus(selectedCustomer.status) !== 'ゴミ箱' && (
+                <Button onClick={() => setShowConvertModal(true)} className="bg-green-600">{t('convertToCustomer')}</Button>
+              )}
             </div>
-          </>
+            </div>
+          </div>
         ) : (
           <div className="text-center text-gray-500 mt-20">
             {t('selectCustomer')}
@@ -1201,19 +1196,15 @@ export default function RetargetingPage() {
         height: '100vh'
       }}>
         {selectedCustomer ? (
-          <>
-            {/* Fixed header */}
-            <div style={{ flexShrink: 0, padding: '16px', backgroundColor: 'white', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 10 }}>
-              <h2 className="text-xl font-bold">{t('history')}</h2>
-            </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            <div className="space-y-4">
+            <h2 className="text-xl font-bold">{t('history')}</h2>
+            <div className="border-t border-gray-200"></div>
             
-            {/* Scrollable content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
-              <div className="space-y-4">
-                {/* Files */}
-                <Card>
-                  <CardContent className="p-4">
-                    <div className={files.length > 0 ? "mb-3" : ""}>
+            {/* Files */}
+            <Card>
+              <CardContent className="p-4">
+                <div className={files.length > 0 ? "mb-3" : ""}>
                       <input
                         type="file"
                         onChange={handleFileUpload}
@@ -1280,92 +1271,91 @@ export default function RetargetingPage() {
                 </Card>
                 
                 {/* History */}
-        <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-3">{t('history')}</h3>
-                
-                {/* History Tabs */}
-                <div className="flex gap-2 mb-4">
-                  <Button
-                    size="sm"
-                    variant={historyType === 'missed_call' ? 'default' : 'outline'}
-                    onClick={() => setHistoryType('missed_call')}
-                  >
-                    <PhoneOff className="h-4 w-4 mr-1" />{t('missedCall')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={historyType === 'call_success' ? 'default' : 'outline'}
-                    onClick={() => setHistoryType('call_success')}
-                  >
-                    <Phone className="h-4 w-4 mr-1" />{t('callSuccess')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={historyType === 'line' ? 'default' : 'outline'}
-                    onClick={() => setHistoryType('line')}
-                  >
-                    <MessageSquare className="h-4 w-4 mr-1" />{t('kakaoTalk')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={historyType === 'memo' ? 'default' : 'outline'}
-                    onClick={() => setHistoryType('memo')}
-                  >
-                    <FileText className="h-4 w-4 mr-1" />{t('memo')}
-                  </Button>
-                </div>
-                
-                {/* Add History */}
-                <div className="mb-4">
-                  <textarea
-                    className="w-full border rounded p-2 mb-2"
-                    placeholder={t('enterContent')}
-                    value={historyContent}
-                    onChange={e => setHistoryContent(e.target.value)}
-                  />
-                  <Button onClick={handleAddHistory} className="w-full">{t('add')}</Button>
-                </div>
-                
-                {/* History Timeline */}
-                <div className="space-y-2">
-                  {history.map(item => (
-                    <div key={item.id} className={`border-l-2 pl-3 py-2 ${item.isPinned ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        {getHistoryIcon(item.type)}
-                        <span className="text-sm font-semibold">{item.userName}</span>
-                        {item.isPinned && (
-                          <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
-                            {t('pinned')}
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-500">{formatDateTime(item.createdAt)}</span>
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleDeleteHistory(item.id)}
-                            className="ml-auto p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600"
-                            title="삭제"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => toggleHistoryPin(item.id, !item.isPinned)}
-                          className="p-1 rounded hover:bg-gray-100 text-gray-400"
-                          title={item.isPinned ? t('unpin') : t('pin')}
-                        >
-                          {item.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      <div className="text-sm text-gray-700 whitespace-pre-line">{item.content}</div>
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">{t('history')}</h3>
+                    
+                    {/* History Tabs */}
+                    <div className="flex gap-2 mb-4">
+                      <Button
+                        size="sm"
+                        variant={historyType === 'missed_call' ? 'default' : 'outline'}
+                        onClick={() => setHistoryType('missed_call')}
+                      >
+                        <PhoneOff className="h-4 w-4 mr-1" />{t('missedCall')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={historyType === 'call_success' ? 'default' : 'outline'}
+                        onClick={() => setHistoryType('call_success')}
+                      >
+                        <Phone className="h-4 w-4 mr-1" />{t('callSuccess')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={historyType === 'line' ? 'default' : 'outline'}
+                        onClick={() => setHistoryType('line')}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-1" />{t('kakaoTalk')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={historyType === 'memo' ? 'default' : 'outline'}
+                        onClick={() => setHistoryType('memo')}
+                      >
+                        <FileText className="h-4 w-4 mr-1" />{t('memo')}
+                      </Button>
                     </div>
-                  ))}
-              </div>
-            </CardContent>
-          </Card>
-              </div>
+                    
+                    {/* Add History */}
+                    <div className="mb-4">
+                      <textarea
+                        className="w-full border rounded p-2 mb-2"
+                        placeholder={t('enterContent')}
+                        value={historyContent}
+                        onChange={e => setHistoryContent(e.target.value)}
+                      />
+                      <Button onClick={handleAddHistory} className="w-full">{t('add')}</Button>
+                    </div>
+                    
+                    {/* History Timeline */}
+                    <div className="space-y-2">
+                      {history.map(item => (
+                        <div key={item.id} className={`border-l-2 pl-3 py-2 ${item.isPinned ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            {getHistoryIcon(item.type)}
+                            <span className="text-sm font-semibold">{item.userName}</span>
+                            {item.isPinned && (
+                              <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
+                                {t('pinned')}
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-500">{formatDateTime(item.createdAt)}</span>
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleDeleteHistory(item.id)}
+                                className="ml-auto p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600"
+                                title="삭제"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => toggleHistoryPin(item.id, !item.isPinned)}
+                              className="p-1 rounded hover:bg-gray-100 text-gray-400"
+                              title={item.isPinned ? t('unpin') : t('pin')}
+                            >
+                              {item.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                            </button>
+                          </div>
+                          <div className="text-sm text-gray-700 whitespace-pre-line">{item.content}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
             </div>
-          </>
+          </div>
         ) : (
           <div className="text-center text-gray-500 mt-20">
             {t('selectCustomer')}
