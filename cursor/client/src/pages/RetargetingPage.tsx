@@ -511,169 +511,174 @@ export default function RetargetingPage() {
       <div style={{ 
         width: '33.333%', 
         borderRight: '1px solid #e5e7eb', 
-        padding: '16px', 
         backgroundColor: 'white',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        height: '100vh'
       }}>
-        {/* Personal Stats */}
-        <Card className="mb-4">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-            <Target className="h-5 w-5" />
-              <h3 className="font-semibold">{t('myGoal')} ({statCustomers.length}/{target})</h3>
+        {/* Fixed header with stats and filters */}
+        <div style={{ flexShrink: 0, padding: '16px', backgroundColor: 'white', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 10 }}>
+          {/* Personal Stats */}
+          <Card className="mb-4">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+              <Target className="h-5 w-5" />
+                <h3 className="font-semibold">{t('myGoal')} ({statCustomers.length}/{target})</h3>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4 mb-3">
+                <div
+                  className="bg-blue-600 h-4 rounded-full transition-all"
+                  style={{ width: `${(target > 0 ? (statCustomers.length / target) * 100 : 0)}%` }}
+                />
+              </div>
+              
+                <div className="grid grid-cols-4 gap-2 text-xs">
+                <div className="text-center">
+                  <div className="font-bold">{statCustomers.filter(c => normalizeStatus(c.status) === '開始').length}</div>
+                  <div className="text-gray-500">{t('start')}</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-bold">{statCustomers.filter(c => normalizeStatus(c.status) === '認知').length}</div>
+                  <div className="text-gray-500">{t('awareness')}</div>
+              </div>
+                <div className="text-center">
+                  <div className="font-bold">{statCustomers.filter(c => normalizeStatus(c.status) === '興味').length}</div>
+                  <div className="text-gray-500">{t('interest')}</div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-4 mb-3">
-              <div
-                className="bg-blue-600 h-4 rounded-full transition-all"
-                style={{ width: `${(target > 0 ? (statCustomers.length / target) * 100 : 0)}%` }}
+              <div className="text-center">
+                  <div className="font-bold">{statCustomers.filter(c => normalizeStatus(c.status) === '欲求').length}</div>
+                  <div className="text-gray-500">{t('desire')}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-bold">{t('retargeting')}</h2>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>+ {t('add')}</Button>
+              </div>
+            </div>
+            
+            {/* Search */}
+            <div className="mb-4">
+              <label className="text-sm text-gray-600">{t('search')}</label>
+              <Input
+                placeholder={`${t('companyName')}, ${t('customerName')}, ${t('phone')}, ${t('industry')} ${t('search')}`}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
               />
             </div>
             
-              <div className="grid grid-cols-4 gap-2 text-xs">
-              <div className="text-center">
-                <div className="font-bold">{statCustomers.filter(c => normalizeStatus(c.status) === '開始').length}</div>
-                <div className="text-gray-500">{t('start')}</div>
-              </div>
-              <div className="text-center">
-                <div className="font-bold">{statCustomers.filter(c => normalizeStatus(c.status) === '認知').length}</div>
-                <div className="text-gray-500">{t('awareness')}</div>
-            </div>
-              <div className="text-center">
-                <div className="font-bold">{statCustomers.filter(c => normalizeStatus(c.status) === '興味').length}</div>
-                <div className="text-gray-500">{t('interest')}</div>
-          </div>
-            <div className="text-center">
-                <div className="font-bold">{statCustomers.filter(c => normalizeStatus(c.status) === '欲求').length}</div>
-                <div className="text-gray-500">{t('desire')}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xl font-bold">{t('retargeting')}</h2>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>+ {t('add')}</Button>
-            </div>
-          </div>
-          
-          {/* Search */}
-          <div className="mb-4">
-            <label className="text-sm text-gray-600">{t('search')}</label>
-            <Input
-              placeholder={`${t('companyName')}, ${t('customerName')}, ${t('phone')}, ${t('industry')} ${t('search')}`}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
-          
-          {/* Manager Filter */}
-          <div className="mb-4">
-            <label className="text-sm text-gray-600">{t('manager')}</label>
-            <select
-              className="w-full border rounded px-3 py-2 text-sm"
-              value={managerFilter}
-              onChange={e => setManagerFilter(e.target.value)}
-            >
-              <option value="all">{t('all')}</option>
-              {managers.map(manager => (
-                <option key={manager} value={manager}>{manager}</option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Status Filter */}
-          <div className="space-y-2 mb-4">
-            {/* Main Filter */}
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant={mainFilter === 'inProgress' ? 'default' : 'outline'}
-                onClick={() => {
-                  setMainFilter('inProgress')
-                  setSubFilter('all')
-                }}
+            {/* Manager Filter */}
+            <div className="mb-4">
+              <label className="text-sm text-gray-600">{t('manager')}</label>
+              <select
+                className="w-full border rounded px-3 py-2 text-sm"
+                value={managerFilter}
+                onChange={e => setManagerFilter(e.target.value)}
               >
-                {t('activeSales')}
-              </Button>
-              <Button
-                size="sm"
-                variant={mainFilter === 'trash' ? 'default' : 'outline'}
-                onClick={() => {
-                  setMainFilter('trash')
-                  setSubFilter('all')
-                }}
-              >
-                {t('trash')}
-              </Button>
+                <option value="all">{t('all')}</option>
+                {managers.map(manager => (
+                  <option key={manager} value={manager}>{manager}</option>
+                ))}
+              </select>
             </div>
             
-            {/* Sub Filter (only when inProgress is selected) */}
-            {mainFilter === 'inProgress' && (
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant={subFilter === 'all' ? 'default' : 'outline'} onClick={() => setSubFilter('all')}>
-                  {t('all')}
+            {/* Status Filter */}
+            <div className="space-y-2">
+              {/* Main Filter */}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={mainFilter === 'inProgress' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setMainFilter('inProgress')
+                    setSubFilter('all')
+                  }}
+                >
+                  {t('activeSales')}
                 </Button>
-                <Button size="sm" variant={subFilter === 'start' ? 'default' : 'outline'} onClick={() => setSubFilter('start')}>
-                  {t('start')}
+                <Button
+                  size="sm"
+                  variant={mainFilter === 'trash' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setMainFilter('trash')
+                    setSubFilter('all')
+                  }}
+                >
+                  {t('trash')}
                 </Button>
-                <Button size="sm" variant={subFilter === 'awareness' ? 'default' : 'outline'} onClick={() => setSubFilter('awareness')}>
-                  {t('awareness')}
-                </Button>
-                <Button size="sm" variant={subFilter === 'interest' ? 'default' : 'outline'} onClick={() => setSubFilter('interest')}>
-                  {t('interest')}
-                </Button>
-                <Button size="sm" variant={subFilter === 'desire' ? 'default' : 'outline'} onClick={() => setSubFilter('desire')}>
-                  {t('desire')}
-                </Button>
-                <span className="ml-auto text-sm font-semibold text-gray-700">
-                  총 {filteredCustomers.length}건
-                </span>
               </div>
-            )}
+              
+              {/* Sub Filter (only when inProgress is selected) */}
+              {mainFilter === 'inProgress' && (
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant={subFilter === 'all' ? 'default' : 'outline'} onClick={() => setSubFilter('all')}>
+                    {t('all')}
+                  </Button>
+                  <Button size="sm" variant={subFilter === 'start' ? 'default' : 'outline'} onClick={() => setSubFilter('start')}>
+                    {t('start')}
+                  </Button>
+                  <Button size="sm" variant={subFilter === 'awareness' ? 'default' : 'outline'} onClick={() => setSubFilter('awareness')}>
+                    {t('awareness')}
+                  </Button>
+                  <Button size="sm" variant={subFilter === 'interest' ? 'default' : 'outline'} onClick={() => setSubFilter('interest')}>
+                    {t('interest')}
+                  </Button>
+                  <Button size="sm" variant={subFilter === 'desire' ? 'default' : 'outline'} onClick={() => setSubFilter('desire')}>
+                    {t('desire')}
+                  </Button>
+                  <span className="ml-auto text-sm font-semibold text-gray-700">
+                    총 {filteredCustomers.length}건
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
-        {/* Add Customer Form */}
-        {showAddForm && (
-          <Card className="mb-4">
-            <CardContent className="p-4">
-              <h3 className="font-semibold mb-3">{t('addRetargeting')}</h3>
-              <div className="space-y-3">
-                <Input placeholder={`${t('companyName')} *`} id="new-companyName" />
-                <Input placeholder={`${t('industry')} *`} id="new-industry" />
-                <Input placeholder={`${t('customerName')} *`} id="new-customerName" />
-                <Input placeholder={`${t('phone')} *`} id="new-phone" />
-                <Input placeholder={t('region')} id="new-region" />
-                <select
-                  className="w-full border rounded px-3 py-2 text-sm"
-                  id="new-inflowPath"
-                >
-                  <option value="">{t('inflowPath')} {t('selectOption')}</option>
-                  <option value="아웃바운드(전화)">아웃바운드(전화)</option>
-                  <option value="아웃바운드(라인)">아웃바운드(라인)</option>
-                  <option value="아웃바운드(DM)">아웃바운드(DM)</option>
-                  <option value="아웃바운드(기타)">아웃바운드(기타)</option>
-                  <option value="인바운드(홈페이지)">인바운드(홈페이지)</option>
-                  <option value="인바운드(상위노출)">인바운드(상위노출)</option>
-                  <option value="인바운드(기타)">인바운드(기타)</option>
-                  <option value="무료체험">무료체험</option>
-                  <option value="소개">소개</option>
-                  <option value="기타">기타</option>
-                </select>
-                <div className="flex gap-2">
-                  <Button onClick={handleAddCustomer} className="flex-1">{t('save')}</Button>
-                  <Button variant="ghost" onClick={() => setShowAddForm(false)}>{t('cancel')}</Button>
-                </div>
-            </div>
-          </CardContent>
-        </Card>
-        )}
-        
-        {/* Customer List */}
-        <div className="space-y-2 flex-1 overflow-y-auto">
+        {/* Scrollable content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
+          {/* Add Customer Form */}
+          {showAddForm && (
+            <Card className="mb-4">
+              <CardContent className="p-4">
+                <h3 className="font-semibold mb-3">{t('addRetargeting')}</h3>
+                <div className="space-y-3">
+                  <Input placeholder={`${t('companyName')} *`} id="new-companyName" />
+                  <Input placeholder={`${t('industry')} *`} id="new-industry" />
+                  <Input placeholder={`${t('customerName')} *`} id="new-customerName" />
+                  <Input placeholder={`${t('phone')} *`} id="new-phone" />
+                  <Input placeholder={t('region')} id="new-region" />
+                  <select
+                    className="w-full border rounded px-3 py-2 text-sm"
+                    id="new-inflowPath"
+                  >
+                    <option value="">{t('inflowPath')} {t('selectOption')}</option>
+                    <option value="아웃바운드(전화)">아웃바운드(전화)</option>
+                    <option value="아웃바운드(라인)">아웃바운드(라인)</option>
+                    <option value="아웃바운드(DM)">아웃바운드(DM)</option>
+                    <option value="아웃바운드(기타)">아웃바운드(기타)</option>
+                    <option value="인바운드(홈페이지)">인바운드(홈페이지)</option>
+                    <option value="인바운드(상위노출)">인바운드(상위노출)</option>
+                    <option value="인바운드(기타)">인바운드(기타)</option>
+                    <option value="무료체험">무료체험</option>
+                    <option value="소개">소개</option>
+                    <option value="기타">기타</option>
+                  </select>
+                  <div className="flex gap-2">
+                    <Button onClick={handleAddCustomer} className="flex-1">{t('save')}</Button>
+                    <Button variant="ghost" onClick={() => setShowAddForm(false)}>{t('cancel')}</Button>
+                  </div>
+              </div>
+            </CardContent>
+          </Card>
+          )}
+          
+          {/* Customer List */}
+          <div className="space-y-2">
           {filteredCustomers.map(customer => {
             const days = getDaysSinceLastContact(customer.lastContactDate)
             return (
@@ -705,6 +710,7 @@ export default function RetargetingPage() {
               </div>
             )
           })}
+          </div>
         </div>
       </div>
       
@@ -712,20 +718,27 @@ export default function RetargetingPage() {
       <div style={{ 
         width: '33.333%', 
         borderRight: '1px solid #e5e7eb', 
-        overflowY: 'auto', 
-        padding: '16px', 
-        backgroundColor: 'white'
+        backgroundColor: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh'
       }}>
         {selectedCustomer ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
-              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
-                {t('save')}
-              </Button>
+          <>
+            {/* Fixed header */}
+            <div style={{ flexShrink: 0, padding: '16px', backgroundColor: 'white', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 10 }}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
+                <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+                  {t('save')}
+                </Button>
+              </div>
             </div>
             
-            {/* Basic Info */}
+            {/* Scrollable content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
+              <div className="space-y-4">
+                {/* Basic Info */}
         <Card>
               <CardContent className="p-4">
                 <h3 className="font-semibold mb-3">{t('basicInfo')}</h3>
@@ -1029,12 +1042,14 @@ export default function RetargetingPage() {
                   {t('moveToTrash')}
                 </Button>
               )}
-              
-              {normalizeStatus(selectedCustomer.status) !== 'ゴミ箱' && (
-                <Button onClick={() => setShowConvertModal(true)} className="bg-green-600">{t('convertToCustomer')}</Button>
-              )}
+                
+                {normalizeStatus(selectedCustomer.status) !== 'ゴミ箱' && (
+                  <Button onClick={() => setShowConvertModal(true)} className="bg-green-600">{t('convertToCustomer')}</Button>
+                )}
+              </div>
+              </div>
             </div>
-          </div>
+          </>
         ) : (
           <div className="text-center text-gray-500 mt-20">
             {t('selectCustomer')}
@@ -1045,16 +1060,23 @@ export default function RetargetingPage() {
       {/* Right Panel: Files + History (33%) */}
       <div style={{ 
         width: '33.333%', 
-        overflowY: 'auto', 
-        padding: '16px', 
-        backgroundColor: 'white'
+        backgroundColor: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh'
       }}>
         {selectedCustomer ? (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">{t('history')}</h2>
-
-            {/* History */}
-      <Card>
+          <>
+            {/* Fixed header */}
+            <div style={{ flexShrink: 0, padding: '16px', backgroundColor: 'white', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 10 }}>
+              <h2 className="text-xl font-bold">{t('history')}</h2>
+            </div>
+            
+            {/* Scrollable content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
+              <div className="space-y-4">
+                {/* History */}
+        <Card>
               <CardContent className="p-4">
                 <h3 className="font-semibold mb-3">{t('history')}</h3>
                 
@@ -1134,10 +1156,12 @@ export default function RetargetingPage() {
                       <div className="text-sm text-gray-700 whitespace-pre-line">{item.content}</div>
                     </div>
                   ))}
-          </div>
-        </CardContent>
-      </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="text-center text-gray-500 mt-20">
             {t('selectCustomer')}

@@ -468,12 +468,13 @@ export default function CustomersPage() {
   return (
     <div className="h-screen flex">
       {/* Left: Customer List (30%) */}
-      <div className="w-1/3 border-r p-4 space-y-4 h-screen flex flex-col">
-      <div>
+      <div className="w-1/3 border-r flex flex-col h-screen">
+        {/* Fixed header with filters */}
+        <div className="flex-shrink-0 p-4 bg-white border-b sticky top-0 z-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">{t('customerList')}</h2>
             <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>+ {t('add')}</Button>
-      </div>
+          </div>
 
           {/* Search */}
           <div className="mb-4">
@@ -529,52 +530,54 @@ export default function CustomersPage() {
           </div>
         </div>
         
-        {/* Add Customer Form */}
-        {showAddForm && (
-          <Card className="mb-4">
-            <CardContent className="p-4">
-              <h3 className="font-semibold mb-3">{t('addCustomer')}</h3>
-              <div className="space-y-3">
-                <Input placeholder={`${t('companyName')} *`} id="new-companyName" />
-                <Input placeholder={`${t('industry')} *`} id="new-industry" />
-                <Input placeholder={`${t('customerName')} *`} id="new-customerName" />
-                <Input placeholder={`${t('phone')} *`} id="new-phone1" />
-                <Input type="text" placeholder="1,000,000" id="new-monthlyBudget" />
-                <Input placeholder={t('region')} id="new-region" />
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">{t('inflowPath')}</label>
-                  <select
-                    className="w-full border rounded px-3 py-2 text-sm"
-                    id="new-inflowPath"
-                  >
-                    <option value="">{t('inflowPath')} {t('selectOption')}</option>
-                    <option value="아웃바운드(전화)">아웃바운드(전화)</option>
-                    <option value="아웃바운드(라인)">아웃바운드(라인)</option>
-                    <option value="아웃바운드(DM)">아웃바운드(DM)</option>
-                    <option value="아웃바운드(기타)">아웃바운드(기타)</option>
-                    <option value="인바운드(홈페이지)">인바운드(홈페이지)</option>
-                    <option value="인바운드(상위노출)">인바운드(상위노출)</option>
-                    <option value="인바운드(기타)">인바운드(기타)</option>
-                    <option value="무료체험">무료체험</option>
-                    <option value="소개">소개</option>
-                    <option value="기타">기타</option>
-                  </select>
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto p-4 pt-0">
+          {/* Add Customer Form */}
+          {showAddForm && (
+            <Card className="mb-4">
+              <CardContent className="p-4">
+                <h3 className="font-semibold mb-3">{t('addCustomer')}</h3>
+                <div className="space-y-3">
+                  <Input placeholder={`${t('companyName')} *`} id="new-companyName" />
+                  <Input placeholder={`${t('industry')} *`} id="new-industry" />
+                  <Input placeholder={`${t('customerName')} *`} id="new-customerName" />
+                  <Input placeholder={`${t('phone')} *`} id="new-phone1" />
+                  <Input type="text" placeholder="1,000,000" id="new-monthlyBudget" />
+                  <Input placeholder={t('region')} id="new-region" />
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">{t('inflowPath')}</label>
+                    <select
+                      className="w-full border rounded px-3 py-2 text-sm"
+                      id="new-inflowPath"
+                    >
+                      <option value="">{t('inflowPath')} {t('selectOption')}</option>
+                      <option value="아웃바운드(전화)">아웃바운드(전화)</option>
+                      <option value="아웃바운드(라인)">아웃바운드(라인)</option>
+                      <option value="아웃바운드(DM)">아웃바운드(DM)</option>
+                      <option value="아웃바운드(기타)">아웃바운드(기타)</option>
+                      <option value="인바운드(홈페이지)">인바운드(홈페이지)</option>
+                      <option value="인바운드(상위노출)">인바운드(상위노출)</option>
+                      <option value="인바운드(기타)">인바운드(기타)</option>
+                      <option value="무료체험">무료체험</option>
+                      <option value="소개">소개</option>
+                      <option value="기타">기타</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">{t('manager')}</label>
+                    <Input value={user?.name || t('manager')} disabled className="bg-gray-100" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleAddCustomer} className="flex-1">{t('save')}</Button>
+                    <Button variant="ghost" onClick={() => setShowAddForm(false)}>{t('cancel')}</Button>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">{t('manager')}</label>
-                  <Input value={user?.name || t('manager')} disabled className="bg-gray-100" />
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleAddCustomer} className="flex-1">{t('save')}</Button>
-                  <Button variant="ghost" onClick={() => setShowAddForm(false)}>{t('cancel')}</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Customer List */}
-        <div className="space-y-2 flex-1 overflow-y-auto">
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Customer List */}
+          <div className="space-y-2">
           {filteredCustomers.map(customer => {
             const days = calculateDaysUntilExpiration(customer.contractExpirationDate)
             return (
@@ -604,17 +607,23 @@ export default function CustomersPage() {
       </div>
       
       {/* Center: Customer Detail (40%) */}
-      <div className="w-2/5 overflow-y-auto p-4">
+      <div className="w-2/5 flex flex-col h-screen">
         {selectedCustomer ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
-              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
-                {t('save')}
-              </Button>
+          <>
+            {/* Fixed header */}
+            <div className="flex-shrink-0 p-4 bg-white border-b sticky top-0 z-10">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
+                <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+                  {t('save')}
+                </Button>
+              </div>
             </div>
             
-            {/* Basic Info */}
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto p-4 pt-0">
+              <div className="space-y-4">
+                {/* Basic Info */}
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -893,18 +902,20 @@ export default function CustomersPage() {
               </CardContent>
             </Card>
             
-            <div className="flex gap-2">
-              <Button onClick={handleSave} className="flex-1">{t('save')}</Button>
-              {isAdmin && (
-                <Button 
-                  onClick={() => handleDeleteCustomer(selectedCustomer.id)} 
-                  variant="destructive"
-                >
-                  {t('delete')}
-                </Button>
-              )}
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} className="flex-1">{t('save')}</Button>
+                  {isAdmin && (
+                    <Button 
+                      onClick={() => handleDeleteCustomer(selectedCustomer.id)} 
+                      variant="destructive"
+                    >
+                      {t('delete')}
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          </>
         ) : (
           <div className="text-center text-gray-500 mt-20">
             {t('selectCustomer')}
@@ -913,11 +924,16 @@ export default function CustomersPage() {
       </div>
       
       {/* Right: History (30%) */}
-      <div className="w-1/3 border-l overflow-y-auto p-4 space-y-4">
-        <h2 className="text-xl font-bold">{t('customerHistory')}</h2>
+      <div className="w-1/3 border-l flex flex-col h-screen">
+        {/* Fixed header */}
+        <div className="flex-shrink-0 p-4 bg-white border-b sticky top-0 z-10">
+          <h2 className="text-xl font-bold">{t('customerHistory')}</h2>
+        </div>
         
-        {/* Quick Input */}
-        <Card>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-4 pt-0">
+          {/* Quick Input */}
+          <Card>
           <CardContent className="p-4">
             <div className="flex gap-2 mb-4">
               <Button
@@ -961,10 +977,9 @@ export default function CustomersPage() {
             </div>
         </CardContent>
       </Card>
-        
-        {/* History Timeline */}
-        <div className="space-y-2">
-          {history.map(item => (
+          {/* History Timeline */}
+          <div className="space-y-2">
+            {history.map(item => (
             <div key={item.id} className={`border-l-2 pl-3 py-2 ${item.isPinned ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}`}>
               <div className="flex items-center gap-2 mb-1">
                 {getHistoryIcon(item.type)}
@@ -994,7 +1009,8 @@ export default function CustomersPage() {
               </div>
               <div className="text-sm text-gray-700 whitespace-pre-line">{item.content}</div>
             </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
