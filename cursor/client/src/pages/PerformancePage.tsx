@@ -76,7 +76,13 @@ export default function PerformancePage() {
   }, [])
 
   return (
-    <div className="space-y-6">
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#f3f4f6',
+      padding: '24px'
+    }}>
+      <div className="max-w-7xl mx-auto">
+        <div className="space-y-6">
       <div className="flex items-center gap-3 flex-wrap">
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border px-2 py-1 rounded" />
         <select value={managerId} onChange={(e) => setManagerId(e.target.value)} className="border px-2 py-1 rounded">
@@ -154,6 +160,8 @@ export default function PerformancePage() {
             ))}
           </tbody>
         </table>
+      </div>
+        </div>
       </div>
     </div>
   )
