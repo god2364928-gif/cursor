@@ -78,10 +78,9 @@ export default function PerformancePage() {
   return (
     <div style={{ 
       minHeight: '100vh', 
-      backgroundColor: '#f3f4f6',
-      padding: '24px'
+      backgroundColor: '#f3f4f6'
     }}>
-      <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white p-6">
         <div className="space-y-6">
           <div className="border p-4">
             <div className="flex items-center gap-3 flex-wrap">
