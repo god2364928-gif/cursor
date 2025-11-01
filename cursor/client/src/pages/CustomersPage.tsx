@@ -934,8 +934,8 @@ export default function CustomersPage() {
         <div className="flex-1 overflow-y-auto p-4 pt-0">
           {/* Quick Input */}
           <Card>
-          <CardContent className="p-4">
-            <div className="flex gap-2 mb-4">
+            <CardContent className="p-4">
+              <div className="flex gap-2 mb-4">
               <Button
                 size="sm"
                 variant={historyType === 'call_attempt' ? 'default' : 'outline'}
@@ -974,13 +974,13 @@ export default function CustomersPage() {
                 onChange={e => setHistoryContent(e.target.value)}
               />
               <Button onClick={handleAddHistory} className="w-full">{t('add')}</Button>
-            </div>
-        </CardContent>
-      </Card>
+              </div>
+            </CardContent>
+          </Card>
           {/* History Timeline */}
           <div className="space-y-2">
             {history.map(item => (
-            <div key={item.id} className={`border-l-2 pl-3 py-2 ${item.isPinned ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}`}>
+              <div key={item.id} className={`border-l-2 pl-3 py-2 ${item.isPinned ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}`}>
               <div className="flex items-center gap-2 mb-1">
                 {getHistoryIcon(item.type)}
                 <span className="text-sm font-semibold">{item.userName}</span>
@@ -1007,8 +1007,8 @@ export default function CustomersPage() {
                   {item.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
                 </button>
               </div>
-              <div className="text-sm text-gray-700 whitespace-pre-line">{item.content}</div>
-            </div>
+                <div className="text-sm text-gray-700 whitespace-pre-line">{item.content}</div>
+              </div>
             ))}
           </div>
         </div>
