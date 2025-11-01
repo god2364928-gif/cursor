@@ -822,16 +822,16 @@ export default function RetargetingPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">契約履歴</label>
+                    <label className="text-sm text-gray-600">{t('contractHistory')}</label>
                     <select
                       className="w-full border rounded px-3 py-2"
                       value={selectedCustomer.contractHistoryCategory || ''}
                       onChange={e => setSelectedCustomer({...selectedCustomer, contractHistoryCategory: e.target.value})}
                     >
-                      <option value="過去に契約">過去に契約</option>
-                      <option value="過去に返信あり">過去に返信あり</option>
-                      <option value="無料体験済み">無料体験済み</option>
-                      <option value="休眠顧客">休眠顧客</option>
+                      <option value="過去に契約">{t('contractHistoryContract')}</option>
+                      <option value="過去に返信あり">{t('contractHistoryReply')}</option>
+                      <option value="無料体験済み">{t('contractHistoryTrial')}</option>
+                      <option value="休眠顧客">{t('contractHistorySleeping')}</option>
                     </select>
                   </div>
                   <div>
