@@ -4,6 +4,18 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 import multer from 'multer'
 
 const router = Router()
+
+// Helper function to decode file name
+const decodeFileName = (fileName: string): string => {
+  try {
+    // Try to decode if it's URL encoded
+    return decodeURIComponent(fileName)
+  } catch (e) {
+    // If decoding fails, return as is
+    return fileName
+  }
+}
+
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
@@ -603,6 +615,9 @@ router.post('/:id/files', authMiddleware, upload.single('file'), async (req: Aut
     // Convert file buffer to Base64
     const fileDataBase64 = req.file.buffer.toString('base64')
 
+    // Decode file name to handle Korean/Japanese characters
+    const decodedFileName = decodeFileName(req.file.originalname)
+
     // Insert file into database
     const result = await pool.query(
       `INSERT INTO customer_files (customer_id, user_id, file_name, original_name, file_type, file_size, file_data)
@@ -611,8 +626,8 @@ router.post('/:id/files', authMiddleware, upload.single('file'), async (req: Aut
       [
         id,
         req.user?.id,
-        req.file.originalname,
-        req.file.originalname,
+        decodedFileName,
+        decodedFileName,
         req.file.mimetype || 'application/octet-stream',
         req.file.size,
         fileDataBase64

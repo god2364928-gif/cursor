@@ -59,6 +59,17 @@ const toKSTDateString = (date) => {
     return `${year}-${month}-${day}`;
 };
 const router = (0, express_1.Router)();
+// Helper function to decode file name
+const decodeFileName = (fileName) => {
+    try {
+        // Try to decode if it's URL encoded
+        return decodeURIComponent(fileName);
+    }
+    catch (e) {
+        // If decoding fails, return as is
+        return fileName;
+    }
+};
 const upload = (0, multer_1.default)({
     storage: multer_1.default.memoryStorage(),
     limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
@@ -478,14 +489,16 @@ router.post('/:id/files', auth_1.authMiddleware, upload.single('file'), async (r
         }
         // Convert file buffer to Base64
         const fileDataBase64 = req.file.buffer.toString('base64');
+        // Decode file name to handle Korean/Japanese characters
+        const decodedFileName = decodeFileName(req.file.originalname);
         // Insert file into database
         const result = await db_1.pool.query(`INSERT INTO retargeting_files (retargeting_customer_id, user_id, file_name, original_name, file_type, file_size, file_data)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, retargeting_customer_id, user_id, file_name, original_name, file_type, file_size, created_at`, [
             id,
             req.user?.id,
-            req.file.originalname,
-            req.file.originalname,
+            decodedFileName,
+            decodedFileName,
             req.file.mimetype || 'application/octet-stream',
             req.file.size,
             fileDataBase64
