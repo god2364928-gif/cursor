@@ -191,60 +191,62 @@ export default function DashboardPage() {
           </div>
 
           {/* 날짜 필터 */}
-          <div className="flex gap-4 items-center">
-            <div className="flex gap-2 items-center">
-              <label className="text-sm font-medium">{t('startDate')}:</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
-                className="border rounded px-3 py-2"
-              />
-            </div>
-            <div className="flex gap-2 items-center">
-              <label className="text-sm font-medium">{t('endDate')}:</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={e => setEndDate(e.target.value)}
-                className="border rounded px-3 py-2"
-              />
-            </div>
-            <button
-              onClick={handlePreviousMonth}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
-            >
-              {t('previousMonth')}
-            </button>
-            <button
-              onClick={handleCurrentMonth}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
-            >
-              {t('currentMonth')}
-            </button>
-            <button
-              onClick={handleNextMonth}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
-            >
-              {t('nextMonth')}
-            </button>
-          </div>
-
-          {/* 직원 필터 */}
-          <div className="flex gap-4 items-center">
-            <label className="text-sm font-medium">{t('manager')}:</label>
-            <select
-              value={managerFilter}
-              onChange={e => setManagerFilter(e.target.value.trim())}
-              className="border rounded px-3 py-2"
-            >
-              <option value="all">{t('all')}</option>
-              <option value={user?.name}>{user?.name} ({t('me')})</option>
-              {users.filter(u => u.name !== user?.name).map(u => (
-                <option key={u.id} value={u.name}>{u.name}</option>
-              ))}
-            </select>
-          </div>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex gap-4 items-center flex-wrap">
+                <div className="flex gap-2 items-center">
+                  <label className="text-sm font-medium">{t('startDate')}:</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    className="border rounded px-3 py-2"
+                  />
+                </div>
+                <div className="flex gap-2 items-center">
+                  <label className="text-sm font-medium">{t('endDate')}:</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                    className="border rounded px-3 py-2"
+                  />
+                </div>
+                <button
+                  onClick={handlePreviousMonth}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
+                >
+                  {t('previousMonth')}
+                </button>
+                <button
+                  onClick={handleCurrentMonth}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
+                >
+                  {t('currentMonth')}
+                </button>
+                <button
+                  onClick={handleNextMonth}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
+                >
+                  {t('nextMonth')}
+                </button>
+                <div className="flex gap-2 items-center ml-auto">
+                  <label className="text-sm font-medium">{t('manager')}:</label>
+                  <select
+                    value={managerFilter}
+                    onChange={e => setManagerFilter(e.target.value.trim())}
+                    className="border rounded px-3 py-2"
+                  >
+                    <option value="all">{t('all')}</option>
+                    <option value={user?.name}>{user?.name} ({t('me')})</option>
+                    {users.filter(u => u.name !== user?.name).map(u => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* 주요 지표 */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
