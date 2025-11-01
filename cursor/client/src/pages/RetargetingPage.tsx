@@ -1171,9 +1171,9 @@ export default function RetargetingPage() {
                       <div className="text-sm text-gray-700 whitespace-pre-line">{item.content}</div>
                     </div>
                   ))}
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </>
