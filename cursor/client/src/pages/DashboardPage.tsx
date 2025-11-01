@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const user = useAuthStore((state) => state.user)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [monthlySales, setMonthlySales] = useState<MonthlySales[] | SalesTrendData | null>(null)
@@ -150,23 +151,31 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (startDate && endDate) {
-      setLoading(true)
       // 병렬로 API 호출
+      // 첫 번째 로드만 로딩 스피너 표시
+      if (!initialLoadComplete) {
+        setLoading(true)
+      }
       Promise.all([
         fetchDashboardStats(),
         fetchSalesTrend(),
         fetchPersonalStats(),
         fetchUsers()
-      ]).finally(() => setLoading(false))
+      ]).finally(() => {
+        if (!initialLoadComplete) {
+          setInitialLoadComplete(true)
+        }
+        setLoading(false)
+      })
     }
   }, [startDate, endDate, managerFilter, fetchDashboardStats, fetchSalesTrend, fetchPersonalStats, fetchUsers])
 
-  if (loading) {
+  if (loading && !stats) {
     return <div>{t('loading')}</div>
   }
 
   if (!stats) {
-    return <div>{t('error')}</div>
+    return <div>{t('loading')}</div>
   }
 
   return (

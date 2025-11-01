@@ -14,6 +14,7 @@ export default function SalesPage() {
   const user = useAuthStore(state => state.user)
   const [sales, setSales] = useState<Sales[]>([])
   const [loading, setLoading] = useState(true)
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [managerFilter, setManagerFilter] = useState<string>('all')
@@ -66,9 +67,14 @@ export default function SalesPage() {
 
   const fetchSales = async () => {
     try {
-      setLoading(true)
+      if (!initialLoadComplete) {
+        setLoading(true)
+      }
       const response = await api.get(`/sales?startDate=${startDate}&endDate=${endDate}`)
       setSales(response.data)
+      if (!initialLoadComplete) {
+        setInitialLoadComplete(true)
+      }
     } catch (error) {
       console.error('Failed to fetch sales:', error)
     } finally {
