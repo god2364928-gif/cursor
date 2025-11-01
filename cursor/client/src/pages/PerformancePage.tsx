@@ -83,28 +83,30 @@ export default function PerformancePage() {
     }}>
       <div className="max-w-7xl mx-auto">
         <div className="space-y-6">
-      <div className="flex items-center gap-3 flex-wrap">
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border px-2 py-1 rounded" />
-        <select value={managerId} onChange={(e) => setManagerId(e.target.value)} className="border px-2 py-1 rounded">
-          <option value="">담당자 전체</option>
-          {filters?.managers.map(m => (
-            <option key={m.id} value={m.id}>{m.name}</option>
-          ))}
-        </select>
-        <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className="border px-2 py-1 rounded">
-          <option value="">서비스 전체</option>
-          {filters?.services.map(s => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-        <select value={typeId} onChange={(e) => setTypeId(e.target.value)} className="border px-2 py-1 rounded">
-          <option value="">유형 전체</option>
-          {filters?.types.map(t => (
-            <option key={t.id} value={t.id}>{t.label}</option>
-          ))}
-        </select>
-        <Button onClick={load} disabled={loading}>Reload</Button>
-      </div>
+          <div className="bg-white rounded-lg border p-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border px-2 py-1 rounded" />
+              <select value={managerId} onChange={(e) => setManagerId(e.target.value)} className="border px-2 py-1 rounded">
+                <option value="">담당자 전체</option>
+                {filters?.managers.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+              <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className="border px-2 py-1 rounded">
+                <option value="">서비스 전체</option>
+                {filters?.services.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <select value={typeId} onChange={(e) => setTypeId(e.target.value)} className="border px-2 py-1 rounded">
+                <option value="">유형 전체</option>
+                {filters?.types.map(t => (
+                  <option key={t.id} value={t.id}>{t.label}</option>
+                ))}
+              </select>
+              <Button onClick={load} disabled={loading}>Reload</Button>
+            </div>
+          </div>
 
       {summary && (
         <div className="grid grid-cols-4 gap-4">
