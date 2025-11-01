@@ -612,14 +612,25 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="h-screen flex">
+    <div style={{ 
+      height: '100vh', 
+      display: 'flex', 
+      backgroundColor: '#f3f4f6'
+    }}>
       {/* Left: Customer List (30%) */}
-      <div className="w-1/3 border-r p-4 space-y-4 h-screen flex flex-col">
-      <div>
+      <div style={{ 
+        width: '33.333%', 
+        borderRight: '1px solid #e5e7eb', 
+        backgroundColor: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh'
+      }}>
+        <div style={{ flexShrink: 0, padding: '16px' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">{t('customerList')}</h2>
             <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>+ {t('add')}</Button>
-      </div>
+          </div>
 
           {/* Add Customer Form */}
           {showAddForm && (
@@ -720,7 +731,8 @@ export default function CustomersPage() {
         </div>
         
         {/* Customer List */}
-        <div className="space-y-2 flex-1 overflow-y-auto">
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
+          <div className="space-y-2">
           {filteredCustomers.map(customer => {
             const days = calculateDaysUntilExpiration(customer.contractExpirationDate)
             return (
@@ -746,13 +758,22 @@ export default function CustomersPage() {
               </div>
             )
           })}
+          </div>
         </div>
       </div>
       
       {/* Center: Customer Detail (40%) */}
-      <div className="w-2/5 overflow-y-auto p-4">
+      <div style={{ 
+        width: '33.333%', 
+        borderRight: '1px solid #e5e7eb', 
+        backgroundColor: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh'
+      }}>
         {selectedCustomer ? (
-          <div className="space-y-4">
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
               <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
@@ -1050,6 +1071,7 @@ export default function CustomersPage() {
                 </Button>
               )}
             </div>
+            </div>
           </div>
         ) : (
           <div className="text-center text-gray-500 mt-20">
@@ -1059,7 +1081,15 @@ export default function CustomersPage() {
       </div>
       
       {/* Right: History (30%) */}
-      <div className="w-1/3 border-l overflow-y-auto p-4 space-y-4">
+      <div style={{ 
+        width: '33.333%', 
+        backgroundColor: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh'
+      }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+          <div className="space-y-4">
         <h2 className="text-xl font-bold">{t('customerHistory')}</h2>
         <div className="border-t border-gray-200"></div>
         
@@ -1211,6 +1241,8 @@ export default function CustomersPage() {
               <div className="text-sm text-gray-700 whitespace-pre-line">{item.content}</div>
             </div>
           ))}
+        </div>
+          </div>
         </div>
       </div>
     </div>
