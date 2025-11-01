@@ -148,6 +148,7 @@ const translations: Record<Language, Translation> = {
     moveToTrash: 'ゴミ箱へ',
     moveToActive: '営業中へ',
     activeSales: '営業中',
+    convertToCustomer: '契約完了',
     
     // Sales Management
     salesList: '売上一覧',
@@ -350,6 +351,7 @@ const translations: Record<Language, Translation> = {
     moveToTrash: '휴지통으로',
     moveToActive: '영업중으로',
     activeSales: '영업중',
+    convertToCustomer: '고객으로 전환',
     
     // Sales Management
     salesList: '매출 목록',
