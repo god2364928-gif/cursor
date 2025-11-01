@@ -626,7 +626,7 @@ export default function CustomersPage() {
               {t('contractTerminated')}
             </Button>
             <span className="ml-auto text-sm font-semibold text-gray-700">
-              총 {filteredCustomers.length}건
+              {t('total')} {filteredCustomers.length}{t('cases')}
             </span>
           </div>
         </div>
