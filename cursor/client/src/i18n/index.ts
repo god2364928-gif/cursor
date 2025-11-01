@@ -34,6 +34,7 @@ const translations: Record<Language, Translation> = {
     next: '次',
     previousMonth: '前月',
     currentMonth: '当月',
+    nextMonth: '翌月',
     startDate: '開始日',
     endDate: '終了日',
     
@@ -149,6 +150,11 @@ const translations: Record<Language, Translation> = {
     moveToActive: '営業中へ',
     activeSales: '営業中',
     convertToCustomer: '契約完了',
+    contractHistory: '契約履歴',
+    contractHistoryContract: '過去に契約',
+    contractHistoryReply: '過去に返信あり',
+    contractHistoryTrial: '無料体験済み',
+    contractHistorySleeping: '休眠顧客',
     
     // Sales Management
     salesList: '売上一覧',
@@ -237,6 +243,7 @@ const translations: Record<Language, Translation> = {
     next: '다음',
     previousMonth: '전월',
     currentMonth: '당월',
+    nextMonth: '내월',
     startDate: '시작일',
     endDate: '종료일',
     
@@ -352,6 +359,11 @@ const translations: Record<Language, Translation> = {
     moveToActive: '영업중으로',
     activeSales: '영업중',
     convertToCustomer: '고객으로 전환',
+    contractHistory: '계약이력',
+    contractHistoryContract: '과거에 계약',
+    contractHistoryReply: '과거에 답장있음',
+    contractHistoryTrial: '무료체험 완료',
+    contractHistorySleeping: '휴면고객',
     
     // Sales Management
     salesList: '매출 목록',
