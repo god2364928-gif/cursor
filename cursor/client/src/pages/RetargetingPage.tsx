@@ -754,10 +754,10 @@ export default function RetargetingPage() {
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
               <div className="space-y-4">
                 {/* Basic Info */}
-        <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-3">{t('basicInfo')}</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">{t('basicInfo')}</h3>
+                    <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm text-gray-600">{t('companyName')} *</label>
                     <Input
@@ -891,15 +891,15 @@ export default function RetargetingPage() {
                       onChange={e => setSelectedCustomer({...selectedCustomer, lastContactDate: e.target.value})}
                     />
                   </div>
-            </div>
-          </CardContent>
-        </Card>
+                    </div>
+                  </CardContent>
+                </Card>
             
-            {/* Marketing Info */}
-        <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-3">{t('marketingInfo')}</h3>
-                <div className="space-y-3">
+                {/* Marketing Info */}
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">{t('marketingInfo')}</h3>
+                    <div className="space-y-3">
                   <div>
                     <label className="text-sm text-gray-600">{t('homepage')}</label>
                     <div className="flex gap-2">
@@ -987,24 +987,24 @@ export default function RetargetingPage() {
                       onChange={e => setSelectedCustomer({...selectedCustomer, mainKeywords: e.target.value.split(', ').filter(k => k)})}
                     />
                   </div>
-            </div>
-          </CardContent>
-        </Card>
+                    </div>
+                  </CardContent>
+                </Card>
             
-            {/* Memo */}
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-3">{t('memo')}</h3>
-                <textarea
-                  className="w-full border rounded p-2 min-h-[100px]"
-                  value={selectedCustomer.memo || ''}
-                  onChange={e => setSelectedCustomer({...selectedCustomer, memo: e.target.value})}
-                />
-              </CardContent>
-            </Card>
+                {/* Memo */}
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">{t('memo')}</h3>
+                    <textarea
+                      className="w-full border rounded p-2 min-h-[100px]"
+                      value={selectedCustomer.memo || ''}
+                      onChange={e => setSelectedCustomer({...selectedCustomer, memo: e.target.value})}
+                    />
+                  </CardContent>
+                </Card>
             
-            {/* Actions */}
-            <div className="flex gap-2">
+                {/* Actions */}
+                <div className="flex gap-2">
               <Button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700">
                 {t('save')}
               </Button>
@@ -1061,7 +1061,7 @@ export default function RetargetingPage() {
                 {normalizeStatus(selectedCustomer.status) !== 'ゴミ箱' && (
                   <Button onClick={() => setShowConvertModal(true)} className="bg-green-600">{t('convertToCustomer')}</Button>
                 )}
-              </div>
+                </div>
               </div>
             </div>
           </>
@@ -1091,9 +1091,9 @@ export default function RetargetingPage() {
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
               <div className="space-y-4">
                 {/* History */}
-        <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-3">{t('history')}</h3>
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">{t('history')}</h3>
                 
                 {/* History Tabs */}
                 <div className="flex gap-2 mb-4">
