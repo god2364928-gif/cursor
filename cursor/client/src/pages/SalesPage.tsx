@@ -431,24 +431,25 @@ export default function SalesPage() {
           {showAddForm && (
             <div className="mb-6 p-6 pb-8 border rounded-lg bg-gray-50">
               <h3 className="font-semibold mb-3">{t('addSales')}</h3>
-              <div className="flex items-center gap-4 mb-4 overflow-x-auto pt-2 pl-2 pb-4">
+              {/* First row */}
+              <div className="flex items-center gap-4 mb-4">
                 <Input 
                   placeholder={t('companyName')} 
                   id="add-companyName" 
-                  className="w-64 flex-shrink-0 mb-2 focus-visible:ring-offset-0" 
+                  className="flex-1" 
                 />
                 <Input 
                   placeholder={t('payerName')} 
                   id="add-payerName" 
-                  className="w-48 flex-shrink-0 mb-2 focus-visible:ring-offset-0" 
+                  className="w-48" 
                 />
-                <select className="border rounded px-3 py-2 w-28 flex-shrink-0 h-10" id="add-salesType">
+                <select className="border rounded px-3 py-2 w-32 h-10" id="add-salesType">
                   <option value="">{t('salesType')}</option>
                   <option value="신규매출">{t('newSales')}</option>
                   <option value="연장매출">{t('renewalSales')}</option>
                   <option value="해지매출">{t('cancellationSales')}</option>
                 </select>
-                <select className="border rounded px-3 py-2 w-40 flex-shrink-0 h-10" id="add-sourceType">
+                <select className="border rounded px-3 py-2 flex-1 h-10" id="add-sourceType">
                   <option value="">{t('sourceType')}</option>
                   <option value="아웃바운드(전화)">{t('outboundPhone')}</option>
                   <option value="아웃바운드(라인)">{t('outboundLine')}</option>
@@ -461,12 +462,15 @@ export default function SalesPage() {
                   <option value="소개">{t('introduction')}</option>
                   <option value="기타">{t('other')}</option>
                 </select>
-                <div className="flex items-center gap-2 flex-shrink-0">
+              </div>
+              {/* Second row */}
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex items-center gap-2">
                   <Input 
                     type="text" 
                     placeholder={t('amount')} 
                     id="add-amount"
-                    className="w-28 h-10"
+                    className="w-40 h-10"
                     onChange={e => {
                       const value = e.target.value.replace(/,/g, '')
                       const formatted = formatNumber(parseInt(value) || 0)
@@ -483,9 +487,9 @@ export default function SalesPage() {
                     <span>{t('includeTax')}</span>
                   </label>
                 </div>
-                <input type="date" className="border rounded px-3 py-2 w-40 flex-shrink-0 h-10" id="add-contractDate" />
-                <textarea className="border rounded px-3 py-2 w-80 flex-shrink-0 h-10 resize-none overflow-hidden" rows={1} placeholder={t('marketingContent')} id="add-marketingContent" style={{resize: 'none'}} />
-                <div className="flex gap-2 flex-shrink-0">
+                <input type="date" className="border rounded px-3 py-2 w-48 h-10" id="add-contractDate" />
+                <textarea className="border rounded px-3 py-2 flex-1 h-10 resize-none overflow-hidden" rows={1} placeholder={t('marketingContent')} id="add-marketingContent" style={{resize: 'none'}} />
+                <div className="flex gap-2">
                   <Button onClick={handleAddSale}>{t('save')}</Button>
                   <Button variant="outline" onClick={() => setShowAddForm(false)}>{t('cancel')}</Button>
                 </div>
