@@ -7,10 +7,14 @@ const router = Router()
 
 // Helper function to decode file name
 const decodeFileName = (fileName: string): string => {
+  console.log('Original file name:', fileName)
   try {
     // Try to decode if it's URL encoded
-    return decodeURIComponent(fileName)
+    const decoded = decodeURIComponent(fileName)
+    console.log('Decoded file name:', decoded)
+    return decoded
   } catch (e) {
+    console.log('Decode failed, using original:', fileName)
     // If decoding fails, return as is
     return fileName
   }
