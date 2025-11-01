@@ -253,6 +253,11 @@ export default function RetargetingPage() {
       fetchFiles(selectedCustomer.id)
     }
   }
+  
+  const handleFileNameChange = (fileId: string, newFileName: string) => {
+    // Update local state immediately for responsive UI
+    setFiles(prev => prev.map(f => f.id === fileId ? { ...f, fileName: newFileName } : f))
+  }
 
   const handleDeleteFile = async (fileId: string) => {
     if (!selectedCustomer) return
@@ -1206,7 +1211,8 @@ export default function RetargetingPage() {
                           <input
                             type="text"
                             value={file.fileName}
-                            onChange={(e) => handleRenameFile(file.id, e.target.value)}
+                            onChange={(e) => handleFileNameChange(file.id, e.target.value)}
+                            onBlur={(e) => handleRenameFile(file.id, e.target.value)}
                             className="flex-1 text-sm"
                           />
                           <span className="text-xs text-gray-500 flex-shrink-0">{formatFileSize(file.fileSize)}</span>
