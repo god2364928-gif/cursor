@@ -25,7 +25,7 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [history, setHistory] = useState<CustomerHistory[]>([])
-  const [statusFilter, setStatusFilter] = useState<'all' | '契約中' | '契約解除'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | '契約中' | '契約解除'>('契約中')
   const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
