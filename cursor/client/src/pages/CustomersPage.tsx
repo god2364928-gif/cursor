@@ -76,7 +76,7 @@ export default function CustomersPage() {
   
   // 필터링된 리스트가 준비되면 첫 번째 고객 자동 선택
   useEffect(() => {
-    // filteredCustomers가 변경될 때마다 체크
+    // filteredCustomers 계산 (searchQuery 제외, 자동 선택용)
     const filtered = customers.filter(c => {
       const statusMatch = statusFilter === 'all' || normalizeStatus(c.status) === statusFilter
       const managerMatch = managerFilter === 'all' || c.manager === managerFilter
@@ -84,7 +84,15 @@ export default function CustomersPage() {
     })
     
     if (filtered.length > 0 && !selectedCustomer) {
-      setSelectedCustomer(filtered[0])
+      // 정렬된 상태로 선택
+      const sorted = filtered.sort((a, b) => {
+        const daysA = calculateDaysUntilExpiration(a.contractExpirationDate)
+        const daysB = calculateDaysUntilExpiration(b.contractExpirationDate)
+        if (daysA < 0 && daysB >= 0) return -1
+        if (daysA >= 0 && daysB < 0) return 1
+        return daysA - daysB
+      })
+      setSelectedCustomer(sorted[0])
     }
   }, [customers, statusFilter, managerFilter, selectedCustomer])
   
