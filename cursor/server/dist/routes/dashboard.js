@@ -67,7 +67,7 @@ router.get('/stats', auth_1.authMiddleware, async (req, res) => {
         let retargetingQuery = `
       SELECT COUNT(*) as total
       FROM retargeting_customers
-      WHERE status != 'ゴミ箱'
+      WHERE status NOT IN ('ゴミ箱', '휴지통')
     `;
         let retargetingParams = [];
         if (manager && manager !== 'all') {
@@ -79,12 +79,12 @@ router.get('/stats', auth_1.authMiddleware, async (req, res) => {
         // 영업 진행현황 - 매니저 필터 적용
         let dbStatusQuery = `
       SELECT 
-        COUNT(CASE WHEN status = '開始' THEN 1 END) as sales_start,
-        COUNT(CASE WHEN status = '認知' THEN 1 END) as awareness,
-        COUNT(CASE WHEN status = '興味' THEN 1 END) as interest,
-        COUNT(CASE WHEN status = '欲求' THEN 1 END) as desire
+        COUNT(CASE WHEN status IN ('開始', '시작') THEN 1 END) as sales_start,
+        COUNT(CASE WHEN status IN ('認知', '인지') THEN 1 END) as awareness,
+        COUNT(CASE WHEN status IN ('興味', '흥미') THEN 1 END) as interest,
+        COUNT(CASE WHEN status IN ('欲求', '욕망') THEN 1 END) as desire
       FROM retargeting_customers
-      WHERE status != 'ゴミ箱'
+      WHERE status NOT IN ('ゴミ箱', '휴지통')
     `;
         let dbStatusParams = [];
         if (manager && manager !== 'all') {
