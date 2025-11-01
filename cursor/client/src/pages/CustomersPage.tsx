@@ -107,6 +107,7 @@ export default function CustomersPage() {
       if (customer.contractExpirationDate && customer.contractExpirationDate.includes('T')) {
         customer.contractExpirationDate = customer.contractExpirationDate.split('T')[0]
       }
+      
       // 전화번호와 인스타그램 배열 초기화 (phone1~3 모두 반영)
       const phones: string[] = []
       if (customer.phone1) phones.push(customer.phone1)
@@ -115,7 +116,6 @@ export default function CustomersPage() {
       setPhoneNumbers(phones.length > 0 ? phones : [''])
       setInitialPhoneCount(phones.length)
       setInstagramAccounts(customer.instagram ? [customer.instagram] : [''])
-      // setSelectedCustomer를 호출하지 않음 - 이미 리스트에서 선택된 상태이므로
     } catch (error: any) {
       // AbortError는 무시 (요청이 취소된 경우)
       if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
