@@ -186,9 +186,12 @@ export default function DashboardPage() {
     }}>
       <div className="max-w-7xl mx-auto">
         <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{t('dashboardTitle')}</h1>
-          </div>
+          {/* Title */}
+          <Card>
+            <CardContent className="p-4">
+              <h1 className="text-3xl font-bold tracking-tight">{t('dashboardTitle')}</h1>
+            </CardContent>
+          </Card>
 
           {/* 날짜 필터 */}
           <Card>

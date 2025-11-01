@@ -335,13 +335,15 @@ export default function SalesPage() {
       padding: '24px'
     }}>
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Title */}
+        <Card>
+          <CardContent className="p-4">
+            <h1 className="text-3xl font-bold tracking-tight">{t('sales')}</h1>
+          </CardContent>
+        </Card>
 
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t('sales')}</h1>
-      </div>
-
-      {/* 날짜 필터 */}
-      <Card>
+        {/* 날짜 필터 */}
+        <Card>
         <CardContent className="p-4">
           <div className="flex gap-4 items-end">
             <div className="flex-1">
