@@ -405,6 +405,25 @@ export default function RetargetingPage() {
     return s
   }
 
+  const getStatusTranslationKey = (s?: string): string => {
+    if (!s) return ''
+    const norm = normalizeStatus(s)
+    const map: { [key: string]: string } = {
+      '開始': 'start',
+      '認知': 'awareness',
+      '興味': 'interest',
+      '欲求': 'desire',
+      'ゴミ箱': 'trash',
+      '시작': 'start',
+      '인지': 'awareness',
+      '흥미': 'interest',
+      '욕망': 'desire',
+      '휴지통': 'trash',
+      'trash': 'trash'
+    }
+    return map[norm || ''] || ''
+  }
+
   const getStatusBadgeClass = (status?: string) => {
     const norm = normalizeStatus(status)
     if (norm === '開始') return 'bg-blue-100 text-blue-800'
@@ -704,7 +723,7 @@ export default function RetargetingPage() {
                     </div>
                   )}
                   <div className={`text-xs px-2 py-1 rounded whitespace-nowrap ${getStatusBadgeClass(customer.status)}`}>
-                    {normalizeStatus(customer.status)}
+                    {getStatusTranslationKey(customer.status) ? t(getStatusTranslationKey(customer.status)) : customer.status}
                   </div>
                 </div>
               </div>
