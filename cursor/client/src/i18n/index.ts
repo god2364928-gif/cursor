@@ -69,6 +69,17 @@ const translations: Record<Language, Translation> = {
     myGoal: '私の目標',
     history: '履歴',
     
+    // File Management
+    files: 'ファイル',
+    uploadFile: 'ファイルアップロード',
+    downloadFile: 'ダウンロード',
+    deleteFile: '削除',
+    renameFile: 'ファイル名変更',
+    fileSizeLimit: 'ファイルサイズは20MBまでです',
+    fileUploaded: 'ファイルがアップロードされました',
+    fileDeleted: 'ファイルが削除されました',
+    fileUploadFailed: 'ファイルアップロードに失敗しました',
+    
     // Dashboard
     dashboardTitle: 'ダッシュボード',
     dashboardSubtitle: '主要指標と売上推移を確認してください',
@@ -277,6 +288,17 @@ const translations: Record<Language, Translation> = {
     japanese: '일본어',
     myGoal: '나의 목표',
     history: '히스토리',
+    
+    // File Management
+    files: '파일',
+    uploadFile: '파일 업로드',
+    downloadFile: '다운로드',
+    deleteFile: '삭제',
+    renameFile: '파일명 변경',
+    fileSizeLimit: '파일 크기는 20MB까지입니다',
+    fileUploaded: '파일이 업로드되었습니다',
+    fileDeleted: '파일이 삭제되었습니다',
+    fileUploadFailed: '파일 업로드에 실패했습니다',
     
     // Dashboard
     dashboardTitle: '대시보드',

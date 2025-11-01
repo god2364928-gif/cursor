@@ -144,3 +144,25 @@ export interface TeamSales {
   monthlySales: MonthlySales[]
 }
 
+export interface CustomerFile {
+  id: string
+  customerId: string
+  userId: string
+  fileName: string
+  originalName: string
+  fileType: string
+  fileSize: number
+  createdAt: string
+}
+
+export interface RetargetingFile {
+  id: string
+  retargetingCustomerId: string
+  userId: string
+  fileName: string
+  originalName: string
+  fileType: string
+  fileSize: number
+  createdAt: string
+}
+

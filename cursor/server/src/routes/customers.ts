@@ -1,8 +1,13 @@
 import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import multer from 'multer'
 
 const router = Router()
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
+})
 
 // Create customer
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -566,6 +571,212 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
     res.json({ success: true })
   } catch (error) {
     console.error('Error deleting customer:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// File upload endpoints
+// Upload file
+router.post('/:id/files', authMiddleware, upload.single('file'), async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' })
+    }
+
+    const { id } = req.params
+
+    // Check if customer exists and user has permission
+    const customerResult = await pool.query('SELECT manager FROM customers WHERE id = $1', [id])
+    if (customerResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Customer not found' })
+    }
+
+    const customer = customerResult.rows[0]
+    const userName = req.user?.name?.trim() || ''
+    const customerManager = customer.manager?.trim() || ''
+
+    // Check permission: admin or assigned manager
+    if (req.user?.role !== 'admin' && customerManager !== userName) {
+      return res.status(403).json({ message: 'You can only upload files to customers assigned to you' })
+    }
+
+    // Convert file buffer to Base64
+    const fileDataBase64 = req.file.buffer.toString('base64')
+
+    // Insert file into database
+    const result = await pool.query(
+      `INSERT INTO customer_files (customer_id, user_id, file_name, original_name, file_type, file_size, file_data)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, customer_id, user_id, file_name, original_name, file_type, file_size, created_at`,
+      [
+        id,
+        req.user?.id,
+        req.file.originalname,
+        req.file.originalname,
+        req.file.mimetype || 'application/octet-stream',
+        req.file.size,
+        fileDataBase64
+      ]
+    )
+
+    const file = result.rows[0]
+    const camelCaseFile = {
+      id: file.id,
+      customerId: file.customer_id,
+      userId: file.user_id,
+      fileName: file.file_name,
+      originalName: file.original_name,
+      fileType: file.file_type,
+      fileSize: file.file_size,
+      createdAt: file.created_at
+    }
+
+    res.json(camelCaseFile)
+  } catch (error: any) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'File size exceeds 20MB limit' })
+    }
+    console.error('Error uploading file:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// Get all files for a customer
+router.get('/:id/files', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+
+    const result = await pool.query(
+      'SELECT id, customer_id, user_id, file_name, original_name, file_type, file_size, created_at FROM customer_files WHERE customer_id = $1 ORDER BY created_at DESC',
+      [id]
+    )
+
+    const files = result.rows.map(row => ({
+      id: row.id,
+      customerId: row.customer_id,
+      userId: row.user_id,
+      fileName: row.file_name,
+      originalName: row.original_name,
+      fileType: row.file_type,
+      fileSize: row.file_size,
+      createdAt: row.created_at
+    }))
+
+    res.json(files)
+  } catch (error) {
+    console.error('Error fetching files:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// Download file
+router.get('/:id/files/:fileId/download', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id, fileId } = req.params
+
+    const result = await pool.query(
+      'SELECT file_name, original_name, file_type, file_data FROM customer_files WHERE id = $1 AND customer_id = $2',
+      [fileId, id]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'File not found' })
+    }
+
+    const file = result.rows[0]
+    const fileBuffer = Buffer.from(file.file_data, 'base64')
+
+    res.setHeader('Content-Type', file.file_type)
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`)
+    res.send(fileBuffer)
+  } catch (error) {
+    console.error('Error downloading file:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// Rename file
+router.patch('/:id/files/:fileId', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id, fileId } = req.params
+    const { fileName } = req.body
+
+    if (!fileName || !fileName.trim()) {
+      return res.status(400).json({ message: 'File name is required' })
+    }
+
+    // Check if file exists
+    const fileCheck = await pool.query(
+      'SELECT customer_id FROM customer_files WHERE id = $1',
+      [fileId]
+    )
+
+    if (fileCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'File not found' })
+    }
+
+    // Check if customer exists and user has permission
+    const customerResult = await pool.query('SELECT manager FROM customers WHERE id = $1', [id])
+    if (customerResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Customer not found' })
+    }
+
+    const customer = customerResult.rows[0]
+    const userName = req.user?.name?.trim() || ''
+    const customerManager = customer.manager?.trim() || ''
+
+    // Check permission: admin or assigned manager
+    if (req.user?.role !== 'admin' && customerManager !== userName) {
+      return res.status(403).json({ message: 'You can only rename files for customers assigned to you' })
+    }
+
+    await pool.query(
+      'UPDATE customer_files SET file_name = $1 WHERE id = $2',
+      [fileName.trim(), fileId]
+    )
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error renaming file:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// Delete file
+router.delete('/:id/files/:fileId', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id, fileId } = req.params
+
+    // Check if file exists
+    const fileCheck = await pool.query(
+      'SELECT customer_id FROM customer_files WHERE id = $1',
+      [fileId]
+    )
+
+    if (fileCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'File not found' })
+    }
+
+    // Check if customer exists and user has permission
+    const customerResult = await pool.query('SELECT manager FROM customers WHERE id = $1', [id])
+    if (customerResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Customer not found' })
+    }
+
+    const customer = customerResult.rows[0]
+    const userName = req.user?.name?.trim() || ''
+    const customerManager = customer.manager?.trim() || ''
+
+    // Check permission: admin or assigned manager
+    if (req.user?.role !== 'admin' && customerManager !== userName) {
+      return res.status(403).json({ message: 'You can only delete files for customers assigned to you' })
+    }
+
+    await pool.query('DELETE FROM customer_files WHERE id = $1', [fileId])
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting file:', error)
     res.status(500).json({ message: 'Internal server error' })
   }
 })
