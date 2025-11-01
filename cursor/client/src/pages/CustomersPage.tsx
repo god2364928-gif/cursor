@@ -346,21 +346,15 @@ export default function CustomersPage() {
     if (!selectedCustomer) return
     
     try {
+      // Find file info from files array
+      const fileInfo = files.find(f => f.id === fileId)
+      const fileName = fileInfo?.originalName || 'download'
+      
       const response = await api.get(`/customers/${selectedCustomer.id}/files/${fileId}/download`, {
         responseType: 'blob'
       })
       
-      // Get file name from Content-Disposition header
-      const contentDisposition = response.headers['content-disposition']
-      let fileName = 'download'
-      if (contentDisposition) {
-        const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/i)
-        if (fileNameMatch) {
-          fileName = decodeURIComponent(fileNameMatch[1])
-        }
-      }
-      
-      // Create download link
+      // Create download link with correct file name and type
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
       link.href = url
