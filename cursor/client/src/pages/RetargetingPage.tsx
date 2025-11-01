@@ -670,7 +670,7 @@ export default function RetargetingPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
               <Target className="h-5 w-5" />
-                <h3 className="font-semibold">{t('myGoal')} ({statCustomers.length}/{target})</h3>
+                <h3 className="font-semibold">{managerFilter === 'all' ? t('overallGoal') : t('myGoal')} ({statCustomers.length}/{target})</h3>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-4 mb-3">
                 <div

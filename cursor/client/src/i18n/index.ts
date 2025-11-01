@@ -67,6 +67,7 @@ const translations: Record<Language, Translation> = {
     record: '記録',
     japanese: '日本語',
     myGoal: '私の目標',
+    overallGoal: '全体の目標',
     history: '履歴',
     
     // File Management
@@ -304,6 +305,7 @@ const translations: Record<Language, Translation> = {
     record: '기록',
     japanese: '일본어',
     myGoal: '나의 목표',
+    overallGoal: '전체 목표',
     history: '히스토리',
     
     // File Management
