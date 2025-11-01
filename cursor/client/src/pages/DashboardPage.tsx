@@ -353,7 +353,7 @@ export default function DashboardPage() {
                     {personalStats
                       .filter(stat => stat.manager !== user?.name)
                       .map(stat => (
-                        <div key={stat.manager} className="bg-gray-50 p-3 rounded-lg border">
+                        <div key={stat.manager} className="bg-white p-3 rounded-lg border">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium text-gray-700">{stat.manager}</span>
                             <span className="text-sm font-semibold text-gray-600">
