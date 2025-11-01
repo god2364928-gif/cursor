@@ -74,6 +74,20 @@ export default function CustomersPage() {
     }
   }, [customers, managerFilter, user?.name])
   
+  // 필터링된 리스트가 준비되면 첫 번째 고객 자동 선택
+  useEffect(() => {
+    // filteredCustomers가 변경될 때마다 체크
+    const filtered = customers.filter(c => {
+      const statusMatch = statusFilter === 'all' || normalizeStatus(c.status) === statusFilter
+      const managerMatch = managerFilter === 'all' || c.manager === managerFilter
+      return statusMatch && managerMatch
+    })
+    
+    if (filtered.length > 0 && !selectedCustomer) {
+      setSelectedCustomer(filtered[0])
+    }
+  }, [customers, statusFilter, managerFilter, selectedCustomer])
+  
   // 컴포넌트 언마운트 시 요청 취소
   useEffect(() => {
     return () => {
@@ -87,10 +101,6 @@ export default function CustomersPage() {
     try {
       const response = await api.get('/customers')
       setCustomers(response.data)
-      // 첫 번째 고객을 자동으로 선택
-      if (response.data.length > 0 && !selectedCustomer) {
-        setSelectedCustomer(response.data[0])
-      }
     } catch (error) {
       console.error('Failed to fetch customers:', error)
     }
