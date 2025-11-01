@@ -815,7 +815,6 @@ export default function CustomersPage() {
                     <Input
                       value={selectedCustomer.region || ''}
                       onChange={e => setSelectedCustomer({...selectedCustomer, region: e.target.value})}
-                      placeholder={t('regionPlaceholder')}
                     />
                   </div>
                   <div>
