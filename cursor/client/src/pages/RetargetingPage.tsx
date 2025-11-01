@@ -967,6 +967,10 @@ export default function RetargetingPage() {
             
             {/* Actions */}
             <div className="flex gap-2">
+              <Button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                {t('save')}
+              </Button>
+              
               {/* trash 상태에 따른 버튼 표시 */}
               {(selectedCustomer.status === 'trash' || selectedCustomer.status === 'ゴミ箱') ? (
                 <Button 
