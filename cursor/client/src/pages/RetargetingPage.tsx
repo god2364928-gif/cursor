@@ -417,7 +417,7 @@ export default function RetargetingPage() {
   
   const handleConvert = async () => {
     if (!selectedCustomer || !convertData.monthlyBudget || !convertData.contractStartDate || !convertData.contractExpirationDate) {
-      showToast('모든 필드를 입력해주세요', 'error')
+      showToast(t('pleaseFillAllFields'), 'error')
       return
     }
     

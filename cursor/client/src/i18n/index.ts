@@ -236,6 +236,7 @@ const translations: Record<Language, Translation> = {
     optional: '任意',
     selectOption: '選択してください',
     enterValue: '値を入力してください',
+    pleaseFillAllFields: 'すべてのフィールドを入力してください',
     
     // Status Values
     
@@ -472,6 +473,7 @@ const translations: Record<Language, Translation> = {
     optional: '선택',
     selectOption: '선택하세요',
     enterValue: '값을 입력하세요',
+    pleaseFillAllFields: '모든 필드를 입력해주세요',
     
     // Status Values
     

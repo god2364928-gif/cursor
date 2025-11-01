@@ -161,7 +161,7 @@ export default function SalesPage() {
     const marketingContent = (document.getElementById('add-marketingContent') as HTMLTextAreaElement)?.value
 
     if (!companyName || !salesType || !sourceType || !amount || !contractDate || !marketingContent) {
-      alert('모든 필드를 입력해주세요')
+      alert(t('pleaseFillAllFields'))
       return
     }
 
@@ -317,7 +317,7 @@ export default function SalesPage() {
   const cancellationSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'cancel')
 
   if (loading) {
-    return <div className="p-6">로딩 중...</div>
+    return <div className="p-6">{t('loading')}</div>
   }
 
   return (
