@@ -20,7 +20,7 @@ export default function RetargetingPage() {
   const [customers, setCustomers] = useState<RetargetingCustomer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<RetargetingCustomer | null>(null)
   const [history, setHistory] = useState<RetargetingHistory[]>([])
-  const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
+  const [managerFilter, setManagerFilter] = useState<string>('all')
   const [mainFilter, setMainFilter] = useState<string>('inProgress')
   const [subFilter, setSubFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
