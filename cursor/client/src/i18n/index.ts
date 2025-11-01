@@ -95,6 +95,8 @@ const translations: Record<Language, Translation> = {
     personalSales: '本人売上',
     totalSalesTrend: '全体売上推移',
     yen: '円',
+    total: '総',
+    cases: '件',
     
     // Additional translations
     basicInfo: '基本情報',
