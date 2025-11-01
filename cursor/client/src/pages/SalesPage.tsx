@@ -124,6 +124,33 @@ export default function SalesPage() {
     setEndDate(todayString)
   }
 
+  const handleNextMonth = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    
+    // 현재 기준 월에서 한 달 더하기
+    const newBaseMonth = currentBaseMonth + 1
+    setCurrentBaseMonth(newBaseMonth)
+    
+    // 12를 넘으면 다음 년도로 넘어가기
+    let targetYear = year
+    let targetMonth = newBaseMonth
+    if (newBaseMonth > 11) {
+      targetYear = year + 1
+      targetMonth = 0 // 1월
+    }
+    
+    // 해당 월의 첫째 날
+    const nextMonthFirstDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`
+    
+    // 해당 월의 마지막 날
+    const nextMonthLastDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(new Date(targetYear, targetMonth + 1, 0).getDate()).padStart(2, '0')}`
+    
+    console.log('SalesPage next month:', { targetYear, targetMonth, nextMonthFirstDay, nextMonthLastDay })
+    setStartDate(nextMonthFirstDay)
+    setEndDate(nextMonthLastDay)
+  }
+
   const handleAddSale = async () => {
     const companyName = (document.getElementById('add-companyName') as HTMLInputElement)?.value
     const payerName = (document.getElementById('add-payerName') as HTMLInputElement)?.value
@@ -325,6 +352,7 @@ export default function SalesPage() {
             </div>
             <Button onClick={handlePreviousMonth} variant="outline">{t('previousMonth')}</Button>
             <Button onClick={handleCurrentMonth}>{t('currentMonth')}</Button>
+            <Button onClick={handleNextMonth} variant="outline">{t('nextMonth')}</Button>
           </div>
         </CardContent>
       </Card>

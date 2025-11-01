@@ -94,6 +94,33 @@ export default function DashboardPage() {
     setEndDate(todayString)
   }
 
+  const handleNextMonth = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    
+    // 현재 기준 월에서 한 달 더하기
+    const newBaseMonth = currentBaseMonth + 1
+    setCurrentBaseMonth(newBaseMonth)
+    
+    // 12를 넘으면 다음 년도로 넘어가기
+    let targetYear = year
+    let targetMonth = newBaseMonth
+    if (newBaseMonth > 11) {
+      targetYear = year + 1
+      targetMonth = 0 // 1월
+    }
+    
+    // 해당 월의 첫째 날
+    const nextMonthFirstDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`
+    
+    // 해당 월의 마지막 날
+    const nextMonthLastDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(new Date(targetYear, targetMonth + 1, 0).getDate()).padStart(2, '0')}`
+    
+    console.log('DashboardPage next month:', { targetYear, targetMonth, nextMonthFirstDay, nextMonthLastDay })
+    setStartDate(nextMonthFirstDay)
+    setEndDate(nextMonthLastDay)
+  }
+
   const fetchDashboardStats = async () => {
     try {
       const response = await api.get(`/dashboard/stats?startDate=${startDate}&endDate=${endDate}&manager=${managerFilter}`)
@@ -178,6 +205,12 @@ export default function DashboardPage() {
           className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
         >
           {t('currentMonth')}
+        </button>
+        <button
+          onClick={handleNextMonth}
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
+        >
+          {t('nextMonth')}
         </button>
       </div>
 
