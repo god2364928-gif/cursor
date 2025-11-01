@@ -1064,7 +1064,7 @@ export default function CustomersPage() {
         {/* Files */}
         <Card>
           <CardContent className="p-4">
-            <div className="mb-3">
+            <div className={files.length > 0 ? "mb-3" : ""}>
               <input
                 type="file"
                 onChange={handleFileUpload}
@@ -1094,37 +1094,39 @@ export default function CustomersPage() {
             </div>
             
             {/* File list */}
-            <div className="space-y-2">
-              {files.map(file => (
-                <div key={file.id} className="flex items-center gap-2 p-2 border rounded">
-                  <FileIcon className="h-4 w-4 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={file.fileName}
-                    onChange={(e) => handleFileNameChange(file.id, e.target.value)}
-                    onBlur={(e) => handleRenameFile(file.id, e.target.value)}
-                    className="flex-1 text-sm"
-                  />
-                  <span className="text-xs text-gray-500 flex-shrink-0">{formatFileSize(file.fileSize)}</span>
-                  <button
-                    onClick={() => handleDownloadFile(file.id)}
-                    className="p-1 rounded hover:bg-blue-100 text-blue-600 flex-shrink-0"
-                    title={t('downloadFile')}
-                  >
-                    <Download className="h-4 w-4" />
-                  </button>
-                  {(isAdmin || selectedCustomer?.manager === user?.name) && (
+            {files.length > 0 && (
+              <div className="space-y-2">
+                {files.map(file => (
+                  <div key={file.id} className="flex items-center gap-2 p-2 border rounded">
+                    <FileIcon className="h-4 w-4 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={file.fileName}
+                      onChange={(e) => handleFileNameChange(file.id, e.target.value)}
+                      onBlur={(e) => handleRenameFile(file.id, e.target.value)}
+                      className="flex-1 text-sm"
+                    />
+                    <span className="text-xs text-gray-500 flex-shrink-0">{formatFileSize(file.fileSize)}</span>
                     <button
-                      onClick={() => handleDeleteFile(file.id)}
-                      className="p-1 rounded hover:bg-red-100 text-red-600 flex-shrink-0"
-                      title={t('deleteFile')}
+                      onClick={() => handleDownloadFile(file.id)}
+                      className="p-1 rounded hover:bg-blue-100 text-blue-600 flex-shrink-0"
+                      title={t('downloadFile')}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Download className="h-4 w-4" />
                     </button>
-                  )}
-                </div>
-              ))}
-            </div>
+                    {(isAdmin || selectedCustomer?.manager === user?.name) && (
+                      <button
+                        onClick={() => handleDeleteFile(file.id)}
+                        className="p-1 rounded hover:bg-red-100 text-red-600 flex-shrink-0"
+                        title={t('deleteFile')}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
         
