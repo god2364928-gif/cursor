@@ -1219,7 +1219,7 @@ export default function RetargetingPage() {
                         htmlFor="file-upload-retargeting"
                         className="inline-block px-4 py-2 bg-blue-50 text-blue-700 rounded cursor-pointer hover:bg-blue-100 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                       >
-                        {t('uploadFile')}
+                        {uploadingFile ? t('uploading') : t('uploadFile')}
                       </label>
                     </div>
                     

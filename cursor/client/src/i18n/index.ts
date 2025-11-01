@@ -72,6 +72,7 @@ const translations: Record<Language, Translation> = {
     // File Management
     files: 'ファイル',
     uploadFile: 'ファイルアップロード',
+    uploading: 'アップロード中...',
     downloadFile: 'ダウンロード',
     deleteFile: '削除',
     renameFile: 'ファイル名変更',
@@ -307,6 +308,7 @@ const translations: Record<Language, Translation> = {
     // File Management
     files: '파일',
     uploadFile: '파일 업로드',
+    uploading: '업로드 중...',
     downloadFile: '다운로드',
     deleteFile: '삭제',
     renameFile: '파일명 변경',
