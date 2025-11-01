@@ -81,9 +81,9 @@ export default function PerformancePage() {
       backgroundColor: '#f3f4f6',
       padding: '24px'
     }}>
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-sm p-6">
         <div className="space-y-6">
-          <div className="bg-white rounded-lg border p-4">
+          <div className="border p-4">
             <div className="flex items-center gap-3 flex-wrap">
               <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="border px-2 py-1 rounded" />
               <select value={managerId} onChange={(e) => setManagerId(e.target.value)} className="border px-2 py-1 rounded">
