@@ -759,6 +759,7 @@ export default function CustomersPage() {
                 {t('save')}
               </Button>
             </div>
+            <div className="border-t border-gray-200"></div>
             
             {/* Basic Info */}
             <Card>
@@ -1060,6 +1061,7 @@ export default function CustomersPage() {
       {/* Right: History (30%) */}
       <div className="w-1/3 border-l overflow-y-auto p-4 space-y-4">
         <h2 className="text-xl font-bold">{t('customerHistory')}</h2>
+        <div className="border-t border-gray-200"></div>
         
         {/* Files */}
         <Card>
