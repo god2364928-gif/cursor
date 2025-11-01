@@ -708,6 +708,42 @@ export default function RetargetingPage() {
               </div>
             </div>
             
+            {/* Add Customer Form */}
+            {showAddForm && (
+              <Card className="mb-4">
+                <CardContent className="p-4">
+                  <h3 className="font-semibold mb-3">{t('addRetargeting')}</h3>
+                  <div className="space-y-3">
+                    <Input placeholder={`${t('companyName')} *`} id="new-companyName" />
+                    <Input placeholder={`${t('industry')} *`} id="new-industry" />
+                    <Input placeholder={`${t('customerName')} *`} id="new-customerName" />
+                    <Input placeholder={`${t('phone')} *`} id="new-phone" />
+                    <Input placeholder={t('region')} id="new-region" />
+                    <select
+                      className="w-full border rounded px-3 py-2 text-sm"
+                      id="new-inflowPath"
+                    >
+                      <option value="">{t('inflowPath')} {t('selectOption')}</option>
+                      <option value="아웃바운드(전화)">아웃바운드(전화)</option>
+                      <option value="아웃바운드(라인)">아웃바운드(라인)</option>
+                      <option value="아웃바운드(DM)">아웃바운드(DM)</option>
+                      <option value="아웃바운드(기타)">아웃바운드(기타)</option>
+                      <option value="인바운드(홈페이지)">인바운드(홈페이지)</option>
+                      <option value="인바운드(상위노출)">인바운드(상위노출)</option>
+                      <option value="인바운드(기타)">인바운드(기타)</option>
+                      <option value="무료체험">무료체험</option>
+                      <option value="소개">소개</option>
+                      <option value="기타">기타</option>
+                    </select>
+                    <div className="flex gap-2">
+                      <Button onClick={handleAddCustomer} className="flex-1">{t('save')}</Button>
+                      <Button variant="ghost" onClick={() => setShowAddForm(false)}>{t('cancel')}</Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
             {/* Search */}
             <div className="mb-4">
               <label className="text-sm text-gray-600">{t('search')}</label>
@@ -788,41 +824,6 @@ export default function RetargetingPage() {
         
         {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
-          {/* Add Customer Form */}
-          {showAddForm && (
-            <Card className="mb-4">
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-3">{t('addRetargeting')}</h3>
-                <div className="space-y-3">
-                  <Input placeholder={`${t('companyName')} *`} id="new-companyName" />
-                  <Input placeholder={`${t('industry')} *`} id="new-industry" />
-                  <Input placeholder={`${t('customerName')} *`} id="new-customerName" />
-                  <Input placeholder={`${t('phone')} *`} id="new-phone" />
-                  <Input placeholder={t('region')} id="new-region" />
-                  <select
-                    className="w-full border rounded px-3 py-2 text-sm"
-                    id="new-inflowPath"
-                  >
-                    <option value="">{t('inflowPath')} {t('selectOption')}</option>
-                    <option value="아웃바운드(전화)">아웃바운드(전화)</option>
-                    <option value="아웃바운드(라인)">아웃바운드(라인)</option>
-                    <option value="아웃바운드(DM)">아웃바운드(DM)</option>
-                    <option value="아웃바운드(기타)">아웃바운드(기타)</option>
-                    <option value="인바운드(홈페이지)">인바운드(홈페이지)</option>
-                    <option value="인바운드(상위노출)">인바운드(상위노출)</option>
-                    <option value="인바운드(기타)">인바운드(기타)</option>
-                    <option value="무료체험">무료체험</option>
-                    <option value="소개">소개</option>
-                    <option value="기타">기타</option>
-                  </select>
-                  <div className="flex gap-2">
-                    <Button onClick={handleAddCustomer} className="flex-1">{t('save')}</Button>
-                    <Button variant="ghost" onClick={() => setShowAddForm(false)}>{t('cancel')}</Button>
-                  </div>
-              </div>
-            </CardContent>
-          </Card>
-          )}
           
           {/* Customer List */}
           <div className="space-y-2">
