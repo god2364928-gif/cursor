@@ -216,6 +216,14 @@ export default function RetargetingPage() {
     const file = e.target.files?.[0]
     if (!file) return
     
+    // 권한 체크: admin 또는 담당자 본인만 업로드 가능
+    const isAuthorized = isAdmin || selectedCustomer.manager === user?.name
+    if (!isAuthorized) {
+      e.target.value = '' // 파일 선택 취소
+      showToast(t('onlyOwnerCanModify'), 'error')
+      return
+    }
+    
     // 20MB 체크
     if (file.size > 20 * 1024 * 1024) {
       showToast(t('fileSizeLimit'), 'error')
@@ -1204,7 +1212,6 @@ export default function RetargetingPage() {
                 {/* Files */}
                 <Card>
                   <CardContent className="p-4">
-                    <h3 className="font-semibold mb-3">{t('files')}</h3>
                     <div className="mb-3">
                       <input
                         type="file"
@@ -1215,6 +1222,19 @@ export default function RetargetingPage() {
                       />
                       <label 
                         htmlFor="file-upload-retargeting"
+                        onClick={(e) => {
+                          if (!selectedCustomer) {
+                            e.preventDefault()
+                            return
+                          }
+                          // 권한 체크: admin 또는 담당자 본인만 업로드 가능
+                          const isAuthorized = isAdmin || selectedCustomer.manager === user?.name
+                          if (!isAuthorized) {
+                            e.preventDefault()
+                            showToast(t('onlyOwnerCanModify'), 'error')
+                            return
+                          }
+                        }}
                         className="inline-block px-4 py-2 bg-blue-50 text-blue-700 rounded cursor-pointer hover:bg-blue-100 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                       >
                         {uploadingFile ? t('uploading') : t('uploadFile')}
