@@ -112,8 +112,6 @@ const translations: Record<Language, Translation> = {
     enter: '入力',
     editUser: 'ユーザー編集',
     saving: '保存中...',
-    total: '総',
-    cases: '件',
     monthlySalesTrendSubtitle: '最近12ヶ月の本人売上と全体売上の比較',
 
     // Customer Management
