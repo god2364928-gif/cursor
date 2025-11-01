@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import api from '../lib/api'
 import { DashboardStats, MonthlySales, SalesTrendData } from '../types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -38,15 +38,6 @@ export default function DashboardPage() {
     setEndDate(todayString)
     setCurrentBaseMonth(month) // Initialize base month
   }, [])
-
-  useEffect(() => {
-    if (startDate && endDate) {
-      fetchDashboardStats()
-      fetchSalesTrend()
-      fetchPersonalStats()
-    }
-    fetchUsers()
-  }, [startDate, endDate, managerFilter])
 
   const handlePreviousMonth = () => {
     const now = new Date()
@@ -121,43 +112,54 @@ export default function DashboardPage() {
     setEndDate(nextMonthLastDay)
   }
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     try {
       const response = await api.get(`/dashboard/stats?startDate=${startDate}&endDate=${endDate}&manager=${managerFilter}`)
       setStats(response.data)
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error)
-    } finally {
-      setLoading(false)
     }
-  }
+  }, [startDate, endDate, managerFilter])
 
-  const fetchSalesTrend = async () => {
+  const fetchSalesTrend = useCallback(async () => {
     try {
       const response = await api.get(`/dashboard/sales-trend?manager=${managerFilter}`)
       setMonthlySales(response.data)
     } catch (error) {
       console.error('Failed to fetch sales trend:', error)
     }
-  }
+  }, [managerFilter])
 
-  const fetchPersonalStats = async () => {
+  const fetchPersonalStats = useCallback(async () => {
     try {
       const response = await api.get('/retargeting/stats/personal')
       setPersonalStats(response.data)
     } catch (error) {
       console.error('Failed to fetch personal stats:', error)
     }
-  }
+  }, [])
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const response = await api.get('/auth/users')
       setUsers(response.data)
     } catch (error) {
       console.error('Failed to fetch users:', error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      setLoading(true)
+      // 병렬로 API 호출
+      Promise.all([
+        fetchDashboardStats(),
+        fetchSalesTrend(),
+        fetchPersonalStats(),
+        fetchUsers()
+      ]).finally(() => setLoading(false))
+    }
+  }, [startDate, endDate, managerFilter, fetchDashboardStats, fetchSalesTrend, fetchPersonalStats, fetchUsers])
 
   if (loading) {
     return <div>{t('loading')}</div>
