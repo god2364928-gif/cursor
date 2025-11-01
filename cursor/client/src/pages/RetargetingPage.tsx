@@ -20,7 +20,7 @@ export default function RetargetingPage() {
   const [customers, setCustomers] = useState<RetargetingCustomer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<RetargetingCustomer | null>(null)
   const [history, setHistory] = useState<RetargetingHistory[]>([])
-  const [managerFilter, setManagerFilter] = useState<string>('all')
+  const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
   const [mainFilter, setMainFilter] = useState<string>('inProgress')
   const [subFilter, setSubFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -459,6 +459,17 @@ export default function RetargetingPage() {
     }
     
     return managerMatch && mainStatusMatch && subStatusMatch
+  }).sort((a, b) => {
+    // 정렬: 날짜 없음 > 마지막 연락일이 오래된 순서
+    const daysA = getDaysSinceLastContact(a.lastContactDate)
+    const daysB = getDaysSinceLastContact(b.lastContactDate)
+    
+    // 날짜 없는 항목을 가장 위로 (null 값 처리)
+    if (daysA === null && daysB !== null) return -1
+    if (daysA !== null && daysB === null) return 1
+    
+    // 같은 범주 내에서 오래된 순 (days 큰 순)
+    return (daysB || 0) - (daysA || 0)
   })
   
   const managers = [...new Set(customers.map(c => c.manager).filter(Boolean))]
@@ -607,6 +618,9 @@ export default function RetargetingPage() {
                 <Button size="sm" variant={subFilter === 'desire' ? 'default' : 'outline'} onClick={() => setSubFilter('desire')}>
                   {t('desire')}
                 </Button>
+                <span className="ml-auto text-sm font-semibold text-gray-700">
+                  총 {filteredCustomers.length}건
+                </span>
               </div>
             )}
           </div>

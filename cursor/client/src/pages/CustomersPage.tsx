@@ -18,7 +18,7 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [history, setHistory] = useState<CustomerHistory[]>([])
   const [statusFilter, setStatusFilter] = useState<'all' | '契約中' | '契約解除'>('all')
-  const [managerFilter, setManagerFilter] = useState<string>('all')
+  const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [historyType, setHistoryType] = useState<'call_attempt' | 'call_success' | 'line' | 'memo'>('memo')
@@ -422,6 +422,17 @@ export default function CustomersPage() {
     }
     
     return statusMatch && managerMatch
+  }).sort((a, b) => {
+    // 정렬: 만료됨 > 계약만료일이 얼마 안남은 순서
+    const daysA = calculateDaysUntilExpiration(a.contractExpirationDate)
+    const daysB = calculateDaysUntilExpiration(b.contractExpirationDate)
+    
+    // 만료된 항목 (days < 0)을 가장 위로
+    if (daysA < 0 && daysB >= 0) return -1
+    if (daysA >= 0 && daysB < 0) return 1
+    
+    // 같은 범주 내에서 날짜 순 (만료일이 가까운 순)
+    return daysA - daysB
   })
   
   // Get unique managers for filter dropdown
@@ -502,6 +513,9 @@ export default function CustomersPage() {
             >
               {t('contractTerminated')}
             </Button>
+            <span className="ml-auto text-sm font-semibold text-gray-700">
+              총 {filteredCustomers.length}건
+            </span>
           </div>
         </div>
         
