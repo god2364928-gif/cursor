@@ -20,7 +20,7 @@ export default function RetargetingPage() {
   const [customers, setCustomers] = useState<RetargetingCustomer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<RetargetingCustomer | null>(null)
   const [history, setHistory] = useState<RetargetingHistory[]>([])
-  const [managerFilter, setManagerFilter] = useState<string>('all')
+  const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
   const [mainFilter, setMainFilter] = useState<string>('inProgress')
   const [subFilter, setSubFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -59,6 +59,16 @@ export default function RetargetingPage() {
       fetchHistory(selectedCustomer.id, abortControllerRef.current.signal)
     }
   }, [selectedCustomer?.id])
+  
+  // 담당자 필터가 본인으로 설정되어 있고, 고객이 없으면 전체로 전환
+  useEffect(() => {
+    if (managerFilter && managerFilter !== 'all' && managerFilter === user?.name && customers.length > 0) {
+      const hasCustomersForManager = customers.some(c => c.manager === managerFilter)
+      if (!hasCustomersForManager) {
+        setManagerFilter('all')
+      }
+    }
+  }, [customers, managerFilter, user?.name])
   
   // 컴포넌트 언마운트 시 요청 취소
   useEffect(() => {
