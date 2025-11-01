@@ -64,19 +64,6 @@ app.get('/api/test/customers', async (req, res) => {
         res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
 });
-// Temporary endpoint to add file tables
-app.post('/api/test/add-file-tables', async (req, res) => {
-    try {
-        const fs = require('fs');
-        const path = require('path');
-        const sql = fs.readFileSync(path.join(__dirname, '../database/add-file-tables.sql'), 'utf8');
-        await db_1.pool.query(sql);
-        res.json({ message: 'File tables added successfully!' });
-    }
-    catch (error) {
-        res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
-    }
-});
 // Start server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

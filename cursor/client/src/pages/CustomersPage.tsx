@@ -1004,12 +1004,21 @@ export default function CustomersPage() {
         <Card>
           <CardContent className="p-4">
             <h3 className="font-semibold mb-3">{t('files')}</h3>
-            <input
-              type="file"
-              onChange={handleFileUpload}
-              disabled={uploadingFile}
-              className="w-full mb-3"
-            />
+            <div className="mb-3">
+              <input
+                type="file"
+                onChange={handleFileUpload}
+                disabled={uploadingFile}
+                id="file-upload-customer"
+                className="hidden"
+              />
+              <label 
+                htmlFor="file-upload-customer"
+                className="inline-block px-4 py-2 bg-blue-50 text-blue-700 rounded cursor-pointer hover:bg-blue-100 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+              >
+                {t('uploadFile')}
+              </label>
+            </div>
             
             {/* File list */}
             <div className="space-y-2">
