@@ -97,166 +97,174 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t('settings')}</h1>
-        <p className="text-muted-foreground">{t('accountInfo')}</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('accountInfo')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">{t('userName')}</p>
-              <p className="text-lg font-medium">{user?.name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">{t('email')}</p>
-              <p className="text-lg font-medium">{user?.email}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">{t('role')}</p>
-              <p className="text-lg font-medium">{user?.role}</p>
-            </div>
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#f3f4f6',
+      padding: '24px'
+    }}>
+      <div className="max-w-7xl mx-auto">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{t('settings')}</h1>
+            <p className="text-muted-foreground">{t('accountInfo')}</p>
           </div>
-        </CardContent>
-      </Card>
 
-      {isAdmin && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>{t('userManagement')}</CardTitle>
-              <Button onClick={() => setShowAddForm(!showAddForm)} disabled={editingId !== null}>
-                {t('addUser')}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {(showAddForm || editingId) && (
-              <form onSubmit={handleSubmit} className="mb-6 space-y-4 p-4 border rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold">{editingId ? t('editUser') : t('addUser')}</h3>
-                  {(showAddForm || editingId) && (
-                    <Button type="button" variant="ghost" size="sm" onClick={editingId ? cancelEdit : () => setShowAddForm(false)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('accountInfo')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('userName')}</p>
+                  <p className="text-lg font-medium">{user?.name}</p>
                 </div>
                 <div>
-                  <Label htmlFor="name">{t('userName')} *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
+                  <p className="text-sm text-muted-foreground">{t('email')}</p>
+                  <p className="text-lg font-medium">{user?.email}</p>
                 </div>
                 <div>
-                  <Label htmlFor="email">{t('email')} *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                  />
+                  <p className="text-sm text-muted-foreground">{t('role')}</p>
+                  <p className="text-lg font-medium">{user?.role}</p>
                 </div>
-                <div>
-                  <Label htmlFor="password">{t('password')} {editingId && '(변경하지 않으려면 비워두세요)'}</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required={!editingId}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="role">{t('role')}</Label>
-                  <select
-                    id="role"
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md"
-                  >
-                    <option value="user">{t('user')}</option>
-                    <option value="admin">{t('admin')}</option>
-                  </select>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={loading}>
-                    {loading ? t('saving') : t('save')}
-                  </Button>
-                  <Button type="button" variant="ghost" onClick={editingId ? cancelEdit : () => setShowAddForm(false)}>
-                    {t('cancel')}
+              </div>
+            </CardContent>
+          </Card>
+
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>{t('userManagement')}</CardTitle>
+                  <Button onClick={() => setShowAddForm(!showAddForm)} disabled={editingId !== null}>
+                    {t('addUser')}
                   </Button>
                 </div>
-              </form>
-            )}
-            
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      {t('userName')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      {t('email')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      {t('role')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      작업
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">{u.name}</td>
-                      <td className="px-4 py-3 text-sm">{u.email}</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => startEdit(u)}
-                            disabled={editingId !== null && editingId !== u.id}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(u.id)}
-                            disabled={u.id === user?.id}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              </CardHeader>
+              <CardContent>
+                {(showAddForm || editingId) && (
+                  <form onSubmit={handleSubmit} className="mb-6 space-y-4 p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">{editingId ? t('editUser') : t('addUser')}</h3>
+                      {(showAddForm || editingId) && (
+                        <Button type="button" variant="ghost" size="sm" onClick={editingId ? cancelEdit : () => setShowAddForm(false)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="name">{t('userName')} *</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">{t('email')} *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="password">{t('password')} {editingId && '(변경하지 않으려면 비워두세요)'}</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required={!editingId}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="role">{t('role')}</Label>
+                      <select
+                        id="role"
+                        value={formData.role}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md"
+                      >
+                        <option value="user">{t('user')}</option>
+                        <option value="admin">{t('admin')}</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit" disabled={loading}>
+                        {loading ? t('saving') : t('save')}
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={editingId ? cancelEdit : () => setShowAddForm(false)}>
+                        {t('cancel')}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+                
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          {t('userName')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          {t('email')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          {t('role')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          작업
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {users.map((u) => (
+                        <tr key={u.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm">{u.name}</td>
+                          <td className="px-4 py-3 text-sm">{u.email}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {u.role}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startEdit(u)}
+                                disabled={editingId !== null && editingId !== u.id}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(u.id)}
+                                disabled={u.id === user?.id}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

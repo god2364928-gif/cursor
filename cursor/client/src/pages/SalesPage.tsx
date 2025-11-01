@@ -323,11 +323,18 @@ export default function SalesPage() {
   const cancellationSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'cancel')
 
   if (loading) {
-    return <div className="p-6">{t('loading')}</div>
+    return <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6', padding: '24px' }}>
+      <div className="text-center">{t('loading')}</div>
+    </div>
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#f3f4f6',
+      padding: '24px'
+    }}>
+      <div className="max-w-7xl mx-auto space-y-6">
 
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t('sales')}</h1>
@@ -628,6 +635,7 @@ export default function SalesPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }
