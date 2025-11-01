@@ -18,7 +18,7 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [history, setHistory] = useState<CustomerHistory[]>([])
   const [statusFilter, setStatusFilter] = useState<'all' | '契約中' | '契約解除'>('all')
-  const [managerFilter, setManagerFilter] = useState<string>('all')
+  const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [historyType, setHistoryType] = useState<'call_attempt' | 'call_success' | 'line' | 'memo'>('memo')
@@ -60,6 +60,16 @@ export default function CustomersPage() {
       fetchHistory(selectedCustomer.id, abortControllerRef.current.signal)
     }
   }, [selectedCustomer?.id])
+  
+  // 담당자 필터가 본인으로 설정되어 있고, 고객이 없으면 전체로 전환
+  useEffect(() => {
+    if (managerFilter && managerFilter !== 'all' && managerFilter === user?.name && customers.length > 0) {
+      const hasCustomersForManager = customers.some(c => c.manager === managerFilter)
+      if (!hasCustomersForManager) {
+        setManagerFilter('all')
+      }
+    }
+  }, [customers, managerFilter, user?.name])
   
   // 컴포넌트 언마운트 시 요청 취소
   useEffect(() => {
