@@ -28,10 +28,19 @@ const router = Router()
 const decodeFileName = (fileName: string): string => {
   console.log('Original file name:', fileName)
   try {
-    // Try to decode if it's URL encoded
-    const decoded = decodeURIComponent(fileName)
-    console.log('Decoded file name:', decoded)
-    return decoded
+    // Try latin1 to utf8 conversion (common issue with multer and multipart/form-data)
+    const utf8Decoded = Buffer.from(fileName, 'latin1').toString('utf8')
+    console.log('UTF-8 decoded file name:', utf8Decoded)
+    
+    // If the conversion made a difference, use it
+    if (utf8Decoded !== fileName) {
+      return utf8Decoded
+    }
+    
+    // Otherwise try URL decoding
+    const urlDecoded = decodeURIComponent(fileName)
+    console.log('URL decoded file name:', urlDecoded)
+    return urlDecoded
   } catch (e) {
     console.log('Decode failed, using original:', fileName)
     // If decoding fails, return as is
@@ -555,6 +564,14 @@ router.post('/:id/files', authMiddleware, upload.single('file'), async (req: Aut
 
     // Convert file buffer to Base64
     const fileDataBase64 = req.file.buffer.toString('base64')
+
+    // Log all file properties for debugging
+    console.log('File upload received:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      encoding: req.file.encoding
+    })
 
     // Decode file name to handle Korean/Japanese characters
     const decodedFileName = decodeFileName(req.file.originalname)
