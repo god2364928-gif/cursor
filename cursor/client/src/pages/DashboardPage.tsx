@@ -254,6 +254,24 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t('contractStatus')}</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm space-y-1">
+              <div className="flex justify-between">
+                <span>{t('contractCustomers')}:</span>
+                <span className="font-medium text-blue-600 text-lg">{formatNumber(stats.contractCustomers)}{t('cases')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>{t('newCustomers')}:</span>
+                <span className="font-medium text-green-600 text-lg">{formatNumber(stats.newCustomers)}{t('cases')}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t('salesProgress')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -274,24 +292,6 @@ export default function DashboardPage() {
               <div className="flex justify-between">
                 <span>{t('desire')}:</span>
                 <span className="font-medium">{formatNumber(stats.dbStatus.desire)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('contractStatus')}</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm space-y-1">
-              <div className="flex justify-between">
-                <span>{t('contractCustomers')}:</span>
-                <span className="font-medium text-blue-600">{formatNumber(stats.contractCustomers)}{t('cases')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>{t('newCustomers')}:</span>
-                <span className="font-medium text-green-600">{formatNumber(stats.newCustomers)}{t('cases')}</span>
               </div>
             </div>
           </CardContent>
