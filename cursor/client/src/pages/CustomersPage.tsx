@@ -14,6 +14,14 @@ export default function CustomersPage() {
   const { t } = useI18nStore()
   const user = useAuthStore(state => state.user)
   const { showToast } = useToast()
+  
+  // Helper to translate server error messages
+  const translateErrorMessage = (message: string): string => {
+    if (message.includes('You can only upload files to customers')) return t('onlyOwnerCanModify')
+    if (message.includes('You can only rename files for customers')) return t('onlyOwnerCanModify')
+    if (message.includes('You can only delete files for customers')) return t('onlyOwnerCanModify')
+    return message
+  }
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [history, setHistory] = useState<CustomerHistory[]>([])
@@ -333,7 +341,8 @@ export default function CustomersPage() {
       fetchFiles(selectedCustomer.id)
       showToast(t('fileUploaded'), 'success')
     } catch (error: any) {
-      showToast(error.response?.data?.message || t('fileUploadFailed'), 'error')
+      const errorMsg = error.response?.data?.message || t('fileUploadFailed')
+      showToast(translateErrorMessage(errorMsg), 'error')
     } finally {
       setUploadingFile(false)
       if (e.target) {
@@ -378,7 +387,8 @@ export default function CustomersPage() {
       // Update local state
       setFiles(prev => prev.map(f => f.id === fileId ? { ...f, fileName: newFileName } : f))
     } catch (error: any) {
-      showToast(error.response?.data?.message || t('fileRenameFailed'), 'error')
+      const errorMsg = error.response?.data?.message || t('fileRenameFailed')
+      showToast(translateErrorMessage(errorMsg), 'error')
       // Revert to original name
       fetchFiles(selectedCustomer.id)
     }
@@ -398,7 +408,8 @@ export default function CustomersPage() {
       fetchFiles(selectedCustomer.id)
       showToast(t('fileDeleted'), 'success')
     } catch (error: any) {
-      showToast(error.response?.data?.message || t('fileDeleteFailed'), 'error')
+      const errorMsg = error.response?.data?.message || t('fileDeleteFailed')
+      showToast(translateErrorMessage(errorMsg), 'error')
     }
   }
 
