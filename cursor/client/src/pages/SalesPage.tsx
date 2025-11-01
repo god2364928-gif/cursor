@@ -325,7 +325,6 @@ export default function SalesPage() {
 
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t('sales')}</h1>
-        <p className="text-muted-foreground">{t('sales')} 실적을 관리하고 조회합니다</p>
       </div>
 
       {/* 날짜 필터 */}
