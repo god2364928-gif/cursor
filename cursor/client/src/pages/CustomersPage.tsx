@@ -342,10 +342,36 @@ export default function CustomersPage() {
     }
   }
 
-  const handleDownloadFile = (fileId: string) => {
+  const handleDownloadFile = async (fileId: string) => {
     if (!selectedCustomer) return
-    const apiUrl = api.defaults.baseURL || '/api'
-    window.open(`${apiUrl}/customers/${selectedCustomer.id}/files/${fileId}/download`, '_blank')
+    
+    try {
+      const response = await api.get(`/customers/${selectedCustomer.id}/files/${fileId}/download`, {
+        responseType: 'blob'
+      })
+      
+      // Get file name from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition']
+      let fileName = 'download'
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/i)
+        if (fileNameMatch) {
+          fileName = decodeURIComponent(fileNameMatch[1])
+        }
+      }
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', fileName)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error: any) {
+      showToast(error.response?.data?.message || '파일 다운로드 실패', 'error')
+    }
   }
 
   const handleRenameFile = async (fileId: string, newFileName: string) => {
