@@ -99,6 +99,32 @@ CREATE TABLE IF NOT EXISTS retargeting_history (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Customer files table
+CREATE TABLE IF NOT EXISTS customer_files (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  original_name VARCHAR(255) NOT NULL,
+  file_type VARCHAR(100) NOT NULL,
+  file_size INTEGER NOT NULL,
+  file_data TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Retargeting customer files table
+CREATE TABLE IF NOT EXISTS retargeting_files (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  retargeting_customer_id UUID REFERENCES retargeting_customers(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  original_name VARCHAR(255) NOT NULL,
+  file_type VARCHAR(100) NOT NULL,
+  file_size INTEGER NOT NULL,
+  file_data TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Sales table
 CREATE TABLE IF NOT EXISTS sales (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -126,6 +152,8 @@ CREATE INDEX IF NOT EXISTS idx_retargeting_history_customer_id ON retargeting_hi
 CREATE INDEX IF NOT EXISTS idx_sales_user_id ON sales(user_id);
 CREATE INDEX IF NOT EXISTS idx_sales_contract_date ON sales(contract_date);
 CREATE INDEX IF NOT EXISTS idx_sales_sales_type ON sales(sales_type);
+CREATE INDEX IF NOT EXISTS idx_customer_files_customer_id ON customer_files(customer_id);
+CREATE INDEX IF NOT EXISTS idx_retargeting_files_customer_id ON retargeting_files(retargeting_customer_id);
 
 -- =============================
 -- Performance tracking (real payments)

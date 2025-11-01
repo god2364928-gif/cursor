@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import api from '../lib/api'
-import { RetargetingCustomer, RetargetingHistory } from '../types'
+import { RetargetingCustomer, RetargetingHistory, RetargetingFile } from '../types'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardContent } from '../components/ui/card'
 import { useToast } from '../components/ui/toast'
-import { Phone, PhoneOff, MessageSquare, FileText, Target, ExternalLink, Copy, Pin, PinOff, Trash2 } from 'lucide-react'
+import { Phone, PhoneOff, MessageSquare, FileText, Target, ExternalLink, Copy, Pin, PinOff, Trash2, FileIcon, Download } from 'lucide-react'
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
 
 const RETARGETING_TARGET = 200
@@ -34,6 +34,8 @@ export default function RetargetingPage() {
   const [instagramAccounts, setInstagramAccounts] = useState<string[]>([''])
   const lastFetchedId = useRef<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const [files, setFiles] = useState<RetargetingFile[]>([])
+  const [uploadingFile, setUploadingFile] = useState(false)
 
   useEffect(() => {
     fetchCustomers()
@@ -57,6 +59,7 @@ export default function RetargetingPage() {
       
       fetchCustomerDetail(selectedCustomer.id, abortControllerRef.current.signal)
       fetchHistory(selectedCustomer.id, abortControllerRef.current.signal)
+      fetchFiles(selectedCustomer.id)
     }
   }, [selectedCustomer?.id])
   
@@ -189,6 +192,87 @@ export default function RetargetingPage() {
       console.error('Failed to delete history:', error)
       showToast(error.response?.data?.message || '히스토리 삭제에 실패했습니다', 'error')
     }
+  }
+
+  const fetchFiles = async (customerId: string) => {
+    try {
+      const response = await api.get(`/retargeting/${customerId}/files`)
+      setFiles(response.data)
+    } catch (error) {
+      console.error('Failed to fetch files:', error)
+    }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedCustomer) return
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    // 20MB 체크
+    if (file.size > 20 * 1024 * 1024) {
+      showToast(t('fileSizeLimit'), 'error')
+      return
+    }
+    
+    setUploadingFile(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      await api.post(`/retargeting/${selectedCustomer.id}/files`, formData)
+      fetchFiles(selectedCustomer.id)
+      showToast(t('fileUploaded'), 'success')
+    } catch (error: any) {
+      showToast(error.response?.data?.message || t('fileUploadFailed'), 'error')
+    } finally {
+      setUploadingFile(false)
+      if (e.target) {
+        e.target.value = '' // Reset file input
+      }
+    }
+  }
+
+  const handleDownloadFile = (fileId: string) => {
+    if (!selectedCustomer) return
+    const apiUrl = api.defaults.baseURL || '/api'
+    window.open(`${apiUrl}/retargeting/${selectedCustomer.id}/files/${fileId}/download`, '_blank')
+  }
+
+  const handleRenameFile = async (fileId: string, newFileName: string) => {
+    if (!selectedCustomer) return
+    
+    try {
+      await api.patch(`/retargeting/${selectedCustomer.id}/files/${fileId}`, {
+        fileName: newFileName
+      })
+      // Update local state
+      setFiles(prev => prev.map(f => f.id === fileId ? { ...f, fileName: newFileName } : f))
+    } catch (error: any) {
+      showToast(error.response?.data?.message || '파일명 변경 실패', 'error')
+      // Revert to original name
+      fetchFiles(selectedCustomer.id)
+    }
+  }
+
+  const handleDeleteFile = async (fileId: string) => {
+    if (!selectedCustomer) return
+    if (!confirm('정말로 이 파일을 삭제하시겠습니까?')) return
+    
+    try {
+      await api.delete(`/retargeting/${selectedCustomer.id}/files/${fileId}`)
+      fetchFiles(selectedCustomer.id)
+      showToast(t('fileDeleted'), 'success')
+    } catch (error: any) {
+      showToast(error.response?.data?.message || '파일 삭제 실패', 'error')
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
   }
 
   const toggleHistoryPin = async (historyId: string, isPinned: boolean) => {
@@ -1094,6 +1178,51 @@ export default function RetargetingPage() {
             {/* Scrollable content */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
               <div className="space-y-4">
+                {/* Files */}
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">{t('files')}</h3>
+                    <input
+                      type="file"
+                      onChange={handleFileUpload}
+                      disabled={uploadingFile}
+                      className="w-full mb-3"
+                    />
+                    
+                    {/* File list */}
+                    <div className="space-y-2">
+                      {files.map(file => (
+                        <div key={file.id} className="flex items-center gap-2 p-2 border rounded">
+                          <FileIcon className="h-4 w-4 flex-shrink-0" />
+                          <input
+                            type="text"
+                            value={file.fileName}
+                            onChange={(e) => handleRenameFile(file.id, e.target.value)}
+                            className="flex-1 text-sm"
+                          />
+                          <span className="text-xs text-gray-500 flex-shrink-0">{formatFileSize(file.fileSize)}</span>
+                          <button
+                            onClick={() => handleDownloadFile(file.id)}
+                            className="p-1 rounded hover:bg-blue-100 text-blue-600 flex-shrink-0"
+                            title={t('downloadFile')}
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                          {(isAdmin || selectedCustomer?.manager === user?.name) && (
+                            <button
+                              onClick={() => handleDeleteFile(file.id)}
+                              className="p-1 rounded hover:bg-red-100 text-red-600 flex-shrink-0"
+                              title={t('deleteFile')}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+                
                 {/* History */}
         <Card>
               <CardContent className="p-4">
