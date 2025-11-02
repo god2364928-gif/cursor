@@ -16,6 +16,14 @@ const translations: Record<Language, Translation> = {
     settings: '設定',
     logout: 'ログアウト',
     
+    // Login
+    marketingCRM: 'マーケティング CRM',
+    loginToAccount: 'アカウントにログインしてください',
+    loginButton: 'ログイン',
+    loggingIn: 'ログイン中...',
+    loginFailed: 'ログインに失敗しました',
+    invalidCredentials: 'メールアドレスまたはパスワードが正しくありません',
+    
     // Common
     loading: '読み込み中...',
     search: '検索',
@@ -261,6 +269,14 @@ const translations: Record<Language, Translation> = {
     sales: '실적 관리',
     settings: '설정',
     logout: '로그아웃',
+    
+    // Login
+    marketingCRM: '마케팅 CRM',
+    loginToAccount: '계정에 로그인하세요',
+    loginButton: '로그인',
+    loggingIn: '로그인 중...',
+    loginFailed: '로그인에 실패했습니다',
+    invalidCredentials: '이메일 주소 또는 비밀번호가 올바르지 않습니다',
     
     // Common
     loading: '로딩 중...',
