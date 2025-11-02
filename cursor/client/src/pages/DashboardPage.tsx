@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import api from '../lib/api'
 import { DashboardStats, MonthlySales, SalesTrendData } from '../types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Button } from '../components/ui/button'
 import { formatNumber } from '../lib/utils'
 import { Users, Phone, MessageSquare, DollarSign, Target } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -207,24 +208,9 @@ export default function DashboardPage() {
                     className="border rounded px-3 py-2"
                   />
                 </div>
-                <button
-                  onClick={handlePreviousMonth}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
-                >
-                  {t('previousMonth')}
-                </button>
-                <button
-                  onClick={handleCurrentMonth}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
-                >
-                  {t('currentMonth')}
-                </button>
-                <button
-                  onClick={handleNextMonth}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
-                >
-                  {t('nextMonth')}
-                </button>
+                <Button onClick={handlePreviousMonth} variant="outline">{t('previousMonth')}</Button>
+                <Button onClick={handleCurrentMonth}>{t('currentMonth')}</Button>
+                <Button onClick={handleNextMonth} variant="outline">{t('nextMonth')}</Button>
                 <div className="flex gap-2 items-center ml-auto">
                   <label className="text-sm font-medium">{t('manager')}:</label>
                   <select
