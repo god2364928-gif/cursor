@@ -823,7 +823,7 @@ export default function RetargetingPage() {
         </div>
         
         {/* Scrollable content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
           
           {/* Customer List */}
           <div className="space-y-2">
@@ -833,8 +833,8 @@ export default function RetargetingPage() {
               <div
                 key={customer.id}
                 onClick={() => setSelectedCustomer(customer)}
-                className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${getContactStatusColor(days)} ${
-                  selectedCustomer?.id === customer.id ? 'bg-blue-50 border-blue-300' : ''
+                className={`p-3 rounded-lg cursor-pointer hover:bg-gray-50 ${getContactStatusColor(days)} ${
+                  selectedCustomer?.id === customer.id ? 'bg-blue-50 border border-blue-300' : ''
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
