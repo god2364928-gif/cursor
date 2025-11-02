@@ -797,7 +797,7 @@ export default function RetargetingPage() {
               
               {/* Sub Filter (only when inProgress is selected) */}
               {mainFilter === 'inProgress' && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1 items-center">
                   <Button size="sm" variant={subFilter === 'all' ? 'default' : 'outline'} onClick={() => setSubFilter('all')}>
                     {t('all')}
                   </Button>
