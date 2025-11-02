@@ -103,12 +103,6 @@ export default function SettingsPage() {
     }}>
       <div className="bg-white p-6">
         <div className="space-y-6">
-          {/* Title */}
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{t('settings')}</h1>
-            <p className="text-muted-foreground">{t('accountInfo')}</p>
-          </div>
-
           <Card>
             <CardHeader>
               <CardTitle>{t('accountInfo')}</CardTitle>
