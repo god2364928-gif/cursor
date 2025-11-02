@@ -162,5 +162,34 @@ router.delete('/users/:id', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+// Change own password
+router.put('/change-password', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'Current password and new password are required' });
+        }
+        // Get current user from database
+        const userResult = await db_1.pool.query('SELECT * FROM users WHERE id = $1', [req.user?.id]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const user = userResult.rows[0];
+        // Verify current password
+        const isValidPassword = await bcryptjs_1.default.compare(currentPassword, user.password);
+        if (!isValidPassword) {
+            return res.status(401).json({ message: 'Invalid current password' });
+        }
+        // Hash new password
+        const hashedNewPassword = await bcryptjs_1.default.hash(newPassword, 10);
+        // Update password
+        await db_1.pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedNewPassword, req.user?.id]);
+        res.json({ message: 'Password changed successfully' });
+    }
+    catch (error) {
+        console.error('Error changing password:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=auth.js.map

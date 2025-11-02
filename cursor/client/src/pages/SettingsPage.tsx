@@ -31,6 +31,13 @@ export default function SettingsPage() {
     role: 'user'
   })
   const [loading, setLoading] = useState(false)
+  const [showPasswordChange, setShowPasswordChange] = useState(false)
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [changingPassword, setChangingPassword] = useState(false)
 
   useEffect(() => {
     if (isAdmin) {
@@ -96,6 +103,37 @@ export default function SettingsPage() {
     }
   }
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validate passwords match
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert(t('passwordMismatch'))
+      return
+    }
+    
+    setChangingPassword(true)
+    
+    try {
+      await api.put('/auth/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      })
+      
+      alert(t('passwordChanged'))
+      setShowPasswordChange(false)
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        alert(t('invalidCurrentPassword'))
+      } else {
+        alert(t('passwordChangeFailed'))
+      }
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -121,7 +159,59 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground">{t('role')}</p>
                   <p className="text-lg font-medium">{user?.role}</p>
                 </div>
+                <div>
+                  <Button onClick={() => setShowPasswordChange(!showPasswordChange)} variant="outline">
+                    {t('changePassword')}
+                  </Button>
+                </div>
               </div>
+              {showPasswordChange && (
+                <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+                  <form onSubmit={handlePasswordChange} className="space-y-4">
+                    <div>
+                      <Label htmlFor="currentPassword">{t('currentPassword')} *</Label>
+                      <Input
+                        id="currentPassword"
+                        type="password"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="newPassword">{t('newPassword')} *</Label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="confirmPassword">{t('confirmNewPassword')} *</Label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit" disabled={changingPassword}>
+                        {changingPassword ? t('saving') : t('save')}
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={() => {
+                        setShowPasswordChange(false)
+                        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+                      }}>
+                        {t('cancel')}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              )}
             </CardContent>
           </Card>
 
