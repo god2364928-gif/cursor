@@ -739,8 +739,8 @@ export default function CustomersPage() {
               <div
                 key={customer.id}
                 onClick={() => setSelectedCustomer(customer)}
-                className={`p-3 rounded-lg cursor-pointer hover:bg-gray-50 ${
-                  selectedCustomer?.id === customer.id ? 'bg-blue-50 border border-blue-300' : ''
+                className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
+                  selectedCustomer?.id === customer.id ? 'bg-blue-50 border-blue-300' : ''
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
