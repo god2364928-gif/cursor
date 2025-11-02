@@ -874,13 +874,12 @@ export default function RetargetingPage() {
         {selectedCustomer ? (
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
             <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">{t('customerDetails')}</h2>
               <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
                 {t('save')}
               </Button>
             </div>
-            <div className="border-t border-gray-200"></div>
             
             {/* Basic Info */}
             <Card>
@@ -1198,8 +1197,7 @@ export default function RetargetingPage() {
         {selectedCustomer ? (
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
             <div className="space-y-4">
-            <h2 className="text-xl font-bold">{t('history')}</h2>
-            <div className="border-t border-gray-200"></div>
+            <h2 className="text-xl font-bold mb-4">{t('history')}</h2>
             
             {/* Files */}
             <Card>
