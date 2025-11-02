@@ -334,9 +334,6 @@ export default function SalesPage() {
       backgroundColor: '#f3f4f6'
     }}>
       <div className="bg-white p-6 space-y-6">
-        {/* Title */}
-        <h1 className="text-3xl font-bold tracking-tight">{t('sales')}</h1>
-
         {/* 날짜 필터 */}
         <Card>
         <CardContent className="p-4">
