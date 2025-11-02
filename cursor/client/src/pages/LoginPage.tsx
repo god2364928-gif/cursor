@@ -27,7 +27,13 @@ export default function LoginPage() {
       setAuth(response.data.user, response.data.token)
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.message || t('loginFailed'))
+      const errorMessage = err.response?.data?.message
+      // Translate server error messages
+      if (errorMessage === 'Invalid credentials') {
+        setError(t('invalidCredentials'))
+      } else {
+        setError(errorMessage || t('loginFailed'))
+      }
     } finally {
       setLoading(false)
     }
