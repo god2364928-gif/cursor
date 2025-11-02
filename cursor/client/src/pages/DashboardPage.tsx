@@ -349,7 +349,7 @@ export default function DashboardPage() {
                   )}
                   
                   {/* 다른 직원들 현황 (작게) */}
-                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-2 grid-cols-4">
                     {personalStats
                       .filter(stat => stat.manager !== user?.name)
                       .map(stat => (
