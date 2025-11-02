@@ -702,7 +702,7 @@ export default function CustomersPage() {
           </div>
           
           {/* Status Filter */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-1 mb-4 items-center">
             <Button
               size="sm"
               variant={statusFilter === 'all' ? 'default' : 'outline'}
