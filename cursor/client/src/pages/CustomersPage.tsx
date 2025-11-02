@@ -702,7 +702,7 @@ export default function CustomersPage() {
           </div>
           
           {/* Status Filter */}
-          <div className="flex gap-1 mb-4 items-center">
+          <div className="flex gap-1 items-center">
             <Button
               size="sm"
               variant={statusFilter === 'all' ? 'default' : 'outline'}
@@ -731,7 +731,7 @@ export default function CustomersPage() {
         </div>
         
         {/* Customer List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingTop: 0 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
           <div className="space-y-2">
           {filteredCustomers.map(customer => {
             const days = calculateDaysUntilExpiration(customer.contractExpirationDate)
@@ -739,8 +739,8 @@ export default function CustomersPage() {
               <div
                 key={customer.id}
                 onClick={() => setSelectedCustomer(customer)}
-                className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                  selectedCustomer?.id === customer.id ? 'bg-blue-50 border-blue-300' : ''
+                className={`p-3 rounded-lg cursor-pointer hover:bg-gray-50 ${
+                  selectedCustomer?.id === customer.id ? 'bg-blue-50 border border-blue-300' : ''
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
