@@ -7,11 +7,9 @@ const router = Router()
 
 // Helper function to decode file name
 const decodeFileName = (fileName: string): string => {
-  console.log('Original file name:', fileName)
   try {
     // Try latin1 to utf8 conversion (common issue with multer and multipart/form-data)
     const utf8Decoded = Buffer.from(fileName, 'latin1').toString('utf8')
-    console.log('UTF-8 decoded file name:', utf8Decoded)
     
     // If the conversion made a difference, use it
     if (utf8Decoded !== fileName) {
@@ -19,11 +17,8 @@ const decodeFileName = (fileName: string): string => {
     }
     
     // Otherwise try URL decoding
-    const urlDecoded = decodeURIComponent(fileName)
-    console.log('URL decoded file name:', urlDecoded)
-    return urlDecoded
+    return decodeURIComponent(fileName)
   } catch (e) {
-    console.log('Decode failed, using original:', fileName)
     // If decoding fails, return as is
     return fileName
   }
@@ -275,18 +270,7 @@ router.post('/:id/history', authMiddleware, async (req: AuthRequest, res: Respon
     const userName = req.user?.name?.trim() || ''
     const customerManager = customer.manager?.trim() || ''
     
-    console.log('History permission check:', {
-      userRole: req.user?.role,
-      userName: userName,
-      customerManager: customerManager,
-      isAdmin: req.user?.role === 'admin',
-      managerMatch: customerManager === userName,
-      userNameLength: userName.length,
-      managerLength: customerManager.length
-    })
-    
     if (req.user?.role !== 'admin' && customerManager !== userName) {
-      console.log('Permission denied:', { customerManager, userName, match: false })
       return res.status(403).json({ message: 'You can only add history to customers assigned to you' })
     }
     
@@ -627,14 +611,6 @@ router.post('/:id/files', authMiddleware, upload.single('file'), async (req: Aut
 
     // Convert file buffer to Base64
     const fileDataBase64 = req.file.buffer.toString('base64')
-
-    // Log all file properties for debugging
-    console.log('File upload received:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-      encoding: req.file.encoding
-    })
 
     // Decode file name to handle Korean/Japanese characters
     const decodedFileName = decodeFileName(req.file.originalname)

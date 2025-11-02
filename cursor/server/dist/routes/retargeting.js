@@ -61,22 +61,17 @@ const toKSTDateString = (date) => {
 const router = (0, express_1.Router)();
 // Helper function to decode file name
 const decodeFileName = (fileName) => {
-    console.log('Original file name:', fileName);
     try {
         // Try latin1 to utf8 conversion (common issue with multer and multipart/form-data)
         const utf8Decoded = Buffer.from(fileName, 'latin1').toString('utf8');
-        console.log('UTF-8 decoded file name:', utf8Decoded);
         // If the conversion made a difference, use it
         if (utf8Decoded !== fileName) {
             return utf8Decoded;
         }
         // Otherwise try URL decoding
-        const urlDecoded = decodeURIComponent(fileName);
-        console.log('URL decoded file name:', urlDecoded);
-        return urlDecoded;
+        return decodeURIComponent(fileName);
     }
     catch (e) {
-        console.log('Decode failed, using original:', fileName);
         // If decoding fails, return as is
         return fileName;
     }
@@ -283,17 +278,7 @@ router.post('/:id/history', auth_1.authMiddleware, async (req, res) => {
         // Trim spaces for comparison
         const userName = req.user?.name?.trim() || '';
         const customerManager = customer.manager?.trim() || '';
-        console.log('Retargeting history permission check:', {
-            userRole: req.user?.role,
-            userName: userName,
-            customerManager: customerManager,
-            isAdmin: req.user?.role === 'admin',
-            managerMatch: customerManager === userName,
-            userNameLength: userName.length,
-            managerLength: customerManager.length
-        });
         if (req.user?.role !== 'admin' && customerManager !== userName) {
-            console.log('Permission denied:', { customerManager, userName, match: false });
             return res.status(403).json({ message: 'You can only add history to retargeting customers assigned to you' });
         }
         const result = await db_1.pool.query('INSERT INTO retargeting_history (retargeting_customer_id, user_id, user_name, type, content) VALUES ($1, $2, $3, $4, $5) RETURNING *', [id, req.user?.id, req.user?.name, type, content]);
@@ -500,13 +485,6 @@ router.post('/:id/files', auth_1.authMiddleware, upload.single('file'), async (r
         }
         // Convert file buffer to Base64
         const fileDataBase64 = req.file.buffer.toString('base64');
-        // Log all file properties for debugging
-        console.log('File upload received:', {
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            size: req.file.size,
-            encoding: req.file.encoding
-        });
         // Decode file name to handle Korean/Japanese characters
         const decodedFileName = decodeFileName(req.file.originalname);
         // Insert file into database
