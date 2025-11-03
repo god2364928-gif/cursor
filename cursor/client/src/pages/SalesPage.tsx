@@ -256,25 +256,25 @@ export default function SalesPage() {
   }
 
   const handleExportExcel = () => {
-    // 엑셀 데이터 생성
+    // 엑셀 데이터 생성 (현재 언어로)
     const excelData = filteredSales.map(sale => ({
-      '매니저': sale.userName,
-      '상호': sale.companyName,
-      '입금자명': sale.payerName || '',
-      '매출 분류': typeLabel(sale.salesType),
-      '유형': sourceLabel(sale.sourceType),
-      '입금액(소비세포함)': Math.round(sale.amount * 1.1),
-      '매출': sale.amount,
-      '입금일': sale.contractDate?.split('T')[0] || sale.contractDate,
-      '마케팅 내용': sale.marketingContent || ''
+      [t('manager')]: sale.userName,
+      [t('companyName')]: sale.companyName,
+      [t('payerName')]: sale.payerName || '',
+      [t('salesType')]: typeLabel(sale.salesType),
+      [t('sourceType')]: sourceLabel(sale.sourceType),
+      [t('amountWithTax')]: Math.round(sale.amount * 1.1),
+      [t('revenue')]: sale.amount,
+      [t('contractDate')]: sale.contractDate?.split('T')[0] || sale.contractDate,
+      [t('marketingContent')]: sale.marketingContent || ''
     }))
 
     const ws = XLSX.utils.json_to_sheet(excelData)
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, '매출 목록')
+    XLSX.utils.book_append_sheet(wb, ws, t('salesList'))
 
     // 파일명에 날짜 포함
-    const filename = `매출목록_${startDate}_${endDate}.xlsx`
+    const filename = `${t('salesList')}_${startDate}_${endDate}.xlsx`
     XLSX.writeFile(wb, filename)
   }
 
