@@ -274,6 +274,8 @@ export default function SettingsPage() {
                         className="w-full px-3 py-2 border rounded-md"
                       >
                         <option value="user">{t('user')}</option>
+                        <option value="manager">{t('manager')}</option>
+                        <option value="marketer">{t('marketer')}</option>
                         <option value="admin">{t('admin')}</option>
                       </select>
                     </div>
