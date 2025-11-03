@@ -44,6 +44,32 @@ export default function PerformancePage() {
   const [serviceId, setServiceId] = useState<string>('')
   const [typeId, setTypeId] = useState<string>('')
 
+  // 담당자별 매출 합계 계산
+  const managerSummary = useMemo(() => {
+    const summaryByManager = new Map<string, { name: string; total_gross: number; total_net: number; total_incentive: number; count: number }>()
+    
+    items.forEach(item => {
+      const manager = item.manager_name || '미지정'
+      if (!summaryByManager.has(manager)) {
+        summaryByManager.set(manager, {
+          name: manager,
+          total_gross: 0,
+          total_net: 0,
+          total_incentive: 0,
+          count: 0
+        })
+      }
+      
+      const current = summaryByManager.get(manager)!
+      current.total_gross += Number(item.gross_amount_jpy) || 0
+      current.total_net += Number(item.net_amount_jpy) || 0
+      current.total_incentive += Number(item.incentive_amount_jpy) || 0
+      current.count += 1
+    })
+    
+    return Array.from(summaryByManager.values()).sort((a, b) => b.total_gross - a.total_gross)
+  }, [items])
+
   const period = useMemo(() => {
     const [y, m] = month.split('-').map(Number)
     const from = new Date(y, m - 1, 1)
@@ -106,6 +132,24 @@ export default function PerformancePage() {
               <Button onClick={load} disabled={loading}>Reload</Button>
             </div>
           </div>
+
+      {/* 담당자별 매출 합계 */}
+      {managerSummary.length > 0 && (
+        <div className="bg-white rounded border p-4">
+          <div className="text-lg font-semibold mb-3">담당자별 매출 합계</div>
+          <div className="grid grid-cols-4 gap-4">
+            {managerSummary.map((manager, idx) => (
+              <div key={idx} className="p-3 border rounded">
+                <div className="text-sm font-semibold mb-2">{manager.name}</div>
+                <div className="text-xs text-gray-500">총액: {fmtJPY(manager.total_gross)}</div>
+                <div className="text-xs text-gray-500">순액: {fmtJPY(manager.total_net)}</div>
+                <div className="text-xs text-gray-500">인센티브: {fmtJPY(manager.total_incentive)}</div>
+                <div className="text-xs text-gray-500 mt-1">건수: {manager.count}건</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {summary && (
         <div className="grid grid-cols-4 gap-4">
