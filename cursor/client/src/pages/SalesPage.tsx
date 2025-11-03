@@ -322,6 +322,38 @@ export default function SalesPage() {
   const renewalSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'renew')
   const cancellationSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'cancel')
 
+  // 담당자별 매출 합계 계산 (모든 담당자 포함)
+  const managerSummary = () => {
+    const summaryByManager = new Map<string, { name: string; total_gross: number; count: number }>()
+    
+    // 모든 담당자를 먼저 0으로 초기화
+    managerOptions.forEach(manager => {
+      summaryByManager.set(manager, {
+        name: manager,
+        total_gross: 0,
+        count: 0
+      })
+    })
+    
+    // 실제 데이터로 합계 계산
+    sales.forEach(sale => {
+      const manager = sale.userName || '미지정'
+      if (!summaryByManager.has(manager)) {
+        summaryByManager.set(manager, {
+          name: manager,
+          total_gross: 0,
+          count: 0
+        })
+      }
+      
+      const current = summaryByManager.get(manager)!
+      current.total_gross += sale.amount || 0
+      current.count += 1
+    })
+    
+    return Array.from(summaryByManager.values()).sort((a, b) => b.total_gross - a.total_gross)
+  }
+
   if (loading) {
     return <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6', padding: '24px' }}>
       <div className="text-center">{t('loading')}</div>
@@ -404,6 +436,22 @@ export default function SalesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 담당자별 매출 합계 */}
+      {managerSummary().length > 0 && (
+        <div className="bg-white rounded border p-4">
+          <div className="text-lg font-semibold mb-3">담당자별 매출 합계</div>
+          <div className="grid grid-cols-4 gap-4">
+            {managerSummary().map((manager, idx) => (
+              <div key={idx} className="p-3 border rounded">
+                <div className="text-sm font-semibold mb-2">{manager.name}</div>
+                <div className="text-xs text-gray-500">총액: {formatNumber(manager.total_gross)}{t('yen')}</div>
+                <div className="text-xs text-gray-500 mt-1">건수: {manager.count}건</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 매출 리스트 */}
       <Card>
