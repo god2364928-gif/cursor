@@ -662,7 +662,7 @@ export default function SalesPage() {
                         <td className="px-2 py-3 text-sm text-gray-500">{sale.contractDate?.split('T')[0] || sale.contractDate}</td>
                         <td className="px-2 py-3 text-sm text-gray-500 max-w-xs truncate">{sale.marketingContent}</td>
                         <td className="px-2 py-3 text-sm">
-                          {sale.userId === user?.id && (
+                          {(sale.userId === user?.id || user?.role === 'admin') && (
                             <div className="flex gap-2">
                               <Button size="sm" variant="outline" onClick={() => setEditingSale(sale)}>
                                 <Edit className="h-3 w-3" />
