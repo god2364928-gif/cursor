@@ -605,7 +605,7 @@ export default function SalesPage() {
                           <div className="flex items-center gap-2">
                             <Input 
                               type="text" 
-                              defaultValue={formatNumber(Math.floor(sale.amount * 1.1))} 
+                              defaultValue={formatNumber(Math.round(sale.amount * 1.1))} 
                               id="edit-amountWithTax"
                               className="w-28"
                               onChange={e => {
@@ -657,7 +657,7 @@ export default function SalesPage() {
                           </span>
                         </td>
                         <td className="px-2 py-3 text-sm text-gray-500">{sourceLabel(sale.sourceType)}</td>
-                        <td className="px-2 py-3 text-sm font-medium text-gray-900">{formatNumber(Math.floor(sale.amount * 1.1))}{t('yen')}</td>
+                        <td className="px-2 py-3 text-sm font-medium text-gray-900">{formatNumber(Math.round(sale.amount * 1.1))}{t('yen')}</td>
                         <td className="px-2 py-3 text-sm font-medium text-gray-900">{formatNumber(sale.amount)}{t('yen')}</td>
                         <td className="px-2 py-3 text-sm text-gray-500">{sale.contractDate?.split('T')[0] || sale.contractDate}</td>
                         <td className="px-2 py-3 text-sm text-gray-500 max-w-xs truncate">{sale.marketingContent}</td>
