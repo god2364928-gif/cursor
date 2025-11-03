@@ -44,10 +44,24 @@ export default function PerformancePage() {
   const [serviceId, setServiceId] = useState<string>('')
   const [typeId, setTypeId] = useState<string>('')
 
-  // 담당자별 매출 합계 계산
+  // 담당자별 매출 합계 계산 (모든 담당자 포함)
   const managerSummary = useMemo(() => {
     const summaryByManager = new Map<string, { name: string; total_gross: number; total_net: number; total_incentive: number; count: number }>()
     
+    // 모든 담당자를 먼저 0으로 초기화
+    if (filters?.managers) {
+      filters.managers.forEach(manager => {
+        summaryByManager.set(manager.name, {
+          name: manager.name,
+          total_gross: 0,
+          total_net: 0,
+          total_incentive: 0,
+          count: 0
+        })
+      })
+    }
+    
+    // 실제 데이터로 합계 계산
     items.forEach(item => {
       const manager = item.manager_name || '미지정'
       if (!summaryByManager.has(manager)) {
@@ -68,7 +82,7 @@ export default function PerformancePage() {
     })
     
     return Array.from(summaryByManager.values()).sort((a, b) => b.total_gross - a.total_gross)
-  }, [items])
+  }, [items, filters])
 
   const period = useMemo(() => {
     const [y, m] = month.split('-').map(Number)
