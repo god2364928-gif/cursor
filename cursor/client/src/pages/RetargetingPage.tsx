@@ -42,7 +42,7 @@ export default function RetargetingPage() {
     return 'en'
   }
   
-  // Simple translation mapping for common business terms
+  // Translation using Google Translate API
   const translateContent = async (content: string): Promise<string> => {
     // Only translate if current language is Korean and content is Japanese
     if (language !== 'ko') return content
@@ -50,15 +50,36 @@ export default function RetargetingPage() {
     const detectedLang = detectLanguage(content)
     if (detectedLang !== 'ja') return content
     
-    // Use MyMemory Translation API (free, 100 requests/day)
+    // Use Google Translate API (free, 100 requests/day)
+    // Split long content into sentences for better translation quality
+    const sentences = content.split(/([。！？\n])/).filter(s => s.trim().length > 0)
+    if (sentences.length === 0) return content
+    
     try {
-      const response = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(content)}&langpair=ja|ko`
+      const translatedSentences = await Promise.all(
+        sentences.map(async (sentence) => {
+          if (!sentence.trim() || /^[。！？\n]$/.test(sentence)) {
+            return sentence // Return punctuation as-is
+          }
+          
+          try {
+            const response = await fetch(
+              `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ko&dt=t&q=${encodeURIComponent(sentence)}`
+            )
+            if (!response.ok) return sentence
+            
+            const data = await response.json()
+            if (data && data[0] && data[0][0] && data[0][0][0]) {
+              return data[0][0][0]
+            }
+          } catch (error) {
+            console.error('Translation error for sentence:', error)
+          }
+          return sentence
+        })
       )
-      const data = await response.json()
-      if (data.responseStatus === 200 && data.responseData?.translatedText) {
-        return data.responseData.translatedText
-      }
+      
+      return translatedSentences.join('')
     } catch (error) {
       console.error('Translation error:', error)
     }
