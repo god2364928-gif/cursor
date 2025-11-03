@@ -1217,6 +1217,7 @@ export default function CustomersPage() {
         {/* Quick Input */}
         <Card>
           <CardContent className="p-4">
+            <h3 className="font-semibold mb-4">{t('history')}</h3>
             <div className="flex gap-2 mb-4">
               <Button
                 size="sm"
