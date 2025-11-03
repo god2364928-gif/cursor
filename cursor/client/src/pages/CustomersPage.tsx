@@ -746,7 +746,7 @@ export default function CustomersPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold truncate">{customer.companyName}</div>
-                    <div className="text-xs text-blue-600 mt-0.5">{t('manager')}: {customer.manager || t('notAssigned')}</div>
+                    <div className="text-xs text-blue-600 mt-0.5">{customer.manager || t('notAssigned')}</div>
                     <div className="text-xs text-gray-500">{t('amount')}: {formatNumber(customer.monthlyBudget)}{t('yen')}</div>
                   </div>
                   <div className={`text-xs whitespace-nowrap px-2 py-1 rounded ${
