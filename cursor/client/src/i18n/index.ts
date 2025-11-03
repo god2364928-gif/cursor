@@ -222,6 +222,8 @@ const translations: Record<Language, Translation> = {
     role: '役割',
     admin: '管理者',
     user: '一般ユーザー',
+    manager: 'マネージャー',
+    marketer: 'マーケター',
     
     // Messages
     success: '成功',
@@ -476,6 +478,8 @@ const translations: Record<Language, Translation> = {
     role: '역할',
     admin: '관리자',
     user: '일반 사용자',
+    manager: '매니저',
+    marketer: '마케터',
     
     // Messages
     success: '성공',
