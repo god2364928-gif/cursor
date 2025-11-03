@@ -558,7 +558,8 @@ export default function SalesPage() {
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">{t('payerName')}</th>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">{t('salesType')}</th>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">{t('sourceType')}</th>
-                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">{t('amount')}</th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">{t('amountWithTax')}</th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">{t('revenue')}</th>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">{t('contractDate')}</th>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-48">{t('marketingContent')}</th>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">{t('action')}</th>
@@ -656,6 +657,7 @@ export default function SalesPage() {
                           </span>
                         </td>
                         <td className="px-2 py-3 text-sm text-gray-500">{sourceLabel(sale.sourceType)}</td>
+                        <td className="px-2 py-3 text-sm font-medium text-gray-900">{formatNumber(Math.floor(sale.amount * 1.1))}{t('yen')}</td>
                         <td className="px-2 py-3 text-sm font-medium text-gray-900">{formatNumber(sale.amount)}{t('yen')}</td>
                         <td className="px-2 py-3 text-sm text-gray-500">{sale.contractDate?.split('T')[0] || sale.contractDate}</td>
                         <td className="px-2 py-3 text-sm text-gray-500 max-w-xs truncate">{sale.marketingContent}</td>
