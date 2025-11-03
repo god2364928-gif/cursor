@@ -198,6 +198,7 @@ const translations: Record<Language, Translation> = {
     newSalesAmount: '新規売上',
     renewalSalesAmount: '延長売上',
     cancellationSalesAmount: '解約売上',
+    exportExcel: 'エクスポート',
     
     // History Types
     missedCall: '不在',
@@ -456,6 +457,7 @@ const translations: Record<Language, Translation> = {
     newSalesAmount: '신규 매출',
     renewalSalesAmount: '연장 매출',
     cancellationSalesAmount: '해지 매출',
+    exportExcel: '엑셀 다운로드',
     
     // History Types
     missedCall: '부재중',

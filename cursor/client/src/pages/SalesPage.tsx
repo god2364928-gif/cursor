@@ -7,7 +7,8 @@ import { Input } from '../components/ui/input'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
 import { formatNumber } from '../lib/utils'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 export default function SalesPage() {
   const { t } = useI18nStore()
@@ -254,6 +255,29 @@ export default function SalesPage() {
     return isNaN(num) ? 0 : num
   }
 
+  const handleExportExcel = () => {
+    // 엑셀 데이터 생성
+    const excelData = filteredSales.map(sale => ({
+      '매니저': sale.userName,
+      '상호': sale.companyName,
+      '입금자명': sale.payerName || '',
+      '매출 분류': typeLabel(sale.salesType),
+      '유형': sourceLabel(sale.sourceType),
+      '입금액(소비세포함)': Math.round(sale.amount * 1.1),
+      '매출': sale.amount,
+      '입금일': sale.contractDate?.split('T')[0] || sale.contractDate,
+      '마케팅 내용': sale.marketingContent || ''
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(excelData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '매출 목록')
+
+    // 파일명에 날짜 포함
+    const filename = `매출목록_${startDate}_${endDate}.xlsx`
+    XLSX.writeFile(wb, filename)
+  }
+
   // 언어와 무관한 분류 정규화/표시
   const toTypeCode = (v?: string): 'new' | 'renew' | 'cancel' | 'other' => {
     const s = (v || '').trim()
@@ -452,10 +476,16 @@ export default function SalesPage() {
               <CardTitle>{t('salesList')}</CardTitle>
               <p className="text-sm text-gray-500 mt-1">{t('total')} {filteredSales.length}{t('cases')}</p>
             </div>
-            <Button onClick={() => setShowAddForm(!showAddForm)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('add')}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportExcel}>
+                <Download className="h-4 w-4 mr-2" />
+                {t('exportExcel')}
+              </Button>
+              <Button onClick={() => setShowAddForm(!showAddForm)}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t('add')}
+              </Button>
+            </div>
           </div>
           {/* 담당자 필터 */}
           <div className="mt-4">
