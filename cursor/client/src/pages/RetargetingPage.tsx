@@ -1252,7 +1252,6 @@ export default function RetargetingPage() {
         {selectedCustomer ? (
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
             <div className="space-y-4">
-            <h2 className="text-xl font-bold mb-4">{t('history')}</h2>
             
             {/* Files */}
             <Card>
