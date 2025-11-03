@@ -144,6 +144,13 @@ export default function CustomersPage() {
     }
   }, [customers, statusFilter, managerFilter, selectedCustomer])
   
+  // 언어 변경 시 히스토리 다시 불러오기
+  useEffect(() => {
+    if (selectedCustomer?.id) {
+      fetchHistory(selectedCustomer.id)
+    }
+  }, [language])
+
   // 컴포넌트 언마운트 시 요청 취소
   useEffect(() => {
     return () => {
