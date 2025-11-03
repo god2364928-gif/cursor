@@ -522,7 +522,7 @@ export default function SalesPage() {
                     const formatted = formatNumber(numValue)
                     e.target.value = formatted
                     // 매출(소비세별도) 자동 계산: 입금액 / 1.1
-                    const amountWithoutTax = Math.floor(numValue / 1.1)
+                    const amountWithoutTax = Math.round(numValue / 1.1)
                     const amountInput = document.getElementById('add-amount') as HTMLInputElement
                     if (amountInput) {
                       amountInput.value = formatNumber(amountWithoutTax)
@@ -614,7 +614,7 @@ export default function SalesPage() {
                                 const formatted = formatNumber(numValue)
                                 e.target.value = formatted
                                 // 매출(소비세별도) 자동 계산: 입금액 / 1.1
-                                const amountWithoutTax = Math.floor(numValue / 1.1)
+                                const amountWithoutTax = Math.round(numValue / 1.1)
                                 const amountInput = document.getElementById('edit-amount') as HTMLInputElement
                                 if (amountInput) {
                                   amountInput.value = formatNumber(amountWithoutTax)
