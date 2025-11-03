@@ -23,6 +23,7 @@ export default function SalesPage() {
   const [includeTax, setIncludeTax] = useState(true)
   const [currentBaseMonth, setCurrentBaseMonth] = useState<number>(new Date().getMonth())
   const [managerOptions, setManagerOptions] = useState<string[]>([])
+  const [users, setUsers] = useState<any[]>([])
   
   
   // 초기 날짜 설정 (당월 - 오늘까지)
@@ -55,6 +56,7 @@ export default function SalesPage() {
         console.log('Loading users for manager filter...')
         const res = await api.get('/auth/users')
         console.log('Users loaded:', res.data)
+        setUsers(res.data || [])
         const names = (res.data || []).map((u: any) => u.name).sort()
         console.log('Manager options set:', names)
         setManagerOptions(names)
@@ -322,12 +324,13 @@ export default function SalesPage() {
   const renewalSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'renew')
   const cancellationSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'cancel')
 
-  // 담당자별 매출 합계 계산 (모든 담당자 포함)
+  // 담당자별 매출 합계 계산 (마케터 역할만)
   const managerSummary = () => {
     const summaryByManager = new Map<string, { name: string; total_gross: number; count: number }>()
     
-    // 모든 담당자를 먼저 0으로 초기화
-    managerOptions.forEach(manager => {
+    // 마케터 역할인 담당자만 먼저 0으로 초기화
+    const marketers = users.filter(u => u.role === 'marketer').map(u => u.name)
+    marketers.forEach(manager => {
       summaryByManager.set(manager, {
         name: manager,
         total_gross: 0,
@@ -335,7 +338,7 @@ export default function SalesPage() {
       })
     })
     
-    // 실제 데이터로 합계 계산
+    // 실제 데이터로 합계 계산 (마케터만)
     sales.forEach(sale => {
       const manager = sale.userName || '미지정'
       if (!summaryByManager.has(manager)) {
