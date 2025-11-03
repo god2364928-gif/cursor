@@ -521,7 +521,7 @@ export default function SalesPage() {
                     const numValue = parseInt(value) || 0
                     const formatted = formatNumber(numValue)
                     e.target.value = formatted
-                    // 금액(소비세별도) 계산: 소비세포함 금액 / 1.1
+                    // 매출(소비세별도) 자동 계산: 입금액 / 1.1
                     const amountWithoutTax = Math.floor(numValue / 1.1)
                     const amountInput = document.getElementById('add-amount') as HTMLInputElement
                     if (amountInput) {
@@ -529,24 +529,16 @@ export default function SalesPage() {
                     }
                   }}
                 />
-                <Input 
-                  type="text" 
-                  placeholder={t('amount')} 
-                  id="add-amount"
-                  className="w-40 h-10"
-                  onChange={e => {
-                    const value = e.target.value.replace(/,/g, '')
-                    const numValue = parseInt(value) || 0
-                    const formatted = formatNumber(numValue)
-                    e.target.value = formatted
-                    // 금액(소비세포함) 계산: 금액 * 1.1
-                    const amountWithTax = Math.floor(numValue * 1.1)
-                    const amountWithTaxInput = document.getElementById('add-amountWithTax') as HTMLInputElement
-                    if (amountWithTaxInput) {
-                      amountWithTaxInput.value = formatNumber(amountWithTax)
-                    }
-                  }}
-                />
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="text" 
+                    placeholder={t('revenue')} 
+                    id="add-amount"
+                    className="w-40 h-10"
+                    disabled
+                    style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                  />
+                </div>
                 <input type="date" className="border rounded px-3 py-2 w-48 h-10" id="add-contractDate" />
                 <textarea className="border rounded px-3 py-2 flex-1 h-10 resize-none overflow-hidden" rows={1} placeholder={t('marketingContent')} id="add-marketingContent" style={{resize: 'none'}} />
                 <div className="flex gap-2">
@@ -620,7 +612,7 @@ export default function SalesPage() {
                                 const numValue = parseInt(value) || 0
                                 const formatted = formatNumber(numValue)
                                 e.target.value = formatted
-                                // 금액(소비세별도) 계산: 소비세포함 금액 / 1.1
+                                // 매출(소비세별도) 자동 계산: 입금액 / 1.1
                                 const amountWithoutTax = Math.floor(numValue / 1.1)
                                 const amountInput = document.getElementById('edit-amount') as HTMLInputElement
                                 if (amountInput) {
@@ -633,18 +625,8 @@ export default function SalesPage() {
                               defaultValue={formatNumber(sale.amount)} 
                               id="edit-amount"
                               className="w-28"
-                              onChange={e => {
-                                const value = e.target.value.replace(/,/g, '')
-                                const numValue = parseInt(value) || 0
-                                const formatted = formatNumber(numValue)
-                                e.target.value = formatted
-                                // 금액(소비세포함) 계산: 금액 * 1.1
-                                const amountWithTax = Math.floor(numValue * 1.1)
-                                const amountWithTaxInput = document.getElementById('edit-amountWithTax') as HTMLInputElement
-                                if (amountWithTaxInput) {
-                                  amountWithTaxInput.value = formatNumber(amountWithTax)
-                                }
-                              }}
+                              disabled
+                              style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
                             />
                           </div>
                         </td>
