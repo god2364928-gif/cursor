@@ -20,7 +20,6 @@ export default function SalesPage() {
   const [managerFilter, setManagerFilter] = useState<string>('all')
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingSale, setEditingSale] = useState<Sales | null>(null)
-  const [includeTax, setIncludeTax] = useState(true)
   const [currentBaseMonth, setCurrentBaseMonth] = useState<number>(new Date().getMonth())
   const [managerOptions, setManagerOptions] = useState<string[]>([])
   const [users, setUsers] = useState<any[]>([])
@@ -173,11 +172,6 @@ export default function SalesPage() {
       return
     }
 
-    // 소비세 포함일 경우 1.1로 나누기 (세전 금액 계산)
-    if (includeTax) {
-      amount = Math.floor(amount / 1.1)
-    }
-
     try {
       await api.post('/sales', {
         companyName,
@@ -194,10 +188,10 @@ export default function SalesPage() {
       ;(document.getElementById('add-payerName') as HTMLInputElement).value = ''
       ;(document.getElementById('add-salesType') as HTMLSelectElement).value = ''
       ;(document.getElementById('add-sourceType') as HTMLSelectElement).value = ''
+      ;(document.getElementById('add-amountWithTax') as HTMLInputElement).value = ''
       ;(document.getElementById('add-amount') as HTMLInputElement).value = ''
       ;(document.getElementById('add-contractDate') as HTMLInputElement).value = ''
       ;(document.getElementById('add-marketingContent') as HTMLTextAreaElement).value = ''
-      setIncludeTax(false) // 체크박스 해제
       setShowAddForm(false)
       fetchSales()
     } catch (error: any) {
@@ -215,11 +209,6 @@ export default function SalesPage() {
     const contractDate = (document.getElementById('edit-contractDate') as HTMLInputElement)?.value
     const marketingContent = (document.getElementById('edit-marketingContent') as HTMLTextAreaElement)?.value
 
-    // 소비세 포함일 경우 1.1로 나누기 (세전 금액 계산)
-    if (includeTax) {
-      amount = Math.floor(amount / 1.1)
-    }
-
     try {
       await api.put(`/sales/${editingSale.id}`, {
         companyName: editingSale.companyName,
@@ -230,7 +219,6 @@ export default function SalesPage() {
         contractDate,
         marketingContent
       })
-      setIncludeTax(false) // 체크박스 해제
       setEditingSale(null)
       fetchSales()
       alert(t('update') + '되었습니다')
@@ -523,28 +511,42 @@ export default function SalesPage() {
               </div>
               {/* Second row */}
               <div className="flex items-center gap-4 mb-4">
-                <div className="flex items-center gap-2">
-                  <Input 
-                    type="text" 
-                    placeholder={t('amount')} 
-                    id="add-amount"
-                    className="w-40 h-10"
-                    onChange={e => {
-                      const value = e.target.value.replace(/,/g, '')
-                      const formatted = formatNumber(parseInt(value) || 0)
-                      e.target.value = formatted
-                    }}
-                  />
-                  <label className="flex items-center gap-1 text-sm whitespace-nowrap">
-                    <input 
-                      type="checkbox" 
-                      checked={includeTax}
-                      onChange={e => setIncludeTax(e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    <span>{t('includeTax')}</span>
-                  </label>
-                </div>
+                <Input 
+                  type="text" 
+                  placeholder={t('amountWithTax')} 
+                  id="add-amountWithTax"
+                  className="w-40 h-10"
+                  onChange={e => {
+                    const value = e.target.value.replace(/,/g, '')
+                    const numValue = parseInt(value) || 0
+                    const formatted = formatNumber(numValue)
+                    e.target.value = formatted
+                    // 금액(소비세별도) 계산: 소비세포함 금액 / 1.1
+                    const amountWithoutTax = Math.floor(numValue / 1.1)
+                    const amountInput = document.getElementById('add-amount') as HTMLInputElement
+                    if (amountInput) {
+                      amountInput.value = formatNumber(amountWithoutTax)
+                    }
+                  }}
+                />
+                <Input 
+                  type="text" 
+                  placeholder={t('amount')} 
+                  id="add-amount"
+                  className="w-40 h-10"
+                  onChange={e => {
+                    const value = e.target.value.replace(/,/g, '')
+                    const numValue = parseInt(value) || 0
+                    const formatted = formatNumber(numValue)
+                    e.target.value = formatted
+                    // 금액(소비세포함) 계산: 금액 * 1.1
+                    const amountWithTax = Math.floor(numValue * 1.1)
+                    const amountWithTaxInput = document.getElementById('add-amountWithTax') as HTMLInputElement
+                    if (amountWithTaxInput) {
+                      amountWithTaxInput.value = formatNumber(amountWithTax)
+                    }
+                  }}
+                />
                 <input type="date" className="border rounded px-3 py-2 w-48 h-10" id="add-contractDate" />
                 <textarea className="border rounded px-3 py-2 flex-1 h-10 resize-none overflow-hidden" rows={1} placeholder={t('marketingContent')} id="add-marketingContent" style={{resize: 'none'}} />
                 <div className="flex gap-2">
@@ -610,24 +612,40 @@ export default function SalesPage() {
                           <div className="flex items-center gap-2">
                             <Input 
                               type="text" 
-                              defaultValue={formatNumber(sale.amount)} 
-                              id="edit-amount"
-                              className="flex-1"
+                              defaultValue={formatNumber(Math.floor(sale.amount * 1.1))} 
+                              id="edit-amountWithTax"
+                              className="w-28"
                               onChange={e => {
                                 const value = e.target.value.replace(/,/g, '')
-                                const formatted = formatNumber(parseInt(value) || 0)
+                                const numValue = parseInt(value) || 0
+                                const formatted = formatNumber(numValue)
                                 e.target.value = formatted
+                                // 금액(소비세별도) 계산: 소비세포함 금액 / 1.1
+                                const amountWithoutTax = Math.floor(numValue / 1.1)
+                                const amountInput = document.getElementById('edit-amount') as HTMLInputElement
+                                if (amountInput) {
+                                  amountInput.value = formatNumber(amountWithoutTax)
+                                }
                               }}
                             />
-                            <label className="flex items-center gap-1 text-xs whitespace-nowrap">
-                              <input 
-                                type="checkbox" 
-                                checked={includeTax}
-                                onChange={e => setIncludeTax(e.target.checked)}
-                                className="w-3 h-3"
-                              />
-                              <span>{t('includeTax')}</span>
-                            </label>
+                            <Input 
+                              type="text" 
+                              defaultValue={formatNumber(sale.amount)} 
+                              id="edit-amount"
+                              className="w-28"
+                              onChange={e => {
+                                const value = e.target.value.replace(/,/g, '')
+                                const numValue = parseInt(value) || 0
+                                const formatted = formatNumber(numValue)
+                                e.target.value = formatted
+                                // 금액(소비세포함) 계산: 금액 * 1.1
+                                const amountWithTax = Math.floor(numValue * 1.1)
+                                const amountWithTaxInput = document.getElementById('edit-amountWithTax') as HTMLInputElement
+                                if (amountWithTaxInput) {
+                                  amountWithTaxInput.value = formatNumber(amountWithTax)
+                                }
+                              }}
+                            />
                           </div>
                         </td>
                         <td className="px-2 py-3 text-sm">
