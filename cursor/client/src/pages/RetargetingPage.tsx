@@ -13,7 +13,7 @@ import { formatNumber, parseFormattedNumber } from '../lib/utils'
 const RETARGETING_TARGET = 200
 
 export default function RetargetingPage() {
-  const { t } = useI18nStore()
+  const { t, language } = useI18nStore()
   const user = useAuthStore(state => state.user)
   const { showToast } = useToast()
   const isAdmin = user?.role === 'admin'
@@ -24,6 +24,46 @@ export default function RetargetingPage() {
     if (message.includes('You can only rename files for')) return t('onlyOwnerCanModify')
     if (message.includes('You can only delete files for')) return t('onlyOwnerCanModify')
     return message
+  }
+  
+  // Detect if text is Japanese (Hiragana, Katakana, or Kanji)
+  const detectLanguage = (text: string): 'ja' | 'ko' | 'en' => {
+    if (!text) return 'en'
+    // Japanese patterns: Hiragana, Katakana, or common Kanji
+    const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/
+    // Korean patterns: Hangul
+    const koreanPattern = /[\uAC00-\uD7AF]/
+    
+    const hasJapanese = japanesePattern.test(text)
+    const hasKorean = koreanPattern.test(text)
+    
+    if (hasJapanese && !hasKorean) return 'ja'
+    if (hasKorean) return 'ko'
+    return 'en'
+  }
+  
+  // Simple translation mapping for common business terms
+  const translateContent = async (content: string): Promise<string> => {
+    // Only translate if current language is Korean and content is Japanese
+    if (language !== 'ko') return content
+    
+    const detectedLang = detectLanguage(content)
+    if (detectedLang !== 'ja') return content
+    
+    // Use MyMemory Translation API (free, 100 requests/day)
+    try {
+      const response = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(content)}&langpair=ja|ko`
+      )
+      const data = await response.json()
+      if (data.responseStatus === 200 && data.responseData?.translatedText) {
+        return data.responseData.translatedText
+      }
+    } catch (error) {
+      console.error('Translation error:', error)
+    }
+    
+    return content
   }
   const [customers, setCustomers] = useState<RetargetingCustomer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<RetargetingCustomer | null>(null)
@@ -129,7 +169,15 @@ export default function RetargetingPage() {
   const fetchHistory = async (id: string, signal?: AbortSignal) => {
     try {
       const response = await api.get(`/retargeting/${id}/history`, { signal })
-      setHistory(response.data)
+      const historyData = response.data
+      
+      // Translate history content if needed
+      const translatedHistory = await Promise.all(historyData.map(async (item: any) => {
+        const translatedContent = await translateContent(item.content)
+        return { ...item, content: translatedContent }
+      }))
+      
+      setHistory(translatedHistory)
     } catch (error: any) {
       // AbortError는 무시 (요청이 취소된 경우)
       if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
