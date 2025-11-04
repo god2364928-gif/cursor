@@ -13,24 +13,38 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         const hasPayments = !!existsPayments.rows[0]?.t;
         let query = `
       SELECT
-        s.*, to_char(s.contract_date, 'YYYY-MM-DD') AS contract_date_str,
+        s.id,
+        s.customer_id,
+        s.user_id,
+        s.company_name,
+        s.sales_type,
+        s.source_type,
+        s.amount,
+        s.contract_date,
+        s.marketing_content,
+        s.note,
+        s.created_at,
+        to_char(s.contract_date, 'YYYY-MM-DD') AS contract_date_str,
         u.name as user_name,
-        ${hasPayments ? `(
-          SELECT p.payer_name
-          FROM payments p
-          WHERE p.payer_name IS NOT NULL
-            AND (
-              (p.customer_id IS NOT NULL AND p.customer_id = s.customer_id)
-              OR (
-                p.company_name IS NOT NULL AND s.company_name IS NOT NULL AND p.company_name = s.company_name
+        COALESCE(
+          s.payer_name,
+          ${hasPayments ? `(
+            SELECT p.payer_name
+            FROM payments p
+            WHERE p.payer_name IS NOT NULL
+              AND (
+                (p.customer_id IS NOT NULL AND p.customer_id = s.customer_id)
+                OR (
+                  p.company_name IS NOT NULL AND s.company_name IS NOT NULL AND p.company_name = s.company_name
+                )
               )
-            )
-            AND (
-              p.paid_at::date BETWEEN s.contract_date - INTERVAL '7 days' AND s.contract_date + INTERVAL '7 days'
-            )
-          ORDER BY p.paid_at DESC NULLS LAST
-          LIMIT 1
-        )` : 'NULL'} as payer_name
+              AND (
+                p.paid_at::date BETWEEN s.contract_date - INTERVAL '7 days' AND s.contract_date + INTERVAL '7 days'
+              )
+            ORDER BY p.paid_at DESC NULLS LAST
+            LIMIT 1
+          )` : 'NULL'}
+        ) as payer_name
       FROM sales s
       JOIN users u ON s.user_id = u.id
     `;

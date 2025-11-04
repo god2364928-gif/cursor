@@ -116,7 +116,13 @@ export default function RetargetingPage() {
       
       // 즉시 리스트 데이터로 초기화 (빠른 반응)
       setPhoneNumbers(selectedCustomer.phone ? [selectedCustomer.phone] : [''])
-      setInstagramAccounts(selectedCustomer.instagram ? [selectedCustomer.instagram] : [''])
+      // 쉼표로 구분된 인스타그램 계정을 배열로 변환
+      if (selectedCustomer.instagram) {
+        const instagramArray = selectedCustomer.instagram.split(',').map((acc: string) => acc.trim()).filter((acc: string) => acc)
+        setInstagramAccounts(instagramArray.length > 0 ? instagramArray : [''])
+      } else {
+        setInstagramAccounts([''])
+      }
       
       // 이전 요청 취소
       if (abortControllerRef.current) {
@@ -184,7 +190,13 @@ export default function RetargetingPage() {
       }
       // 전화번호와 인스타그램 배열 초기화
       setPhoneNumbers(customer.phone ? [customer.phone] : [''])
-      setInstagramAccounts(customer.instagram ? [customer.instagram] : [''])
+      // 쉼표로 구분된 인스타그램 계정을 배열로 변환
+      if (customer.instagram) {
+        const instagramArray = customer.instagram.split(',').map((acc: string) => acc.trim()).filter((acc: string) => acc)
+        setInstagramAccounts(instagramArray.length > 0 ? instagramArray : [''])
+      } else {
+        setInstagramAccounts([''])
+      }
       // setSelectedCustomer를 호출하지 않음 - 이미 리스트에서 선택된 상태이므로
     } catch (error: any) {
       // AbortError는 무시 (요청이 취소된 경우)
@@ -252,14 +264,18 @@ export default function RetargetingPage() {
     if (!selectedCustomer) return
     
     try {
+      // 빈 문자열을 제외한 모든 인스타그램 계정을 쉼표로 구분하여 저장
+      const instagramString = instagramAccounts.filter(acc => acc.trim()).join(', ')
       const payload = {
         ...selectedCustomer,
         phone: phoneNumbers[0] || '',
-        instagram: instagramAccounts[0] || '',
+        instagram: instagramString || '',
       }
       await api.put(`/retargeting/${selectedCustomer.id}`, payload)
       showToast(t('saved'), 'success')
       fetchCustomers()
+      // 저장 후 최신 데이터 다시 불러오기
+      fetchCustomerDetail(selectedCustomer.id)
     } catch (error: any) {
       if (error.response?.status === 403) {
         showToast(t('onlyOwnerCanModify'), 'error')

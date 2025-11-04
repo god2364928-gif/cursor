@@ -196,7 +196,7 @@ export default function SalesPage() {
       setShowAddForm(false)
       fetchSales()
     } catch (error: any) {
-        alert(error.response?.data?.message || t('sales') + ' 추가 실패')
+        alert(error.response?.data?.message || t('addFailed'))
     }
   }
 
@@ -221,29 +221,29 @@ export default function SalesPage() {
         marketingContent
       })
       setEditingSale(null)
-      fetchSales()
-      alert(t('update') + '되었습니다')
+      await fetchSales()
+      alert(t('updated'))
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert('본인만 내용을 수정 가능합니다')
+        alert(t('onlyOwnerCanModify'))
       } else {
-        alert(error.response?.data?.message || t('update') + ' 실패')
+        alert(error.response?.data?.message || t('updateFailed'))
       }
     }
   }
 
   const handleDeleteSale = async (id: string) => {
-    if (!confirm('정말로 ' + t('delete') + '하시겠습니까?')) return
+    if (!confirm(t('confirmDelete'))) return
 
     try {
       await api.delete(`/sales/${id}`)
       fetchSales()
-      alert(t('delete') + '되었습니다')
+      alert(t('deleted'))
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert('본인만 내용을 수정 가능합니다')
+        alert(t('onlyOwnerCanModify'))
       } else {
-        alert(error.response?.data?.message || t('delete') + ' 실패')
+        alert(error.response?.data?.message || t('deleteFailed'))
       }
     }
   }
@@ -455,13 +455,13 @@ export default function SalesPage() {
       {/* 담당자별 매출 합계 */}
       {managerSummary().length > 0 && (
         <div className="bg-white rounded border p-4">
-          <div className="text-lg font-semibold mb-3">담당자별 매출 합계</div>
+          <div className="text-lg font-semibold mb-3">{t('managerSalesSummary')}</div>
           <div className="grid grid-cols-4 gap-4">
             {managerSummary().map((manager, idx) => (
               <div key={idx} className="p-3 border rounded">
                 <div className="text-sm font-semibold mb-2">{manager.name}</div>
-                <div className="text-xs text-gray-500">총액: {formatNumber(manager.total_gross)}{t('yen')}</div>
-                <div className="text-xs text-gray-500 mt-1">건수: {manager.count}건</div>
+                <div className="text-xs text-gray-500">{t('totalAmount')}: {formatNumber(manager.total_gross)}{t('yen')}</div>
+                <div className="text-xs text-gray-500 mt-1">{t('count')}: {manager.count}{t('cases')}</div>
               </div>
             ))}
           </div>
