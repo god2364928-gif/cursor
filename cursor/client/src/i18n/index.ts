@@ -107,6 +107,9 @@ const translations: Record<Language, Translation> = {
     yen: '円',
     total: '総',
     cases: '件',
+    managerSalesSummary: '担当者別売上合計',
+    totalAmount: '総額',
+    count: '件数',
     
     // Additional translations
     basicInfo: '基本情報',
@@ -239,6 +242,7 @@ const translations: Record<Language, Translation> = {
     customerConverted: '顧客に変換されました',
     saved: '保存されました',
     saveFailed: '保存に失敗しました',
+    updated: '更新されました',
     deleted: '削除されました',
     deleteFailed: '削除に失敗しました',
     historyDeleted: '履歴が削除されました',
@@ -381,6 +385,9 @@ const translations: Record<Language, Translation> = {
     saving: '저장 중...',
     total: '총',
     cases: '건',
+    managerSalesSummary: '담당자별 매출 합계',
+    totalAmount: '총액',
+    count: '건수',
     monthlySalesTrendSubtitle: '최근 12개월 본인 매출과 전체 매출 비교',
 
     // Customer Management
@@ -498,6 +505,7 @@ const translations: Record<Language, Translation> = {
     customerConverted: '고객으로 변환되었습니다',
     saved: '저장되었습니다',
     saveFailed: '저장 실패',
+    updated: '저장되었습니다',
     deleted: '삭제되었습니다',
     deleteFailed: '삭제 실패',
     historyDeleted: '히스토리가 삭제되었습니다',

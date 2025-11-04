@@ -117,7 +117,13 @@ export default function CustomersPage() {
       if (selectedCustomer.phone3) phones.push(selectedCustomer.phone3)
       setPhoneNumbers(phones.length > 0 ? phones : [''])
       setInitialPhoneCount(phones.length)
-      setInstagramAccounts(selectedCustomer.instagram ? [selectedCustomer.instagram] : [''])
+      // 쉼표로 구분된 인스타그램 계정을 배열로 변환
+      if (selectedCustomer.instagram) {
+        const instagramArray = selectedCustomer.instagram.split(',').map((acc: string) => acc.trim()).filter((acc: string) => acc)
+        setInstagramAccounts(instagramArray.length > 0 ? instagramArray : [''])
+      } else {
+        setInstagramAccounts([''])
+      }
       
       // 이전 요청 취소
       if (abortControllerRef.current) {
@@ -209,7 +215,13 @@ export default function CustomersPage() {
       if (customer.phone3) phones.push(customer.phone3)
       setPhoneNumbers(phones.length > 0 ? phones : [''])
       setInitialPhoneCount(phones.length)
-      setInstagramAccounts(customer.instagram ? [customer.instagram] : [''])
+      // 쉼표로 구분된 인스타그램 계정을 배열로 변환
+      if (customer.instagram) {
+        const instagramArray = customer.instagram.split(',').map((acc: string) => acc.trim()).filter((acc: string) => acc)
+        setInstagramAccounts(instagramArray.length > 0 ? instagramArray : [''])
+      } else {
+        setInstagramAccounts([''])
+      }
     } catch (error: any) {
       // AbortError는 무시 (요청이 취소된 경우)
       if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
@@ -285,15 +297,20 @@ export default function CustomersPage() {
     if (!selectedCustomer) return
     
     try {
+      // 빈 문자열을 제외한 모든 인스타그램 계정을 쉼표로 구분하여 저장
+      const instagramString = instagramAccounts.filter(acc => acc.trim()).join(', ')
       const payload = {
         ...selectedCustomer,
         phone1: phoneNumbers[0] || '',
         phone2: phoneNumbers[1] || '',
         phone3: phoneNumbers[2] || '',
+        instagram: instagramString || '',
       }
       await api.put(`/customers/${selectedCustomer.id}`, payload)
       showToast(t('saved'), 'success')
       fetchCustomers()
+      // 저장 후 최신 데이터 다시 불러오기
+      fetchCustomerDetail(selectedCustomer.id)
     } catch (error: any) {
       if (error.response?.status === 403) {
         showToast(t('onlyOwnerCanModify'), 'error')

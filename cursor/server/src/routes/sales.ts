@@ -15,7 +15,18 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     let query = `
       SELECT
-        s.*, to_char(s.contract_date, 'YYYY-MM-DD') AS contract_date_str,
+        s.id,
+        s.customer_id,
+        s.user_id,
+        s.company_name,
+        s.sales_type,
+        s.source_type,
+        s.amount,
+        s.contract_date,
+        s.marketing_content,
+        s.note,
+        s.created_at,
+        to_char(s.contract_date, 'YYYY-MM-DD') AS contract_date_str,
         u.name as user_name,
         COALESCE(
           s.payer_name,
