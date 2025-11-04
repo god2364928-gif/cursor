@@ -664,13 +664,21 @@ export default function CustomersPage() {
         return false
       }
       
+      // 인스타그램 검색 (콤마로 구분된 여러 계정 지원)
+      const instagramMatches = (instagram: string | undefined) => {
+        if (!instagram) return false
+        const instagramArray = instagram.split(',').map(acc => acc.trim().toLowerCase())
+        return instagramArray.some(acc => acc.includes(query) || acc.replace('@', '').includes(query.replace('@', '')))
+      }
+      
       const matches = 
         c.companyName?.toLowerCase().includes(query) ||
         c.customerName?.toLowerCase().includes(query) ||
         phoneMatches(c.phone1) ||
         phoneMatches(c.phone2) ||
         phoneMatches(c.phone3) ||
-        c.industry?.toLowerCase().includes(query)
+        c.industry?.toLowerCase().includes(query) ||
+        instagramMatches(c.instagram)
       
       return statusMatch && managerMatch && matches
     }
@@ -778,7 +786,7 @@ export default function CustomersPage() {
           <div className="mb-4">
             <label className="text-sm text-gray-600">{t('search')}</label>
             <Input
-              placeholder={`${t('companyName')}, ${t('customerName')}, ${t('phone')}, ${t('industry')} ${t('search')}`}
+              placeholder={`${t('companyName')}, ${t('customerName')}, ${t('phone')}, ${t('industry')}, ${t('instagram')} ${t('search')}`}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
