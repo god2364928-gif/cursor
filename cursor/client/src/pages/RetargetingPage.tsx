@@ -101,6 +101,7 @@ export default function RetargetingPage() {
   
   const [phoneNumbers, setPhoneNumbers] = useState<string[]>([''])
   const [instagramAccounts, setInstagramAccounts] = useState<string[]>([''])
+  const [initialInstagramCount, setInitialInstagramCount] = useState(0)
   const lastFetchedId = useRef<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const [files, setFiles] = useState<RetargetingFile[]>([])
@@ -120,8 +121,10 @@ export default function RetargetingPage() {
       if (selectedCustomer.instagram) {
         const instagramArray = selectedCustomer.instagram.split(',').map((acc: string) => acc.trim()).filter((acc: string) => acc)
         setInstagramAccounts(instagramArray.length > 0 ? instagramArray : [''])
+        setInitialInstagramCount(instagramArray.length > 0 ? instagramArray.length : 1)
       } else {
         setInstagramAccounts([''])
+        setInitialInstagramCount(1)
       }
       
       // 이전 요청 취소
@@ -194,8 +197,10 @@ export default function RetargetingPage() {
       if (customer.instagram) {
         const instagramArray = customer.instagram.split(',').map((acc: string) => acc.trim()).filter((acc: string) => acc)
         setInstagramAccounts(instagramArray.length > 0 ? instagramArray : [''])
+        setInitialInstagramCount(instagramArray.length > 0 ? instagramArray.length : 1)
       } else {
         setInstagramAccounts([''])
+        setInitialInstagramCount(1)
       }
       // setSelectedCustomer를 호출하지 않음 - 이미 리스트에서 선택된 상태이므로
     } catch (error: any) {
@@ -1143,7 +1148,7 @@ export default function RetargetingPage() {
                           onChange={e => updateInstagramAccount(index, e.target.value)}
                           placeholder={`${t('instagram')} ${index + 1}`}
                         />
-                        {instagramAccounts.length > 1 && (
+                        {index >= initialInstagramCount && (
                           <button
                             type="button"
                             onClick={() => removeInstagramAccount(index)}
