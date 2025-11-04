@@ -252,7 +252,12 @@ export default function RetargetingPage() {
     if (!selectedCustomer) return
     
     try {
-      await api.put(`/retargeting/${selectedCustomer.id}`, selectedCustomer)
+      const payload = {
+        ...selectedCustomer,
+        phone: phoneNumbers[0] || '',
+        instagram: instagramAccounts[0] || '',
+      }
+      await api.put(`/retargeting/${selectedCustomer.id}`, payload)
       showToast(t('saved'), 'success')
       fetchCustomers()
     } catch (error: any) {
