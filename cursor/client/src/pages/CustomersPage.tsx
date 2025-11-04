@@ -757,16 +757,16 @@ export default function CustomersPage() {
                       id="new-inflowPath"
                     >
                       <option value="">{t('inflowPath')} {t('selectOption')}</option>
-                      <option value="아웃바운드(전화)">아웃바운드(전화)</option>
-                      <option value="아웃바운드(라인)">아웃바운드(라인)</option>
-                      <option value="아웃바운드(DM)">아웃바운드(DM)</option>
-                      <option value="아웃바운드(기타)">아웃바운드(기타)</option>
-                      <option value="인바운드(홈페이지)">인바운드(홈페이지)</option>
-                      <option value="인바운드(상위노출)">인바운드(상위노출)</option>
-                      <option value="인바운드(기타)">인바운드(기타)</option>
-                      <option value="무료체험">무료체험</option>
-                      <option value="소개">소개</option>
-                      <option value="기타">기타</option>
+                      <option value="아웃바운드(전화)">{t('outboundPhone')}</option>
+                      <option value="아웃바운드(라인)">{t('outboundLine')}</option>
+                      <option value="아웃바운드(DM)">{t('outboundDM')}</option>
+                      <option value="아웃바운드(기타)">{t('outboundOther')}</option>
+                      <option value="인바운드(홈페이지)">{t('inboundHomepage')}</option>
+                      <option value="인바운드(상위노출)">{t('inboundTopExposure')}</option>
+                      <option value="인바운드(기타)">{t('inboundOther')}</option>
+                      <option value="무료체험">{t('freeTrial')}</option>
+                      <option value="소개">{t('introduction')}</option>
+                      <option value="기타">{t('other')}</option>
                     </select>
                   </div>
                   <div>
