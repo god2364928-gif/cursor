@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
+import { useToast } from '../components/ui/toast'
 import { formatNumber } from '../lib/utils'
 import { Plus, Edit, Trash2, Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
@@ -13,6 +14,7 @@ import * as XLSX from 'xlsx'
 export default function SalesPage() {
   const { t } = useI18nStore()
   const user = useAuthStore(state => state.user)
+  const { showToast } = useToast()
   const [sales, setSales] = useState<Sales[]>([])
   const [loading, setLoading] = useState(true)
   const [initialLoadComplete, setInitialLoadComplete] = useState(false)
@@ -169,7 +171,7 @@ export default function SalesPage() {
     const marketingContent = (document.getElementById('add-marketingContent') as HTMLTextAreaElement)?.value
 
     if (!companyName || !salesType || !sourceType || !amount || !contractDate || !marketingContent) {
-      alert(t('pleaseFillAllFields'))
+      showToast(t('pleaseFillAllFields'), 'error')
       return
     }
 
@@ -195,8 +197,9 @@ export default function SalesPage() {
       ;(document.getElementById('add-marketingContent') as HTMLTextAreaElement).value = ''
       setShowAddForm(false)
       fetchSales()
+      showToast(t('saved'), 'success')
     } catch (error: any) {
-        alert(error.response?.data?.message || t('addFailed'))
+        showToast(error.response?.data?.message || t('addFailed'), 'error')
     }
   }
 
@@ -222,12 +225,12 @@ export default function SalesPage() {
       })
       setEditingSale(null)
       await fetchSales()
-      alert(t('updated'))
+      showToast(t('updated'), 'success')
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert(t('onlyOwnerCanModify'))
+        showToast(t('onlyOwnerCanModify'), 'error')
       } else {
-        alert(error.response?.data?.message || t('updateFailed'))
+        showToast(error.response?.data?.message || t('updateFailed'), 'error')
       }
     }
   }
@@ -238,12 +241,12 @@ export default function SalesPage() {
     try {
       await api.delete(`/sales/${id}`)
       fetchSales()
-      alert(t('deleted'))
+      showToast(t('deleted'), 'success')
     } catch (error: any) {
       if (error.response?.status === 403) {
-        alert(t('onlyOwnerCanModify'))
+        showToast(t('onlyOwnerCanModify'), 'error')
       } else {
-        alert(error.response?.data?.message || t('deleteFailed'))
+        showToast(error.response?.data?.message || t('deleteFailed'), 'error')
       }
     }
   }
