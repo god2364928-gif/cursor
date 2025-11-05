@@ -714,6 +714,18 @@ export default function SalesTrackingPage() {
             </table>
           </div>
           
+          {/* Sales Summary - 입금액, 매출 합계 */}
+          {managerFilter !== 'all' && (
+            <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between">
+              <div className="text-sm font-medium text-gray-700">
+                {t('totalDeposit')}: <span className="text-blue-600">{salesSummary.totalDeposit.toLocaleString()}円</span>
+              </div>
+              <div className="text-sm font-medium text-gray-700">
+                {t('totalSales')}: <span className="text-green-600">{salesSummary.totalSales.toLocaleString()}円</span>
+              </div>
+            </div>
+          )}
+
           {/* Pagination */}
           {filteredRecords.length > 0 && totalPages > 1 && (
             <div className="px-4 py-3 border-t flex items-center justify-between">
