@@ -2,10 +2,7 @@
 nixPkgs = ['nodejs-18_x']
 
 [phases.build]
-cmds = ['npm ci', 'npm run build']
+cmds = ['npm ci', 'rm -rf dist', 'npm run build']
 
 [start]
 cmd = 'node dist/index.js'
-
-[staticAssets]
-# Ensure TypeScript files are compiled
