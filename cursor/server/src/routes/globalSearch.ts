@@ -15,6 +15,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     
     const searchTerm = `%${keyword.trim()}%`
     
+    // Note: retargeting_customers table only has 'phone' column, not phone1/phone2/phone3
+    
     // 1. 고객관리 검색 (전화번호 포함)
     const customersResult = await pool.query(`
       SELECT 
