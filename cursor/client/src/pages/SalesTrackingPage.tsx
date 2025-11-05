@@ -53,9 +53,10 @@ export default function SalesTrackingPage() {
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
+  const [managerFilter, setManagerFilter] = useState<string>(user?.role === 'marketer' ? (user?.name || 'all') : 'all')
   const [managerOptions, setManagerOptions] = useState<string[]>([])
   const [users, setUsers] = useState<any[]>([])
+  const [salesSummary, setSalesSummary] = useState<{ totalDeposit: number; totalSales: number }>({ totalDeposit: 0, totalSales: 0 })
   
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1)
@@ -76,19 +77,28 @@ export default function SalesTrackingPage() {
     memoNote: ''
   })
 
-  // 모든 직원 목록을 읽어 드롭다운에 표시
+  // 모든 직원 목록을 읽어 드롭다운에 표시 (마케터만)
   useEffect(() => {
     ;(async () => {
       try {
         const res = await api.get('/auth/users')
-        setUsers(res.data || [])
-        const names = (res.data || []).map((u: any) => u.name).sort()
-        setManagerOptions(names)
+        const allUsers = res.data || []
+        setUsers(allUsers)
+        // 마케터 역할의 사용자만 필터링
+        const marketerNames = allUsers
+          .filter((u: any) => u.role === 'marketer')
+          .map((u: any) => u.name)
+          .sort()
+        setManagerOptions(marketerNames)
+        // 디폴트는 본인 (마케터인 경우)
+        if (user?.role === 'marketer' && user?.name) {
+          setManagerFilter(user.name)
+        }
       } catch (e) {
         console.error('Failed to load users for manager filter', e)
       }
     })()
-  }, [])
+  }, [user])
 
   useEffect(() => {
     fetchRecords()

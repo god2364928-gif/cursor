@@ -105,9 +105,9 @@ async function startServer() {
   // 자동 마이그레이션 실행
   await autoMigrateSalesTracking()
   
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`)
-    console.log(`CORS enabled for all origins`)
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`)
+  console.log(`CORS enabled for all origins`)
   })
 }
 
