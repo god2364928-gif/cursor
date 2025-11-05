@@ -321,7 +321,28 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       })
     }
     
-    // 집계 쿼리: 返信あり, 返信済み를 명시적으로 포함 (더 단순한 조건)
+    // 실제 데이터베이스의 status 값 바이트 확인 (디버깅용)
+    const byteCheckResult = await pool.query(`
+      SELECT DISTINCT 
+        status,
+        encode(status::bytea, 'hex') as status_bytes,
+        length(status) as status_length,
+        COUNT(*) as count
+      FROM sales_tracking
+      WHERE 
+        EXTRACT(YEAR FROM date) = $1 AND
+        EXTRACT(MONTH FROM date) = $2
+        AND status LIKE '%返%' OR status LIKE '%信%'
+      GROUP BY status
+      ORDER BY status
+    `, [yearNum, monthNum])
+    
+    console.log('🔤 Status 값의 바이트 확인 (返 또는 信 포함):')
+    byteCheckResult.rows.forEach(row => {
+      console.log(`  "${row.status}" (길이: ${row.status_length}, 바이트: ${row.status_bytes}): ${row.count}건`)
+    })
+    
+    // 집계 쿼리: LIKE 검색만 사용 (한자 차이 문제 해결)
     const result = await pool.query(`
       SELECT 
         manager_name,
@@ -329,10 +350,9 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         COUNT(*) FILTER (WHERE contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
         COUNT(*) as total_count,
         COUNT(*) FILTER (WHERE 
-          status = '返信あり' 
-          OR status = '返信済み' 
-          OR status = '返信済'
-          OR (status LIKE '%返信%' AND status != '未返信')
+          status LIKE '%返%' 
+          AND status LIKE '%信%'
+          AND status NOT LIKE '%未返信%'
         ) as reply_count,
         COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
         COUNT(*) FILTER (WHERE status = '契約') as contract_count,
@@ -370,29 +390,26 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       console.log(`  ${row.manager_name}: 총 ${row.total_count}건, 회신 ${row.reply_count}건`)
     })
     
-    // 추가: 각 담당자별로 실제 회신 레코드 확인
+    // 추가: 각 담당자별로 실제 회신 레코드 확인 (LIKE 검색으로 한자 차이 문제 해결)
     console.log('🔍 실제 회신 레코드 확인 (담당자별):')
     for (const row of result.rows) {
       const replyRecords = await pool.query(`
-        SELECT id, date, status, customer_name
+        SELECT id, date, status, customer_name, encode(status::bytea, 'hex') as status_bytes
         FROM sales_tracking
         WHERE 
           manager_name = $1
           AND EXTRACT(YEAR FROM date) = $2
           AND EXTRACT(MONTH FROM date) = $3
-          AND (
-            status = '返信あり' 
-            OR status = '返信済み' 
-            OR status = '返信済'
-            OR (status LIKE '%返信%' AND status != '未返信')
-          )
+          AND status LIKE '%返%'
+          AND status LIKE '%信%'
+          AND status NOT LIKE '%未返信%'
         LIMIT 5
       `, [row.manager_name, yearNum, monthNum])
       
       if (replyRecords.rows.length > 0) {
         console.log(`  ${row.manager_name}: ${replyRecords.rows.length}건의 회신 레코드 발견`)
         replyRecords.rows.forEach(record => {
-          console.log(`    - ID: ${record.id}, Status: "${record.status}", Customer: ${record.customer_name || 'N/A'}`)
+          console.log(`    - ID: ${record.id}, Status: "${record.status}" (바이트: ${record.status_bytes}), Customer: ${record.customer_name || 'N/A'}`)
         })
       } else {
         console.log(`  ${row.manager_name}: 회신 레코드 없음 (집계된 회신수: ${row.reply_count})`)
