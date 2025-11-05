@@ -273,14 +273,21 @@ export default function SalesTrackingPage() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold">{t('salesTracking')}</h1>
         <div className="flex gap-2">
-          <Button onClick={fetchMonthlyStats} variant="outline">
+          <Button 
+            onClick={fetchMonthlyStats} 
+            variant="outline"
+            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300 font-medium"
+          >
             <BarChart3 className="h-4 w-4 mr-2" />
             {t('monthlyStats')}
           </Button>
-          <Button onClick={() => {
-            setEditingId(null)
-            setShowAddForm(true)
-          }}>
+          <Button 
+            onClick={() => {
+              setEditingId(null)
+              setShowAddForm(true)
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
             <Plus className="h-4 w-4 mr-2" />
             {t('quickAdd')}
           </Button>
