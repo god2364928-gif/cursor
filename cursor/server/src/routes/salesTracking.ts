@@ -473,25 +473,27 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     
     const result = await pool.query(`
       SELECT 
-        manager_name,
-        COUNT(*) FILTER (WHERE contact_method = '電話') as phone_count,
-        COUNT(*) FILTER (WHERE contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
+        st.manager_name,
+        COUNT(*) FILTER (WHERE st.contact_method = '電話') as phone_count,
+        COUNT(*) FILTER (WHERE st.contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
         COUNT(*) as total_count,
         -- 회신수: 返信あり를 찾기 위한 다양한 조건
-        COUNT(*) FILTER (WHERE status = '返信あり') as reply_count_exact,
-        COUNT(*) FILTER (WHERE status LIKE '%返信あり%') as reply_count_like_ari,
-        COUNT(*) FILTER (WHERE status LIKE '%返信%') as reply_count_like_all,
-        COUNT(*) FILTER (WHERE status != '未返信') as reply_count_not_no_reply,
+        COUNT(*) FILTER (WHERE st.status = '返信あり') as reply_count_exact,
+        COUNT(*) FILTER (WHERE st.status LIKE '%返信あり%') as reply_count_like_ari,
+        COUNT(*) FILTER (WHERE st.status LIKE '%返信%') as reply_count_like_all,
+        COUNT(*) FILTER (WHERE st.status != '未返信') as reply_count_not_no_reply,
         -- 최종 회신수: 返信あり를 찾기 (정확 일치 또는 포함)
-        COUNT(*) FILTER (WHERE status = '返信あり' OR status LIKE '%返信あり%') as reply_count,
-        COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
-        COUNT(*) FILTER (WHERE status = '契約') as contract_count
-      FROM sales_tracking
+        COUNT(*) FILTER (WHERE st.status = '返信あり' OR st.status LIKE '%返信あり%') as reply_count,
+        COUNT(*) FILTER (WHERE st.status = '商談中') as negotiation_count,
+        COUNT(*) FILTER (WHERE st.status = '契約') as contract_count
+      FROM sales_tracking st
+      JOIN users u ON u.name = st.manager_name
       WHERE 
-        EXTRACT(YEAR FROM date) = $1 AND
-        EXTRACT(MONTH FROM date) = $2
-      GROUP BY manager_name
-      ORDER BY manager_name
+        EXTRACT(YEAR FROM st.date) = $1 AND
+        EXTRACT(MONTH FROM st.date) = $2 AND
+        u.role = 'marketer'
+      GROUP BY st.manager_name
+      ORDER BY st.manager_name
     `, [yearNum, monthNum])
     
     // 추가 디버깅: 각 담당자별로 status 분포 확인

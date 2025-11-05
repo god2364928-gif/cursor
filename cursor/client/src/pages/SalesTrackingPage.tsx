@@ -73,9 +73,23 @@ export default function SalesTrackingPage() {
     memoNote: ''
   })
 
+  // 모든 직원 목록을 읽어 드롭다운에 표시
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const res = await api.get('/auth/users')
+        setUsers(res.data || [])
+        const names = (res.data || []).map((u: any) => u.name).sort()
+        setManagerOptions(names)
+      } catch (e) {
+        console.error('Failed to load users for manager filter', e)
+      }
+    })()
+  }, [])
+
   useEffect(() => {
     fetchRecords()
-  }, [searchQuery])
+  }, [searchQuery, managerFilter])
 
   const fetchRecords = async () => {
     try {
@@ -372,16 +386,21 @@ export default function SalesTrackingPage() {
     }
   }
 
+  // 담당자별 필터링
+  const filteredRecords = records.filter(r => 
+    managerFilter === 'all' || r.manager_name === managerFilter
+  )
+  
   // 페이지네이션 계산
-  const totalPages = Math.ceil(records.length / itemsPerPage)
+  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const paginatedRecords = records.slice(startIndex, endIndex)
+  const paginatedRecords = filteredRecords.slice(startIndex, endIndex)
 
   useEffect(() => {
-    // 검색 시 첫 페이지로 리셋
+    // 검색 또는 필터 변경 시 첫 페이지로 리셋
     setCurrentPage(1)
-  }, [searchQuery])
+  }, [searchQuery, managerFilter])
 
   return (
     <div className="p-6 pt-8">
@@ -407,12 +426,29 @@ export default function SalesTrackingPage() {
               setEditingId(null)
               setShowAddForm(true)
             }}
-            className="bg-green-600 hover:bg-green-700 text-white"
           >
             <Plus className="h-4 w-4 mr-2" />
-            {t('quickAdd')}
+            {t('add')}
           </Button>
         </div>
+      </div>
+
+      {/* 담당자 필터 */}
+      <div className="mb-4">
+        <label className="text-sm text-gray-600 mb-2 block">{t('manager')}</label>
+        <select
+          className="w-full border rounded px-3 py-2 max-w-xs"
+          value={managerFilter}
+          onChange={e => {
+            setManagerFilter(e.target.value)
+            setCurrentPage(1) // 필터 변경 시 첫 페이지로
+          }}
+        >
+          <option value="all">{t('all')}</option>
+          {managerOptions.map(manager => (
+            <option key={manager} value={manager}>{manager}</option>
+          ))}
+        </select>
       </div>
 
       {/* Local Search - 영업이력 페이지 내 검색 */}
@@ -434,7 +470,7 @@ export default function SalesTrackingPage() {
         <Card className="mb-4">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              {editingId ? t('edit') : t('quickAdd')}
+              {editingId ? t('edit') : t('add')}
               <Button variant="ghost" size="sm" onClick={cancelEdit}>
                 <X className="h-4 w-4" />
               </Button>
@@ -574,7 +610,7 @@ export default function SalesTrackingPage() {
                       {t('loading')}
                     </td>
                   </tr>
-                ) : records.length === 0 ? (
+                ) : filteredRecords.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                       {t('noData')}
