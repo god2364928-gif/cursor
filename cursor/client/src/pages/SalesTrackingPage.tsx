@@ -226,28 +226,73 @@ export default function SalesTrackingPage() {
         params: { year: finalYear, month: finalMonth }
       })
       
-      // 디버깅: 응답 데이터 확인
+      // 디버깅: 응답 데이터 확인 (강화)
+      console.log('========================================')
       console.log('📊 월별 통계 API 응답 전체:', response.data)
+      console.log('========================================')
       
       // 응답 구조 확인
       const statsData = response.data.stats || response.data
       console.log('📊 통계 데이터:', statsData)
       
-      if (response.data.debug) {
-        console.log('🔍 디버그 정보:', response.data.debug)
-        console.log('📋 Status 값 목록 (DB에 저장된 모든 status):', response.data.debug.statusValues)
-        console.log('🔍 "返信" 포함 레코드 (담당자별):', response.data.debug.replyTestResults)
-        
-        // 회신 관련 status가 있는지 확인
-        const replyStatuses = response.data.debug.statusValues.filter((s: any) => 
-          s.status && (s.status.includes('返信') || s.status.includes('返信'))
-        )
-        console.log('✅ "返信"이 포함된 status 값들:', replyStatuses)
-        
-        if (replyStatuses.length === 0) {
-          console.warn('⚠️ 경고: 데이터베이스에 "返信"이 포함된 status 값이 없습니다!')
-        }
+      // 각 담당자별 회신수 확인
+      if (Array.isArray(statsData)) {
+        console.log('\n📋 담당자별 회신수 현황:')
+        statsData.forEach((stat: any) => {
+          console.log(`  ${stat.manager}: 총 ${stat.totalCount}건, 회신 ${stat.replyCount}건 (${stat.replyRate})`)
+        })
       }
+      
+      if (response.data.debug) {
+        console.log('\n🔍 디버그 정보:', response.data.debug)
+        
+        // Status 값 목록
+        if (response.data.debug.statusValues) {
+          console.log('\n📋 Status 값 목록 (DB에 저장된 모든 status):')
+          response.data.debug.statusValues.forEach((s: any) => {
+            const isReply = s.status && s.status.includes('返信') && s.status !== '未返信'
+            console.log(`  - "${s.status}": ${s.count}건 ${isReply ? '✅ (회신)' : ''}`)
+          })
+        }
+        
+        // Status 분포
+        if (response.data.debug.statusDistribution) {
+          console.log('\n📊 담당자별 status 분포:')
+          response.data.debug.statusDistribution.forEach((d: any) => {
+            console.log(`  ${d.manager} - "${d.status}": ${d.count}건 ${d.isReply ? '✅ (회신)' : ''}`)
+          })
+        }
+        
+        // 회신 테스트 결과
+        if (response.data.debug.replyTestResults) {
+          console.log('\n🔍 "返信" 포함 레코드 (담당자별):')
+          if (response.data.debug.replyTestResults.length === 0) {
+            console.warn('  ⚠️ 해당 월에 "返信"이 포함된 레코드가 없습니다!')
+          } else {
+            response.data.debug.replyTestResults.forEach((r: any) => {
+              console.log(`  ${r.manager} - "${r.status}": ${r.count}건`)
+            })
+          }
+        }
+        
+        // 회신 관련 status 확인
+        if (response.data.debug.statusValues) {
+          const replyStatuses = response.data.debug.statusValues.filter((s: any) => 
+            s.status && s.status.includes('返信') && s.status !== '未返信'
+          )
+          console.log('\n✅ "返信"이 포함된 status 값들 (未返信 제외):', replyStatuses)
+          
+          if (replyStatuses.length === 0) {
+            console.warn('\n⚠️ 경고: 데이터베이스에 "返信"이 포함된 status 값이 없습니다!')
+            console.warn('   (단, 未返信은 제외)')
+          }
+        }
+      } else {
+        console.warn('\n⚠️ 디버그 정보가 응답에 포함되어 있지 않습니다.')
+        console.warn('   응답 구조:', Object.keys(response.data))
+      }
+      
+      console.log('========================================\n')
       
       setMonthlyStats(Array.isArray(statsData) ? statsData : [])
       setShowStatsModal(true)
