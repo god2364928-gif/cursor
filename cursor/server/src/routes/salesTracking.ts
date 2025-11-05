@@ -419,9 +419,14 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       console.log(`  ${row.manager_name} - "${row.status}": ${row.count}건 ${isReply ? '✅ (회신)' : ''}`)
     })
     
-    console.log('📋 집계 결과:')
+    console.log('📋 집계 결과 (상세):')
     result.rows.forEach(row => {
-      console.log(`  ${row.manager_name}: 총 ${row.total_count}건, 회신 ${row.reply_count}건`)
+      console.log(`  ${row.manager_name}:`)
+      console.log(`    - 총: ${row.total_count}건`)
+      console.log(`    - reply_count (status = '返信あり'): ${row.reply_count}건`)
+      console.log(`    - reply_count_exact: ${row.reply_count_exact}건`)
+      console.log(`    - reply_count_like ('%返信%'): ${row.reply_count_like}건`)
+      console.log(`    - reply_count_not_no_reply (status != '未返信'): ${row.reply_count_not_no_reply}건`)
     })
     
     // 추가: 각 담당자별로 실제 회신 레코드 확인 (LIKE 검색으로 한자 차이 문제 해결)
@@ -455,8 +460,16 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     // 계산 필드 추가
     const stats = result.rows.map(row => {
       const total = parseInt(row.total_count) || 0
-      const reply = parseInt(row.reply_count) || 0
+      // 일단 reply_count_exact를 사용 (status = '返信あり')
+      let reply = parseInt(row.reply_count_exact) || 0
+      // 만약 0이면 like 검색 결과도 확인
+      if (reply === 0) {
+        reply = parseInt(row.reply_count_like) || 0
+      }
       const replyRate = total > 0 ? ((reply / total) * 100).toFixed(1) : '0.0'
+      
+      // 디버깅: 각 담당자별 집계 값 로그
+      console.log(`  [${row.manager_name}] reply_count_exact: ${row.reply_count_exact}, reply_count_like: ${row.reply_count_like}, 최종 reply: ${reply}`)
       
       return {
         manager: row.manager_name,
