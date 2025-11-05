@@ -244,6 +244,13 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       return res.status(400).json({ message: 'Month and year are required' })
     }
     
+    const yearNum = parseInt(String(year), 10)
+    const monthNum = parseInt(String(month), 10)
+    
+    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({ message: 'Invalid year or month' })
+    }
+    
     // 월별 통계 집계
     // CSV 집계 로직:
     // - 電話数: contact_method = '電話'인 건수
@@ -272,7 +279,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         EXTRACT(MONTH FROM date) = $2
       GROUP BY manager_name
       ORDER BY manager_name
-    `, [year, month])
+    `, [yearNum, monthNum])
     
     // reply_count는 이미 status = '返信済み'인 건수를 카운트하고 있음
     // 회신율 계산: (reply_count / total_count) * 100
