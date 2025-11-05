@@ -229,11 +229,35 @@ export default function SalesTrackingPage() {
       // 디버깅: 응답 데이터 확인 (강화)
       console.log('========================================')
       console.log('📊 월별 통계 API 응답 전체:', response.data)
+      console.log('📊 응답 타입:', typeof response.data)
+      console.log('📊 응답이 배열인가?', Array.isArray(response.data))
+      console.log('📊 응답 키:', Object.keys(response.data))
+      console.log('📊 response.data.stats 존재?', !!response.data.stats)
+      console.log('📊 response.data.debug 존재?', !!response.data.debug)
       console.log('========================================')
       
-      // 응답 구조 확인
-      const statsData = response.data.stats || response.data
+      // 응답 구조 확인 - 더 명확하게
+      let statsData
+      let debugData
+      
+      if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+        // 객체 형태인 경우
+        statsData = response.data.stats || response.data
+        debugData = response.data.debug
+        console.log('✅ 응답이 객체 형태입니다.')
+      } else if (Array.isArray(response.data)) {
+        // 배열 형태인 경우 (구버전 호환)
+        statsData = response.data
+        debugData = null
+        console.warn('⚠️ 응답이 배열 형태입니다. (구버전 호환)')
+      } else {
+        statsData = response.data
+        debugData = null
+        console.warn('⚠️ 응답 구조를 알 수 없습니다.')
+      }
+      
       console.log('📊 통계 데이터:', statsData)
+      console.log('📊 디버그 데이터:', debugData)
       
       // 각 담당자별 회신수 확인
       if (Array.isArray(statsData)) {
@@ -243,41 +267,56 @@ export default function SalesTrackingPage() {
         })
       }
       
-      if (response.data.debug) {
+      if (debugData) {
         console.log('\n🔍 디버그 정보:', response.data.debug)
         
+        console.log('\n🔍 디버그 정보:', debugData)
+        
+        // 石黒杏奈의 返信 레코드 확인
+        if (debugData.ishiguroReplyCount !== undefined) {
+          console.log(`\n📊 石黒杏奈의 11월 返信 레코드: ${debugData.ishiguroReplyCount}건`)
+          console.log(`📊 石黒杏奈의 11월 status = '返信あり' 정확 일치: ${debugData.ishiguroExactMatch}건`)
+          
+          if (debugData.ishiguroReplyRecords && debugData.ishiguroReplyRecords.length > 0) {
+            console.log('\n📋 石黒杏奈의 실제 返信 레코드 목록:')
+            debugData.ishiguroReplyRecords.forEach((r: any, idx: number) => {
+              console.log(`  ${idx + 1}. ID: ${r.id}, Date: ${r.date}, Status: "${r.status}", Bytes: ${r.statusBytes}, Customer: ${r.customer}`)
+            })
+          }
+        }
+        
         // Status 값 목록
-        if (response.data.debug.statusValues) {
+        if (debugData.statusValues) {
           console.log('\n📋 Status 값 목록 (DB에 저장된 모든 status):')
-          response.data.debug.statusValues.forEach((s: any) => {
+          debugData.statusValues.forEach((s: any) => {
             const isReply = s.status && s.status.includes('返信') && s.status !== '未返信'
             console.log(`  - "${s.status}": ${s.count}건 ${isReply ? '✅ (회신)' : ''}`)
           })
         }
         
         // Status 분포
-        if (response.data.debug.statusDistribution) {
+        if (debugData.statusDistribution) {
           console.log('\n📊 담당자별 status 분포:')
-          response.data.debug.statusDistribution.forEach((d: any) => {
+          debugData.statusDistribution.forEach((d: any) => {
             console.log(`  ${d.manager} - "${d.status}": ${d.count}건 ${d.isReply ? '✅ (회신)' : ''}`)
           })
         }
         
         // 회신 테스트 결과
-        if (response.data.debug.replyTestResults) {
+        if (debugData.replyTestResults) {
           console.log('\n🔍 "返信" 포함 레코드 (담당자별):')
-          if (response.data.debug.replyTestResults.length === 0) {
+          if (debugData.replyTestResults.length === 0) {
             console.warn('  ⚠️ 해당 월에 "返信"이 포함된 레코드가 없습니다!')
           } else {
-            response.data.debug.replyTestResults.forEach((r: any) => {
+            debugData.replyTestResults.forEach((r: any) => {
               console.log(`  ${r.manager} - "${r.status}": ${r.count}건`)
             })
           }
         }
         
         // 회신 관련 status 확인
-        if (response.data.debug.statusValues) {
-          const replyStatuses = response.data.debug.statusValues.filter((s: any) => 
+        if (debugData.statusValues) {
+          const replyStatuses = debugData.statusValues.filter((s: any) => 
             s.status && s.status.includes('返信') && s.status !== '未返信'
           )
           console.log('\n✅ "返信"이 포함된 status 값들 (未返信 제외):', replyStatuses)
@@ -289,7 +328,8 @@ export default function SalesTrackingPage() {
         }
       } else {
         console.warn('\n⚠️ 디버그 정보가 응답에 포함되어 있지 않습니다.')
-        console.warn('   응답 구조:', Object.keys(response.data))
+        console.warn('   응답 구조:', response.data ? Object.keys(response.data) : 'null')
+        console.warn('   응답 데이터:', response.data)
       }
       
       console.log('========================================\n')
