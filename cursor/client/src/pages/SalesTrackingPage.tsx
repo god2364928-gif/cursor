@@ -37,7 +37,6 @@ interface MonthlyStats {
   retargetingCount: number
   negotiationCount: number
   contractCount: number
-  ngCount: number
 }
 
 export default function SalesTrackingPage() {
@@ -505,7 +504,6 @@ export default function SalesTrackingPage() {
                   <option value="返信済み">返信済み</option>
                   <option value="商談中">商談中</option>
                   <option value="契約">契約</option>
-                  <option value="NG">NG</option>
                 </select>
               </div>
               <div>
@@ -744,8 +742,7 @@ export default function SalesTrackingPage() {
                         <th className="px-3 py-2 text-right font-medium border-r w-20">{t('replyRate')}</th>
                         <th className="px-3 py-2 text-right font-medium border-r w-24">{t('retargetingCount')}</th>
                         <th className="px-3 py-2 text-right font-medium border-r w-20">{t('negotiationCount')}</th>
-                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('contractCount')}</th>
-                        <th className="px-3 py-2 text-right font-medium w-16">{t('ngCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium w-20">{t('contractCount')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -759,8 +756,7 @@ export default function SalesTrackingPage() {
                           <td className="px-3 py-2 border-r text-right">{stat.replyRate}</td>
                           <td className="px-3 py-2 border-r text-right">{stat.retargetingCount}</td>
                           <td className="px-3 py-2 border-r text-right">{stat.negotiationCount}</td>
-                          <td className="px-3 py-2 border-r text-right">{stat.contractCount}</td>
-                          <td className="px-3 py-2 text-right">{stat.ngCount}</td>
+                          <td className="px-3 py-2 text-right">{stat.contractCount}</td>
                         </tr>
                       ))}
                     </tbody>

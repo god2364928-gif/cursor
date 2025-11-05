@@ -35,8 +35,15 @@ export default function GlobalSearch() {
         const response = await api.get('/global-search', {
           params: { q: query }
         })
-        setResults(response.data)
-        setIsOpen(response.data.length > 0)
+        console.log('Global search response:', response.data)
+        console.log('Response type:', typeof response.data)
+        console.log('Is array:', Array.isArray(response.data))
+        if (response.data) {
+          console.log('Response length:', response.data.length)
+          console.log('First result:', response.data[0])
+        }
+        setResults(Array.isArray(response.data) ? response.data : [])
+        setIsOpen(Array.isArray(response.data) && response.data.length > 0)
         setSelectedIndex(-1)
       } catch (error) {
         console.error('Search error:', error)

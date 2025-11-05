@@ -429,8 +429,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         -- 최종 회신수: 返信あり를 찾기 (정확 일치 또는 포함)
         COUNT(*) FILTER (WHERE status = '返信あり' OR status LIKE '%返信あり%') as reply_count,
         COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
-        COUNT(*) FILTER (WHERE status = '契約') as contract_count,
-        COUNT(*) FILTER (WHERE status = 'NG') as ng_count
+        COUNT(*) FILTER (WHERE status = '契約') as contract_count
       FROM sales_tracking
       WHERE 
         EXTRACT(YEAR FROM date) = $1 AND
@@ -524,8 +523,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         replyRate: `${replyRate}%`,
         retargetingCount: total, // リタ獲得数 = 合計数
         negotiationCount: parseInt(row.negotiation_count) || 0,
-        contractCount: parseInt(row.contract_count) || 0,
-        ngCount: parseInt(row.ng_count) || 0
+        contractCount: parseInt(row.contract_count) || 0
       }
     })
     
