@@ -196,6 +196,11 @@ const translations: Record<Language, Translation> = {
     revenue: '売上',
     contractDate: '入金日',
     payerName: '振込名義',
+    paymentMethod: '決済方法',
+    paymentMethodBankTransfer: '口座振替',
+    paymentMethodPayPay: 'PayPay',
+    paymentMethodPayPal: 'PayPal',
+    paymentMethodCreditCard: 'クレジットカード',
     marketingContent: 'マーケティング内容',
     includeTax: '消費税込み',
     newSales: '新規売上',
@@ -305,6 +310,9 @@ const translations: Record<Language, Translation> = {
     noData: 'データがありません',
     showing: '表示中',
     of: '/',
+    moveToRetargeting: 'リターゲティングへ移動',
+    movedToRetargeting: 'リターゲティングへ移動しました',
+    moveToRetargetingFailed: 'リターゲティングへの移動に失敗しました',
   },
   ko: {
     // Navigation
@@ -495,6 +503,11 @@ const translations: Record<Language, Translation> = {
     revenue: '매출',
     contractDate: '입금일',
     payerName: '입금자명',
+    paymentMethod: '결제방법',
+    paymentMethodBankTransfer: '계좌이체',
+    paymentMethodPayPay: 'PayPay',
+    paymentMethodPayPal: '페이팔',
+    paymentMethodCreditCard: '신용카드',
     marketingContent: '마케팅 내용',
     includeTax: '소비세 포함',
     newSales: '신규 매출',
@@ -604,6 +617,9 @@ const translations: Record<Language, Translation> = {
     noData: '데이터가 없습니다',
     showing: '표시 중',
     of: '/',
+    moveToRetargeting: '리타겟팅으로 이동',
+    movedToRetargeting: '리타겟팅으로 이동했습니다',
+    moveToRetargetingFailed: '리타겟팅으로 이동에 실패했습니다',
   },
 }
 

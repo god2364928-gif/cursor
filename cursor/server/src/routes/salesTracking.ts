@@ -235,6 +235,62 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
   }
 })
 
+// Move sales tracking record to retargeting (only owner can move)
+router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    
+    // Get sales tracking record
+    const recordResult = await pool.query('SELECT * FROM sales_tracking WHERE id = $1', [id])
+    
+    if (recordResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Sales tracking record not found' })
+    }
+    
+    const record = recordResult.rows[0]
+    
+    // Check if user is the owner of this record (or admin)
+    if (req.user?.role !== 'admin' && record.user_id !== req.user?.id) {
+      return res.status(403).json({ message: 'You can only move your own records' })
+    }
+    
+    // Create retargeting customer from sales tracking record
+    const retargetingResult = await pool.query(
+      `INSERT INTO retargeting_customers (
+        company_name, industry, customer_name, phone, region, inflow_path,
+        manager, manager_team, status, registered_at, memo
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *`,
+      [
+        record.customer_name || record.account_id || null, // company_name
+        record.industry || null,
+        record.customer_name || null,
+        record.phone || null,
+        null, // region
+        null, // inflow_path
+        record.manager_name,
+        null, // manager_team
+        '시작', // status
+        record.date || new Date().toISOString().split('T')[0], // registered_at
+        record.memo || null
+      ]
+    )
+    
+    const retargetingCustomer = retargetingResult.rows[0]
+    
+    // Sales tracking record remains unchanged (not deleted)
+    
+    res.json({ 
+      success: true, 
+      retargetingId: retargetingCustomer.id,
+      message: 'Successfully moved to retargeting'
+    })
+  } catch (error: any) {
+    console.error('Error moving to retargeting:', error)
+    res.status(500).json({ message: 'Internal server error', error: error.message })
+  }
+})
+
 // Get monthly statistics per manager
 router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Response) => {
   // 강제로 stdout에 즉시 출력 (Railway 로그 확인용)

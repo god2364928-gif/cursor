@@ -164,6 +164,7 @@ export default function SalesPage() {
   const handleAddSale = async () => {
     const companyName = (document.getElementById('add-companyName') as HTMLInputElement)?.value
     const payerName = (document.getElementById('add-payerName') as HTMLInputElement)?.value
+    const paymentMethod = (document.getElementById('add-paymentMethod') as HTMLSelectElement)?.value
     const salesType = (document.getElementById('add-salesType') as HTMLSelectElement)?.value
     const sourceType = (document.getElementById('add-sourceType') as HTMLSelectElement)?.value
     let amount = parseFormattedNumber((document.getElementById('add-amount') as HTMLInputElement)?.value || '0')
@@ -189,6 +190,7 @@ export default function SalesPage() {
       // 폼 초기화
       ;(document.getElementById('add-companyName') as HTMLInputElement).value = ''
       ;(document.getElementById('add-payerName') as HTMLInputElement).value = ''
+      ;(document.getElementById('add-paymentMethod') as HTMLSelectElement).value = ''
       ;(document.getElementById('add-salesType') as HTMLSelectElement).value = ''
       ;(document.getElementById('add-sourceType') as HTMLSelectElement).value = ''
       ;(document.getElementById('add-amountWithTax') as HTMLInputElement).value = ''
@@ -207,6 +209,7 @@ export default function SalesPage() {
     if (!editingSale) return
 
     const payerName = (document.getElementById('edit-payerName') as HTMLInputElement)?.value
+    const paymentMethod = (document.getElementById('edit-paymentMethod') as HTMLSelectElement)?.value
     const salesType = (document.getElementById('edit-salesType') as HTMLSelectElement)?.value
     const sourceType = (document.getElementById('edit-sourceType') as HTMLSelectElement)?.value
     let amount = parseFormattedNumber((document.getElementById('edit-amount') as HTMLInputElement)?.value || '0')
@@ -217,6 +220,7 @@ export default function SalesPage() {
       await api.put(`/sales/${editingSale.id}`, {
         companyName: editingSale.companyName,
         payerName,
+        paymentMethod,
         salesType,
         sourceType,
         amount, // 계산된 세전 금액 저장
@@ -264,6 +268,7 @@ export default function SalesPage() {
       [t('manager')]: sale.userName,
       [t('companyName')]: sale.companyName,
       [t('payerName')]: sale.payerName || '',
+      [t('paymentMethod')]: sale.paymentMethod || '',
       [t('salesType')]: typeLabel(sale.salesType),
       [t('sourceType')]: sourceLabel(sale.sourceType),
       [t('amountWithTax')]: Math.round(sale.amount * 1.1),
@@ -522,6 +527,13 @@ export default function SalesPage() {
                   id="add-payerName" 
                   className="w-48" 
                 />
+                <select className="border rounded px-3 py-2 w-32 h-10" id="add-paymentMethod">
+                  <option value="">{t('paymentMethod')}</option>
+                  <option value="계좌이체">{t('paymentMethodBankTransfer')}</option>
+                  <option value="PayPay">{t('paymentMethodPayPay')}</option>
+                  <option value="페이팔">{t('paymentMethodPayPal')}</option>
+                  <option value="신용카드">{t('paymentMethodCreditCard')}</option>
+                </select>
                 <select className="border rounded px-3 py-2 w-32 h-10" id="add-salesType">
                   <option value="">{t('salesType')}</option>
                   <option value="신규매출">{t('newSales')}</option>
@@ -589,6 +601,7 @@ export default function SalesPage() {
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">{t('manager')}</th>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">{t('companyName')}</th>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">{t('payerName')}</th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">{t('paymentMethod')}</th>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">{t('salesType')}</th>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">{t('sourceType')}</th>
                   <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">{t('amountWithTax')}</th>
@@ -612,6 +625,15 @@ export default function SalesPage() {
                             id="edit-payerName"
                             className="w-full"
                           />
+                        </td>
+                        <td className="px-2 py-3 text-sm">
+                          <select className="border rounded px-2 py-1 w-full" id="edit-paymentMethod" defaultValue={sale.paymentMethod || ''}>
+                            <option value="">{t('paymentMethod')}</option>
+                            <option value="계좌이체">{t('paymentMethodBankTransfer')}</option>
+                            <option value="PayPay">{t('paymentMethodPayPay')}</option>
+                            <option value="페이팔">{t('paymentMethodPayPal')}</option>
+                            <option value="신용카드">{t('paymentMethodCreditCard')}</option>
+                          </select>
                         </td>
                         <td className="px-2 py-3 text-sm">
                           <select className="border rounded px-2 py-1 w-full" id="edit-salesType" defaultValue={sale.salesType}>
@@ -680,6 +702,7 @@ export default function SalesPage() {
                         <td className="px-2 py-3 text-sm text-gray-900">{sale.userName}</td>
                         <td className="px-2 py-3 text-sm text-gray-900">{sale.companyName}</td>
                         <td className="px-2 py-3 text-sm text-gray-900">{sale.payerName || ''}</td>
+                        <td className="px-2 py-3 text-sm text-gray-900">{sale.paymentMethod || ''}</td>
                         <td className="px-2 py-3 text-sm">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             toTypeCode(sale.salesType) === 'new' ? 'bg-green-100 text-green-800' :

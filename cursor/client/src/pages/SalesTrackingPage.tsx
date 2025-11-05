@@ -6,7 +6,7 @@ import { useToast } from '../components/ui/toast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Plus, Edit, Trash2, X, BarChart3, Search } from 'lucide-react'
+import { Plus, Edit, Trash2, X, BarChart3, Search, ArrowRight } from 'lucide-react'
 import GlobalSearch from '../components/GlobalSearch'
 
 interface SalesTrackingRecord {
@@ -586,13 +586,24 @@ export default function SalesTrackingPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => startEdit(record)}
+                              title={t('edit')}
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => handleMoveToRetargeting(record)}
+                              title={t('moveToRetargeting')}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <ArrowRight className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleDelete(record.id)}
+                              title={t('delete')}
                             >
                               <Trash2 className="h-3 w-3 text-red-500" />
                             </Button>

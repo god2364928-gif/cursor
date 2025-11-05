@@ -19,6 +19,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         s.customer_id,
         s.user_id,
         s.company_name,
+        s.payment_method,
         s.sales_type,
         s.source_type,
         s.amount,
@@ -69,6 +70,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       userName: row.user_name,
       companyName: row.company_name,
       payerName: row.payer_name,
+      paymentMethod: row.payment_method,
       salesType: row.sales_type,
       sourceType: row.source_type,
       amount: row.amount,
@@ -88,17 +90,17 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 // Create new sale
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const { companyName, payerName, salesType, sourceType, amount, contractDate, marketingContent } = req.body
+    const { companyName, payerName, paymentMethod, salesType, sourceType, amount, contractDate, marketingContent } = req.body
     
     if (!companyName || !salesType || !sourceType || !amount || !contractDate || !marketingContent) {
       return res.status(400).json({ message: 'All fields are required' })
     }
     
     const result = await pool.query(
-      `INSERT INTO sales (user_id, company_name, payer_name, sales_type, source_type, amount, contract_date, marketing_content)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO sales (user_id, company_name, payer_name, payment_method, sales_type, source_type, amount, contract_date, marketing_content)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [req.user?.id, companyName, payerName || null, salesType, sourceType, amount, contractDate, marketingContent]
+      [req.user?.id, companyName, payerName || null, paymentMethod || null, salesType, sourceType, amount, contractDate, marketingContent]
     )
     
     const sale = result.rows[0]
@@ -109,6 +111,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       userName: req.user?.name || '',
       companyName: sale.company_name,
       payerName: sale.payer_name,
+      paymentMethod: sale.payment_method,
       salesType: sale.sales_type,
       sourceType: sale.source_type,
       amount: sale.amount,
@@ -129,7 +132,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
-    const { companyName, payerName, salesType, sourceType, amount, contractDate, marketingContent } = req.body
+    const { companyName, payerName, paymentMethod, salesType, sourceType, amount, contractDate, marketingContent } = req.body
     
     // Check if sale exists and get user_id
     const saleResult = await pool.query('SELECT user_id FROM sales WHERE id = $1', [id])
@@ -146,8 +149,8 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
     }
     
     await pool.query(
-      `UPDATE sales SET company_name = $1, payer_name = $2, sales_type = $3, source_type = $4, amount = $5, contract_date = $6, marketing_content = $7 WHERE id = $8`,
-      [companyName, payerName || null, salesType, sourceType, amount, contractDate, marketingContent, id]
+      `UPDATE sales SET company_name = $1, payer_name = $2, payment_method = $3, sales_type = $4, source_type = $5, amount = $6, contract_date = $7, marketing_content = $8 WHERE id = $9`,
+      [companyName, payerName || null, paymentMethod || null, salesType, sourceType, amount, contractDate, marketingContent, id]
     )
     
     res.json({ success: true })
