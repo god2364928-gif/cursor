@@ -227,14 +227,29 @@ export default function SalesTrackingPage() {
       })
       
       // 디버깅: 응답 데이터 확인
-      console.log('📊 월별 통계 API 응답:', response.data)
+      console.log('📊 월별 통계 API 응답 전체:', response.data)
+      
+      // 응답 구조 확인
+      const statsData = response.data.stats || response.data
+      console.log('📊 통계 데이터:', statsData)
+      
       if (response.data.debug) {
         console.log('🔍 디버그 정보:', response.data.debug)
-        console.log('📋 Status 값 목록:', response.data.debug.statusValues)
-        console.log('🔍 "返信" 포함 레코드:', response.data.debug.replyTestResults)
+        console.log('📋 Status 값 목록 (DB에 저장된 모든 status):', response.data.debug.statusValues)
+        console.log('🔍 "返信" 포함 레코드 (담당자별):', response.data.debug.replyTestResults)
+        
+        // 회신 관련 status가 있는지 확인
+        const replyStatuses = response.data.debug.statusValues.filter((s: any) => 
+          s.status && (s.status.includes('返信') || s.status.includes('返信'))
+        )
+        console.log('✅ "返信"이 포함된 status 값들:', replyStatuses)
+        
+        if (replyStatuses.length === 0) {
+          console.warn('⚠️ 경고: 데이터베이스에 "返信"이 포함된 status 값이 없습니다!')
+        }
       }
       
-      setMonthlyStats(response.data.stats || response.data || [])
+      setMonthlyStats(Array.isArray(statsData) ? statsData : [])
       setShowStatsModal(true)
     } catch (error: any) {
       console.error('Failed to fetch stats:', error)

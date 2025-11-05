@@ -358,16 +358,17 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       }
     })
     
-    // 디버깅 정보를 응답에 포함 (개발 환경에서만)
+    // 디버깅 정보를 응답에 포함 (항상 포함하여 문제 진단)
     const debugInfo = {
-      statusValues: debugResult.rows.map(r => ({ status: r.status, count: r.count })),
-      replyTestResults: replyTestResult.rows.map(r => ({ manager: r.manager_name, status: r.status, count: r.count })),
-      totalRecords: totalRecordsResult.rows[0].total
+      statusValues: debugResult.rows.map(r => ({ status: r.status, count: parseInt(r.count) })),
+      replyTestResults: replyTestResult.rows.map(r => ({ manager: r.manager_name, status: r.status, count: parseInt(r.count) })),
+      totalRecords: parseInt(totalRecordsResult.rows[0].total)
     }
     
+    // 응답 구조: stats 배열과 debug 정보를 함께 반환
     res.json({
       stats,
-      debug: process.env.NODE_ENV !== 'production' ? debugInfo : undefined
+      debug: debugInfo
     })
   } catch (error) {
     console.error('Error fetching monthly stats:', error)
