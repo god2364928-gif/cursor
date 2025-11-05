@@ -45,10 +45,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         company_name ILIKE $1 OR 
         customer_name ILIKE $1 OR
         instagram ILIKE $1 OR
-        phone ILIKE $1 OR
-        COALESCE(phone1, '') ILIKE $1 OR
-        COALESCE(phone2, '') ILIKE $1 OR
-        COALESCE(phone3, '') ILIKE $1
+        phone ILIKE $1
       LIMIT 10
     `, [searchTerm])
     
@@ -91,9 +88,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     ]
     
     res.json(results)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in global search:', error)
-    res.status(500).json({ message: 'Internal server error' })
+    console.error('Error stack:', error.stack)
+    console.error('Error message:', error.message)
+    res.status(500).json({ message: 'Internal server error', error: error.message })
   }
 })
 
