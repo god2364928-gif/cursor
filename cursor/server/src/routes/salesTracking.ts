@@ -581,7 +581,6 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         totalCount: total,
         replyCount: reply,
         replyRate: `${replyRate}%`,
-        retargetingCount: total, // リタ獲得数 = 合計数
         negotiationCount: parseInt(row.negotiation_count) || 0,
         contractCount: parseInt(row.contract_count) || 0
       }

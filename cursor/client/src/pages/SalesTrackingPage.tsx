@@ -34,7 +34,6 @@ interface MonthlyStats {
   totalCount: number
   replyCount: number
   replyRate: string
-  retargetingCount: number
   negotiationCount: number
   contractCount: number
 }
@@ -824,7 +823,6 @@ export default function SalesTrackingPage() {
                         <th className="px-3 py-2 text-right font-medium border-r w-20">{t('totalCount')}</th>
                         <th className="px-3 py-2 text-right font-medium border-r w-20">{t('replyCount')}</th>
                         <th className="px-3 py-2 text-right font-medium border-r w-20">{t('replyRate')}</th>
-                        <th className="px-3 py-2 text-right font-medium border-r w-24">{t('retargetingCount')}</th>
                         <th className="px-3 py-2 text-right font-medium border-r w-20">{t('negotiationCount')}</th>
                         <th className="px-3 py-2 text-right font-medium w-20">{t('contractCount')}</th>
                       </tr>
@@ -838,7 +836,6 @@ export default function SalesTrackingPage() {
                           <td className="px-3 py-2 border-r text-right font-medium">{stat.totalCount}</td>
                           <td className="px-3 py-2 border-r text-right">{stat.replyCount}</td>
                           <td className="px-3 py-2 border-r text-right">{stat.replyRate}</td>
-                          <td className="px-3 py-2 border-r text-right">{stat.retargetingCount}</td>
                           <td className="px-3 py-2 border-r text-right">{stat.negotiationCount}</td>
                           <td className="px-3 py-2 text-right">{stat.contractCount}</td>
                         </tr>
