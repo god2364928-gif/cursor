@@ -263,9 +263,9 @@ export default function SalesTrackingPage() {
   }, [searchQuery])
 
   return (
-    <div className="p-6 pt-16">
+    <div className="p-6 pt-12">
       {/* Global Search - 통합 검색 */}
-      <div className="mb-4 -mt-4">
+      <div className="mb-4 -mt-6">
         <h2 className="text-lg font-semibold mb-2">{t('globalSearch')}</h2>
         <GlobalSearch />
       </div>
