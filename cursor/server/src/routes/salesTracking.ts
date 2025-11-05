@@ -372,8 +372,10 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         COUNT(*) as total_count,
         -- 회신수: 未返信이 아니고, 返 또는 信이 포함된 모든 레코드
         COUNT(*) FILTER (WHERE 
-          status != '未返信'
-          AND (status LIKE '%返%' OR status LIKE '%信%')
+          status = '返信あり'
+          OR status = '返信済み'
+          OR status = '返信済'
+          OR (status != '未返信' AND (status LIKE '%返%' OR status LIKE '%信%'))
         ) as reply_count,
         COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
         COUNT(*) FILTER (WHERE status = '契約') as contract_count,
