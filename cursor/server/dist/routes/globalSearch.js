@@ -41,9 +41,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         company_name ILIKE $1 OR 
         customer_name ILIKE $1 OR
         instagram ILIKE $1 OR
-        phone1 ILIKE $1 OR
-        phone2 ILIKE $1 OR
-        phone3 ILIKE $1
+        phone ILIKE $1
       LIMIT 10
     `, [searchTerm]);
         // 3. 영업이력 검색 (전화번호 포함)
@@ -86,7 +84,9 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
     }
     catch (error) {
         console.error('Error in global search:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error('Error stack:', error.stack);
+        console.error('Error message:', error.message);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 });
 exports.default = router;
