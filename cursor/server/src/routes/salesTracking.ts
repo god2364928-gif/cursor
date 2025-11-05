@@ -358,7 +358,17 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       }
     })
     
-    res.json(stats)
+    // 디버깅 정보를 응답에 포함 (개발 환경에서만)
+    const debugInfo = {
+      statusValues: debugResult.rows.map(r => ({ status: r.status, count: r.count })),
+      replyTestResults: replyTestResult.rows.map(r => ({ manager: r.manager_name, status: r.status, count: r.count })),
+      totalRecords: totalRecordsResult.rows[0].total
+    }
+    
+    res.json({
+      stats,
+      debug: process.env.NODE_ENV !== 'production' ? debugInfo : undefined
+    })
   } catch (error) {
     console.error('Error fetching monthly stats:', error)
     res.status(500).json({ message: 'Internal server error' })
