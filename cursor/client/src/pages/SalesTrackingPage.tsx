@@ -135,6 +135,21 @@ export default function SalesTrackingPage() {
     }
   }
 
+  const handleMoveToRetargeting = async (record: SalesTrackingRecord) => {
+    if (!confirm(t('moveToRetargeting') + '?')) return
+
+    try {
+      await api.post(`/sales-tracking/${record.id}/move-to-retargeting`)
+      showToast(t('movedToRetargeting'), 'success')
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        showToast(t('onlyOwnerCanModify'), 'error')
+      } else {
+        showToast(error.response?.data?.message || t('moveToRetargetingFailed'), 'error')
+      }
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       date: new Date().toISOString().split('T')[0],
