@@ -190,19 +190,35 @@ export default function SalesTrackingPage() {
       const currentMonth = now.getMonth() + 1
       
       // 파라미터가 제공되면 사용, 없으면 현재 상태 사용, 그것도 없으면 현재 날짜 사용
-      const finalYear = year ?? selectedYear ?? currentYear
-      const finalMonth = month ?? selectedMonth ?? currentMonth
+      let finalYear: number
+      let finalMonth: number
+      
+      if (year !== undefined && year !== null && !isNaN(year)) {
+        finalYear = Number(year)
+      } else if (selectedYear !== undefined && selectedYear !== null && !isNaN(selectedYear)) {
+        finalYear = Number(selectedYear)
+      } else {
+        finalYear = currentYear
+      }
+      
+      if (month !== undefined && month !== null && !isNaN(month)) {
+        finalMonth = Number(month)
+      } else if (selectedMonth !== undefined && selectedMonth !== null && !isNaN(selectedMonth)) {
+        finalMonth = Number(selectedMonth)
+      } else {
+        finalMonth = currentMonth
+      }
       
       // 유효성 검사
-      if (!finalYear || !finalMonth || isNaN(finalYear) || isNaN(finalMonth) || finalMonth < 1 || finalMonth > 12) {
-        console.error('Invalid year or month:', { finalYear, finalMonth, selectedYear, selectedMonth })
+      if (isNaN(finalYear) || isNaN(finalMonth) || finalYear < 2000 || finalYear > 3000 || finalMonth < 1 || finalMonth > 12) {
+        console.error('Invalid year or month:', { finalYear, finalMonth, selectedYear, selectedMonth, year, month })
         showToast(t('error'), 'error')
         return
       }
       
       // 상태 업데이트 (제공된 값이 있는 경우)
-      if (year !== undefined) setSelectedYear(year)
-      if (month !== undefined) setSelectedMonth(month)
+      if (year !== undefined && !isNaN(year)) setSelectedYear(Number(year))
+      if (month !== undefined && !isNaN(month)) setSelectedMonth(Number(month))
       
       console.log('Fetching monthly stats:', { year: finalYear, month: finalMonth })
       
@@ -247,9 +263,9 @@ export default function SalesTrackingPage() {
   }, [searchQuery])
 
   return (
-    <div className="p-6 pt-20">
+    <div className="p-6 pt-16">
       {/* Global Search - 통합 검색 */}
-      <div className="mb-4 -mt-2">
+      <div className="mb-4 -mt-4">
         <h2 className="text-lg font-semibold mb-2">{t('globalSearch')}</h2>
         <GlobalSearch />
       </div>
