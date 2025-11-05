@@ -263,13 +263,25 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     // - 契約: status = '契約'인 건수
     // - NG: status = 'NG'인 건수
     
+    // 디버깅: 실제 데이터의 status 값 확인
+    const debugResult = await pool.query(`
+      SELECT DISTINCT status, COUNT(*) as count
+      FROM sales_tracking
+      WHERE 
+        EXTRACT(YEAR FROM date) = $1 AND
+        EXTRACT(MONTH FROM date) = $2
+      GROUP BY status
+      ORDER BY status
+    `, [yearNum, monthNum])
+    console.log('Debug - Status values in database:', debugResult.rows)
+    
     const result = await pool.query(`
       SELECT 
         manager_name,
         COUNT(*) FILTER (WHERE contact_method = '電話') as phone_count,
         COUNT(*) FILTER (WHERE contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
         COUNT(*) as total_count,
-        COUNT(*) FILTER (WHERE status IN ('返信済み', '返信あり')) as reply_count,
+        COUNT(*) FILTER (WHERE status IN ('返信済み', '返信あり', '返信済') OR status LIKE '%返信%') as reply_count,
         COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
         COUNT(*) FILTER (WHERE status = '契約') as contract_count,
         COUNT(*) FILTER (WHERE status = 'NG') as ng_count
