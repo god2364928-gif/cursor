@@ -148,7 +148,7 @@ export default function SalesTrackingPage() {
       contactPerson: '',
       phone: '',
       memo: '',
-      memoNote: ''
+      memoNote: '' // DB에는 저장되지만 UI에서는 제거
     })
   }
 
