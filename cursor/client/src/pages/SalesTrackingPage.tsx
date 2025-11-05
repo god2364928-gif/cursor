@@ -53,6 +53,10 @@ export default function SalesTrackingPage() {
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  
+  // 페이지네이션 상태
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 100
 
   // Form state
   const [formData, setFormData] = useState({
@@ -193,6 +197,30 @@ export default function SalesTrackingPage() {
   const canEdit = (record: SalesTrackingRecord) => {
     return user?.role === 'admin' || record.user_id === user?.id
   }
+
+  // 날짜 포맷 함수 (YYYY-MM-DD)
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-'
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return dateString
+      return date.toISOString().split('T')[0]
+    } catch {
+      // 이미 YYYY-MM-DD 형식인 경우
+      return dateString.split('T')[0]
+    }
+  }
+
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(records.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedRecords = records.slice(startIndex, endIndex)
+
+  useEffect(() => {
+    // 검색 시 첫 페이지로 리셋
+    setCurrentPage(1)
+  }, [searchQuery])
 
   return (
     <div className="p-6 pt-24">
@@ -350,37 +378,36 @@ export default function SalesTrackingPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('date')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('managerName')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('accountId')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('customerName')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('industry')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('contactMethod')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('status')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('contactPerson')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('phone')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('memo')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r">{t('memoNote')}</th>
-                  <th className="px-2 py-2 text-center font-medium">{t('actions')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-24">{t('date')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-28">{t('managerName')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-32">{t('accountId')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-32">{t('customerName')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-24">{t('industry')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-20">{t('contactMethod')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-20">{t('status')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-28">{t('contactPerson')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-24">{t('phone')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-32">{t('memo')}</th>
+                  <th className="px-2 py-2 text-center font-medium w-20">{t('actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
                       {t('loading')}
                     </td>
                   </tr>
                 ) : records.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
                       {t('noData')}
                     </td>
                   </tr>
                 ) : (
-                  records.map((record) => (
+                  paginatedRecords.map((record) => (
                     <tr key={record.id} className="border-b hover:bg-gray-50">
-                      <td className="px-2 py-1 border-r">{record.date}</td>
+                      <td className="px-2 py-1 border-r whitespace-nowrap">{formatDate(record.date)}</td>
                       <td className="px-2 py-1 border-r">{record.manager_name}</td>
                       <td className="px-2 py-1 border-r">{record.account_id || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.customer_name || '-'}</td>
@@ -389,11 +416,8 @@ export default function SalesTrackingPage() {
                       <td className="px-2 py-1 border-r">{record.status}</td>
                       <td className="px-2 py-1 border-r">{record.contact_person || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.phone || '-'}</td>
-                      <td className="px-2 py-1 border-r max-w-xs truncate" title={record.memo || ''}>
+                      <td className="px-2 py-1 border-r truncate max-w-xs" title={record.memo || ''}>
                         {record.memo || '-'}
-                      </td>
-                      <td className="px-2 py-1 border-r max-w-xs truncate" title={record.memo_note || ''}>
-                        {record.memo_note || '-'}
                       </td>
                       <td className="px-2 py-1 text-center">
                         {canEdit(record) && (
@@ -421,51 +445,102 @@ export default function SalesTrackingPage() {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination */}
+          {records.length > 0 && totalPages > 1 && (
+            <div className="px-4 py-3 border-t flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                {t('showing')} {startIndex + 1} - {Math.min(endIndex, records.length)} {t('of')} {records.length}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  {t('previous')}
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum
+                    if (totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i
+                    } else {
+                      pageNum = currentPage - 2 + i
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  {t('next')}
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Monthly Stats Modal */}
       {showStatsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-4xl max-h-[80vh] overflow-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                {t('monthlyStats')} - {selectedYear}/{selectedMonth}
-                <div className="flex gap-2">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <CardHeader className="flex-shrink-0">
+              <CardTitle className="flex items-center justify-between flex-wrap gap-2">
+                <span>{t('monthlyStats')} - {selectedYear}/{String(selectedMonth).padStart(2, '0')}</span>
+                <div className="flex gap-2 flex-wrap">
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    className="px-2 py-1 border rounded"
+                    className="px-3 py-2 border rounded text-sm"
                   >
                     {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                      <option key={year} value={year}>{year}</option>
+                      <option key={year} value={year}>{year} {t('year')}</option>
                     ))}
                   </select>
                   <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    className="px-2 py-1 border rounded"
+                    className="px-3 py-2 border rounded text-sm"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                      <option key={month} value={month}>{month}</option>
+                      <option key={month} value={month}>{month} {t('month')}</option>
                     ))}
                   </select>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setSelectedYear(new Date().getFullYear())
-                      setSelectedMonth(new Date().getMonth() + 1)
+                      const now = new Date()
+                      setSelectedYear(now.getFullYear())
+                      setSelectedMonth(now.getMonth() + 1)
+                      fetchMonthlyStats()
                     }}
                   >
                     {t('currentMonth')}
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="default"
                     size="sm"
-                    onClick={() => {
-                      fetchMonthlyStats()
-                    }}
+                    onClick={fetchMonthlyStats}
                   >
                     {t('search')}
                   </Button>
@@ -479,41 +554,47 @@ export default function SalesTrackingPage() {
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium border-r">{t('managerName')}</th>
-                      <th className="px-3 py-2 text-right font-medium border-r">{t('phoneCount')}</th>
-                      <th className="px-3 py-2 text-right font-medium border-r">{t('sendCount')}</th>
-                      <th className="px-3 py-2 text-right font-medium border-r">{t('totalCount')}</th>
-                      <th className="px-3 py-2 text-right font-medium border-r">{t('replyCount')}</th>
-                      <th className="px-3 py-2 text-right font-medium border-r">{t('replyRate')}</th>
-                      <th className="px-3 py-2 text-right font-medium border-r">{t('retargetingCount')}</th>
-                      <th className="px-3 py-2 text-right font-medium border-r">{t('negotiationCount')}</th>
-                      <th className="px-3 py-2 text-right font-medium border-r">{t('contractCount')}</th>
-                      <th className="px-3 py-2 text-right font-medium">{t('ngCount')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {monthlyStats.map((stat) => (
-                      <tr key={stat.manager} className="border-b">
-                        <td className="px-3 py-2 border-r font-medium">{stat.manager}</td>
-                        <td className="px-3 py-2 border-r text-right">{stat.phoneCount}</td>
-                        <td className="px-3 py-2 border-r text-right">{stat.sendCount}</td>
-                        <td className="px-3 py-2 border-r text-right font-medium">{stat.totalCount}</td>
-                        <td className="px-3 py-2 border-r text-right">{stat.replyCount}</td>
-                        <td className="px-3 py-2 border-r text-right">{stat.replyRate}</td>
-                        <td className="px-3 py-2 border-r text-right">{stat.retargetingCount}</td>
-                        <td className="px-3 py-2 border-r text-right">{stat.negotiationCount}</td>
-                        <td className="px-3 py-2 border-r text-right">{stat.contractCount}</td>
-                        <td className="px-3 py-2 text-right">{stat.ngCount}</td>
+            <CardContent className="flex-1 overflow-auto">
+              {monthlyStats.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  {t('noData')}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium border-r w-32">{t('managerName')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('phoneCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('sendCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('totalCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('replyCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('replyRate')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-24">{t('retargetingCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('negotiationCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('contractCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium w-16">{t('ngCount')}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {monthlyStats.map((stat) => (
+                        <tr key={stat.manager} className="border-b hover:bg-gray-50">
+                          <td className="px-3 py-2 border-r font-medium">{stat.manager}</td>
+                          <td className="px-3 py-2 border-r text-right">{stat.phoneCount}</td>
+                          <td className="px-3 py-2 border-r text-right">{stat.sendCount}</td>
+                          <td className="px-3 py-2 border-r text-right font-medium">{stat.totalCount}</td>
+                          <td className="px-3 py-2 border-r text-right">{stat.replyCount}</td>
+                          <td className="px-3 py-2 border-r text-right">{stat.replyRate}</td>
+                          <td className="px-3 py-2 border-r text-right">{stat.retargetingCount}</td>
+                          <td className="px-3 py-2 border-r text-right">{stat.negotiationCount}</td>
+                          <td className="px-3 py-2 border-r text-right">{stat.contractCount}</td>
+                          <td className="px-3 py-2 text-right">{stat.ngCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

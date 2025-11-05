@@ -303,6 +303,8 @@ const translations: Record<Language, Translation> = {
     selectMonth: '月を選択',
     actions: '操作',
     noData: 'データがありません',
+    showing: '表示中',
+    of: '/',
   },
   ko: {
     // Navigation
@@ -600,6 +602,8 @@ const translations: Record<Language, Translation> = {
     selectMonth: '월 선택',
     actions: '작업',
     noData: '데이터가 없습니다',
+    showing: '표시 중',
+    of: '/',
   },
 }
 
