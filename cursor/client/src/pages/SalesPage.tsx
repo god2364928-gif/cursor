@@ -736,6 +736,16 @@ export default function SalesPage() {
               </tbody>
             </table>
           </div>
+          
+          {/* Sales Summary - 입금액, 매출 합계 */}
+          <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between mt-4">
+            <div className="text-sm font-medium text-gray-700">
+              {t('totalDeposit')}: <span className="text-blue-600 font-bold">{formatNumber(totalSales)}円</span>
+            </div>
+            <div className="text-sm font-medium text-gray-700">
+              {t('totalSales')}: <span className="text-green-600 font-bold">{formatNumber(totalSales)}円</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
       </div>
