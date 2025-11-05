@@ -258,8 +258,8 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     const retargetingResult = await pool.query(
       `INSERT INTO retargeting_customers (
         company_name, industry, customer_name, phone, region, inflow_path,
-        manager, manager_team, status, registered_at, memo
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        manager, manager_team, status, registered_at, memo, sales_tracking_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *`,
       [
         record.customer_name || record.account_id || null, // company_name
@@ -272,7 +272,8 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
         null, // manager_team
         '시작', // status
         record.date || new Date().toISOString().split('T')[0], // registered_at
-        record.memo || null
+        record.memo || null,
+        id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
       ]
     )
     
@@ -496,6 +497,30 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       ORDER BY st.manager_name
     `, [yearNum, monthNum])
     
+    // 리타획득수 집계: 작업에서 직접 리타겟팅으로 옮긴 건만 집계
+    // sales_tracking_id가 있는 retargeting_customers 레코드 중에서
+    // 해당 월의 sales_tracking 레코드와 매칭되는 것만 집계
+    const retargetingCountResult = await pool.query(`
+      SELECT 
+        st.manager_name,
+        COUNT(DISTINCT rc.id) as retargeting_count
+      FROM sales_tracking st
+      JOIN retargeting_customers rc ON rc.sales_tracking_id = st.id
+      JOIN users u ON u.name = st.manager_name
+      WHERE 
+        EXTRACT(YEAR FROM st.date) = $1 AND
+        EXTRACT(MONTH FROM st.date) = $2 AND
+        u.role = 'marketer'
+        AND rc.sales_tracking_id IS NOT NULL
+      GROUP BY st.manager_name
+    `, [yearNum, monthNum])
+    
+    // 리타획득수를 맵으로 변환하여 빠른 조회 가능하도록
+    const retargetingCountMap = new Map<string, number>()
+    retargetingCountResult.rows.forEach(row => {
+      retargetingCountMap.set(row.manager_name, parseInt(row.retargeting_count) || 0)
+    })
+    
     // 추가 디버깅: 각 담당자별로 status 분포 확인 (마케터만)
     console.log('📊 담당자별 status 분포 (마케터만):')
     const statusDistribution = await pool.query(`
@@ -581,6 +606,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         totalCount: total,
         replyCount: reply,
         replyRate: `${replyRate}%`,
+        retargetingCount: retargetingCountMap.get(row.manager_name) || 0, // 작업에서 직접 이동한 건만 집계
         negotiationCount: parseInt(row.negotiation_count) || 0,
         contractCount: parseInt(row.contract_count) || 0
       }
