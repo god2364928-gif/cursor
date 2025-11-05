@@ -234,6 +234,11 @@ export default function SalesTrackingPage() {
 
   return (
     <div className="p-6 pt-24">
+      {/* Global Search - 통합 검색 */}
+      <div className="mb-4">
+        <GlobalSearch />
+      </div>
+
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('salesTracking')}</h1>
         <div className="flex gap-2">
@@ -249,11 +254,6 @@ export default function SalesTrackingPage() {
             {t('quickAdd')}
           </Button>
         </div>
-      </div>
-
-      {/* Global Search - 통합 검색 */}
-      <div className="mb-4">
-        <GlobalSearch />
       </div>
 
       {/* Local Search - 영업이력 페이지 내 검색 */}
@@ -411,7 +411,6 @@ export default function SalesTrackingPage() {
                   <th className="px-2 py-2 text-left font-medium border-r w-24">{t('industry')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('contactMethod')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('status')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r w-28">{t('contactPerson')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-24">{t('phone')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('memo')}</th>
                   <th className="px-2 py-2 text-center font-medium w-20">{t('actions')}</th>
@@ -420,13 +419,13 @@ export default function SalesTrackingPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                       {t('loading')}
                     </td>
                   </tr>
                 ) : records.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                       {t('noData')}
                     </td>
                   </tr>
@@ -440,7 +439,6 @@ export default function SalesTrackingPage() {
                       <td className="px-2 py-1 border-r">{record.industry || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.contact_method || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.status}</td>
-                      <td className="px-2 py-1 border-r">{record.contact_person || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.phone || '-'}</td>
                       <td className="px-2 py-1 border-r truncate max-w-xs" title={record.memo || ''}>
                         {record.memo || '-'}
