@@ -187,13 +187,22 @@ export default function SalesTrackingPage() {
       const targetYear = year ?? selectedYear
       const targetMonth = month ?? selectedMonth
       
-      if (!targetYear || !targetMonth) {
+      // 기본값 설정 (현재 년도/월)
+      const now = new Date()
+      const finalYear = targetYear || now.getFullYear()
+      const finalMonth = targetMonth || (now.getMonth() + 1)
+      
+      if (!finalYear || !finalMonth || finalMonth < 1 || finalMonth > 12) {
         showToast(t('error'), 'error')
         return
       }
       
+      // 상태 업데이트
+      if (targetYear) setSelectedYear(targetYear)
+      if (targetMonth) setSelectedMonth(targetMonth)
+      
       const response = await api.get('/sales-tracking/stats/monthly', {
-        params: { year: targetYear, month: targetMonth }
+        params: { year: finalYear, month: finalMonth }
       })
       setMonthlyStats(response.data || [])
       setShowStatsModal(true)
@@ -236,6 +245,7 @@ export default function SalesTrackingPage() {
     <div className="p-6 pt-24">
       {/* Global Search - 통합 검색 */}
       <div className="mb-4">
+        <h2 className="text-lg font-semibold mb-2">{t('globalSearch')}</h2>
         <GlobalSearch />
       </div>
 
@@ -362,13 +372,6 @@ export default function SalesTrackingPage() {
                   <option value="契約">契約</option>
                   <option value="NG">NG</option>
                 </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium">{t('contactPerson')}</label>
-                <Input
-                  value={formData.contactPerson}
-                  onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                />
               </div>
               <div>
                 <label className="text-sm font-medium">{t('phone')}</label>
