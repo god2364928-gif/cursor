@@ -19,7 +19,7 @@ const translations: Record<Language, Translation> = {
     
     // Global Search
     globalSearch: '統合検索',
-    searchPlaceholder: '顧客名、会社名、アカウントIDで検索...',
+    searchPlaceholder: '顧客名、会社名、アカウントID、電話番号で検索...',
     
     // Login
     marketingCRM: 'マーケティング CRM',
@@ -318,7 +318,7 @@ const translations: Record<Language, Translation> = {
     
     // Global Search
     globalSearch: '통합 검색',
-    searchPlaceholder: '고객명, 회사명, 계정ID로 검색...',
+    searchPlaceholder: '고객명, 회사명, 계정ID, 전화번호로 검색...',
     
     // Login
     marketingCRM: '마케팅 CRM',

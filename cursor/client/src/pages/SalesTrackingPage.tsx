@@ -6,7 +6,8 @@ import { useToast } from '../components/ui/toast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Plus, Edit, Trash2, X, BarChart3 } from 'lucide-react'
+import { Plus, Edit, Trash2, X, BarChart3, Search } from 'lucide-react'
+import GlobalSearch from '../components/GlobalSearch'
 
 interface SalesTrackingRecord {
   id: string
@@ -241,15 +242,23 @@ export default function SalesTrackingPage() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Global Search - 통합 검색 */}
       <div className="mb-4">
-        <Input
-          type="text"
-          placeholder={t('search')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-md"
-        />
+        <GlobalSearch />
+      </div>
+
+      {/* Local Search - 영업이력 페이지 내 검색 */}
+      <div className="mb-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            type="text"
+            placeholder={t('search')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* Quick Add Form */}
@@ -277,7 +286,9 @@ export default function SalesTrackingPage() {
                 <label className="text-sm font-medium">{t('managerName')}</label>
                 <Input
                   value={formData.managerName}
-                  onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
+                  readOnly
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
                 />
               </div>
               <div>
@@ -296,10 +307,23 @@ export default function SalesTrackingPage() {
               </div>
               <div>
                 <label className="text-sm font-medium">{t('industry')}</label>
-                <Input
+                <select
                   value={formData.industry}
                   onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                />
+                  className="w-full px-3 py-2 border rounded"
+                >
+                  <option value="">-</option>
+                  <option value="飲食店">飲食店</option>
+                  <option value="娯楽/観光/レジャー">娯楽/観光/レジャー</option>
+                  <option value="美容サロン">美容サロン</option>
+                  <option value="有形商材">有形商材</option>
+                  <option value="個人利用">個人利用</option>
+                  <option value="無形商材">無形商材</option>
+                  <option value="代理店">代理店</option>
+                  <option value="教育">教育</option>
+                  <option value="その他">その他</option>
+                  <option value="アートメイク">アートメイク</option>
+                </select>
               </div>
               <div>
                 <label className="text-sm font-medium">{t('contactMethod')}</label>
@@ -349,13 +373,6 @@ export default function SalesTrackingPage() {
                 <Input
                   value={formData.memo}
                   onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-medium">{t('memoNote')}</label>
-                <Input
-                  value={formData.memoNote}
-                  onChange={(e) => setFormData({ ...formData, memoNote: e.target.value })}
                 />
               </div>
             </div>
@@ -501,8 +518,8 @@ export default function SalesTrackingPage() {
 
       {/* Monthly Stats Modal */}
       {showStatsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-5xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-5xl max-h-[90vh] flex flex-col bg-white shadow-2xl">
             <CardHeader className="flex-shrink-0">
               <CardTitle className="flex items-center justify-between flex-wrap gap-2">
                 <span>{t('monthlyStats')} - {selectedYear}/{String(selectedMonth).padStart(2, '0')}</span>

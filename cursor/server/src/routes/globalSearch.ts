@@ -15,7 +15,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     
     const searchTerm = `%${keyword.trim()}%`
     
-    // 1. 고객관리 검색
+    // 1. 고객관리 검색 (전화번호 포함)
     const customersResult = await pool.query(`
       SELECT 
         'customers' as page,
@@ -26,11 +26,14 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       WHERE 
         company_name ILIKE $1 OR 
         customer_name ILIKE $1 OR
-        instagram ILIKE $1
+        instagram ILIKE $1 OR
+        phone1 ILIKE $1 OR
+        phone2 ILIKE $1 OR
+        phone3 ILIKE $1
       LIMIT 10
     `, [searchTerm])
     
-    // 2. 리타겟팅 검색
+    // 2. 리타겟팅 검색 (전화번호 포함)
     const retargetingResult = await pool.query(`
       SELECT 
         'retargeting' as page,
@@ -41,11 +44,14 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       WHERE 
         company_name ILIKE $1 OR 
         customer_name ILIKE $1 OR
-        instagram ILIKE $1
+        instagram ILIKE $1 OR
+        phone1 ILIKE $1 OR
+        phone2 ILIKE $1 OR
+        phone3 ILIKE $1
       LIMIT 10
     `, [searchTerm])
     
-    // 3. 영업이력 검색
+    // 3. 영업이력 검색 (전화번호 포함)
     const salesTrackingResult = await pool.query(`
       SELECT 
         'salesTracking' as page,
@@ -55,7 +61,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       FROM sales_tracking
       WHERE 
         customer_name ILIKE $1 OR 
-        account_id ILIKE $1
+        account_id ILIKE $1 OR
+        phone ILIKE $1 OR
+        contact_person ILIKE $1
       LIMIT 10
     `, [searchTerm])
     
