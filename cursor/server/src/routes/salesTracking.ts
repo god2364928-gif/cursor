@@ -375,6 +375,46 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       console.log(`  ${row.manager_name} - "${row.status}": ${row.count}건`)
     })
     
+    // 실제로 石黒杏奈의 11월 返信あり 레코드 확인
+    const ishiguroReplyCheck = await pool.query(`
+      SELECT 
+        id,
+        date,
+        status,
+        customer_name,
+        account_id,
+        encode(status::bytea, 'hex') as status_bytes
+      FROM sales_tracking
+      WHERE 
+        manager_name = '石黒杏奈'
+        AND EXTRACT(YEAR FROM date) = $1
+        AND EXTRACT(MONTH FROM date) = $2
+        AND status LIKE '%返信%'
+      ORDER BY date
+      LIMIT 20
+    `, [yearNum, monthNum])
+    
+    process.stdout.write(`\n🔍 石黒杏奈의 11월 返信 레코드 (${ishiguroReplyCheck.rows.length}건):\n`)
+    console.error(`\n🔍 石黒杏奈의 11월 返信 레코드 (${ishiguroReplyCheck.rows.length}건):`)
+    ishiguroReplyCheck.rows.forEach((record, idx) => {
+      process.stdout.write(`  ${idx + 1}. ID: ${record.id}, Date: ${record.date}, Status: "${record.status}", Customer: ${record.customer_name || record.account_id || 'N/A'}, Bytes: ${record.status_bytes}\n`)
+      console.error(`  ${idx + 1}. ID: ${record.id}, Date: ${record.date}, Status: "${record.status}", Customer: ${record.customer_name || record.account_id || 'N/A'}, Bytes: ${record.status_bytes}`)
+    })
+    
+    // 返信あり 정확히 일치하는 레코드 확인
+    const exactMatchCheck = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM sales_tracking
+      WHERE 
+        manager_name = '石黒杏奈'
+        AND EXTRACT(YEAR FROM date) = $1
+        AND EXTRACT(MONTH FROM date) = $2
+        AND status = '返信あり'
+    `, [yearNum, monthNum])
+    
+    process.stdout.write(`\n✅ 石黒杏奈의 11월 status = '返信あり' 정확 일치: ${exactMatchCheck.rows[0].count}건\n`)
+    console.error(`\n✅ 石黒杏奈의 11월 status = '返信あり' 정확 일치: ${exactMatchCheck.rows[0].count}건`)
+    
     const result = await pool.query(`
       SELECT 
         manager_name,
@@ -494,14 +534,28 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         count: parseInt(r.count),
         isReply: r.status && r.status.includes('返信') && r.status !== '未返信'
       })),
-      totalRecords: parseInt(totalRecordsResult.rows[0].total)
+      totalRecords: parseInt(totalRecordsResult.rows[0].total),
+      ishiguroReplyCount: ishiguroReplyCheck.rows.length,
+      ishiguroExactMatch: parseInt(exactMatchCheck.rows[0].count),
+      ishiguroReplyRecords: ishiguroReplyCheck.rows.map(r => ({
+        id: r.id,
+        date: r.date,
+        status: r.status,
+        statusBytes: r.status_bytes,
+        customer: r.customer_name || r.account_id || 'N/A'
+      }))
     }
     
+    process.stdout.write(`\n📤 응답 전송: stats=${stats.length}개, debug 정보 포함\n`)
+    console.error(`\n📤 응답 전송: stats=${stats.length}개, debug 정보 포함`)
+    
     // 응답 구조: stats 배열과 debug 정보를 함께 반환
-    res.json({
+    const responseData = {
       stats,
       debug: debugInfo
-    })
+    }
+    
+    res.json(responseData)
   } catch (error) {
     console.error('Error fetching monthly stats:', error)
     res.status(500).json({ message: 'Internal server error' })
