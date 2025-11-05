@@ -381,13 +381,12 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         COUNT(*) FILTER (WHERE contact_method = '電話') as phone_count,
         COUNT(*) FILTER (WHERE contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
         COUNT(*) as total_count,
-        -- 회신수: 未返信이 아니고, 返 또는 信이 포함된 모든 레코드
-        COUNT(*) FILTER (WHERE 
-          status = '返信あり'
-          OR status = '返信済み'
-          OR status = '返信済'
-          OR (status != '未返信' AND (status LIKE '%返%' OR status LIKE '%信%'))
-        ) as reply_count,
+        -- 회신수: 단계별로 확인하기 위해 여러 조건 추가
+        COUNT(*) FILTER (WHERE status = '返信あり') as reply_count_exact,
+        COUNT(*) FILTER (WHERE status LIKE '%返信%') as reply_count_like,
+        COUNT(*) FILTER (WHERE status != '未返信') as reply_count_not_no_reply,
+        -- 최종 회신수: 返信あり를 명시적으로 포함
+        COUNT(*) FILTER (WHERE status = '返信あり') as reply_count,
         COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
         COUNT(*) FILTER (WHERE status = '契約') as contract_count,
         COUNT(*) FILTER (WHERE status = 'NG') as ng_count
