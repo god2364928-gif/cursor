@@ -306,7 +306,8 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       WHERE 
         EXTRACT(YEAR FROM date) = $1 AND
         EXTRACT(MONTH FROM date) = $2
-        AND (TRIM(status) LIKE '%返信%' AND TRIM(status) != '未返信')
+        AND (status LIKE '%返信%' OR status = '返信あり' OR status = '返信済み')
+        AND status != '未返信'
       GROUP BY manager_name, status
       ORDER BY manager_name, status
     `, [yearNum, monthNum])
@@ -320,14 +321,19 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       })
     }
     
-    // 집계 쿼리: 返信あり, 返信済み를 명시적으로 포함
+    // 집계 쿼리: 返信あり, 返信済み를 명시적으로 포함 (더 단순한 조건)
     const result = await pool.query(`
       SELECT 
         manager_name,
         COUNT(*) FILTER (WHERE contact_method = '電話') as phone_count,
         COUNT(*) FILTER (WHERE contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
         COUNT(*) as total_count,
-        COUNT(*) FILTER (WHERE TRIM(status) IN ('返信あり', '返信済み', '返信済') OR (TRIM(status) LIKE '%返信%' AND TRIM(status) != '未返信')) as reply_count,
+        COUNT(*) FILTER (WHERE 
+          status = '返信あり' 
+          OR status = '返信済み' 
+          OR status = '返信済'
+          OR (status LIKE '%返信%' AND status != '未返信')
+        ) as reply_count,
         COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
         COUNT(*) FILTER (WHERE status = '契約') as contract_count,
         COUNT(*) FILTER (WHERE status = 'NG') as ng_count
