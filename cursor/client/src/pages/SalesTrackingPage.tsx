@@ -53,6 +53,9 @@ export default function SalesTrackingPage() {
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
+  const [managerOptions, setManagerOptions] = useState<string[]>([])
+  const [users, setUsers] = useState<any[]>([])
   
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1)
