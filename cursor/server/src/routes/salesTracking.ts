@@ -274,6 +274,9 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       ORDER BY manager_name
     `, [year, month])
     
+    // reply_count는 이미 status = '返信済み'인 건수를 카운트하고 있음
+    // 회신율 계산: (reply_count / total_count) * 100
+    
     // 계산 필드 추가
     const stats = result.rows.map(row => {
       const total = parseInt(row.total_count) || 0

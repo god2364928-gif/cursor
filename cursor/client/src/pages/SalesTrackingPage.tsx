@@ -182,13 +182,17 @@ export default function SalesTrackingPage() {
     resetForm()
   }
 
-  const fetchMonthlyStats = async () => {
+  const fetchMonthlyStats = async (year?: number, month?: number) => {
     try {
+      const targetYear = year ?? selectedYear
+      const targetMonth = month ?? selectedMonth
       const response = await api.get('/sales-tracking/stats/monthly', {
-        params: { year: selectedYear, month: selectedMonth }
+        params: { year: targetYear, month: targetMonth }
       })
       setMonthlyStats(response.data)
-      setShowStatsModal(true)
+      if (!showStatsModal) {
+        setShowStatsModal(true)
+      }
     } catch (error) {
       console.error('Failed to fetch stats:', error)
       showToast(t('error'), 'error')
@@ -526,7 +530,12 @@ export default function SalesTrackingPage() {
                 <div className="flex gap-2 flex-wrap">
                   <select
                     value={selectedYear}
-                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    onChange={(e) => {
+                      const newYear = Number(e.target.value)
+                      setSelectedYear(newYear)
+                      // 자동으로 통계 조회
+                      fetchMonthlyStats(newYear, selectedMonth)
+                    }}
                     className="px-3 py-2 border rounded text-sm"
                   >
                     {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
@@ -535,7 +544,12 @@ export default function SalesTrackingPage() {
                   </select>
                   <select
                     value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                    onChange={(e) => {
+                      const newMonth = Number(e.target.value)
+                      setSelectedMonth(newMonth)
+                      // 자동으로 통계 조회
+                      fetchMonthlyStats(selectedYear, newMonth)
+                    }}
                     className="px-3 py-2 border rounded text-sm"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
