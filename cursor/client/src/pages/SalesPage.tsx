@@ -340,6 +340,7 @@ export default function SalesPage() {
   const filteredSales = sales.filter(s => managerFilter === 'all' || s.userName === managerFilter)
   
   const totalSales = filteredSales.reduce((sum, s) => sum + s.amount, 0)
+  const totalDeposit = filteredSales.reduce((sum, s) => sum + Math.round(s.amount * 1.1), 0) // 입금액(소비세포함)
   const newSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'new')
   const renewalSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'renew')
   const cancellationSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'cancel')
@@ -738,12 +739,14 @@ export default function SalesPage() {
           </div>
           
           {/* Sales Summary - 입금액, 매출 합계 */}
-          <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between mt-4">
-            <div className="text-sm font-medium text-gray-700">
-              {t('totalDeposit')}: <span className="text-blue-600 font-bold">{formatNumber(totalSales)}円</span>
-            </div>
-            <div className="text-sm font-medium text-gray-700">
-              {t('totalSales')}: <span className="text-green-600 font-bold">{formatNumber(totalSales)}円</span>
+          <div className="px-4 py-3 border-t bg-gray-50 mt-4">
+            <div className="text-sm font-medium text-gray-700 flex items-center gap-4">
+              <span>
+                {t('totalDeposit')}: <span className="text-blue-600 font-bold">{formatNumber(totalDeposit)}円</span>
+              </span>
+              <span>
+                {t('totalSales')}: <span className="text-green-600 font-bold">{formatNumber(totalSales)}円</span>
+              </span>
             </div>
           </div>
         </CardContent>
