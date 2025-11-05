@@ -74,10 +74,20 @@ app.get('/api/test/customers', async (req, res) => {
   }
 })
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`)
-  console.log(`CORS enabled for all origins`)
+// Start server with auto-migration
+async function startServer() {
+  // 자동 마이그레이션 실행
+  await autoMigrateSalesTracking()
+  
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`)
+    console.log(`CORS enabled for all origins`)
+  })
+}
+
+startServer().catch((error) => {
+  console.error('Failed to start server:', error)
+  process.exit(1)
 })
 
 // Handle graceful shutdown
