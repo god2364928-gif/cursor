@@ -291,7 +291,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     `, [yearNum, monthNum])
     console.log(`📈 전체 레코드 수: ${totalRecordsResult.rows[0].total}`)
     
-    // 회신수 집계를 위한 테스트 쿼리
+    // 회신수 집계를 위한 테스트 쿼리 - 모든 "返信" 포함 상태 확인
     const replyTestResult = await pool.query(`
       SELECT 
         manager_name,
@@ -301,16 +301,21 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       WHERE 
         EXTRACT(YEAR FROM date) = $1 AND
         EXTRACT(MONTH FROM date) = $2
-        AND (status LIKE '%返信%' OR status = '返信済み' OR status = '返信あり')
+        AND (TRIM(status) LIKE '%返信%' AND TRIM(status) != '未返信')
       GROUP BY manager_name, status
       ORDER BY manager_name, status
     `, [yearNum, monthNum])
     
-    console.log('🔍 "返信"이 포함된 레코드 상세:')
-    replyTestResult.rows.forEach(row => {
-      console.log(`  ${row.manager_name} - "${row.status}": ${row.count}건`)
-    })
+    console.log('🔍 "返信"이 포함된 레코드 상세 (未返信 제외):')
+    if (replyTestResult.rows.length === 0) {
+      console.log('  ⚠️ 해당 월에 "返信"이 포함된 레코드가 없습니다.')
+    } else {
+      replyTestResult.rows.forEach(row => {
+        console.log(`  ${row.manager_name} - "${row.status}": ${row.count}건`)
+      })
+    }
     
+    // 집계 쿼리: 未返信이 아닌 모든 "返信" 포함 상태를 회신으로 집계
     const result = await pool.query(`
       SELECT 
         manager_name,
@@ -328,6 +333,26 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       GROUP BY manager_name
       ORDER BY manager_name
     `, [yearNum, monthNum])
+    
+    // 추가 디버깅: 각 담당자별로 status 분포 확인
+    console.log('📊 담당자별 status 분포:')
+    const statusDistribution = await pool.query(`
+      SELECT 
+        manager_name,
+        status,
+        COUNT(*) as count
+      FROM sales_tracking
+      WHERE 
+        EXTRACT(YEAR FROM date) = $1 AND
+        EXTRACT(MONTH FROM date) = $2
+      GROUP BY manager_name, status
+      ORDER BY manager_name, status
+    `, [yearNum, monthNum])
+    
+    statusDistribution.rows.forEach(row => {
+      const isReply = row.status && row.status.includes('返信') && row.status !== '未返信'
+      console.log(`  ${row.manager_name} - "${row.status}": ${row.count}건 ${isReply ? '✅ (회신)' : ''}`)
+    })
     
     console.log('📋 집계 결과:')
     result.rows.forEach(row => {
