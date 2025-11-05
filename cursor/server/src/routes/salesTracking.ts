@@ -263,6 +263,9 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     // - 契約: status = '契約'인 건수
     // - NG: status = 'NG'인 건수
     
+    console.log('=== 월별 통계 조회 시작 ===')
+    console.log(`조회 년도: ${yearNum}, 월: ${monthNum}`)
+    
     // 디버깅: 실제 데이터의 status 값 확인
     const debugResult = await pool.query(`
       SELECT DISTINCT status, COUNT(*) as count
@@ -273,7 +276,20 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       GROUP BY status
       ORDER BY status
     `, [yearNum, monthNum])
-    console.log('Debug - Status values in database:', debugResult.rows)
+    console.log('📊 데이터베이스의 status 값 목록:')
+    debugResult.rows.forEach(row => {
+      console.log(`  - "${row.status}": ${row.count}건`)
+    })
+    
+    // 전체 레코드 수 확인
+    const totalRecordsResult = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM sales_tracking
+      WHERE 
+        EXTRACT(YEAR FROM date) = $1 AND
+        EXTRACT(MONTH FROM date) = $2
+    `, [yearNum, monthNum])
+    console.log(`📈 전체 레코드 수: ${totalRecordsResult.rows[0].total}`)
     
     const result = await pool.query(`
       SELECT 
@@ -292,6 +308,12 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       GROUP BY manager_name
       ORDER BY manager_name
     `, [yearNum, monthNum])
+    
+    console.log('📋 집계 결과:')
+    result.rows.forEach(row => {
+      console.log(`  ${row.manager_name}: 총 ${row.total_count}건, 회신 ${row.reply_count}건`)
+    })
+    console.log('=== 월별 통계 조회 완료 ===')
     
     // reply_count는 이미 status = '返信済み'인 건수를 카운트하고 있음
     // 회신율 계산: (reply_count / total_count) * 100
