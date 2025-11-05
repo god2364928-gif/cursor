@@ -100,8 +100,41 @@ export default function SalesTrackingPage() {
     })()
   }, [user])
 
+  const fetchSalesSummary = async () => {
+    try {
+      if (managerFilter === 'all') {
+        setSalesSummary({ totalDeposit: 0, totalSales: 0 })
+        return
+      }
+      
+      // 현재 날짜 기준으로 최근 1년 데이터 가져오기
+      const endDate = new Date().toISOString().split('T')[0]
+      const startDate = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0]
+      
+      const response = await api.get('/sales', {
+        params: {
+          startDate,
+          endDate,
+        }
+      })
+      
+      // 필터링된 담당자의 매출만 합산
+      const filteredSales = response.data.filter((sale: any) => sale.userName === managerFilter)
+      
+      // 입금액 = amount (소비세 포함), 매출 = amount
+      const totalDeposit = filteredSales.reduce((sum: number, sale: any) => sum + (sale.amount || 0), 0)
+      const totalSales = filteredSales.reduce((sum: number, sale: any) => sum + (sale.amount || 0), 0)
+      
+      setSalesSummary({ totalDeposit, totalSales })
+    } catch (error) {
+      console.error('Failed to fetch sales summary:', error)
+      setSalesSummary({ totalDeposit: 0, totalSales: 0 })
+    }
+  }
+
   useEffect(() => {
     fetchRecords()
+    fetchSalesSummary()
   }, [searchQuery, managerFilter])
 
   const fetchRecords = async () => {
