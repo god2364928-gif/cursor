@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import fs from 'fs'
+import path from 'path'
 import { pool } from './db'
 import authRoutes from './routes/auth'
 import customersRoutes from './routes/customers'
@@ -13,6 +15,30 @@ import globalSearchRoutes from './routes/globalSearch'
 import { autoMigrateSalesTracking } from './migrations/autoMigrate'
 
 dotenv.config()
+
+// Debug: Check if globalSearch.js has correct code (only in production)
+if (process.env.NODE_ENV === 'production' || true) {
+  try {
+    const globalSearchPath = path.join(__dirname, 'routes/globalSearch.js')
+    if (fs.existsSync(globalSearchPath)) {
+      const content = fs.readFileSync(globalSearchPath, 'utf8')
+      if (content.includes('retargeting_customers')) {
+        const retargetingSection = content.match(/retargeting_customers[\s\S]{0,300}LIMIT 10/)?.[0] || ''
+        const hasPhone1 = retargetingSection.includes('phone1')
+        if (hasPhone1) {
+          console.error('❌ ERROR: globalSearch.js still contains phone1 for retargeting_customers!')
+          console.error('Retargeting section:', retargetingSection.substring(0, 200))
+        } else {
+          console.log('✅ OK: globalSearch.js uses phone only for retargeting_customers')
+        }
+      }
+    } else {
+      console.log('⚠️ globalSearch.js not found at:', globalSearchPath)
+    }
+  } catch (e) {
+    console.error('Debug check failed:', e)
+  }
+}
 
 const app = express()
 const PORT = process.env.PORT || 5000
