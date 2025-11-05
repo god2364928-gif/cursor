@@ -320,14 +320,14 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       })
     }
     
-    // 집계 쿼리: 未返信이 아닌 모든 "返信" 포함 상태를 회신으로 집계
+    // 집계 쿼리: 返信あり, 返信済み를 명시적으로 포함
     const result = await pool.query(`
       SELECT 
         manager_name,
         COUNT(*) FILTER (WHERE contact_method = '電話') as phone_count,
         COUNT(*) FILTER (WHERE contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
         COUNT(*) as total_count,
-        COUNT(*) FILTER (WHERE TRIM(status) LIKE '%返信%' AND TRIM(status) != '未返信') as reply_count,
+        COUNT(*) FILTER (WHERE status IN ('返信あり', '返信済み', '返信済') OR (TRIM(status) LIKE '%返信%' AND TRIM(status) != '未返信')) as reply_count,
         COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
         COUNT(*) FILTER (WHERE status = '契約') as contract_count,
         COUNT(*) FILTER (WHERE status = 'NG') as ng_count
