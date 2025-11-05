@@ -81,10 +81,12 @@ export default function SalesTrackingPage() {
         params.search = searchQuery
       }
       const response = await api.get('/sales-tracking', { params })
-      setRecords(response.data)
-    } catch (error) {
+      setRecords(response.data || [])
+    } catch (error: any) {
       console.error('Failed to fetch records:', error)
-      showToast(t('loading') + ' ' + t('error'), 'error')
+      const errorMessage = error.response?.data?.message || error.message || t('error')
+      showToast(errorMessage, 'error')
+      setRecords([]) // 에러 발생 시 빈 배열로 설정
     } finally {
       setLoading(false)
     }

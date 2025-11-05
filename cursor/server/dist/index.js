@@ -13,6 +13,8 @@ const retargeting_1 = __importDefault(require("./routes/retargeting"));
 const sales_1 = __importDefault(require("./routes/sales"));
 const dashboard_1 = __importDefault(require("./routes/dashboard"));
 const perf_1 = __importDefault(require("./routes/perf"));
+const salesTracking_1 = __importDefault(require("./routes/salesTracking"));
+const globalSearch_1 = __importDefault(require("./routes/globalSearch"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -50,6 +52,8 @@ app.use('/api/retargeting', retargeting_1.default);
 app.use('/api/sales', sales_1.default);
 app.use('/api/dashboard', dashboard_1.default);
 app.use('/api/perf', perf_1.default);
+app.use('/api/sales-tracking', salesTracking_1.default);
+app.use('/api/global-search', globalSearch_1.default);
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
