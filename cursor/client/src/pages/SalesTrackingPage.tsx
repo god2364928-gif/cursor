@@ -669,10 +669,10 @@ export default function SalesTrackingPage() {
           </div>
           
           {/* Pagination */}
-          {records.length > 0 && totalPages > 1 && (
+          {filteredRecords.length > 0 && totalPages > 1 && (
             <div className="px-4 py-3 border-t flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                {t('showing')} {startIndex + 1} - {Math.min(endIndex, records.length)} {t('of')} {records.length}
+                {t('showing')} {startIndex + 1} - {Math.min(endIndex, filteredRecords.length)} {t('of')} {filteredRecords.length}
               </div>
               <div className="flex gap-2">
                 <Button
