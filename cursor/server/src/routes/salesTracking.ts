@@ -505,7 +505,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         st.manager_name,
         COUNT(DISTINCT rc.id) as retargeting_count
       FROM sales_tracking st
-      JOIN retargeting_customers rc ON rc.sales_tracking_id = st.id
+      INNER JOIN retargeting_customers rc ON rc.sales_tracking_id = st.id
       JOIN users u ON u.name = st.manager_name
       WHERE 
         EXTRACT(YEAR FROM st.date) = $1 AND
@@ -515,10 +515,22 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       GROUP BY st.manager_name
     `, [yearNum, monthNum])
     
+    // 디버깅: 리타획득수 집계 결과 확인
+    process.stdout.write(`\n📊 리타획득수 집계 결과: ${retargetingCountResult.rows.length}명의 담당자\n`)
+    console.error(`\n📊 리타획득수 집계 결과: ${retargetingCountResult.rows.length}명의 담당자`)
+    retargetingCountResult.rows.forEach(row => {
+      process.stdout.write(`   - ${row.manager_name}: ${row.retargeting_count}건\n`)
+      console.error(`   - ${row.manager_name}: ${row.retargeting_count}건`)
+    })
+    
     // 리타획득수를 맵으로 변환하여 빠른 조회 가능하도록
     const retargetingCountMap = new Map<string, number>()
     retargetingCountResult.rows.forEach(row => {
-      retargetingCountMap.set(row.manager_name, parseInt(row.retargeting_count) || 0)
+      const count = parseInt(row.retargeting_count) || 0
+      retargetingCountMap.set(row.manager_name, count)
+      // 디버깅: 맵에 저장된 값 확인
+      process.stdout.write(`   [맵 저장] ${row.manager_name} => ${count}\n`)
+      console.error(`   [맵 저장] ${row.manager_name} => ${count}`)
     })
     
     // 추가 디버깅: 각 담당자별로 status 분포 확인 (마케터만)
@@ -599,6 +611,15 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       
       const replyRate = total > 0 ? ((reply / total) * 100).toFixed(1) : '0.0'
       
+      // 리타획득수: 맵에서 조회, 없으면 0 (작업에서 직접 이동한 건만 집계)
+      const retargetingCount = retargetingCountMap.has(row.manager_name) 
+        ? (retargetingCountMap.get(row.manager_name) || 0)
+        : 0
+      
+      // 디버깅: 각 담당자별 리타획득수 확인
+      process.stdout.write(`   [${row.manager_name}] 리타획득수: ${retargetingCount} (맵에 존재: ${retargetingCountMap.has(row.manager_name)})\n`)
+      console.error(`   [${row.manager_name}] 리타획득수: ${retargetingCount} (맵에 존재: ${retargetingCountMap.has(row.manager_name)})`)
+      
       return {
         manager: row.manager_name,
         phoneCount: parseInt(row.phone_count) || 0,
@@ -606,7 +627,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         totalCount: total,
         replyCount: reply,
         replyRate: `${replyRate}%`,
-        retargetingCount: retargetingCountMap.get(row.manager_name) || 0, // 작업에서 직접 이동한 건만 집계
+        retargetingCount: retargetingCount, // 작업에서 직접 이동한 건만 집계 (항상 0이어야 함)
         negotiationCount: parseInt(row.negotiation_count) || 0,
         contractCount: parseInt(row.contract_count) || 0
       }
