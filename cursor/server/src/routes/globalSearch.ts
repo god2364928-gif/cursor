@@ -5,6 +5,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 const router = Router()
 
 // Global search across customers, retargeting, and sales tracking
+// Fixed: retargeting_customers uses 'phone' column only (not phone1/phone2/phone3)
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const keyword = req.query.q as string || ''
