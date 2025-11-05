@@ -12,12 +12,14 @@ import {
   Languages,
 } from 'lucide-react'
 import { Button } from './ui/button'
+import GlobalSearch from './GlobalSearch'
 
 const navigation = [
   { name: 'dashboard', href: '/', icon: LayoutDashboard },
   { name: 'customers', href: '/customers', icon: Users },
   { name: 'retargeting', href: '/retargeting', icon: Target },
   { name: 'sales', href: '/sales', icon: TrendingUp },
+  { name: 'salesTracking', href: '/sales-tracking', icon: TrendingUp },
   { name: 'settings', href: '/settings', icon: Settings },
 ]
 
@@ -39,7 +41,10 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top bar with language switcher */}
-      <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-end px-6 z-10">
+      <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-10">
+        <div className="flex-1 max-w-md">
+          <GlobalSearch />
+        </div>
         <Button
           variant="ghost"
           size="sm"
