@@ -186,16 +186,21 @@ export default function SalesTrackingPage() {
     try {
       const targetYear = year ?? selectedYear
       const targetMonth = month ?? selectedMonth
+      
+      if (!targetYear || !targetMonth) {
+        showToast(t('error'), 'error')
+        return
+      }
+      
       const response = await api.get('/sales-tracking/stats/monthly', {
         params: { year: targetYear, month: targetMonth }
       })
-      setMonthlyStats(response.data)
-      if (!showStatsModal) {
-        setShowStatsModal(true)
-      }
-    } catch (error) {
+      setMonthlyStats(response.data || [])
+      setShowStatsModal(true)
+    } catch (error: any) {
       console.error('Failed to fetch stats:', error)
-      showToast(t('error'), 'error')
+      const errorMessage = error.response?.data?.message || error.message || t('error')
+      showToast(errorMessage, 'error')
     }
   }
 
