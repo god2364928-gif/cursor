@@ -421,12 +421,13 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         COUNT(*) FILTER (WHERE contact_method = '電話') as phone_count,
         COUNT(*) FILTER (WHERE contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
         COUNT(*) as total_count,
-        -- 회신수: 단계별로 확인하기 위해 여러 조건 추가
+        -- 회신수: 返信あり를 찾기 위한 다양한 조건
         COUNT(*) FILTER (WHERE status = '返信あり') as reply_count_exact,
-        COUNT(*) FILTER (WHERE status LIKE '%返信%') as reply_count_like,
+        COUNT(*) FILTER (WHERE status LIKE '%返信あり%') as reply_count_like_ari,
+        COUNT(*) FILTER (WHERE status LIKE '%返信%') as reply_count_like_all,
         COUNT(*) FILTER (WHERE status != '未返信') as reply_count_not_no_reply,
-        -- 최종 회신수: 返信あり를 명시적으로 포함
-        COUNT(*) FILTER (WHERE status = '返信あり') as reply_count,
+        -- 최종 회신수: 返信あり를 찾기 (정확 일치 또는 포함)
+        COUNT(*) FILTER (WHERE status = '返信あり' OR status LIKE '%返信あり%') as reply_count,
         COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
         COUNT(*) FILTER (WHERE status = '契約') as contract_count,
         COUNT(*) FILTER (WHERE status = 'NG') as ng_count
@@ -460,12 +461,18 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     
     console.log('📋 집계 결과 (상세):')
     result.rows.forEach(row => {
-      console.log(`  ${row.manager_name}:`)
-      console.log(`    - 총: ${row.total_count}건`)
-      console.log(`    - reply_count (status = '返信あり'): ${row.reply_count}건`)
-      console.log(`    - reply_count_exact: ${row.reply_count_exact}건`)
-      console.log(`    - reply_count_like ('%返信%'): ${row.reply_count_like}건`)
-      console.log(`    - reply_count_not_no_reply (status != '未返信'): ${row.reply_count_not_no_reply}건`)
+      process.stdout.write(`  ${row.manager_name}:\n`)
+      process.stdout.write(`    - 총: ${row.total_count}건\n`)
+      process.stdout.write(`    - reply_count (최종): ${row.reply_count}건\n`)
+      process.stdout.write(`    - reply_count_exact (status = '返信あり'): ${row.reply_count_exact}건\n`)
+      process.stdout.write(`    - reply_count_like_ari ('%返信あり%'): ${row.reply_count_like_ari}건\n`)
+      process.stdout.write(`    - reply_count_like_all ('%返信%'): ${row.reply_count_like_all}건\n`)
+      console.error(`  ${row.manager_name}:`)
+      console.error(`    - 총: ${row.total_count}건`)
+      console.error(`    - reply_count (최종): ${row.reply_count}건`)
+      console.error(`    - reply_count_exact (status = '返信あり'): ${row.reply_count_exact}건`)
+      console.error(`    - reply_count_like_ari ('%返信あり%'): ${row.reply_count_like_ari}건`)
+      console.error(`    - reply_count_like_all ('%返信%'): ${row.reply_count_like_all}건`)
     })
     
     // 추가: 각 담당자별로 실제 회신 레코드 확인 (LIKE 검색으로 한자 차이 문제 해결)
@@ -499,16 +506,14 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     // 계산 필드 추가
     const stats = result.rows.map(row => {
       const total = parseInt(row.total_count) || 0
-      // 일단 reply_count_exact를 사용 (status = '返信あり')
-      let reply = parseInt(row.reply_count_exact) || 0
-      // 만약 0이면 like 검색 결과도 확인
-      if (reply === 0) {
-        reply = parseInt(row.reply_count_like) || 0
-      }
-      const replyRate = total > 0 ? ((reply / total) * 100).toFixed(1) : '0.0'
+      // reply_count 사용 (status = '返信あり' OR status LIKE '%返信あり%')
+      let reply = parseInt(row.reply_count) || 0
       
       // 디버깅: 각 담당자별 집계 값 로그
-      console.log(`  [${row.manager_name}] reply_count_exact: ${row.reply_count_exact}, reply_count_like: ${row.reply_count_like}, 최종 reply: ${reply}`)
+      process.stdout.write(`  [${row.manager_name}] exact: ${row.reply_count_exact}, like_ari: ${row.reply_count_like_ari}, like_all: ${row.reply_count_like_all}, 최종: ${reply}\n`)
+      console.error(`  [${row.manager_name}] exact: ${row.reply_count_exact}, like_ari: ${row.reply_count_like_ari}, like_all: ${row.reply_count_like_all}, 최종: ${reply}`)
+      
+      const replyRate = total > 0 ? ((reply / total) * 100).toFixed(1) : '0.0'
       
       return {
         manager: row.manager_name,
