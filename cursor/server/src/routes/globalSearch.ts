@@ -45,9 +45,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         company_name ILIKE $1 OR 
         customer_name ILIKE $1 OR
         instagram ILIKE $1 OR
-        phone1 ILIKE $1 OR
-        phone2 ILIKE $1 OR
-        phone3 ILIKE $1
+        phone ILIKE $1 OR
+        COALESCE(phone1, '') ILIKE $1 OR
+        COALESCE(phone2, '') ILIKE $1 OR
+        COALESCE(phone3, '') ILIKE $1
       LIMIT 10
     `, [searchTerm])
     
