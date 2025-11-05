@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage'
 import CustomersPage from './pages/CustomersPage'
 import RetargetingPage from './pages/RetargetingPage'
 import SalesPage from './pages/SalesPage'
+import SalesTrackingPage from './pages/SalesTrackingPage'
 import SettingsPage from './pages/SettingsPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -30,6 +31,7 @@ function App() {
           <Route path="customers" element={<CustomersPage />} />
           <Route path="retargeting" element={<RetargetingPage />} />
           <Route path="sales" element={<SalesPage />} />
+          <Route path="sales-tracking" element={<SalesTrackingPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

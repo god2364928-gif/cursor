@@ -13,8 +13,13 @@ const translations: Record<Language, Translation> = {
     customers: '顧客管理',
     retargeting: 'リターゲティング',
     sales: '実績管理',
+    salesTracking: '営業履歴',
     settings: '設定',
     logout: 'ログアウト',
+    
+    // Global Search
+    globalSearch: '統合検索',
+    searchPlaceholder: '顧客名、会社名、アカウントIDで検索...',
     
     // Login
     marketingCRM: 'マーケティング CRM',
@@ -268,6 +273,36 @@ const translations: Record<Language, Translation> = {
     // Inflow Paths
     inboundSEO: 'インバウンド(上位表示)',
     referral: '紹介',
+    
+    // Sales Tracking
+    date: '日付',
+    managerName: '担当者名',
+    accountId: 'アカウントID',
+    customerName: '顧客名',
+    industry: '業種',
+    contactMethod: '営業方法',
+    status: 'ステータス',
+    contactPerson: '先方担当者',
+    phone: '電話番号',
+    memo: 'メモ',
+    memoNote: 'メモ不可（個人シートにて反映）',
+    quickAdd: 'クイック追加',
+    monthlyStats: '月別統計',
+    phoneCount: '電話数',
+    sendCount: '送付数',
+    totalCount: '合計数',
+    replyCount: '返信数',
+    replyRate: '返信率',
+    retargetingCount: 'リタ獲得数',
+    negotiationCount: '商談中',
+    contractCount: '契約',
+    ngCount: 'NG',
+    year: '年',
+    month: '月',
+    selectYear: '年を選択',
+    selectMonth: '月を選択',
+    actions: '操作',
+    noData: 'データがありません',
   },
   ko: {
     // Navigation
@@ -275,8 +310,13 @@ const translations: Record<Language, Translation> = {
     customers: '고객 관리',
     retargeting: '리타겟팅',
     sales: '실적 관리',
+    salesTracking: '영업 이력',
     settings: '설정',
     logout: '로그아웃',
+    
+    // Global Search
+    globalSearch: '통합 검색',
+    searchPlaceholder: '고객명, 회사명, 계정ID로 검색...',
     
     // Login
     marketingCRM: '마케팅 CRM',
@@ -530,6 +570,36 @@ const translations: Record<Language, Translation> = {
     // Inflow Paths
     inboundSEO: '인바운드(상위노출)',
     referral: '소개',
+    
+    // Sales Tracking
+    date: '날짜',
+    managerName: '담당자명',
+    accountId: '계정 ID',
+    customerName: '고객명',
+    industry: '업종',
+    contactMethod: '영업 방법',
+    status: '상태',
+    contactPerson: '담당자',
+    phone: '전화번호',
+    memo: '메모',
+    memoNote: '메모 (개인시트 반영)',
+    quickAdd: '빠른 추가',
+    monthlyStats: '월별 통계',
+    phoneCount: '전화수',
+    sendCount: '송부수',
+    totalCount: '합계수',
+    replyCount: '회신수',
+    replyRate: '회신률',
+    retargetingCount: '리타 획득수',
+    negotiationCount: '상담중',
+    contractCount: '계약',
+    ngCount: 'NG',
+    year: '년',
+    month: '월',
+    selectYear: '년도 선택',
+    selectMonth: '월 선택',
+    actions: '작업',
+    noData: '데이터가 없습니다',
   },
 }
 

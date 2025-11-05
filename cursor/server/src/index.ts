@@ -8,6 +8,8 @@ import retargetingRoutes from './routes/retargeting'
 import salesRoutes from './routes/sales'
 import dashboardRoutes from './routes/dashboard'
 import perfRoutes from './routes/perf'
+import salesTrackingRoutes from './routes/salesTracking'
+import globalSearchRoutes from './routes/globalSearch'
 
 dotenv.config()
 
@@ -53,6 +55,8 @@ app.use('/api/retargeting', retargetingRoutes)
 app.use('/api/sales', salesRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/perf', perfRoutes)
+app.use('/api/sales-tracking', salesTrackingRoutes)
+app.use('/api/global-search', globalSearchRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
