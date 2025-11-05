@@ -237,10 +237,18 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
 
 // Get monthly statistics per manager
 router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Response) => {
+  // 강제로 stdout에 즉시 출력 (Railway 로그 확인용)
+  process.stdout.write('\n=== 월별 통계 API 호출됨 ===\n')
+  console.error('\n=== 월별 통계 API 호출됨 (stderr) ===\n')
+  
   try {
     const { month, year } = req.query
     
+    process.stdout.write(`요청 파라미터: year=${year}, month=${month}\n`)
+    console.error(`요청 파라미터: year=${year}, month=${month}`)
+    
     if (!month || !year) {
+      process.stdout.write('❌ Month and year are required\n')
       return res.status(400).json({ message: 'Month and year are required' })
     }
     
@@ -248,6 +256,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     const monthNum = parseInt(String(month), 10)
     
     if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      process.stdout.write(`❌ Invalid year or month: ${yearNum}, ${monthNum}\n`)
       return res.status(400).json({ message: 'Invalid year or month' })
     }
     
@@ -263,8 +272,10 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     // - 契約: status = '契約'인 건수
     // - NG: status = 'NG'인 건수
     
+    process.stdout.write('\n=== 월별 통계 조회 시작 ===\n')
     console.log('=== 월별 통계 조회 시작 ===')
     console.log(`조회 년도: ${yearNum}, 월: ${monthNum}`)
+    process.stdout.write(`조회 년도: ${yearNum}, 월: ${monthNum}\n`)
     
     // 디버깅: 선택한 월의 status 값 확인 (2025년 11월 기준)
     const debugResult = await pool.query(`
