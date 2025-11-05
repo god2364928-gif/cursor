@@ -184,22 +184,27 @@ export default function SalesTrackingPage() {
 
   const fetchMonthlyStats = async (year?: number, month?: number) => {
     try {
-      const targetYear = year ?? selectedYear
-      const targetMonth = month ?? selectedMonth
-      
-      // 기본값 설정 (현재 년도/월)
+      // 현재 상태에서 년도/월 가져오기
       const now = new Date()
-      const finalYear = targetYear || now.getFullYear()
-      const finalMonth = targetMonth || (now.getMonth() + 1)
+      const currentYear = now.getFullYear()
+      const currentMonth = now.getMonth() + 1
       
-      if (!finalYear || !finalMonth || finalMonth < 1 || finalMonth > 12) {
+      // 파라미터가 제공되면 사용, 없으면 현재 상태 사용, 그것도 없으면 현재 날짜 사용
+      const finalYear = year ?? selectedYear ?? currentYear
+      const finalMonth = month ?? selectedMonth ?? currentMonth
+      
+      // 유효성 검사
+      if (!finalYear || !finalMonth || isNaN(finalYear) || isNaN(finalMonth) || finalMonth < 1 || finalMonth > 12) {
+        console.error('Invalid year or month:', { finalYear, finalMonth, selectedYear, selectedMonth })
         showToast(t('error'), 'error')
         return
       }
       
-      // 상태 업데이트
-      if (targetYear) setSelectedYear(targetYear)
-      if (targetMonth) setSelectedMonth(targetMonth)
+      // 상태 업데이트 (제공된 값이 있는 경우)
+      if (year !== undefined) setSelectedYear(year)
+      if (month !== undefined) setSelectedMonth(month)
+      
+      console.log('Fetching monthly stats:', { year: finalYear, month: finalMonth })
       
       const response = await api.get('/sales-tracking/stats/monthly', {
         params: { year: finalYear, month: finalMonth }
@@ -242,9 +247,9 @@ export default function SalesTrackingPage() {
   }, [searchQuery])
 
   return (
-    <div className="p-6 pt-24">
+    <div className="p-6 pt-20">
       {/* Global Search - 통합 검색 */}
-      <div className="mb-4">
+      <div className="mb-4 -mt-2">
         <h2 className="text-lg font-semibold mb-2">{t('globalSearch')}</h2>
         <GlobalSearch />
       </div>
