@@ -496,19 +496,21 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       ORDER BY st.manager_name
     `, [yearNum, monthNum])
     
-    // 추가 디버깅: 각 담당자별로 status 분포 확인
-    console.log('📊 담당자별 status 분포:')
+    // 추가 디버깅: 각 담당자별로 status 분포 확인 (마케터만)
+    console.log('📊 담당자별 status 분포 (마케터만):')
     const statusDistribution = await pool.query(`
       SELECT 
-        manager_name,
-        status,
+        st.manager_name,
+        st.status,
         COUNT(*) as count
-      FROM sales_tracking
+      FROM sales_tracking st
+      JOIN users u ON u.name = st.manager_name
       WHERE 
-        EXTRACT(YEAR FROM date) = $1 AND
-        EXTRACT(MONTH FROM date) = $2
-      GROUP BY manager_name, status
-      ORDER BY manager_name, status
+        EXTRACT(YEAR FROM st.date) = $1 AND
+        EXTRACT(MONTH FROM st.date) = $2 AND
+        u.role = 'marketer'
+      GROUP BY st.manager_name, st.status
+      ORDER BY st.manager_name, st.status
     `, [yearNum, monthNum])
     
     statusDistribution.rows.forEach(row => {
