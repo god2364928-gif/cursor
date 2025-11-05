@@ -342,17 +342,38 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       console.log(`  "${row.status}" (길이: ${row.status_length}, 바이트: ${row.status_bytes}): ${row.count}건`)
     })
     
-    // 집계 쿼리: LIKE 검색만 사용 (한자 차이 문제 해결)
+    // 집계 쿼리: 가장 단순한 방법으로 회신수 집계
+    // 먼저 실제로 회신 레코드가 있는지 확인
+    const replyCheckQuery = await pool.query(`
+      SELECT 
+        manager_name,
+        status,
+        COUNT(*) as count
+      FROM sales_tracking
+      WHERE 
+        EXTRACT(YEAR FROM date) = $1 AND
+        EXTRACT(MONTH FROM date) = $2
+        AND status != '未返信'
+        AND (status LIKE '%返%' OR status LIKE '%信%')
+      GROUP BY manager_name, status
+      ORDER BY manager_name, status
+    `, [yearNum, monthNum])
+    
+    console.log('🔍 회신 가능한 모든 레코드 (未返信 제외, 返 또는 信 포함):')
+    replyCheckQuery.rows.forEach(row => {
+      console.log(`  ${row.manager_name} - "${row.status}": ${row.count}건`)
+    })
+    
     const result = await pool.query(`
       SELECT 
         manager_name,
         COUNT(*) FILTER (WHERE contact_method = '電話') as phone_count,
         COUNT(*) FILTER (WHERE contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
         COUNT(*) as total_count,
+        -- 회신수: 未返信이 아니고, 返 또는 信이 포함된 모든 레코드
         COUNT(*) FILTER (WHERE 
-          status LIKE '%返%' 
-          AND status LIKE '%信%'
-          AND status NOT LIKE '%未返信%'
+          status != '未返信'
+          AND (status LIKE '%返%' OR status LIKE '%信%')
         ) as reply_count,
         COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
         COUNT(*) FILTER (WHERE status = '契約') as contract_count,
