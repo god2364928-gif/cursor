@@ -369,10 +369,37 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     result.rows.forEach(row => {
       console.log(`  ${row.manager_name}: 총 ${row.total_count}건, 회신 ${row.reply_count}건`)
     })
-    console.log('=== 월별 통계 조회 완료 ===')
     
-    // reply_count는 이미 status = '返信済み'인 건수를 카운트하고 있음
-    // 회신율 계산: (reply_count / total_count) * 100
+    // 추가: 각 담당자별로 실제 회신 레코드 확인
+    console.log('🔍 실제 회신 레코드 확인 (담당자별):')
+    for (const row of result.rows) {
+      const replyRecords = await pool.query(`
+        SELECT id, date, status, customer_name
+        FROM sales_tracking
+        WHERE 
+          manager_name = $1
+          AND EXTRACT(YEAR FROM date) = $2
+          AND EXTRACT(MONTH FROM date) = $3
+          AND (
+            status = '返信あり' 
+            OR status = '返信済み' 
+            OR status = '返信済'
+            OR (status LIKE '%返信%' AND status != '未返信')
+          )
+        LIMIT 5
+      `, [row.manager_name, yearNum, monthNum])
+      
+      if (replyRecords.rows.length > 0) {
+        console.log(`  ${row.manager_name}: ${replyRecords.rows.length}건의 회신 레코드 발견`)
+        replyRecords.rows.forEach(record => {
+          console.log(`    - ID: ${record.id}, Status: "${record.status}", Customer: ${record.customer_name || 'N/A'}`)
+        })
+      } else {
+        console.log(`  ${row.manager_name}: 회신 레코드 없음 (집계된 회신수: ${row.reply_count})`)
+      }
+    }
+    
+    console.log('=== 월별 통계 조회 완료 ===')
     
     // 계산 필드 추가
     const stats = result.rows.map(row => {
@@ -398,6 +425,12 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     const debugInfo = {
       statusValues: debugResult.rows.map(r => ({ status: r.status, count: parseInt(r.count) })),
       replyTestResults: replyTestResult.rows.map(r => ({ manager: r.manager_name, status: r.status, count: parseInt(r.count) })),
+      statusDistribution: statusDistribution.rows.map(r => ({ 
+        manager: r.manager_name, 
+        status: r.status, 
+        count: parseInt(r.count),
+        isReply: r.status && r.status.includes('返信') && r.status !== '未返信'
+      })),
       totalRecords: parseInt(totalRecordsResult.rows[0].total)
     }
     
