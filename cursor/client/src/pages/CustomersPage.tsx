@@ -1050,7 +1050,12 @@ export default function CustomersPage() {
                       +1{t('month')} {t('extendContract')}
                     </Button>
                     <span className="text-sm text-gray-600">
-                      {t('remainingDays')}: D-{calculateDaysUntilExpiration(selectedCustomer.contractExpirationDate)}
+                      {(() => {
+                        const days = calculateDaysUntilExpiration(selectedCustomer.contractExpirationDate)
+                        return days >= 0 
+                          ? `${t('remainingDays')}: D-${days}`
+                          : `${t('remainingDays')}: D+${Math.abs(days)}`
+                      })()}
                       </span>
                   </div>
                 </div>
