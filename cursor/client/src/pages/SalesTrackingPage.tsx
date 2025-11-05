@@ -225,7 +225,16 @@ export default function SalesTrackingPage() {
       const response = await api.get('/sales-tracking/stats/monthly', {
         params: { year: finalYear, month: finalMonth }
       })
-      setMonthlyStats(response.data || [])
+      
+      // 디버깅: 응답 데이터 확인
+      console.log('📊 월별 통계 API 응답:', response.data)
+      if (response.data.debug) {
+        console.log('🔍 디버그 정보:', response.data.debug)
+        console.log('📋 Status 값 목록:', response.data.debug.statusValues)
+        console.log('🔍 "返信" 포함 레코드:', response.data.debug.replyTestResults)
+      }
+      
+      setMonthlyStats(response.data.stats || response.data || [])
       setShowStatsModal(true)
     } catch (error: any) {
       console.error('Failed to fetch stats:', error)
