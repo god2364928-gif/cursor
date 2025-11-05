@@ -7,6 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "migrate:sales-tracking": "node database/migrate-sales-tracking.js",
+    "migrate:railway": "node database/migrate-railway-sales-tracking.js",
     "migrate": "node-pg-migrate",
     "import:payments": "tsx scripts/import-payments.ts"
   },
