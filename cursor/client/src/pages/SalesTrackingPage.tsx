@@ -268,8 +268,6 @@ export default function SalesTrackingPage() {
       }
       
       if (debugData) {
-        console.log('\n🔍 디버그 정보:', response.data.debug)
-        
         console.log('\n🔍 디버그 정보:', debugData)
         
         // 石黒杏奈의 返信 레코드 확인
