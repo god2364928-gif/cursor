@@ -327,7 +327,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         COUNT(*) FILTER (WHERE contact_method = '電話') as phone_count,
         COUNT(*) FILTER (WHERE contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
         COUNT(*) as total_count,
-        COUNT(*) FILTER (WHERE status IN ('返信あり', '返信済み', '返信済') OR (TRIM(status) LIKE '%返信%' AND TRIM(status) != '未返信')) as reply_count,
+        COUNT(*) FILTER (WHERE TRIM(status) IN ('返信あり', '返信済み', '返信済') OR (TRIM(status) LIKE '%返信%' AND TRIM(status) != '未返信')) as reply_count,
         COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
         COUNT(*) FILTER (WHERE status = '契約') as contract_count,
         COUNT(*) FILTER (WHERE status = 'NG') as ng_count
