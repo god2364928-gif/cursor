@@ -46,9 +46,19 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const result = await pool.query(query, params)
     
     res.json(result.rows)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching sales tracking:', error)
-    res.status(500).json({ message: 'Internal server error' })
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    })
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message,
+      detail: error.detail
+    })
   }
 })
 

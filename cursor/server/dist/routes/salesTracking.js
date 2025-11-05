@@ -43,7 +43,17 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
     }
     catch (error) {
         console.error('Error fetching sales tracking:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint
+        });
+        res.status(500).json({
+            message: 'Internal server error',
+            error: error.message,
+            detail: error.detail
+        });
     }
 });
 // Get single sales tracking record
