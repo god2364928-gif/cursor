@@ -84,12 +84,22 @@ export default function SalesTrackingPage() {
         const res = await api.get('/auth/users')
         const allUsers = res.data || []
         setUsers(allUsers)
-        // 마케터 역할의 사용자만 필터링
+        
+        console.log('All users:', allUsers.map((u: any) => ({ name: u.name, role: u.role })))
+        
+        // 마케터 역할의 사용자만 필터링 (명시적으로 'marketer'만)
         const marketerNames = allUsers
-          .filter((u: any) => u.role === 'marketer')
+          .filter((u: any) => {
+            const isMarketer = u.role === 'marketer'
+            console.log(`User ${u.name}: role=${u.role}, isMarketer=${isMarketer}`)
+            return isMarketer
+          })
           .map((u: any) => u.name)
           .sort()
+        
+        console.log('Filtered marketers:', marketerNames)
         setManagerOptions(marketerNames)
+        
         // 디폴트는 본인 (마케터인 경우)
         if (user?.role === 'marketer' && user?.name) {
           setManagerFilter(user.name)
@@ -715,13 +725,13 @@ export default function SalesTrackingPage() {
           </div>
           
           {/* Sales Summary - 입금액, 매출 합계 */}
-          {managerFilter !== 'all' && (
-            <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between">
+          {managerFilter !== 'all' && managerFilter && (
+            <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between mt-4">
               <div className="text-sm font-medium text-gray-700">
-                {t('totalDeposit')}: <span className="text-blue-600">{salesSummary.totalDeposit.toLocaleString()}円</span>
+                {t('totalDeposit')}: <span className="text-blue-600 font-bold">{salesSummary.totalDeposit.toLocaleString()}円</span>
               </div>
               <div className="text-sm font-medium text-gray-700">
-                {t('totalSales')}: <span className="text-green-600">{salesSummary.totalSales.toLocaleString()}円</span>
+                {t('totalSales')}: <span className="text-green-600 font-bold">{salesSummary.totalSales.toLocaleString()}円</span>
               </div>
             </div>
           )}
