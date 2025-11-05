@@ -17,8 +17,8 @@ const navigation = [
   { name: 'dashboard', href: '/', icon: LayoutDashboard },
   { name: 'customers', href: '/customers', icon: Users },
   { name: 'retargeting', href: '/retargeting', icon: Target },
-  { name: 'sales', href: '/sales', icon: TrendingUp },
   { name: 'salesTracking', href: '/sales-tracking', icon: TrendingUp },
+  { name: 'sales', href: '/sales', icon: TrendingUp },
   { name: 'settings', href: '/settings', icon: Settings },
 ]
 

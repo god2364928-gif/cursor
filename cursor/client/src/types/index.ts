@@ -97,6 +97,7 @@ export interface Sales {
   userName: string
   companyName: string
   payerName?: string
+  paymentMethod?: string
   salesType: '신규매출' | '연장매출' | '해지매출'
   sourceType: string
   amount: number
