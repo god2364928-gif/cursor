@@ -56,7 +56,6 @@ export default function SalesTrackingPage() {
   const [managerFilter, setManagerFilter] = useState<string>(user?.role === 'marketer' ? (user?.name || 'all') : 'all')
   const [managerOptions, setManagerOptions] = useState<string[]>([])
   const [users, setUsers] = useState<any[]>([])
-  const [salesSummary, setSalesSummary] = useState<{ totalDeposit: number; totalSales: number }>({ totalDeposit: 0, totalSales: 0 })
   
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1)
@@ -723,18 +722,6 @@ export default function SalesTrackingPage() {
               </tbody>
             </table>
           </div>
-          
-          {/* Sales Summary - 입금액, 매출 합계 */}
-          {managerFilter !== 'all' && managerFilter && (
-            <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between mt-4">
-              <div className="text-sm font-medium text-gray-700">
-                {t('totalDeposit')}: <span className="text-blue-600 font-bold">{salesSummary.totalDeposit.toLocaleString()}円</span>
-              </div>
-              <div className="text-sm font-medium text-gray-700">
-                {t('totalSales')}: <span className="text-green-600 font-bold">{salesSummary.totalSales.toLocaleString()}円</span>
-              </div>
-            </div>
-          )}
 
           {/* Pagination */}
           {filteredRecords.length > 0 && totalPages > 1 && (
