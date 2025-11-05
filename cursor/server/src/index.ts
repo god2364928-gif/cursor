@@ -10,6 +10,7 @@ import dashboardRoutes from './routes/dashboard'
 import perfRoutes from './routes/perf'
 import salesTrackingRoutes from './routes/salesTracking'
 import globalSearchRoutes from './routes/globalSearch'
+import { autoMigrateSalesTracking } from './migrations/autoMigrate'
 
 dotenv.config()
 
