@@ -266,7 +266,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     console.log('=== 월별 통계 조회 시작 ===')
     console.log(`조회 년도: ${yearNum}, 월: ${monthNum}`)
     
-    // 디버깅: 실제 데이터의 status 값 확인
+    // 디버깅: 선택한 월의 status 값 확인 (2025년 11월 기준)
     const debugResult = await pool.query(`
       SELECT DISTINCT status, COUNT(*) as count
       FROM sales_tracking
@@ -276,10 +276,15 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       GROUP BY status
       ORDER BY status
     `, [yearNum, monthNum])
-    console.log('📊 데이터베이스의 status 값 목록:')
-    debugResult.rows.forEach(row => {
-      console.log(`  - "${row.status}": ${row.count}건`)
-    })
+    console.log(`📊 ${yearNum}년 ${monthNum}월의 status 값 목록:`)
+    if (debugResult.rows.length === 0) {
+      console.log('  ⚠️ 해당 월에 데이터가 없습니다.')
+    } else {
+      debugResult.rows.forEach(row => {
+        const isReply = row.status && row.status.includes('返信') && row.status !== '未返信'
+        console.log(`  - "${row.status}": ${row.count}건 ${isReply ? '✅ (회신)' : ''}`)
+      })
+    }
     
     // 전체 레코드 수 확인
     const totalRecordsResult = await pool.query(`
