@@ -1,13 +1,8 @@
 {
-  "buildCommand": "cd cursor/client && npm ci && npm run build",
-  "outputDirectory": "cursor/client/dist",
-  "installCommand": "cd cursor/client && npm ci",
+  "buildCommand": "npm ci && npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm ci",
   "framework": "vite",
-  "git": {
-    "deploymentEnabled": {
-      "main": true
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
