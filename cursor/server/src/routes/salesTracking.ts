@@ -395,6 +395,13 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     const finalCustomerName = customerNameFinal.trim() || '未設定'
     const finalPhone = phoneFinal.trim() || '00000000000'
     
+    console.log('[MOVE-TO-RETARGETING] 최종 검증 전 값:', {
+      finalCompanyName,
+      finalCustomerName,
+      finalPhone,
+      managerName
+    })
+    
     if (!finalCompanyName || finalCompanyName === '') {
       console.error('[MOVE-TO-RETARGETING] Error: companyName is empty after processing', {
         originalCustomerName: record.customer_name,
