@@ -3,6 +3,11 @@
   "outputDirectory": "cursor/client/dist",
   "installCommand": "cd cursor/client && npm ci",
   "framework": "vite",
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
