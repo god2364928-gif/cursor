@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Users,
   Target,
-  TrendingUp,
   History,
   BarChart3,
   Settings,
