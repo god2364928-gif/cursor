@@ -496,7 +496,7 @@ export default function SalesPage() {
                 <Download className="h-4 w-4 mr-2" />
                 {t('exportExcel')}
               </Button>
-              <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-green-500 hover:bg-green-600 text-white">
+              <Button onClick={() => setShowAddForm(!showAddForm)}>
                 <Plus className="h-4 w-4 mr-2" />
                 {t('add')}
               </Button>
