@@ -311,11 +311,14 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     
     const record = recordResult.rows[0]
     console.log(`[MOVE-TO-RETARGETING] Record found:`, {
+      id: record.id,
+      company_name: record.company_name,
       customer_name: record.customer_name,
       account_id: record.account_id,
       phone: record.phone,
       manager_name: record.manager_name,
-      industry: record.industry
+      industry: record.industry,
+      date: record.date
     })
     
     // Check if user is the owner of this record (or admin)
