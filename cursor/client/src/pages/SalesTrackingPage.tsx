@@ -276,7 +276,7 @@ export default function SalesTrackingPage() {
 
   // 전월/당월/내월 핸들러
   const handlePreviousMonth = () => {
-    const now = new Date()
+    // const now = new Date()
     // const currentYear = now.getFullYear()
     // const currentMonth = now.getMonth() // 0-11
     
