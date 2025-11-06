@@ -457,7 +457,7 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
         String(managerName), // manager - 명시적 문자열 변환
         null, // manager_team
         '시작', // status
-        record.date || new Date().toISOString().split('T')[0], // registered_at
+        record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // registered_at (YYYY-MM-DD 형식)
         record.memo || null, // memo
         id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
       ]
@@ -491,7 +491,23 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
         message: 'Successfully moved to retargeting'
       })
     } catch (insertError: any) {
-      await client.query('ROLLBACK')
+      await client.query('ROLLBACK').catch(err => {
+        console.error('[MOVE-TO-RETARGETING] Rollback error:', err)
+      })
+      
+      // 상세한 오류 로깅
+      console.error('[MOVE-TO-RETARGETING] INSERT 오류 발생!')
+      console.error('[MOVE-TO-RETARGETING] 오류 메시지:', insertError.message)
+      console.error('[MOVE-TO-RETARGETING] 오류 코드:', insertError.code)
+      console.error('[MOVE-TO-RETARGETING] 오류 상세:', insertError.detail)
+      console.error('[MOVE-TO-RETARGETING] 제약조건:', insertError.constraint)
+      console.error('[MOVE-TO-RETARGETING] 실제 전달된 값 재확인:')
+      insertValues.forEach((v, i) => {
+        const paramNames = ['company_name', 'industry', 'customer_name', 'phone', 'region', 'inflow_path', 
+                           'manager', 'manager_team', 'status', 'registered_at', 'memo', 'sales_tracking_id']
+        console.error(`   ${paramNames[i]}: ${v === null ? 'null' : JSON.stringify(v)} (타입: ${typeof v}, null: ${v === null}, undefined: ${v === undefined})`)
+      })
+      
       throw insertError
     } finally {
       client.release()
