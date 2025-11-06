@@ -547,17 +547,12 @@ export default function RetargetingPage() {
   }
   
   const handleAddCustomer = async () => {
-    const companyName = (document.getElementById('new-companyName') as HTMLInputElement)?.value
-    const industry = (document.getElementById('new-industry') as HTMLInputElement)?.value
-    const customerName = (document.getElementById('new-customerName') as HTMLInputElement)?.value
-    const phone = (document.getElementById('new-phone') as HTMLInputElement)?.value
+    const companyName = (document.getElementById('new-companyName') as HTMLInputElement)?.value || ''
+    const industry = (document.getElementById('new-industry') as HTMLInputElement)?.value || ''
+    const customerName = (document.getElementById('new-customerName') as HTMLInputElement)?.value || ''
+    const phone = (document.getElementById('new-phone') as HTMLInputElement)?.value || ''
     const region = (document.getElementById('new-region') as HTMLInputElement)?.value
     const inflowPath = (document.getElementById('new-inflowPath') as HTMLSelectElement)?.value
-    
-    if (!companyName || !industry || !customerName || !phone) {
-      showToast('필수 필드를 입력해주세요', 'error')
-      return
-    }
     
     try {
       // 한국 시간 기준으로 오늘 날짜 생성
@@ -824,10 +819,10 @@ export default function RetargetingPage() {
                 <CardContent className="p-4">
                   <h3 className="font-semibold mb-3">{t('addRetargeting')}</h3>
                   <div className="space-y-3">
-                    <Input placeholder={`${t('companyName')} *`} id="new-companyName" />
-                    <Input placeholder={`${t('industry')} *`} id="new-industry" />
-                    <Input placeholder={`${t('customerName')} *`} id="new-customerName" />
-                    <Input placeholder={`${t('phone')} *`} id="new-phone" />
+                    <Input placeholder={t('companyName')} id="new-companyName" />
+                    <Input placeholder={t('industry')} id="new-industry" />
+                    <Input placeholder={t('customerName')} id="new-customerName" />
+                    <Input placeholder={t('phone')} id="new-phone" />
                     <Input placeholder={t('region')} id="new-region" />
                     <select
                       className="w-full border rounded px-3 py-2 text-sm"
@@ -997,28 +992,28 @@ export default function RetargetingPage() {
                 <h3 className="font-semibold mb-3">{t('basicInfo')}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm text-gray-600">{t('companyName')} *</label>
+                    <label className="text-sm text-gray-600">{t('companyName')}</label>
                     <Input
-                      value={selectedCustomer.companyName}
+                      value={selectedCustomer.companyName || ''}
                       onChange={e => setSelectedCustomer({...selectedCustomer, companyName: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">{t('industry')} *</label>
+                    <label className="text-sm text-gray-600">{t('industry')}</label>
                     <Input
-                      value={selectedCustomer.industry}
+                      value={selectedCustomer.industry || ''}
                       onChange={e => setSelectedCustomer({...selectedCustomer, industry: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">{t('customerName')} *</label>
+                    <label className="text-sm text-gray-600">{t('customerName')}</label>
                     <Input
-                      value={selectedCustomer.customerName}
+                      value={selectedCustomer.customerName || ''}
                       onChange={e => setSelectedCustomer({...selectedCustomer, customerName: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">{t('phone')} *</label>
+                    <label className="text-sm text-gray-600">{t('phone')}</label>
                     {phoneNumbers.map((phone, index) => (
                       <div key={index} className="flex gap-2 mb-2">
                         <Input

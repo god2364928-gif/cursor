@@ -256,20 +256,15 @@ export default function CustomersPage() {
   }
   
   const handleAddCustomer = async () => {
-    const companyName = (document.getElementById('new-companyName') as HTMLInputElement)?.value
-    const industry = (document.getElementById('new-industry') as HTMLInputElement)?.value
-    const customerName = (document.getElementById('new-customerName') as HTMLInputElement)?.value
-    const phone1 = (document.getElementById('new-phone1') as HTMLInputElement)?.value
+    const companyName = (document.getElementById('new-companyName') as HTMLInputElement)?.value || ''
+    const industry = (document.getElementById('new-industry') as HTMLInputElement)?.value || ''
+    const customerName = (document.getElementById('new-customerName') as HTMLInputElement)?.value || ''
+    const phone1 = (document.getElementById('new-phone1') as HTMLInputElement)?.value || ''
     const monthlyBudget = parseFormattedNumber((document.getElementById('new-monthlyBudget') as HTMLInputElement)?.value || '0')
     const region = (document.getElementById('new-region') as HTMLInputElement)?.value || ''
     const inflowPath = (document.getElementById('new-inflowPath') as HTMLSelectElement)?.value || ''
     const manager = user?.name || ''
     const managerTeam = user?.team || ''
-    
-    if (!companyName || !industry || !customerName || !phone1) {
-      showToast('필수 항목을 입력해주세요', 'error')
-      return
-    }
     
     try {
       await api.post('/customers', {
@@ -744,10 +739,10 @@ export default function CustomersPage() {
               <CardContent className="p-4">
                 <h3 className="font-semibold mb-3">{t('addCustomer')}</h3>
                 <div className="space-y-3">
-                  <Input placeholder={`${t('companyName')} *`} id="new-companyName" />
-                  <Input placeholder={`${t('industry')} *`} id="new-industry" />
-                  <Input placeholder={`${t('customerName')} *`} id="new-customerName" />
-                  <Input placeholder={`${t('phone')} *`} id="new-phone1" />
+                  <Input placeholder={t('companyName')} id="new-companyName" />
+                  <Input placeholder={t('industry')} id="new-industry" />
+                  <Input placeholder={t('customerName')} id="new-customerName" />
+                  <Input placeholder={t('phone')} id="new-phone1" />
                   <Input type="text" placeholder="1,000,000" id="new-monthlyBudget" />
                   <Input placeholder={t('region')} id="new-region" />
                   <div>
@@ -895,28 +890,28 @@ export default function CustomersPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm text-gray-600">{t('companyName')} *</label>
+                    <label className="text-sm text-gray-600">{t('companyName')}</label>
                     <Input
-                      value={selectedCustomer.companyName}
+                      value={selectedCustomer.companyName || ''}
                       onChange={e => setSelectedCustomer({...selectedCustomer, companyName: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">{t('industry')} *</label>
+                    <label className="text-sm text-gray-600">{t('industry')}</label>
                     <Input
-                      value={selectedCustomer.industry}
+                      value={selectedCustomer.industry || ''}
                       onChange={e => setSelectedCustomer({...selectedCustomer, industry: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">{t('customerName')} *</label>
+                    <label className="text-sm text-gray-600">{t('customerName')}</label>
                     <Input
-                      value={selectedCustomer.customerName}
+                      value={selectedCustomer.customerName || ''}
                       onChange={e => setSelectedCustomer({...selectedCustomer, customerName: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">{t('phone')} *</label>
+                    <label className="text-sm text-gray-600">{t('phone')}</label>
                     {phoneNumbers.map((phone, index) => (
                       <div key={index} className="flex gap-2 mb-2 items-center">
                         <Input
