@@ -13,6 +13,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         id,
         date,
         manager_name,
+        company_name,
         account_id,
         customer_name,
         industry,
@@ -31,6 +32,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         if (search) {
             query += ` WHERE 
         manager_name ILIKE $1 OR 
+        company_name ILIKE $1 OR
         account_id ILIKE $1 OR 
         customer_name ILIKE $1 OR
         industry ILIKE $1
@@ -74,17 +76,18 @@ router.get('/:id', auth_1.authMiddleware, async (req, res) => {
 // Create new sales tracking record
 router.post('/', auth_1.authMiddleware, async (req, res) => {
     try {
-        const { date, managerName, accountId, customerName, industry, contactMethod, status, contactPerson, phone, memo, memoNote } = req.body;
+        const { date, managerName, companyName, accountId, customerName, industry, contactMethod, status, contactPerson, phone, memo, memoNote } = req.body;
         if (!date || !managerName || !status) {
             return res.status(400).json({ message: 'Date, manager name, and status are required' });
         }
         const result = await db_1.pool.query(`INSERT INTO sales_tracking (
-        date, manager_name, account_id, customer_name, industry,
+        date, manager_name, company_name, account_id, customer_name, industry,
         contact_method, status, contact_person, phone, memo, memo_note, user_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`, [
             date,
             managerName,
+            companyName || null,
             accountId || null,
             customerName || null,
             industry || null,
@@ -117,23 +120,25 @@ router.put('/:id', auth_1.authMiddleware, async (req, res) => {
         if (req.user?.role !== 'admin' && req.user?.id !== recordUserId) {
             return res.status(403).json({ message: 'You can only edit your own records' });
         }
-        const { date, managerName, accountId, customerName, industry, contactMethod, status, contactPerson, phone, memo, memoNote } = req.body;
+        const { date, managerName, companyName, accountId, customerName, industry, contactMethod, status, contactPerson, phone, memo, memoNote } = req.body;
         await db_1.pool.query(`UPDATE sales_tracking SET
         date = $1,
         manager_name = $2,
-        account_id = $3,
-        customer_name = $4,
-        industry = $5,
-        contact_method = $6,
-        status = $7,
-        contact_person = $8,
-        phone = $9,
-        memo = $10,
-        memo_note = $11,
+        company_name = $3,
+        account_id = $4,
+        customer_name = $5,
+        industry = $6,
+        contact_method = $7,
+        status = $8,
+        contact_person = $9,
+        phone = $10,
+        memo = $11,
+        memo_note = $12,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $12`, [
+      WHERE id = $13`, [
             date,
             managerName,
+            companyName || null,
             accountId || null,
             customerName || null,
             industry || null,
@@ -154,70 +159,450 @@ router.put('/:id', auth_1.authMiddleware, async (req, res) => {
 });
 // Delete sales tracking record (only owner can delete)
 router.delete('/:id', auth_1.authMiddleware, async (req, res) => {
+    const client = await db_1.pool.connect();
     try {
+        await client.query('BEGIN');
         const { id } = req.params;
+        console.log(`[DELETE] Attempting to delete sales_tracking record: ${id}`);
+        console.log(`[DELETE] User: ${req.user?.name} (${req.user?.id}), Role: ${req.user?.role}`);
         // Check if record exists and get user_id
-        const recordResult = await db_1.pool.query('SELECT user_id FROM sales_tracking WHERE id = $1', [id]);
+        const recordResult = await client.query('SELECT user_id, manager_name FROM sales_tracking WHERE id = $1', [id]);
         if (recordResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            console.log(`[DELETE] Record not found: ${id}`);
             return res.status(404).json({ message: 'Record not found' });
         }
+        const record = recordResult.rows[0];
+        console.log(`[DELETE] Record found: manager=${record.manager_name}, user_id=${record.user_id}`);
         // Check if user is the owner (or admin)
-        const recordUserId = recordResult.rows[0].user_id;
-        if (req.user?.role !== 'admin' && req.user?.id !== recordUserId) {
+        if (req.user?.role !== 'admin' && req.user?.id !== record.user_id) {
+            await client.query('ROLLBACK');
+            console.log(`[DELETE] Permission denied: user_id mismatch (${req.user?.id} vs ${record.user_id})`);
             return res.status(403).json({ message: 'You can only delete your own records' });
         }
-        await db_1.pool.query('DELETE FROM sales_tracking WHERE id = $1', [id]);
+        // Check if this record is referenced by retargeting_customers (foreign key constraint)
+        const retargetingCheck = await client.query('SELECT id, manager FROM retargeting_customers WHERE sales_tracking_id = $1', [id]);
+        if (retargetingCheck.rows.length > 0) {
+            console.log(`[DELETE] Found ${retargetingCheck.rows.length} retargeting_customers records referencing this sales_tracking record`);
+            // Set sales_tracking_id to NULL to preserve retargeting data
+            await client.query('UPDATE retargeting_customers SET sales_tracking_id = NULL WHERE sales_tracking_id = $1', [id]);
+            console.log(`[DELETE] Updated retargeting_customers: set sales_tracking_id to NULL`);
+        }
+        // Now delete the sales tracking record
+        const deleteResult = await client.query('DELETE FROM sales_tracking WHERE id = $1 RETURNING id', [id]);
+        if (deleteResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            console.log(`[DELETE] Failed to delete record: ${id}`);
+            return res.status(500).json({ message: 'Failed to delete record' });
+        }
+        await client.query('COMMIT');
+        console.log(`[DELETE] Successfully deleted record: ${id}`);
         res.json({ success: true });
     }
     catch (error) {
-        console.error('Error deleting sales tracking record:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        await client.query('ROLLBACK');
+        console.error('[DELETE] Error deleting sales tracking record:', error);
+        console.error('[DELETE] Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            stack: error.stack
+        });
+        res.status(500).json({
+            message: 'Internal server error',
+            error: error.message,
+            detail: error.detail
+        });
+    }
+    finally {
+        client.release();
     }
 });
 // Move sales tracking record to retargeting (only owner can move)
 router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
+        console.log(`[MOVE-TO-RETARGETING] Attempting to move sales_tracking record: ${id}`);
+        console.log(`[MOVE-TO-RETARGETING] User: ${req.user?.name} (${req.user?.id}), Role: ${req.user?.role}`);
         // Get sales tracking record
         const recordResult = await db_1.pool.query('SELECT * FROM sales_tracking WHERE id = $1', [id]);
         if (recordResult.rows.length === 0) {
+            console.log(`[MOVE-TO-RETARGETING] Record not found: ${id}`);
             return res.status(404).json({ message: 'Sales tracking record not found' });
         }
         const record = recordResult.rows[0];
+        console.log(`[MOVE-TO-RETARGETING] Record found:`, {
+            id: record.id,
+            company_name: record.company_name,
+            customer_name: record.customer_name,
+            account_id: record.account_id,
+            phone: record.phone,
+            manager_name: record.manager_name,
+            industry: record.industry,
+            date: record.date
+        });
         // Check if user is the owner of this record (or admin)
-        if (req.user?.role !== 'admin' && record.user_id !== req.user?.id) {
+        // manager_name으로도 체크 (기존 데이터 호환성)
+        const isOwner = req.user?.role === 'admin'
+            || record.user_id === req.user?.id
+            || record.manager_name === req.user?.name;
+        if (!isOwner) {
+            console.log(`[MOVE-TO-RETARGETING] Permission denied:`, {
+                userRole: req.user?.role,
+                userId: req.user?.id,
+                userName: req.user?.name,
+                recordUserId: record.user_id,
+                recordManagerName: record.manager_name
+            });
             return res.status(403).json({ message: 'You can only move your own records' });
         }
-        // Create retargeting customer from sales tracking record
-        const retargetingResult = await db_1.pool.query(`INSERT INTO retargeting_customers (
-        company_name, industry, customer_name, phone, region, inflow_path,
-        manager, manager_team, status, registered_at, memo, sales_tracking_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING *`, [
-            record.customer_name || record.account_id || null, // company_name
-            record.industry || null,
-            record.customer_name || null,
-            record.phone || null,
-            null, // region
-            null, // inflow_path
-            record.manager_name,
-            null, // manager_team
-            '시작', // status
-            record.date || new Date().toISOString().split('T')[0], // registered_at
-            record.memo || null,
-            id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
-        ]);
-        const retargetingCustomer = retargetingResult.rows[0];
-        // Sales tracking record remains unchanged (not deleted)
-        res.json({
-            success: true,
-            retargetingId: retargetingCustomer.id,
-            message: 'Successfully moved to retargeting'
+        console.log(`[MOVE-TO-RETARGETING] Permission granted:`, {
+            userRole: req.user?.role,
+            userId: req.user?.id,
+            userName: req.user?.name,
+            recordUserId: record.user_id,
+            recordManagerName: record.manager_name
         });
+        // 이미 리타겟팅으로 이동된 경우 중복 체크
+        const existingCheck = await db_1.pool.query('SELECT id FROM retargeting_customers WHERE sales_tracking_id = $1', [id]);
+        if (existingCheck.rows.length > 0) {
+            console.log(`[MOVE-TO-RETARGETING] Already moved to retargeting: ${existingCheck.rows[0].id}`);
+            return res.status(400).json({
+                message: '이미 리타겟팅으로 이동된 레코드입니다',
+                retargetingId: existingCheck.rows[0].id
+            });
+        }
+        // 필수 필드 준비 (NOT NULL 제약 조건 처리)
+        // 안전하게 null/undefined/빈 문자열 처리 - 절대 null이 반환되지 않도록 보장
+        const safeTrim = (value) => {
+            if (value === null || value === undefined)
+                return '';
+            if (typeof value !== 'string') {
+                const str = String(value);
+                return str === 'null' || str === 'undefined' ? '' : str.trim();
+            }
+            const trimmed = value.trim();
+            return trimmed === 'null' || trimmed === 'undefined' ? '' : trimmed;
+        };
+        // 원본 데이터 로깅 (디버깅용)
+        console.log('[MOVE-TO-RETARGETING] 원본 레코드 필드:', {
+            company_name: record.company_name,
+            customer_name: record.customer_name,
+            account_id: record.account_id,
+            phone: record.phone,
+            company_name_type: typeof record.company_name,
+            customer_name_type: typeof record.customer_name,
+            account_id_type: typeof record.account_id,
+            phone_type: typeof record.phone
+        });
+        // company_name: company_name, customer_name, account_id, 또는 기본값 사용 (company_name 우선)
+        const companyNameRaw = safeTrim(record.company_name);
+        const customerNameRaw = safeTrim(record.customer_name);
+        const accountIdRaw = safeTrim(record.account_id);
+        console.log('[MOVE-TO-RETARGETING] safeTrim 결과:', {
+            companyNameRaw: `"${companyNameRaw}"`,
+            customerNameRaw: `"${customerNameRaw}"`,
+            accountIdRaw: `"${accountIdRaw}"`
+        });
+        // 절대 null이 되지 않도록 보장 (빈 문자열도 기본값으로 대체)
+        const companyName = (companyNameRaw || customerNameRaw || accountIdRaw || '未設定');
+        const customerName = (customerNameRaw || accountIdRaw || '未設定');
+        console.log('[MOVE-TO-RETARGETING] 값 결정 후:', {
+            companyName: `"${companyName}"`,
+            customerName: `"${customerName}"`
+        });
+        // phone: phone 필드가 있으면 사용, 없으면 기본값 (NOT NULL 제약 조건, VARCHAR(20) 제한)
+        const phoneRaw = safeTrim(record.phone);
+        const phone = phoneRaw || '00000000000';
+        console.log('[MOVE-TO-RETARGETING] phone 처리:', {
+            phoneRaw: `"${phoneRaw}"`,
+            phone: `"${phone}"`
+        });
+        // phone 필드 길이 제한 확인 (VARCHAR(20))
+        const phoneFinal = phone.length > 20 ? phone.substring(0, 20) : phone;
+        // company_name과 customer_name도 길이 제한 확인
+        const companyNameFinal = companyName.length > 255 ? companyName.substring(0, 255) : companyName;
+        const customerNameFinal = customerName.length > 100 ? customerName.substring(0, 100) : customerName;
+        console.log('[MOVE-TO-RETARGETING] 길이 제한 후:', {
+            companyNameFinal: `"${companyNameFinal}"`,
+            customerNameFinal: `"${customerNameFinal}"`,
+            phoneFinal: `"${phoneFinal}"`
+        });
+        // industry: 있으면 사용, 없으면 null
+        const industry = record.industry || null;
+        // manager_name: 필수
+        const managerName = safeTrim(record.manager_name);
+        if (!managerName) {
+            console.error('[MOVE-TO-RETARGETING] Error: manager_name is required but not found', {
+                recordManagerName: record.manager_name,
+                managerNameAfterTrim: managerName
+            });
+            return res.status(400).json({ message: 'Manager name is required' });
+        }
+        // 최종 검증: 필수 필드가 비어있지 않은지 확인 (추가 안전장치)
+        const finalCompanyName = companyNameFinal.trim() || '未設定';
+        const finalCustomerName = customerNameFinal.trim() || '未設定';
+        const finalPhone = phoneFinal.trim() || '00000000000';
+        console.log('[MOVE-TO-RETARGETING] 최종 검증 전 값:', {
+            finalCompanyName,
+            finalCustomerName,
+            finalPhone,
+            managerName
+        });
+        if (!finalCompanyName || finalCompanyName === '') {
+            console.error('[MOVE-TO-RETARGETING] Error: companyName is empty after processing', {
+                originalCustomerName: record.customer_name,
+                originalAccountId: record.account_id,
+                companyNameFinal,
+                finalCompanyName
+            });
+            return res.status(400).json({ message: 'Company name cannot be empty' });
+        }
+        if (!finalCustomerName || finalCustomerName === '') {
+            console.error('[MOVE-TO-RETARGETING] Error: customerName is empty after processing', {
+                originalCustomerName: record.customer_name,
+                originalAccountId: record.account_id,
+                customerNameFinal,
+                finalCustomerName
+            });
+            return res.status(400).json({ message: 'Customer name cannot be empty' });
+        }
+        if (!finalPhone || finalPhone === '') {
+            console.error('[MOVE-TO-RETARGETING] Error: phone is empty after processing', {
+                originalPhone: record.phone,
+                phoneFinal,
+                finalPhone
+            });
+            return res.status(400).json({ message: 'Phone cannot be empty' });
+        }
+        console.log(`[MOVE-TO-RETARGETING] Prepared values:`, {
+            original: {
+                customer_name: record.customer_name,
+                account_id: record.account_id,
+                phone: record.phone,
+                manager_name: record.manager_name
+            },
+            processed: {
+                companyName: finalCompanyName,
+                customerName: finalCustomerName,
+                phone: finalPhone,
+                industry,
+                manager: managerName
+            }
+        });
+        // Create retargeting customer from sales tracking record
+        // 트랜잭션으로 안전하게 처리
+        // insertValues를 try 블록 밖에서 선언하여 catch 블록에서도 접근 가능하도록 함
+        let insertValues = [];
+        const client = await db_1.pool.connect();
+        try {
+            await client.query('BEGIN');
+            // 최종 값들을 명시적으로 문자열로 변환하여 null이 들어가지 않도록 보장
+            // 추가 안전장치: 모든 값이 유효한지 재확인
+            // 절대 null이 반환되지 않도록 다중 안전장치 적용
+            let safeCompanyName = finalCompanyName;
+            let safeCustomerName = finalCustomerName;
+            let safePhone = finalPhone;
+            let safeManagerName = managerName;
+            // null/undefined 체크 및 기본값 설정
+            if (!safeCompanyName || safeCompanyName === null || safeCompanyName === undefined || safeCompanyName === '') {
+                safeCompanyName = '未設定';
+                console.warn('[MOVE-TO-RETARGETING] WARNING: safeCompanyName was invalid, using default');
+            }
+            if (!safeCustomerName || safeCustomerName === null || safeCustomerName === undefined || safeCustomerName === '') {
+                safeCustomerName = '未設定';
+                console.warn('[MOVE-TO-RETARGETING] WARNING: safeCustomerName was invalid, using default');
+            }
+            if (!safePhone || safePhone === null || safePhone === undefined || safePhone === '') {
+                safePhone = '00000000000';
+                console.warn('[MOVE-TO-RETARGETING] WARNING: safePhone was invalid, using default');
+            }
+            if (!safeManagerName || safeManagerName === null || safeManagerName === undefined || safeManagerName === '') {
+                safeManagerName = record.manager_name || '';
+                console.warn('[MOVE-TO-RETARGETING] WARNING: safeManagerName was invalid, using record.manager_name');
+            }
+            // 문자열로 변환 (다중 안전장치)
+            safeCompanyName = String(safeCompanyName).trim() || '未設定';
+            safeCustomerName = String(safeCustomerName).trim() || '未設定';
+            safePhone = String(safePhone).trim() || '00000000000';
+            safeManagerName = String(safeManagerName).trim() || (record.manager_name || '');
+            console.log('[MOVE-TO-RETARGETING] safe 변수 생성 후:', {
+                safeCompanyName: `"${safeCompanyName}"`,
+                safeCustomerName: `"${safeCustomerName}"`,
+                safePhone: `"${safePhone}"`,
+                safeManagerName: `"${safeManagerName}"`
+            });
+            // 최종 안전 검증
+            if (!safeCompanyName || safeCompanyName === '' || safeCompanyName === 'null') {
+                console.error('[MOVE-TO-RETARGETING] CRITICAL: safeCompanyName is invalid:', safeCompanyName);
+                throw new Error('Company name is invalid after processing');
+            }
+            if (!safeCustomerName || safeCustomerName === '' || safeCustomerName === 'null') {
+                console.error('[MOVE-TO-RETARGETING] CRITICAL: safeCustomerName is invalid:', safeCustomerName);
+                throw new Error('Customer name is invalid after processing');
+            }
+            if (!safePhone || safePhone === '' || safePhone === 'null') {
+                console.error('[MOVE-TO-RETARGETING] CRITICAL: safePhone is invalid:', safePhone);
+                throw new Error('Phone is invalid after processing');
+            }
+            if (!safeManagerName || safeManagerName === '') {
+                console.error('[MOVE-TO-RETARGETING] CRITICAL: safeManagerName is invalid:', safeManagerName);
+                throw new Error('Manager name is invalid after processing');
+            }
+            // INSERT 직전 최종 검증 (null 체크 강화) - 절대 null이 들어가지 않도록 보장
+            // 이 부분이 실행되기 전에 이미 safeCompanyName, safeCustomerName 등이 검증되었지만,
+            // 혹시 모를 경우를 대비해 한 번 더 검증
+            let finalInsertCompanyName = safeCompanyName;
+            let finalInsertCustomerName = safeCustomerName;
+            let finalInsertPhone = safePhone;
+            let finalInsertManagerName = safeManagerName;
+            // null/undefined 체크 및 기본값 설정 (이중 안전장치)
+            if (finalInsertCompanyName === null || finalInsertCompanyName === undefined || finalInsertCompanyName === '') {
+                finalInsertCompanyName = '未設定';
+                console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertCompanyName was null/undefined/empty, using default');
+            }
+            if (finalInsertCustomerName === null || finalInsertCustomerName === undefined || finalInsertCustomerName === '') {
+                finalInsertCustomerName = '未設定';
+                console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertCustomerName was null/undefined/empty, using default');
+            }
+            if (finalInsertPhone === null || finalInsertPhone === undefined || finalInsertPhone === '') {
+                finalInsertPhone = '00000000000';
+                console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertPhone was null/undefined/empty, using default');
+            }
+            if (finalInsertManagerName === null || finalInsertManagerName === undefined || finalInsertManagerName === '') {
+                finalInsertManagerName = record.manager_name || '';
+                console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertManagerName was null/undefined/empty, using record.manager_name');
+            }
+            // 문자열로 변환 (혹시 모를 경우 대비)
+            finalInsertCompanyName = String(finalInsertCompanyName).trim() || '未設定';
+            finalInsertCustomerName = String(finalInsertCustomerName).trim() || '未設定';
+            finalInsertPhone = String(finalInsertPhone).trim() || '00000000000';
+            finalInsertManagerName = String(finalInsertManagerName).trim() || (record.manager_name || '');
+            // 최종 null 체크 (이게 통과하지 못하면 에러)
+            if (!finalInsertCompanyName || finalInsertCompanyName === '' || finalInsertCompanyName === 'null') {
+                throw new Error(`CRITICAL: finalInsertCompanyName is invalid: ${JSON.stringify(finalInsertCompanyName)}`);
+            }
+            if (!finalInsertCustomerName || finalInsertCustomerName === '' || finalInsertCustomerName === 'null') {
+                throw new Error(`CRITICAL: finalInsertCustomerName is invalid: ${JSON.stringify(finalInsertCustomerName)}`);
+            }
+            if (!finalInsertPhone || finalInsertPhone === '' || finalInsertPhone === 'null') {
+                throw new Error(`CRITICAL: finalInsertPhone is invalid: ${JSON.stringify(finalInsertPhone)}`);
+            }
+            if (!finalInsertManagerName || finalInsertManagerName === '') {
+                throw new Error(`CRITICAL: finalInsertManagerName is invalid: ${JSON.stringify(finalInsertManagerName)}`);
+            }
+            const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+            // insertValues 배열 생성 (절대 null이 들어가지 않도록 보장)
+            insertValues = [
+                finalInsertCompanyName, // company_name (NOT NULL) - 최종 검증 완료
+                industry, // industry
+                finalInsertCustomerName, // customer_name (NOT NULL) - 최종 검증 완료
+                finalInsertPhone, // phone (NOT NULL, VARCHAR(20)) - 최종 검증 완료
+                null, // region
+                null, // inflow_path
+                finalInsertManagerName, // manager - 최종 검증 완료
+                null, // manager_team
+                '시작', // status
+                registeredAtDate, // registered_at (YYYY-MM-DD 형식)
+                record.memo || null, // memo
+                id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
+            ];
+            // INSERT 직전 최종 검증: customer_name이 절대 null이 아닌지 확인
+            if (insertValues[2] === null || insertValues[2] === undefined) {
+                console.error('[MOVE-TO-RETARGETING] CRITICAL: insertValues[2] (customer_name) is null or undefined!');
+                console.error('[MOVE-TO-RETARGETING] finalInsertCustomerName:', finalInsertCustomerName);
+                console.error('[MOVE-TO-RETARGETING] insertValues[2]:', insertValues[2]);
+                throw new Error(`CRITICAL: customer_name cannot be null or undefined in insertValues array`);
+            }
+            // INSERT 전 최종 검증 로그
+            console.log(`[MOVE-TO-RETARGETING] Final insert values (before query):`, {
+                company_name: insertValues[0],
+                customer_name: insertValues[2],
+                phone: insertValues[3],
+                manager: insertValues[6],
+                allValues: insertValues.map((v, i) => {
+                    const paramNames = ['company_name', 'industry', 'customer_name', 'phone', 'region', 'inflow_path',
+                        'manager', 'manager_team', 'status', 'registered_at', 'memo', 'sales_tracking_id'];
+                    return {
+                        param: paramNames[i],
+                        value: v === null ? 'null' : JSON.stringify(v),
+                        type: typeof v,
+                        isNull: v === null,
+                        isUndefined: v === undefined,
+                        isEmpty: typeof v === 'string' && v === ''
+                    };
+                })
+            });
+            // INSERT 실행
+            const retargetingResult = await client.query(`INSERT INTO retargeting_customers (
+          company_name, industry, customer_name, phone, region, inflow_path,
+          manager, manager_team, status, registered_at, memo, sales_tracking_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING *`, insertValues);
+            await client.query('COMMIT');
+            const retargetingCustomer = retargetingResult.rows[0];
+            console.log(`[MOVE-TO-RETARGETING] Successfully created retargeting customer: ${retargetingCustomer.id}`);
+            // Sales tracking record remains unchanged (not deleted)
+            res.json({
+                success: true,
+                retargetingId: retargetingCustomer.id,
+                message: 'Successfully moved to retargeting'
+            });
+        }
+        catch (insertError) {
+            await client.query('ROLLBACK').catch(err => {
+                console.error('[MOVE-TO-RETARGETING] Rollback error:', err);
+            });
+            // 상세한 오류 로깅
+            console.error('[MOVE-TO-RETARGETING] ========== ERROR START ==========');
+            console.error('[MOVE-TO-RETARGETING] INSERT 오류 발생!');
+            console.error('[MOVE-TO-RETARGETING] 오류 메시지:', insertError.message);
+            console.error('[MOVE-TO-RETARGETING] 오류 코드:', insertError.code);
+            console.error('[MOVE-TO-RETARGETING] 오류 상세:', insertError.detail);
+            console.error('[MOVE-TO-RETARGETING] 제약조건:', insertError.constraint);
+            console.error('[MOVE-TO-RETARGETING] 오류 힌트:', insertError.hint);
+            console.error('[MOVE-TO-RETARGETING] 오류 위치:', insertError.position);
+            console.error('[MOVE-TO-RETARGETING] 오류 스택:', insertError.stack);
+            console.error('[MOVE-TO-RETARGETING] 전체 오류 객체:', JSON.stringify(insertError, Object.getOwnPropertyNames(insertError), 2));
+            if (insertValues && insertValues.length > 0) {
+                console.error('[MOVE-TO-RETARGETING] 실제 전달된 값 재확인:');
+                const paramNames = ['company_name', 'industry', 'customer_name', 'phone', 'region', 'inflow_path',
+                    'manager', 'manager_team', 'status', 'registered_at', 'memo', 'sales_tracking_id'];
+                insertValues.forEach((v, i) => {
+                    console.error(`   [$${i + 1}] ${paramNames[i]}: ${v === null ? 'null' : JSON.stringify(v)} (타입: ${typeof v}, null: ${v === null}, undefined: ${v === undefined}, 빈문자열: ${v === ''})`);
+                });
+            }
+            else {
+                console.error('[MOVE-TO-RETARGETING] insertValues가 비어있거나 정의되지 않았습니다!');
+            }
+            console.error('[MOVE-TO-RETARGETING] ========== ERROR END ==========');
+            throw insertError;
+        }
+        finally {
+            client.release();
+        }
     }
     catch (error) {
-        console.error('Error moving to retargeting:', error);
-        res.status(500).json({ message: 'Internal server error', error: error.message });
+        console.error('[MOVE-TO-RETARGETING] ========== ERROR START ==========');
+        console.error('[MOVE-TO-RETARGETING] Error moving to retargeting:', error);
+        console.error('[MOVE-TO-RETARGETING] Error type:', typeof error);
+        console.error('[MOVE-TO-RETARGETING] Error message:', error.message);
+        console.error('[MOVE-TO-RETARGETING] Error code:', error.code);
+        console.error('[MOVE-TO-RETARGETING] Error detail:', error.detail);
+        console.error('[MOVE-TO-RETARGETING] Error hint:', error.hint);
+        console.error('[MOVE-TO-RETARGETING] Error constraint:', error.constraint);
+        console.error('[MOVE-TO-RETARGETING] Error position:', error.position);
+        console.error('[MOVE-TO-RETARGETING] Error stack:', error.stack);
+        console.error('[MOVE-TO-RETARGETING] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+        console.error('[MOVE-TO-RETARGETING] ========== ERROR END ==========');
+        res.status(500).json({
+            message: 'Internal server error',
+            error: error.message || 'Unknown error',
+            detail: error.detail || null,
+            code: error.code || null,
+            constraint: error.constraint || null
+        });
     }
 });
 // Get monthly statistics per manager
