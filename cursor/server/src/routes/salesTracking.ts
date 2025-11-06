@@ -32,7 +32,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         memo_note,
         user_id,
         created_at,
-        updated_at
+        updated_at,
+        CASE
+          WHEN manager_name = $1 OR company_name = $1 OR account_id = $1 OR customer_name = $1 OR industry = $1 THEN 1
+          WHEN manager_name ILIKE $2 OR company_name ILIKE $2 OR account_id ILIKE $2 OR customer_name ILIKE $2 OR industry ILIKE $2 THEN 2
+        END as match_priority
       FROM sales_tracking
     `
     
@@ -40,16 +44,13 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     
     if (search) {
       query += ` WHERE 
-        manager_name ILIKE $1 OR 
-        company_name ILIKE $1 OR
-        account_id ILIKE $1 OR 
-        customer_name ILIKE $1 OR
-        industry ILIKE $1
+        (manager_name = $1 OR company_name = $1 OR account_id = $1 OR customer_name = $1 OR industry = $1) OR
+        (manager_name ILIKE $2 OR company_name ILIKE $2 OR account_id ILIKE $2 OR customer_name ILIKE $2 OR industry ILIKE $2)
       `
-      params.push(`%${search}%`)
+      params.push(search.trim(), `${search.trim()}%`)
     }
     
-    query += ` ORDER BY date DESC, created_at DESC`
+    query += ` ORDER BY match_priority, date DESC, created_at DESC`
     
     const result = await pool.query(query, params)
     
