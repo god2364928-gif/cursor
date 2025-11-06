@@ -1,6 +1,7 @@
 import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { safeString, safeStringWithLength, firstValidString } from '../utils/nullSafe'
 import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { parse as parseCsvSync } from 'csv-parse/sync'
@@ -88,13 +89,19 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { companyName, industry, customerName, phone, region, inflowPath, manager, managerTeam, status, registeredAt, contractHistoryCategory } = req.body
     
+    // null-safe 처리: 빈 문자열도 기본값으로 처리 (DB NOT NULL 제약조건 대응)
+    const safeCompanyName = safeStringWithLength(companyName || '', '未設定', 255)
+    const safeIndustry = industry || null
+    const safeCustomerName = safeStringWithLength(customerName || '', '未設定', 100)
+    const safePhone = safeStringWithLength(phone || '', '00000000000', 20)
+    
     const result = await pool.query(
       `INSERT INTO retargeting_customers (
         company_name, industry, customer_name, phone, region, inflow_path,
         manager, manager_team, status, registered_at, contract_history_category
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
-      [companyName, industry, customerName, phone || null, region || null, inflowPath || null,
+      [safeCompanyName, safeIndustry, safeCustomerName, safePhone, region || null, inflowPath || null,
        manager, managerTeam || null, status || '시작', registeredAt || new Date().toISOString().split('T')[0], contractHistoryCategory || null]
     )
     
@@ -189,6 +196,12 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'You can only edit retargeting customers assigned to you' })
     }
     
+    // null-safe 처리: 빈 문자열도 기본값으로 처리 (DB NOT NULL 제약조건 대응)
+    const safeCompanyName = safeStringWithLength(companyName || '', '未設定', 255)
+    const safeIndustry = industry || null
+    const safeCustomerName = safeStringWithLength(customerName || '', '未設定', 100)
+    const safePhone = safeStringWithLength(phone || '', '00000000000', 20)
+    
     await pool.query(
       `UPDATE retargeting_customers SET
         company_name = $1, industry = $2, customer_name = $3, phone = $4,
@@ -196,7 +209,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
         status = $9, last_contact_date = $10, contract_history_category = $11,
         memo = $12, homepage = $13, instagram = $14, main_keywords = $15, registered_at = $16
       WHERE id = $17`,
-      [companyName, industry, customerName, phone || null, region, inflowPath,
+      [safeCompanyName, safeIndustry, safeCustomerName, safePhone, region, inflowPath,
        manager, managerTeam, status, lastContactDate, contractHistoryCategory, memo, homepage, instagram, mainKeywords, registeredAt, id]
     )
     
