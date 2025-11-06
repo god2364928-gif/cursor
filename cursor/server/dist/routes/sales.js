@@ -8,9 +8,19 @@ const router = (0, express_1.Router)();
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
+        console.log('[SALES API] Fetching sales with dates:', { startDate, endDate });
         // payments 테이블 존재 여부 확인 (없으면 payer_name은 NULL 반환)
-        const existsPayments = await db_1.pool.query("SELECT to_regclass('public.payments') AS t");
-        const hasPayments = !!existsPayments.rows[0]?.t;
+        let hasPayments = false;
+        try {
+            const existsPayments = await db_1.pool.query("SELECT to_regclass('public.payments') AS t");
+            hasPayments = !!existsPayments.rows[0]?.t;
+            console.log('[SALES API] Payments table exists:', hasPayments);
+        }
+        catch (err) {
+            console.log('[SALES API] Could not check payments table, assuming it does not exist');
+            hasPayments = false;
+        }
+        // 쿼리를 안전하게 구성
         let query = `
       SELECT
         s.id,
@@ -27,9 +37,14 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         s.created_at,
         to_char(s.contract_date, 'YYYY-MM-DD') AS contract_date_str,
         u.name as user_name,
+        s.payer_name
+    `;
+        // payments 테이블이 있으면 서브쿼리 추가
+        if (hasPayments) {
+            query += `,
         COALESCE(
           s.payer_name,
-          ${hasPayments ? `(
+          (
             SELECT p.payer_name
             FROM payments p
             WHERE p.payer_name IS NOT NULL
@@ -44,8 +59,16 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
               )
             ORDER BY p.paid_at DESC NULLS LAST
             LIMIT 1
-          )` : 'NULL'}
-        ) as payer_name
+          )
+        ) as payer_name_final
+      `;
+        }
+        else {
+            query += `,
+        s.payer_name as payer_name_final
+      `;
+        }
+        query += `
       FROM sales s
       JOIN users u ON s.user_id = u.id
     `;
@@ -55,7 +78,10 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
             params.push(startDate, endDate);
         }
         query += ` ORDER BY s.contract_date DESC`;
+        console.log('[SALES API] Query:', query.substring(0, 200) + '...');
+        console.log('[SALES API] Params:', params);
         const result = await db_1.pool.query(query, params);
+        console.log('[SALES API] Query result:', result.rows.length, 'rows');
         // Convert snake_case to camelCase
         const sales = result.rows.map(row => ({
             id: row.id,
@@ -63,7 +89,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
             userId: row.user_id,
             userName: row.user_name,
             companyName: row.company_name,
-            payerName: row.payer_name,
+            payerName: row.payer_name_final || row.payer_name || null,
             paymentMethod: row.payment_method,
             salesType: row.sales_type,
             sourceType: row.source_type,
@@ -73,11 +99,17 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
             note: row.note,
             createdAt: row.created_at
         }));
+        console.log('[SALES API] Returning', sales.length, 'sales records');
         res.json(sales);
     }
     catch (error) {
-        console.error('Error fetching sales:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error('[SALES API] Error fetching sales:', error);
+        console.error('[SALES API] Error message:', error.message);
+        console.error('[SALES API] Error stack:', error.stack);
+        res.status(500).json({
+            message: 'Internal server error',
+            error: error.message
+        });
     }
 });
 // Create new sale
