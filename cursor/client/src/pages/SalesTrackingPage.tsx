@@ -57,10 +57,9 @@ export default function SalesTrackingPage() {
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [currentBaseMonth, setCurrentBaseMonth] = useState<number>(new Date().getMonth()) // 월별 통계용 기준 월
   const [managerFilter, setManagerFilter] = useState<string>(user?.role === 'marketer' ? (user?.name || 'all') : 'all')
   const [managerOptions, setManagerOptions] = useState<string[]>([])
-  const [users, setUsers] = useState<any[]>([])
+  const [, setUsers] = useState<any[]>([])
   
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1)
@@ -278,8 +277,8 @@ export default function SalesTrackingPage() {
   // 전월/당월/내월 핸들러
   const handlePreviousMonth = () => {
     const now = new Date()
-    const currentYear = now.getFullYear()
-    const currentMonth = now.getMonth() // 0-11
+    // const currentYear = now.getFullYear()
+    // const currentMonth = now.getMonth() // 0-11
     
     // 현재 선택된 월에서 한 달 빼기
     let newYear = selectedYear
@@ -529,7 +528,7 @@ export default function SalesTrackingPage() {
         <h1 className="text-lg font-semibold">{t('salesTracking')}</h1>
         <div className="flex gap-2">
           <Button 
-            onClick={fetchMonthlyStats} 
+            onClick={() => fetchMonthlyStats()} 
             variant="outline"
             className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300 font-medium"
           >

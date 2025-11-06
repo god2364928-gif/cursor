@@ -185,6 +185,7 @@ export default function SalesPage() {
       await api.post('/sales', {
         companyName,
         payerName,
+        paymentMethod: paymentMethodValue || null,
         salesType,
         sourceType,
         amount, // 계산된 세전 금액 저장
@@ -225,7 +226,7 @@ export default function SalesPage() {
       await api.put(`/sales/${editingSale.id}`, {
         companyName: editingSale.companyName,
         payerName,
-        paymentMethod,
+        paymentMethod: paymentMethodValue || null,
         salesType,
         sourceType,
         amount, // 계산된 세전 금액 저장
