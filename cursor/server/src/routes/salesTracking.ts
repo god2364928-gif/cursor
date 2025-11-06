@@ -1,6 +1,12 @@
 import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { 
+  safeString, 
+  safeStringWithLength, 
+  firstValidString, 
+  validateInsertValues 
+} from '../utils/nullSafe'
 
 const router = Router()
 
@@ -361,139 +367,51 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     }
     
     // 필수 필드 준비 (NOT NULL 제약 조건 처리)
-    // 안전하게 null/undefined/빈 문자열 처리 - 절대 null이 반환되지 않도록 보장
-    const safeTrim = (value: any): string => {
-      if (value === null || value === undefined) return ''
-      if (typeof value !== 'string') {
-        const str = String(value)
-        return str === 'null' || str === 'undefined' ? '' : str.trim()
-      }
-      const trimmed = value.trim()
-      return trimmed === 'null' || trimmed === 'undefined' ? '' : trimmed
-    }
-    
-    // 원본 데이터 로깅 (디버깅용)
+    // null-safe 유틸리티 함수 사용으로 절대 null이 반환되지 않도록 보장
     console.log('[MOVE-TO-RETARGETING] 원본 레코드 필드:', {
       company_name: record.company_name,
       customer_name: record.customer_name,
       account_id: record.account_id,
       phone: record.phone,
-      company_name_type: typeof record.company_name,
-      customer_name_type: typeof record.customer_name,
-      account_id_type: typeof record.account_id,
-      phone_type: typeof record.phone
+      manager_name: record.manager_name
     })
     
-    // company_name: company_name, customer_name, account_id, 또는 기본값 사용 (company_name 우선)
-    const companyNameRaw = safeTrim(record.company_name)
-    const customerNameRaw = safeTrim(record.customer_name)
-    const accountIdRaw = safeTrim(record.account_id)
+    // company_name: company_name, customer_name, account_id 순으로 fallback
+    const companyName = firstValidString(
+      [record.company_name, record.customer_name, record.account_id],
+      '未設定'
+    )
+    const companyNameFinal = safeStringWithLength(companyName, '未設定', 255)
     
-    console.log('[MOVE-TO-RETARGETING] safeTrim 결과:', {
-      companyNameRaw: `"${companyNameRaw}"`,
-      customerNameRaw: `"${customerNameRaw}"`,
-      accountIdRaw: `"${accountIdRaw}"`
-    })
-    
-    // 절대 null이 되지 않도록 보장 (빈 문자열도 기본값으로 대체)
-    const companyName = (companyNameRaw || customerNameRaw || accountIdRaw || '未設定')
-    const customerName = (customerNameRaw || accountIdRaw || '未設定')
-    
-    console.log('[MOVE-TO-RETARGETING] 값 결정 후:', {
-      companyName: `"${companyName}"`,
-      customerName: `"${customerName}"`
-    })
+    // customer_name: customer_name, account_id 순으로 fallback
+    const customerName = firstValidString(
+      [record.customer_name, record.account_id],
+      '未設定'
+    )
+    const customerNameFinal = safeStringWithLength(customerName, '未設定', 100)
     
     // phone: phone 필드가 있으면 사용, 없으면 기본값 (NOT NULL 제약 조건, VARCHAR(20) 제한)
-    const phoneRaw = safeTrim(record.phone)
-    const phone = phoneRaw || '00000000000'
-    
-    console.log('[MOVE-TO-RETARGETING] phone 처리:', {
-      phoneRaw: `"${phoneRaw}"`,
-      phone: `"${phone}"`
-    })
-    
-    // phone 필드 길이 제한 확인 (VARCHAR(20))
-    const phoneFinal = phone.length > 20 ? phone.substring(0, 20) : phone
-    
-    // company_name과 customer_name도 길이 제한 확인
-    const companyNameFinal = companyName.length > 255 ? companyName.substring(0, 255) : companyName
-    const customerNameFinal = customerName.length > 100 ? customerName.substring(0, 100) : customerName
-    
-    console.log('[MOVE-TO-RETARGETING] 길이 제한 후:', {
-      companyNameFinal: `"${companyNameFinal}"`,
-      customerNameFinal: `"${customerNameFinal}"`,
-      phoneFinal: `"${phoneFinal}"`
-    })
+    const phoneFinal = safeStringWithLength(record.phone, '00000000000', 20)
     
     // industry: 있으면 사용, 없으면 null
     const industry = record.industry || null
     
     // manager_name: 필수
-    const managerName = safeTrim(record.manager_name)
-    if (!managerName) {
+    const managerName = safeString(record.manager_name, '')
+    if (!managerName || managerName === '') {
       console.error('[MOVE-TO-RETARGETING] Error: manager_name is required but not found', {
         recordManagerName: record.manager_name,
-        managerNameAfterTrim: managerName
+        managerNameAfterSafe: managerName
       })
       return res.status(400).json({ message: 'Manager name is required' })
     }
     
-    // 최종 검증: 필수 필드가 비어있지 않은지 확인 (추가 안전장치)
-    const finalCompanyName = companyNameFinal.trim() || '未設定'
-    const finalCustomerName = customerNameFinal.trim() || '未設定'
-    const finalPhone = phoneFinal.trim() || '00000000000'
-    
-    console.log('[MOVE-TO-RETARGETING] 최종 검증 전 값:', {
-      finalCompanyName,
-      finalCustomerName,
-      finalPhone,
-      managerName
-    })
-    
-    if (!finalCompanyName || finalCompanyName === '') {
-      console.error('[MOVE-TO-RETARGETING] Error: companyName is empty after processing', {
-        originalCustomerName: record.customer_name,
-        originalAccountId: record.account_id,
-        companyNameFinal,
-        finalCompanyName
-      })
-      return res.status(400).json({ message: 'Company name cannot be empty' })
-    }
-    
-    if (!finalCustomerName || finalCustomerName === '') {
-      console.error('[MOVE-TO-RETARGETING] Error: customerName is empty after processing', {
-        originalCustomerName: record.customer_name,
-        originalAccountId: record.account_id,
-        customerNameFinal,
-        finalCustomerName
-      })
-      return res.status(400).json({ message: 'Customer name cannot be empty' })
-    }
-    
-    if (!finalPhone || finalPhone === '') {
-      console.error('[MOVE-TO-RETARGETING] Error: phone is empty after processing', {
-        originalPhone: record.phone,
-        phoneFinal,
-        finalPhone
-      })
-      return res.status(400).json({ message: 'Phone cannot be empty' })
-    }
-    
-    console.log(`[MOVE-TO-RETARGETING] Prepared values:`, {
-      original: {
-        customer_name: record.customer_name,
-        account_id: record.account_id,
-        phone: record.phone,
-        manager_name: record.manager_name
-      },
-      processed: {
-        companyName: finalCompanyName,
-        customerName: finalCustomerName,
-        phone: finalPhone,
-        industry,
-        manager: managerName
-      }
+    console.log('[MOVE-TO-RETARGETING] null-safe 처리 후:', {
+      companyNameFinal,
+      customerNameFinal,
+      phoneFinal,
+      managerName,
+      industry
     })
     
     // Create retargeting customer from sales tracking record
@@ -505,134 +423,31 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     try {
       await client.query('BEGIN')
       
-      // 최종 값들을 명시적으로 문자열로 변환하여 null이 들어가지 않도록 보장
-      // 추가 안전장치: 모든 값이 유효한지 재확인
-      // 절대 null이 반환되지 않도록 다중 안전장치 적용
-      let safeCompanyName = finalCompanyName
-      let safeCustomerName = finalCustomerName
-      let safePhone = finalPhone
-      let safeManagerName = managerName
-      
-      // null/undefined 체크 및 기본값 설정
-      if (!safeCompanyName || safeCompanyName === null || safeCompanyName === undefined || safeCompanyName === '') {
-        safeCompanyName = '未設定'
-        console.warn('[MOVE-TO-RETARGETING] WARNING: safeCompanyName was invalid, using default')
-      }
-      if (!safeCustomerName || safeCustomerName === null || safeCustomerName === undefined || safeCustomerName === '') {
-        safeCustomerName = '未設定'
-        console.warn('[MOVE-TO-RETARGETING] WARNING: safeCustomerName was invalid, using default')
-      }
-      if (!safePhone || safePhone === null || safePhone === undefined || safePhone === '') {
-        safePhone = '00000000000'
-        console.warn('[MOVE-TO-RETARGETING] WARNING: safePhone was invalid, using default')
-      }
-      if (!safeManagerName || safeManagerName === null || safeManagerName === undefined || safeManagerName === '') {
-        safeManagerName = record.manager_name || ''
-        console.warn('[MOVE-TO-RETARGETING] WARNING: safeManagerName was invalid, using record.manager_name')
-      }
-      
-      // 문자열로 변환 (다중 안전장치)
-      safeCompanyName = String(safeCompanyName).trim() || '未設定'
-      safeCustomerName = String(safeCustomerName).trim() || '未設定'
-      safePhone = String(safePhone).trim() || '00000000000'
-      safeManagerName = String(safeManagerName).trim() || (record.manager_name || '')
-      
-      console.log('[MOVE-TO-RETARGETING] safe 변수 생성 후:', {
-        safeCompanyName: `"${safeCompanyName}"`,
-        safeCustomerName: `"${safeCustomerName}"`,
-        safePhone: `"${safePhone}"`,
-        safeManagerName: `"${safeManagerName}"`
-      })
-      
-      // 최종 안전 검증
-      if (!safeCompanyName || safeCompanyName === '' || safeCompanyName === 'null') {
-        console.error('[MOVE-TO-RETARGETING] CRITICAL: safeCompanyName is invalid:', safeCompanyName)
-        throw new Error('Company name is invalid after processing')
-      }
-      if (!safeCustomerName || safeCustomerName === '' || safeCustomerName === 'null') {
-        console.error('[MOVE-TO-RETARGETING] CRITICAL: safeCustomerName is invalid:', safeCustomerName)
-        throw new Error('Customer name is invalid after processing')
-      }
-      if (!safePhone || safePhone === '' || safePhone === 'null') {
-        console.error('[MOVE-TO-RETARGETING] CRITICAL: safePhone is invalid:', safePhone)
-        throw new Error('Phone is invalid after processing')
-      }
-      if (!safeManagerName || safeManagerName === '') {
-        console.error('[MOVE-TO-RETARGETING] CRITICAL: safeManagerName is invalid:', safeManagerName)
-        throw new Error('Manager name is invalid after processing')
-      }
-      
-      // INSERT 직전 최종 검증 (null 체크 강화) - 절대 null이 들어가지 않도록 보장
-      // 이 부분이 실행되기 전에 이미 safeCompanyName, safeCustomerName 등이 검증되었지만,
-      // 혹시 모를 경우를 대비해 한 번 더 검증
-      let finalInsertCompanyName = safeCompanyName
-      let finalInsertCustomerName = safeCustomerName
-      let finalInsertPhone = safePhone
-      let finalInsertManagerName = safeManagerName
-      
-      // null/undefined 체크 및 기본값 설정 (이중 안전장치)
-      if (finalInsertCompanyName === null || finalInsertCompanyName === undefined || finalInsertCompanyName === '') {
-        finalInsertCompanyName = '未設定'
-        console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertCompanyName was null/undefined/empty, using default')
-      }
-      if (finalInsertCustomerName === null || finalInsertCustomerName === undefined || finalInsertCustomerName === '') {
-        finalInsertCustomerName = '未設定'
-        console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertCustomerName was null/undefined/empty, using default')
-      }
-      if (finalInsertPhone === null || finalInsertPhone === undefined || finalInsertPhone === '') {
-        finalInsertPhone = '00000000000'
-        console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertPhone was null/undefined/empty, using default')
-      }
-      if (finalInsertManagerName === null || finalInsertManagerName === undefined || finalInsertManagerName === '') {
-        finalInsertManagerName = record.manager_name || ''
-        console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertManagerName was null/undefined/empty, using record.manager_name')
-      }
-      
-      // 문자열로 변환 (혹시 모를 경우 대비)
-      finalInsertCompanyName = String(finalInsertCompanyName).trim() || '未設定'
-      finalInsertCustomerName = String(finalInsertCustomerName).trim() || '未設定'
-      finalInsertPhone = String(finalInsertPhone).trim() || '00000000000'
-      finalInsertManagerName = String(finalInsertManagerName).trim() || (record.manager_name || '')
-      
-      // 최종 null 체크 (이게 통과하지 못하면 에러)
-      if (!finalInsertCompanyName || finalInsertCompanyName === '' || finalInsertCompanyName === 'null') {
-        throw new Error(`CRITICAL: finalInsertCompanyName is invalid: ${JSON.stringify(finalInsertCompanyName)}`)
-      }
-      if (!finalInsertCustomerName || finalInsertCustomerName === '' || finalInsertCustomerName === 'null') {
-        throw new Error(`CRITICAL: finalInsertCustomerName is invalid: ${JSON.stringify(finalInsertCustomerName)}`)
-      }
-      if (!finalInsertPhone || finalInsertPhone === '' || finalInsertPhone === 'null') {
-        throw new Error(`CRITICAL: finalInsertPhone is invalid: ${JSON.stringify(finalInsertPhone)}`)
-      }
-      if (!finalInsertManagerName || finalInsertManagerName === '') {
-        throw new Error(`CRITICAL: finalInsertManagerName is invalid: ${JSON.stringify(finalInsertManagerName)}`)
-      }
-      
       const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
       
-      // insertValues 배열 생성 (절대 null이 들어가지 않도록 보장)
+      // insertValues 배열 생성 (null-safe 유틸리티로 이미 처리된 값들 사용)
       insertValues = [
-        finalInsertCompanyName, // company_name (NOT NULL) - 최종 검증 완료
+        companyNameFinal, // company_name (NOT NULL) - null-safe 처리 완료
         industry, // industry
-        finalInsertCustomerName, // customer_name (NOT NULL) - 최종 검증 완료
-        finalInsertPhone, // phone (NOT NULL, VARCHAR(20)) - 최종 검증 완료
+        customerNameFinal, // customer_name (NOT NULL) - null-safe 처리 완료
+        phoneFinal, // phone (NOT NULL) - null-safe 처리 완료
         null, // region
         null, // inflow_path
-        finalInsertManagerName, // manager - 최종 검증 완료
+        managerName, // manager - null-safe 처리 완료
         null, // manager_team
         '시작', // status
         registeredAtDate, // registered_at (YYYY-MM-DD 형식)
         record.memo || null, // memo
-        id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
+        id // sales_tracking_id
       ]
       
-      // INSERT 직전 최종 검증: customer_name이 절대 null이 아닌지 확인
-      if (insertValues[2] === null || insertValues[2] === undefined) {
-        console.error('[MOVE-TO-RETARGETING] CRITICAL: insertValues[2] (customer_name) is null or undefined!')
-        console.error('[MOVE-TO-RETARGETING] finalInsertCustomerName:', finalInsertCustomerName)
-        console.error('[MOVE-TO-RETARGETING] insertValues[2]:', insertValues[2])
-        throw new Error(`CRITICAL: customer_name cannot be null or undefined in insertValues array`)
-      }
+      // NOT NULL 필드 강제 검증 (인덱스: 0=company_name, 2=customer_name, 3=phone, 6=manager)
+      validateInsertValues(insertValues, [0, 2, 3, 6], {
+        0: '未設定', // company_name
+        2: '未設定', // customer_name
+        3: '00000000000', // phone
+        6: managerName || record.manager_name || '' // manager
+      })
       
       // INSERT 전 최종 검증 로그
       console.log(`[MOVE-TO-RETARGETING] Final insert values (before query):`, {
