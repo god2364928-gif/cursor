@@ -207,59 +207,82 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 // Delete sales tracking record (only owner can delete)
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect()
   try {
+    await client.query('BEGIN')
+    
     const { id } = req.params
+    console.log(`[DELETE] Attempting to delete sales_tracking record: ${id}`)
+    console.log(`[DELETE] User: ${req.user?.name} (${req.user?.id}), Role: ${req.user?.role}`)
     
     // Check if record exists and get user_id
-    const recordResult = await pool.query(
-      'SELECT user_id FROM sales_tracking WHERE id = $1',
+    const recordResult = await client.query(
+      'SELECT user_id, manager_name FROM sales_tracking WHERE id = $1',
       [id]
     )
     
     if (recordResult.rows.length === 0) {
+      await client.query('ROLLBACK')
+      console.log(`[DELETE] Record not found: ${id}`)
       return res.status(404).json({ message: 'Record not found' })
     }
     
+    const record = recordResult.rows[0]
+    console.log(`[DELETE] Record found: manager=${record.manager_name}, user_id=${record.user_id}`)
+    
     // Check if user is the owner (or admin)
-    const recordUserId = recordResult.rows[0].user_id
-    if (req.user?.role !== 'admin' && req.user?.id !== recordUserId) {
+    if (req.user?.role !== 'admin' && req.user?.id !== record.user_id) {
+      await client.query('ROLLBACK')
+      console.log(`[DELETE] Permission denied: user_id mismatch (${req.user?.id} vs ${record.user_id})`)
       return res.status(403).json({ message: 'You can only delete your own records' })
     }
     
     // Check if this record is referenced by retargeting_customers (foreign key constraint)
-    const retargetingCheck = await pool.query(
-      'SELECT id FROM retargeting_customers WHERE sales_tracking_id = $1',
+    const retargetingCheck = await client.query(
+      'SELECT id, manager FROM retargeting_customers WHERE sales_tracking_id = $1',
       [id]
     )
     
     if (retargetingCheck.rows.length > 0) {
-      // If referenced, first delete or update retargeting_customers records
-      // Option 1: Delete the retargeting customers (if they should be deleted with the sales tracking record)
-      // Option 2: Set sales_tracking_id to NULL (if they should remain)
-      // For now, we'll set sales_tracking_id to NULL to preserve retargeting data
-      await pool.query(
+      console.log(`[DELETE] Found ${retargetingCheck.rows.length} retargeting_customers records referencing this sales_tracking record`)
+      // Set sales_tracking_id to NULL to preserve retargeting data
+      await client.query(
         'UPDATE retargeting_customers SET sales_tracking_id = NULL WHERE sales_tracking_id = $1',
         [id]
       )
+      console.log(`[DELETE] Updated retargeting_customers: set sales_tracking_id to NULL`)
     }
     
     // Now delete the sales tracking record
-    await pool.query('DELETE FROM sales_tracking WHERE id = $1', [id])
+    const deleteResult = await client.query('DELETE FROM sales_tracking WHERE id = $1 RETURNING id', [id])
+    
+    if (deleteResult.rows.length === 0) {
+      await client.query('ROLLBACK')
+      console.log(`[DELETE] Failed to delete record: ${id}`)
+      return res.status(500).json({ message: 'Failed to delete record' })
+    }
+    
+    await client.query('COMMIT')
+    console.log(`[DELETE] Successfully deleted record: ${id}`)
     
     res.json({ success: true })
   } catch (error: any) {
-    console.error('Error deleting sales tracking record:', error)
-    console.error('Error details:', {
+    await client.query('ROLLBACK')
+    console.error('[DELETE] Error deleting sales tracking record:', error)
+    console.error('[DELETE] Error details:', {
       message: error.message,
       code: error.code,
       detail: error.detail,
-      hint: error.hint
+      hint: error.hint,
+      stack: error.stack
     })
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message,
       detail: error.detail
     })
+  } finally {
+    client.release()
   }
 })
 
