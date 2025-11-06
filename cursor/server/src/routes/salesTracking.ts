@@ -658,6 +658,18 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
     process.stdout.write(`\n📤 응답 전송: stats=${stats.length}개, debug 정보 포함\n`)
     console.error(`\n📤 응답 전송: stats=${stats.length}개, debug 정보 포함`)
     
+    // 디버깅: 각 담당자별 리타획득수 확인
+    process.stdout.write(`\n📊 최종 응답에 포함될 리타획득수:\n`)
+    console.error(`\n📊 최종 응답에 포함될 리타획득수:`)
+    stats.forEach(stat => {
+      process.stdout.write(`   - ${stat.manager}: ${stat.retargetingCount}\n`)
+      console.error(`   - ${stat.manager}: ${stat.retargetingCount}`)
+      if (stat.retargetingCount !== 0) {
+        process.stdout.write(`     ⚠️ 경고: 리타획득수가 0이 아닙니다!\n`)
+        console.error(`     ⚠️ 경고: 리타획득수가 0이 아닙니다!`)
+      }
+    })
+    
     // 응답 구조: stats 배열과 debug 정보를 함께 반환
     const responseData = {
       stats,

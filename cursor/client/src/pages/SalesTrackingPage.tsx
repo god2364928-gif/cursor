@@ -313,7 +313,12 @@ export default function SalesTrackingPage() {
       if (Array.isArray(statsData)) {
         console.log('\n📋 담당자별 회신수 현황:')
         statsData.forEach((stat: any) => {
-          console.log(`  ${stat.manager}: 총 ${stat.totalCount}건, 회신 ${stat.replyCount}건 (${stat.replyRate})`)
+          console.log(`  ${stat.manager}: 총 ${stat.totalCount}건, 회신 ${stat.replyCount}건 (${stat.replyRate}), 리타획득수: ${stat.retargetingCount}`)
+          // 리타획득수 확인
+          if (stat.retargetingCount !== undefined && stat.retargetingCount !== 0) {
+            console.warn(`  ⚠️ ${stat.manager}의 리타획득수가 0이 아닙니다: ${stat.retargetingCount}`)
+            console.warn(`     totalCount: ${stat.totalCount}, retargetingCount: ${stat.retargetingCount}`)
+          }
         })
       }
       
