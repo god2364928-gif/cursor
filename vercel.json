@@ -1,7 +1,7 @@
 {
-  "buildCommand": "cd cursor/client && npm ci && npm run build",
+  "buildCommand": "cd cursor/client && npm install && npm run build",
   "outputDirectory": "cursor/client/dist",
-  "installCommand": "cd cursor/client && npm ci",
+  "installCommand": "cd cursor/client && npm install",
   "framework": "vite",
   "rewrites": [
     {
