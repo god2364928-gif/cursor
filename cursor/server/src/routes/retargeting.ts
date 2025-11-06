@@ -225,8 +225,11 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
   try {
     const { id } = req.params
     
-    // Check if retargeting customer exists and get manager info
-    const customerResult = await pool.query('SELECT manager FROM retargeting_customers WHERE id = $1', [id])
+    // Check if retargeting customer exists and get manager info and sales_tracking_id
+    const customerResult = await pool.query(
+      'SELECT manager, sales_tracking_id FROM retargeting_customers WHERE id = $1', 
+      [id]
+    )
     
     if (customerResult.rows.length === 0) {
       return res.status(404).json({ message: 'Retargeting customer not found' })
@@ -239,8 +242,15 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
     const userName = req.user?.name?.trim() || ''
     const customerManager = customer.manager?.trim() || ''
     
+    // Admin can delete any retargeting customer, managers can only delete their own
     if (req.user?.role !== 'admin' && customerManager !== userName) {
       return res.status(403).json({ message: 'You can only delete retargeting customers assigned to you' })
+    }
+    
+    // Log deletion info for statistics tracking
+    if (customer.sales_tracking_id) {
+      console.log(`[DELETE RETARGETING] Deleting retargeting customer ${id} with sales_tracking_id: ${customer.sales_tracking_id}`)
+      console.log(`[DELETE RETARGETING] This will remove this record from retargeting count statistics`)
     }
     
     await pool.query('DELETE FROM retargeting_customers WHERE id = $1', [id])

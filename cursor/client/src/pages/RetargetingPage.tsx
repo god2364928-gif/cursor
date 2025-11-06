@@ -413,6 +413,19 @@ export default function RetargetingPage() {
     }
   }
 
+  const handleDeleteCustomer = async (id: string) => {
+    if (!confirm('정말 삭제하시겠습니까? 삭제하면 통계에서도 제외됩니다.')) return
+    
+    try {
+      await api.delete(`/retargeting/${id}`)
+      showToast(t('deleted'), 'success')
+      setSelectedCustomer(null)
+      fetchCustomers()
+    } catch (error: any) {
+      showToast(error.response?.data?.message || t('deleteFailed'), 'error')
+    }
+  }
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
@@ -1275,6 +1288,16 @@ export default function RetargetingPage() {
                   variant="destructive"
                 >
                   {t('moveToTrash')}
+                </Button>
+              )}
+              
+              {/* 어드민만 삭제 가능 */}
+              {isAdmin && (
+                <Button 
+                  onClick={() => handleDeleteCustomer(selectedCustomer.id)} 
+                  variant="destructive"
+                >
+                  {t('delete')}
                 </Button>
               )}
               
