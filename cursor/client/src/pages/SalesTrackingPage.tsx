@@ -197,10 +197,10 @@ export default function SalesTrackingPage() {
 
   // Daily stats
   const openDailyStats = () => {
-    // default: this month
-    const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    // default: last 7 days
+    const end = new Date()
+    const start = new Date(end)
+    start.setDate(end.getDate() - 6)
     const startStr = start.toISOString().split('T')[0]
     const endStr = end.toISOString().split('T')[0]
     setDailyStart(startStr)
@@ -1020,7 +1020,12 @@ export default function SalesTrackingPage() {
           <Card className="w-full max-w-5xl max-h-[90vh] flex flex-col bg-white shadow-2xl">
             <CardHeader className="flex-shrink-0">
               <CardTitle className="flex items-center justify-between flex-wrap gap-2">
-                <span>{t('dailyStats')}</span>
+                <span className="flex items-center gap-2">
+                  {t('dailyStats')}
+                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 border text-gray-700">
+                    {t('total')}: {dailyStats.reduce((s, r) => s + (r.totalCount || 0), 0)}
+                  </span>
+                </span>
                 <div className="flex gap-2 flex-wrap items-center">
                   <input
                     type="date"
