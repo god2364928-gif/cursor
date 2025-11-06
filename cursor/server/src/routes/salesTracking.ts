@@ -489,11 +489,37 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
         throw new Error('Manager name is invalid after processing')
       }
       
-      // INSERT 직전 최종 검증 (null 체크 강화)
-      const finalInsertCompanyName = safeCompanyName === null || safeCompanyName === undefined ? '未設定' : String(safeCompanyName).trim() || '未設定'
-      const finalInsertCustomerName = safeCustomerName === null || safeCustomerName === undefined ? '未設定' : String(safeCustomerName).trim() || '未設定'
-      const finalInsertPhone = safePhone === null || safePhone === undefined ? '00000000000' : String(safePhone).trim() || '00000000000'
-      const finalInsertManagerName = safeManagerName === null || safeManagerName === undefined ? (record.manager_name || '') : String(safeManagerName).trim()
+      // INSERT 직전 최종 검증 (null 체크 강화) - 절대 null이 들어가지 않도록 보장
+      // 이 부분이 실행되기 전에 이미 safeCompanyName, safeCustomerName 등이 검증되었지만,
+      // 혹시 모를 경우를 대비해 한 번 더 검증
+      let finalInsertCompanyName = safeCompanyName
+      let finalInsertCustomerName = safeCustomerName
+      let finalInsertPhone = safePhone
+      let finalInsertManagerName = safeManagerName
+      
+      // null/undefined 체크 및 기본값 설정 (이중 안전장치)
+      if (finalInsertCompanyName === null || finalInsertCompanyName === undefined || finalInsertCompanyName === '') {
+        finalInsertCompanyName = '未設定'
+        console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertCompanyName was null/undefined/empty, using default')
+      }
+      if (finalInsertCustomerName === null || finalInsertCustomerName === undefined || finalInsertCustomerName === '') {
+        finalInsertCustomerName = '未設定'
+        console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertCustomerName was null/undefined/empty, using default')
+      }
+      if (finalInsertPhone === null || finalInsertPhone === undefined || finalInsertPhone === '') {
+        finalInsertPhone = '00000000000'
+        console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertPhone was null/undefined/empty, using default')
+      }
+      if (finalInsertManagerName === null || finalInsertManagerName === undefined || finalInsertManagerName === '') {
+        finalInsertManagerName = record.manager_name || ''
+        console.warn('[MOVE-TO-RETARGETING] WARNING: finalInsertManagerName was null/undefined/empty, using record.manager_name')
+      }
+      
+      // 문자열로 변환 (혹시 모를 경우 대비)
+      finalInsertCompanyName = String(finalInsertCompanyName).trim() || '未設定'
+      finalInsertCustomerName = String(finalInsertCustomerName).trim() || '未設定'
+      finalInsertPhone = String(finalInsertPhone).trim() || '00000000000'
+      finalInsertManagerName = String(finalInsertManagerName).trim() || (record.manager_name || '')
       
       // 최종 null 체크 (이게 통과하지 못하면 에러)
       if (!finalInsertCompanyName || finalInsertCompanyName === '' || finalInsertCompanyName === 'null') {
