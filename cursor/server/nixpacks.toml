@@ -2,7 +2,15 @@
 nixPkgs = ['nodejs-18_x']
 
 [phases.build]
-cmds = ['npm ci', 'rm -rf dist', 'npm run build']
+cmds = [
+  'cd cursor/server',
+  'npm ci',
+  'rm -rf dist',
+  'rm -rf node_modules/.cache',
+  'npm run build',
+  'echo "Build completed. Checking retargetingCount..."',
+  'grep -n "retargetingCount" dist/routes/salesTracking.js | head -5'
+]
 
 [start]
-cmd = 'node dist/index.js'
+cmd = 'cd cursor/server && node dist/index.js'

@@ -6,6 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const db_1 = require("./db");
 const auth_1 = __importDefault(require("./routes/auth"));
 const customers_1 = __importDefault(require("./routes/customers"));
@@ -17,6 +19,32 @@ const salesTracking_1 = __importDefault(require("./routes/salesTracking"));
 const globalSearch_1 = __importDefault(require("./routes/globalSearch"));
 const autoMigrate_1 = require("./migrations/autoMigrate");
 dotenv_1.default.config();
+// Debug: Check if globalSearch.js has correct code (only in production)
+if (process.env.NODE_ENV === 'production' || true) {
+    try {
+        const globalSearchPath = path_1.default.join(__dirname, 'routes/globalSearch.js');
+        if (fs_1.default.existsSync(globalSearchPath)) {
+            const content = fs_1.default.readFileSync(globalSearchPath, 'utf8');
+            if (content.includes('retargeting_customers')) {
+                const retargetingSection = content.match(/retargeting_customers[\s\S]{0,300}LIMIT 10/)?.[0] || '';
+                const hasPhone1 = retargetingSection.includes('phone1');
+                if (hasPhone1) {
+                    console.error('❌ ERROR: globalSearch.js still contains phone1 for retargeting_customers!');
+                    console.error('Retargeting section:', retargetingSection.substring(0, 200));
+                }
+                else {
+                    console.log('✅ OK: globalSearch.js uses phone only for retargeting_customers');
+                }
+            }
+        }
+        else {
+            console.log('⚠️ globalSearch.js not found at:', globalSearchPath);
+        }
+    }
+    catch (e) {
+        console.error('Debug check failed:', e);
+    }
+}
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
 // Middleware

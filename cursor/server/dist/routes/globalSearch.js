@@ -5,6 +5,7 @@ const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 // Global search across customers, retargeting, and sales tracking
+// Fixed: retargeting_customers uses 'phone' column only (not phone1/phone2/phone3)
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
         const keyword = req.query.q || '';
