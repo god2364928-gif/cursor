@@ -283,15 +283,14 @@ router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) 
             phone: record.phone,
             manager_name: record.manager_name
         });
-        // company_name: company_name, customer_name 순으로 fallback (account_id는 제외)
-        const companyName = (0, nullSafe_1.firstValidString)([record.company_name, record.customer_name], '' // 빈 값 허용
-        );
-        const companyNameFinal = companyName ? (0, nullSafe_1.safeStringWithLength)(companyName, '', 255) : '未設定';
-        // customer_name: customer_name만 사용 (account_id는 제외)
-        const customerName = (0, nullSafe_1.safeString)(record.customer_name, '');
-        const customerNameFinal = customerName ? (0, nullSafe_1.safeStringWithLength)(customerName, '', 100) : '未設定';
-        // phone: phone 필드가 있으면 사용, 없으면 기본값 (NOT NULL 제약 조건, VARCHAR(20) 제한)
-        const phoneFinal = (0, nullSafe_1.safeStringWithLength)(record.phone, '00000000000', 20);
+        // company_name: 빈값이면 빈값 유지 (NOT NULL이지만 빈 문자열 허용)
+        const companyName = record.company_name ? record.company_name.trim() : '';
+        const companyNameFinal = companyName || '';
+        // customer_name: 빈값이면 빈값 유지 (NOT NULL이지만 빈 문자열 허용)
+        const customerName = record.customer_name ? record.customer_name.trim() : '';
+        const customerNameFinal = customerName || '';
+        // phone: 빈값이면 빈값 유지 (NOT NULL이지만 빈 문자열 허용)
+        const phoneFinal = record.phone ? record.phone.trim() : '';
         // industry: 있으면 사용, 없으면 null (빈 값 허용)
         const industry = record.industry ? record.industry.trim() : null;
         const industryFinal = (industry && industry !== '') ? industry : null;
@@ -344,12 +343,10 @@ router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) 
                 null, // main_keywords
                 id // sales_tracking_id
             ];
-            // NOT NULL 필드 강제 검증 (인덱스: 0=company_name, 2=customer_name, 3=phone, 6=manager)
-            (0, nullSafe_1.validateInsertValues)(insertValues, [0, 2, 3, 6], {
-                0: '未設定', // company_name
-                2: '未設定', // customer_name
-                3: '00000000000', // phone
-                6: managerName || record.manager_name || '' // manager
+            // NOT NULL 필드 강제 검증 (인덱스: 6=manager만 필수)
+            // company_name, customer_name, phone은 빈값 허용
+            (0, nullSafe_1.validateInsertValues)(insertValues, [6], {
+                6: managerName || record.manager_name || '' // manager만 필수
             });
             // INSERT 전 최종 검증 로그
             console.log(`[MOVE-TO-RETARGETING] Final insert values (before query):`, {
