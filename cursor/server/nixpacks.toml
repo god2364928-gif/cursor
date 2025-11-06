@@ -7,8 +7,7 @@ cmds = [
   'rm -rf dist',
   'rm -rf node_modules/.cache',
   'npm run build',
-  'echo "Build completed. Checking retargetingCount..."',
-  'grep -n "retargetingCount.*0" dist/routes/salesTracking.js | head -3 || echo "WARNING: retargetingCount not found or not set to 0"'
+  'echo "✅ Build completed"'
 ]
 
 [start]
