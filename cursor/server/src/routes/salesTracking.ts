@@ -14,6 +14,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         id,
         date,
         manager_name,
+        company_name,
         account_id,
         customer_name,
         industry,
@@ -34,6 +35,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     if (search) {
       query += ` WHERE 
         manager_name ILIKE $1 OR 
+        company_name ILIKE $1 OR
         account_id ILIKE $1 OR 
         customer_name ILIKE $1 OR
         industry ILIKE $1
@@ -88,6 +90,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const {
       date,
       managerName,
+      companyName,
       accountId,
       customerName,
       industry,
@@ -105,13 +108,14 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     
     const result = await pool.query(
       `INSERT INTO sales_tracking (
-        date, manager_name, account_id, customer_name, industry,
+        date, manager_name, company_name, account_id, customer_name, industry,
         contact_method, status, contact_person, phone, memo, memo_note, user_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         date,
         managerName,
+        companyName || null,
         accountId || null,
         customerName || null,
         industry || null,
@@ -156,6 +160,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
     const {
       date,
       managerName,
+      companyName,
       accountId,
       customerName,
       industry,
@@ -171,20 +176,22 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       `UPDATE sales_tracking SET
         date = $1,
         manager_name = $2,
-        account_id = $3,
-        customer_name = $4,
-        industry = $5,
-        contact_method = $6,
-        status = $7,
-        contact_person = $8,
-        phone = $9,
-        memo = $10,
-        memo_note = $11,
+        company_name = $3,
+        account_id = $4,
+        customer_name = $5,
+        industry = $6,
+        contact_method = $7,
+        status = $8,
+        contact_person = $9,
+        phone = $10,
+        memo = $11,
+        memo_note = $12,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $12`,
+      WHERE id = $13`,
       [
         date,
         managerName,
+        companyName || null,
         accountId || null,
         customerName || null,
         industry || null,
@@ -358,10 +365,11 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       return value.trim()
     }
     
-    // company_name: customer_name, account_id, 또는 기본값 사용
+    // company_name: company_name, customer_name, account_id, 또는 기본값 사용 (company_name 우선)
+    const companyNameRaw = safeTrim(record.company_name)
     const customerNameRaw = safeTrim(record.customer_name)
     const accountIdRaw = safeTrim(record.account_id)
-    const companyName = (customerNameRaw || accountIdRaw || '未設定')
+    const companyName = (companyNameRaw || customerNameRaw || accountIdRaw || '未設定')
     
     // customer_name: customer_name, account_id, 또는 기본값 사용
     const customerName = (customerNameRaw || accountIdRaw || '未設定')
