@@ -556,18 +556,25 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     }
     
   } catch (error: any) {
+    console.error('[MOVE-TO-RETARGETING] ========== ERROR START ==========')
     console.error('[MOVE-TO-RETARGETING] Error moving to retargeting:', error)
-    console.error('[MOVE-TO-RETARGETING] Error details:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint,
-      stack: error.stack
-    })
+    console.error('[MOVE-TO-RETARGETING] Error type:', typeof error)
+    console.error('[MOVE-TO-RETARGETING] Error message:', error.message)
+    console.error('[MOVE-TO-RETARGETING] Error code:', error.code)
+    console.error('[MOVE-TO-RETARGETING] Error detail:', error.detail)
+    console.error('[MOVE-TO-RETARGETING] Error hint:', error.hint)
+    console.error('[MOVE-TO-RETARGETING] Error constraint:', error.constraint)
+    console.error('[MOVE-TO-RETARGETING] Error position:', error.position)
+    console.error('[MOVE-TO-RETARGETING] Error stack:', error.stack)
+    console.error('[MOVE-TO-RETARGETING] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+    console.error('[MOVE-TO-RETARGETING] ========== ERROR END ==========')
+    
     res.status(500).json({ 
       message: 'Internal server error',
-      error: error.message,
-      detail: error.detail
+      error: error.message || 'Unknown error',
+      detail: error.detail || null,
+      code: error.code || null,
+      constraint: error.constraint || null
     })
   }
 })
