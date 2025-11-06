@@ -489,28 +489,64 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
         throw new Error('Manager name is invalid after processing')
       }
       
+      // INSERT 직전 최종 검증 (null 체크 강화)
+      const finalInsertCompanyName = safeCompanyName === null || safeCompanyName === undefined ? '未設定' : String(safeCompanyName).trim() || '未設定'
+      const finalInsertCustomerName = safeCustomerName === null || safeCustomerName === undefined ? '未設定' : String(safeCustomerName).trim() || '未設定'
+      const finalInsertPhone = safePhone === null || safePhone === undefined ? '00000000000' : String(safePhone).trim() || '00000000000'
+      const finalInsertManagerName = safeManagerName === null || safeManagerName === undefined ? (record.manager_name || '') : String(safeManagerName).trim()
+      
+      // 최종 null 체크 (이게 통과하지 못하면 에러)
+      if (!finalInsertCompanyName || finalInsertCompanyName === '' || finalInsertCompanyName === 'null') {
+        throw new Error(`CRITICAL: finalInsertCompanyName is invalid: ${JSON.stringify(finalInsertCompanyName)}`)
+      }
+      if (!finalInsertCustomerName || finalInsertCustomerName === '' || finalInsertCustomerName === 'null') {
+        throw new Error(`CRITICAL: finalInsertCustomerName is invalid: ${JSON.stringify(finalInsertCustomerName)}`)
+      }
+      if (!finalInsertPhone || finalInsertPhone === '' || finalInsertPhone === 'null') {
+        throw new Error(`CRITICAL: finalInsertPhone is invalid: ${JSON.stringify(finalInsertPhone)}`)
+      }
+      if (!finalInsertManagerName || finalInsertManagerName === '') {
+        throw new Error(`CRITICAL: finalInsertManagerName is invalid: ${JSON.stringify(finalInsertManagerName)}`)
+      }
+      
+      const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      
       const insertValues = [
-        safeCompanyName, // company_name (NOT NULL) - 명시적 문자열 변환 및 검증
+        finalInsertCompanyName, // company_name (NOT NULL) - 최종 검증 완료
         industry, // industry
-        safeCustomerName, // customer_name (NOT NULL) - 명시적 문자열 변환 및 검증
-        safePhone, // phone (NOT NULL, VARCHAR(20)) - 명시적 문자열 변환 및 검증
+        finalInsertCustomerName, // customer_name (NOT NULL) - 최종 검증 완료
+        finalInsertPhone, // phone (NOT NULL, VARCHAR(20)) - 최종 검증 완료
         null, // region
         null, // inflow_path
-        safeManagerName, // manager - 명시적 문자열 변환 및 검증
+        finalInsertManagerName, // manager - 최종 검증 완료
         null, // manager_team
         '시작', // status
-        record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // registered_at (YYYY-MM-DD 형식)
+        registeredAtDate, // registered_at (YYYY-MM-DD 형식)
         record.memo || null, // memo
         id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
       ]
       
-      console.log(`[MOVE-TO-RETARGETING] Insert values (before query):`, {
+      // INSERT 전 최종 검증 로그
+      console.log(`[MOVE-TO-RETARGETING] Final insert values (before query):`, {
         company_name: insertValues[0],
         customer_name: insertValues[2],
         phone: insertValues[3],
-        values: insertValues.map((v, i) => ({ index: i, value: v, type: typeof v, isNull: v === null, isUndefined: v === undefined }))
+        manager: insertValues[6],
+        allValues: insertValues.map((v, i) => {
+          const paramNames = ['company_name', 'industry', 'customer_name', 'phone', 'region', 'inflow_path', 
+                             'manager', 'manager_team', 'status', 'registered_at', 'memo', 'sales_tracking_id']
+          return {
+            param: paramNames[i],
+            value: v === null ? 'null' : JSON.stringify(v),
+            type: typeof v,
+            isNull: v === null,
+            isUndefined: v === undefined,
+            isEmpty: typeof v === 'string' && v === ''
+          }
+        })
       })
       
+      // INSERT 실행
       const retargetingResult = await client.query(
         `INSERT INTO retargeting_customers (
           company_name, industry, customer_name, phone, region, inflow_path,
