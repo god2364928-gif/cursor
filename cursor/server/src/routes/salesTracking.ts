@@ -447,14 +447,38 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       await client.query('BEGIN')
       
       // 최종 값들을 명시적으로 문자열로 변환하여 null이 들어가지 않도록 보장
+      // 추가 안전장치: 모든 값이 유효한지 재확인
+      const safeCompanyName = String(finalCompanyName || '未設定').trim() || '未設定'
+      const safeCustomerName = String(finalCustomerName || '未設定').trim() || '未設定'
+      const safePhone = String(finalPhone || '00000000000').trim() || '00000000000'
+      const safeManagerName = String(managerName || record.manager_name || '').trim()
+      
+      // 최종 안전 검증
+      if (!safeCompanyName || safeCompanyName === '' || safeCompanyName === 'null') {
+        console.error('[MOVE-TO-RETARGETING] CRITICAL: safeCompanyName is invalid:', safeCompanyName)
+        throw new Error('Company name is invalid after processing')
+      }
+      if (!safeCustomerName || safeCustomerName === '' || safeCustomerName === 'null') {
+        console.error('[MOVE-TO-RETARGETING] CRITICAL: safeCustomerName is invalid:', safeCustomerName)
+        throw new Error('Customer name is invalid after processing')
+      }
+      if (!safePhone || safePhone === '' || safePhone === 'null') {
+        console.error('[MOVE-TO-RETARGETING] CRITICAL: safePhone is invalid:', safePhone)
+        throw new Error('Phone is invalid after processing')
+      }
+      if (!safeManagerName || safeManagerName === '') {
+        console.error('[MOVE-TO-RETARGETING] CRITICAL: safeManagerName is invalid:', safeManagerName)
+        throw new Error('Manager name is invalid after processing')
+      }
+      
       const insertValues = [
-        String(finalCompanyName), // company_name (NOT NULL) - 명시적 문자열 변환
+        safeCompanyName, // company_name (NOT NULL) - 명시적 문자열 변환 및 검증
         industry, // industry
-        String(finalCustomerName), // customer_name (NOT NULL) - 명시적 문자열 변환
-        String(finalPhone), // phone (NOT NULL, VARCHAR(20)) - 명시적 문자열 변환
+        safeCustomerName, // customer_name (NOT NULL) - 명시적 문자열 변환 및 검증
+        safePhone, // phone (NOT NULL, VARCHAR(20)) - 명시적 문자열 변환 및 검증
         null, // region
         null, // inflow_path
-        String(managerName), // manager - 명시적 문자열 변환
+        safeManagerName, // manager - 명시적 문자열 변환 및 검증
         null, // manager_team
         '시작', // status
         record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // registered_at (YYYY-MM-DD 형식)
