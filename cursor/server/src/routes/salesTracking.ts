@@ -319,13 +319,27 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     
     // 필수 필드 준비 (NOT NULL 제약 조건 처리)
     // company_name: customer_name, account_id, 또는 기본값 사용
-    const companyName = record.customer_name || record.account_id || '（未設定）'
+    // 빈 문자열도 null로 처리
+    const companyName = (record.customer_name && record.customer_name.trim()) 
+      || (record.account_id && record.account_id.trim()) 
+      || '未設定'
     
     // customer_name: customer_name, account_id, 또는 기본값 사용
-    const customerName = record.customer_name || record.account_id || '（未設定）'
+    // 빈 문자열도 null로 처리
+    const customerName = (record.customer_name && record.customer_name.trim()) 
+      || (record.account_id && record.account_id.trim()) 
+      || '未設定'
     
-    // phone: phone 필드가 있으면 사용, 없으면 기본값 (NOT NULL 제약 조건)
-    const phone = record.phone || '（未設定）'
+    // phone: phone 필드가 있으면 사용, 없으면 기본값 (NOT NULL 제약 조건, VARCHAR(20) 제한)
+    // 빈 문자열도 기본값으로 처리
+    const phone = (record.phone && record.phone.trim()) || '00000000000'
+    
+    // phone 필드 길이 제한 확인 (VARCHAR(20))
+    const phoneFinal = phone.length > 20 ? phone.substring(0, 20) : phone
+    
+    // company_name과 customer_name도 길이 제한 확인
+    const companyNameFinal = companyName.length > 255 ? companyName.substring(0, 255) : companyName
+    const customerNameFinal = customerName.length > 100 ? customerName.substring(0, 100) : customerName
     
     // industry: 있으면 사용, 없으면 null
     const industry = record.industry || null
@@ -336,10 +350,26 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       return res.status(400).json({ message: 'Manager name is required' })
     }
     
+    // 최종 검증: 필수 필드가 비어있지 않은지 확인
+    if (!companyNameFinal || companyNameFinal.trim() === '') {
+      console.error('[MOVE-TO-RETARGETING] Error: companyName is empty after processing')
+      return res.status(400).json({ message: 'Company name cannot be empty' })
+    }
+    
+    if (!customerNameFinal || customerNameFinal.trim() === '') {
+      console.error('[MOVE-TO-RETARGETING] Error: customerName is empty after processing')
+      return res.status(400).json({ message: 'Customer name cannot be empty' })
+    }
+    
+    if (!phoneFinal || phoneFinal.trim() === '') {
+      console.error('[MOVE-TO-RETARGETING] Error: phone is empty after processing')
+      return res.status(400).json({ message: 'Phone cannot be empty' })
+    }
+    
     console.log(`[MOVE-TO-RETARGETING] Prepared values:`, {
-      companyName,
-      customerName,
-      phone,
+      companyName: companyNameFinal,
+      customerName: customerNameFinal,
+      phone: phoneFinal,
       industry,
       manager: record.manager_name
     })
@@ -352,10 +382,10 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *`,
       [
-        companyName, // company_name (NOT NULL)
+        companyNameFinal, // company_name (NOT NULL)
         industry, // industry
-        customerName, // customer_name (NOT NULL)
-        phone, // phone (NOT NULL)
+        customerNameFinal, // customer_name (NOT NULL)
+        phoneFinal, // phone (NOT NULL, VARCHAR(20))
         null, // region
         null, // inflow_path
         record.manager_name, // manager
