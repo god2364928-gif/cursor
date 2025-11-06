@@ -226,12 +226,40 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
       return res.status(403).json({ message: 'You can only delete your own records' })
     }
     
+    // Check if this record is referenced by retargeting_customers (foreign key constraint)
+    const retargetingCheck = await pool.query(
+      'SELECT id FROM retargeting_customers WHERE sales_tracking_id = $1',
+      [id]
+    )
+    
+    if (retargetingCheck.rows.length > 0) {
+      // If referenced, first delete or update retargeting_customers records
+      // Option 1: Delete the retargeting customers (if they should be deleted with the sales tracking record)
+      // Option 2: Set sales_tracking_id to NULL (if they should remain)
+      // For now, we'll set sales_tracking_id to NULL to preserve retargeting data
+      await pool.query(
+        'UPDATE retargeting_customers SET sales_tracking_id = NULL WHERE sales_tracking_id = $1',
+        [id]
+      )
+    }
+    
+    // Now delete the sales tracking record
     await pool.query('DELETE FROM sales_tracking WHERE id = $1', [id])
     
     res.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting sales tracking record:', error)
-    res.status(500).json({ message: 'Internal server error' })
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    })
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message,
+      detail: error.detail
+    })
   }
 })
 
