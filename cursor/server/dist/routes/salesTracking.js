@@ -9,6 +9,7 @@ const router = (0, express_1.Router)();
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
         const search = req.query.search || '';
+        const params = [];
         let query = `
       SELECT 
         id,
@@ -26,22 +27,27 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         memo_note,
         user_id,
         created_at,
-        updated_at,
+        updated_at`;
+        if (search) {
+            query += `,
         CASE
           WHEN manager_name = $1 OR company_name = $1 OR account_id = $1 OR customer_name = $1 OR industry = $1 THEN 1
           WHEN manager_name ILIKE $2 OR company_name ILIKE $2 OR account_id ILIKE $2 OR customer_name ILIKE $2 OR industry ILIKE $2 THEN 2
-        END as match_priority
-      FROM sales_tracking
-    `;
-        const params = [];
+          ELSE 999
+        END as match_priority`;
+        }
+        query += ` FROM sales_tracking`;
         if (search) {
             query += ` WHERE 
         (manager_name = $1 OR company_name = $1 OR account_id = $1 OR customer_name = $1 OR industry = $1) OR
         (manager_name ILIKE $2 OR company_name ILIKE $2 OR account_id ILIKE $2 OR customer_name ILIKE $2 OR industry ILIKE $2)
       `;
             params.push(search.trim(), `${search.trim()}%`);
+            query += ` ORDER BY match_priority, date DESC, created_at DESC`;
         }
-        query += ` ORDER BY match_priority, date DESC, created_at DESC`;
+        else {
+            query += ` ORDER BY date DESC, created_at DESC`;
+        }
         const result = await db_1.pool.query(query, params);
         res.json(result.rows);
     }
