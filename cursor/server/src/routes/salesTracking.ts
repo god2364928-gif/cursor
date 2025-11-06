@@ -389,38 +389,52 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     })
     
     // Create retargeting customer from sales tracking record
-    const retargetingResult = await pool.query(
-      `INSERT INTO retargeting_customers (
-        company_name, industry, customer_name, phone, region, inflow_path,
-        manager, manager_team, status, registered_at, memo, sales_tracking_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING *`,
-      [
-        companyNameFinal, // company_name (NOT NULL)
-        industry, // industry
-        customerNameFinal, // customer_name (NOT NULL)
-        phoneFinal, // phone (NOT NULL, VARCHAR(20))
-        null, // region
-        null, // inflow_path
-        record.manager_name, // manager
-        null, // manager_team
-        '시작', // status
-        record.date || new Date().toISOString().split('T')[0], // registered_at
-        record.memo || null, // memo
-        id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
-      ]
-    )
+    // 트랜잭션으로 안전하게 처리
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      
+      const retargetingResult = await client.query(
+        `INSERT INTO retargeting_customers (
+          company_name, industry, customer_name, phone, region, inflow_path,
+          manager, manager_team, status, registered_at, memo, sales_tracking_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING *`,
+        [
+          companyNameFinal, // company_name (NOT NULL)
+          industry, // industry
+          customerNameFinal, // customer_name (NOT NULL)
+          phoneFinal, // phone (NOT NULL, VARCHAR(20))
+          null, // region
+          null, // inflow_path
+          record.manager_name, // manager
+          null, // manager_team
+          '시작', // status
+          record.date || new Date().toISOString().split('T')[0], // registered_at
+          record.memo || null, // memo
+          id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
+        ]
+      )
+      
+      await client.query('COMMIT')
+      
+      const retargetingCustomer = retargetingResult.rows[0]
+      console.log(`[MOVE-TO-RETARGETING] Successfully created retargeting customer: ${retargetingCustomer.id}`)
+      
+      // Sales tracking record remains unchanged (not deleted)
+      
+      res.json({ 
+        success: true, 
+        retargetingId: retargetingCustomer.id,
+        message: 'Successfully moved to retargeting'
+      })
+    } catch (insertError: any) {
+      await client.query('ROLLBACK')
+      throw insertError
+    } finally {
+      client.release()
+    }
     
-    const retargetingCustomer = retargetingResult.rows[0]
-    console.log(`[MOVE-TO-RETARGETING] Successfully created retargeting customer: ${retargetingCustomer.id}`)
-    
-    // Sales tracking record remains unchanged (not deleted)
-    
-    res.json({ 
-      success: true, 
-      retargetingId: retargetingCustomer.id,
-      message: 'Successfully moved to retargeting'
-    })
   } catch (error: any) {
     console.error('[MOVE-TO-RETARGETING] Error moving to retargeting:', error)
     console.error('[MOVE-TO-RETARGETING] Error details:', {
