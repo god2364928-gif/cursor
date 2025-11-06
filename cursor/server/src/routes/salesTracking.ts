@@ -312,10 +312,29 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     })
     
     // Check if user is the owner of this record (or admin)
-    if (req.user?.role !== 'admin' && record.user_id !== req.user?.id) {
-      console.log(`[MOVE-TO-RETARGETING] Permission denied: user_id mismatch (${req.user?.id} vs ${record.user_id})`)
+    // manager_name으로도 체크 (기존 데이터 호환성)
+    const isOwner = req.user?.role === 'admin' 
+      || record.user_id === req.user?.id
+      || record.manager_name === req.user?.name
+    
+    if (!isOwner) {
+      console.log(`[MOVE-TO-RETARGETING] Permission denied:`, {
+        userRole: req.user?.role,
+        userId: req.user?.id,
+        userName: req.user?.name,
+        recordUserId: record.user_id,
+        recordManagerName: record.manager_name
+      })
       return res.status(403).json({ message: 'You can only move your own records' })
     }
+    
+    console.log(`[MOVE-TO-RETARGETING] Permission granted:`, {
+      userRole: req.user?.role,
+      userId: req.user?.id,
+      userName: req.user?.name,
+      recordUserId: record.user_id,
+      recordManagerName: record.manager_name
+    })
     
     // 이미 리타겟팅으로 이동된 경우 중복 체크
     const existingCheck = await pool.query(
