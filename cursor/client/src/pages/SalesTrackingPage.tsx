@@ -53,6 +53,7 @@ export default function SalesTrackingPage() {
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [currentBaseMonth, setCurrentBaseMonth] = useState<number>(new Date().getMonth()) // 월별 통계용 기준 월
   const [managerFilter, setManagerFilter] = useState<string>(user?.role === 'marketer' ? (user?.name || 'all') : 'all')
   const [managerOptions, setManagerOptions] = useState<string[]>([])
   const [users, setUsers] = useState<any[]>([])
@@ -230,6 +231,51 @@ export default function SalesTrackingPage() {
     setEditingId(null)
     setShowAddForm(false)
     resetForm()
+  }
+
+  // 전월/당월/내월 핸들러
+  const handlePreviousMonth = () => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() // 0-11
+    
+    // 현재 선택된 월에서 한 달 빼기
+    let newYear = selectedYear
+    let newMonth = selectedMonth - 1
+    
+    if (newMonth < 1) {
+      newMonth = 12
+      newYear = selectedYear - 1
+    }
+    
+    setSelectedYear(newYear)
+    setSelectedMonth(newMonth)
+    fetchMonthlyStats(newYear, newMonth)
+  }
+
+  const handleCurrentMonth = () => {
+    const now = new Date()
+    const newYear = now.getFullYear()
+    const newMonth = now.getMonth() + 1
+    
+    setSelectedYear(newYear)
+    setSelectedMonth(newMonth)
+    fetchMonthlyStats(newYear, newMonth)
+  }
+
+  const handleNextMonth = () => {
+    // 현재 선택된 월에서 한 달 더하기
+    let newYear = selectedYear
+    let newMonth = selectedMonth + 1
+    
+    if (newMonth > 12) {
+      newMonth = 1
+      newYear = selectedYear + 1
+    }
+    
+    setSelectedYear(newYear)
+    setSelectedMonth(newMonth)
+    fetchMonthlyStats(newYear, newMonth)
   }
 
   const fetchMonthlyStats = async (year?: number, month?: number) => {
@@ -787,21 +833,23 @@ export default function SalesTrackingPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      const now = new Date()
-                      setSelectedYear(now.getFullYear())
-                      setSelectedMonth(now.getMonth() + 1)
-                      fetchMonthlyStats()
-                    }}
+                    onClick={handlePreviousMonth}
                   >
-                    {t('currentMonth')}
+                    {t('previousMonth')}
                   </Button>
                   <Button
                     variant="default"
                     size="sm"
-                    onClick={fetchMonthlyStats}
+                    onClick={handleCurrentMonth}
                   >
-                    {t('search')}
+                    {t('currentMonth')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextMonth}
+                  >
+                    {t('nextMonth')}
                   </Button>
                   <Button
                     variant="ghost"
