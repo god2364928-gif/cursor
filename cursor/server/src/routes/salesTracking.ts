@@ -361,25 +361,57 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     }
     
     // 필수 필드 준비 (NOT NULL 제약 조건 처리)
-    // 안전하게 null/undefined/빈 문자열 처리
+    // 안전하게 null/undefined/빈 문자열 처리 - 절대 null이 반환되지 않도록 보장
     const safeTrim = (value: any): string => {
       if (value === null || value === undefined) return ''
-      if (typeof value !== 'string') return String(value).trim()
-      return value.trim()
+      if (typeof value !== 'string') {
+        const str = String(value)
+        return str === 'null' || str === 'undefined' ? '' : str.trim()
+      }
+      const trimmed = value.trim()
+      return trimmed === 'null' || trimmed === 'undefined' ? '' : trimmed
     }
+    
+    // 원본 데이터 로깅 (디버깅용)
+    console.log('[MOVE-TO-RETARGETING] 원본 레코드 필드:', {
+      company_name: record.company_name,
+      customer_name: record.customer_name,
+      account_id: record.account_id,
+      phone: record.phone,
+      company_name_type: typeof record.company_name,
+      customer_name_type: typeof record.customer_name,
+      account_id_type: typeof record.account_id,
+      phone_type: typeof record.phone
+    })
     
     // company_name: company_name, customer_name, account_id, 또는 기본값 사용 (company_name 우선)
     const companyNameRaw = safeTrim(record.company_name)
     const customerNameRaw = safeTrim(record.customer_name)
     const accountIdRaw = safeTrim(record.account_id)
-    const companyName = (companyNameRaw || customerNameRaw || accountIdRaw || '未設定')
     
-    // customer_name: customer_name, account_id, 또는 기본값 사용
+    console.log('[MOVE-TO-RETARGETING] safeTrim 결과:', {
+      companyNameRaw: `"${companyNameRaw}"`,
+      customerNameRaw: `"${customerNameRaw}"`,
+      accountIdRaw: `"${accountIdRaw}"`
+    })
+    
+    // 절대 null이 되지 않도록 보장 (빈 문자열도 기본값으로 대체)
+    const companyName = (companyNameRaw || customerNameRaw || accountIdRaw || '未設定')
     const customerName = (customerNameRaw || accountIdRaw || '未設定')
+    
+    console.log('[MOVE-TO-RETARGETING] 값 결정 후:', {
+      companyName: `"${companyName}"`,
+      customerName: `"${customerName}"`
+    })
     
     // phone: phone 필드가 있으면 사용, 없으면 기본값 (NOT NULL 제약 조건, VARCHAR(20) 제한)
     const phoneRaw = safeTrim(record.phone)
     const phone = phoneRaw || '00000000000'
+    
+    console.log('[MOVE-TO-RETARGETING] phone 처리:', {
+      phoneRaw: `"${phoneRaw}"`,
+      phone: `"${phone}"`
+    })
     
     // phone 필드 길이 제한 확인 (VARCHAR(20))
     const phoneFinal = phone.length > 20 ? phone.substring(0, 20) : phone
@@ -387,6 +419,12 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     // company_name과 customer_name도 길이 제한 확인
     const companyNameFinal = companyName.length > 255 ? companyName.substring(0, 255) : companyName
     const customerNameFinal = customerName.length > 100 ? customerName.substring(0, 100) : customerName
+    
+    console.log('[MOVE-TO-RETARGETING] 길이 제한 후:', {
+      companyNameFinal: `"${companyNameFinal}"`,
+      customerNameFinal: `"${customerNameFinal}"`,
+      phoneFinal: `"${phoneFinal}"`
+    })
     
     // industry: 있으면 사용, 없으면 null
     const industry = record.industry || null
@@ -469,10 +507,42 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       
       // 최종 값들을 명시적으로 문자열로 변환하여 null이 들어가지 않도록 보장
       // 추가 안전장치: 모든 값이 유효한지 재확인
-      const safeCompanyName = String(finalCompanyName || '未設定').trim() || '未設定'
-      const safeCustomerName = String(finalCustomerName || '未設定').trim() || '未設定'
-      const safePhone = String(finalPhone || '00000000000').trim() || '00000000000'
-      const safeManagerName = String(managerName || record.manager_name || '').trim()
+      // 절대 null이 반환되지 않도록 다중 안전장치 적용
+      let safeCompanyName = finalCompanyName
+      let safeCustomerName = finalCustomerName
+      let safePhone = finalPhone
+      let safeManagerName = managerName
+      
+      // null/undefined 체크 및 기본값 설정
+      if (!safeCompanyName || safeCompanyName === null || safeCompanyName === undefined || safeCompanyName === '') {
+        safeCompanyName = '未設定'
+        console.warn('[MOVE-TO-RETARGETING] WARNING: safeCompanyName was invalid, using default')
+      }
+      if (!safeCustomerName || safeCustomerName === null || safeCustomerName === undefined || safeCustomerName === '') {
+        safeCustomerName = '未設定'
+        console.warn('[MOVE-TO-RETARGETING] WARNING: safeCustomerName was invalid, using default')
+      }
+      if (!safePhone || safePhone === null || safePhone === undefined || safePhone === '') {
+        safePhone = '00000000000'
+        console.warn('[MOVE-TO-RETARGETING] WARNING: safePhone was invalid, using default')
+      }
+      if (!safeManagerName || safeManagerName === null || safeManagerName === undefined || safeManagerName === '') {
+        safeManagerName = record.manager_name || ''
+        console.warn('[MOVE-TO-RETARGETING] WARNING: safeManagerName was invalid, using record.manager_name')
+      }
+      
+      // 문자열로 변환 (다중 안전장치)
+      safeCompanyName = String(safeCompanyName).trim() || '未設定'
+      safeCustomerName = String(safeCustomerName).trim() || '未設定'
+      safePhone = String(safePhone).trim() || '00000000000'
+      safeManagerName = String(safeManagerName).trim() || (record.manager_name || '')
+      
+      console.log('[MOVE-TO-RETARGETING] safe 변수 생성 후:', {
+        safeCompanyName: `"${safeCompanyName}"`,
+        safeCustomerName: `"${safeCustomerName}"`,
+        safePhone: `"${safePhone}"`,
+        safeManagerName: `"${safeManagerName}"`
+      })
       
       // 최종 안전 검증
       if (!safeCompanyName || safeCompanyName === '' || safeCompanyName === 'null') {
