@@ -949,4 +949,111 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
   }
 })
 
+// Get daily statistics (overall or by manager)
+router.get('/stats/daily', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { startDate, endDate, scope = 'overall', manager = 'all' } = req.query as any
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: 'startDate and endDate are required' })
+    }
+
+    // days series (inclusive)
+    // st_day is the truncated date
+    const baseCTE = `
+      WITH days AS (
+        SELECT generate_series(date_trunc('day', $1::date), date_trunc('day', $2::date), interval '1 day') AS day
+      ),
+      agg AS (
+        SELECT 
+          date_trunc('day', st.date) AS st_day,
+          st.manager_name,
+          COUNT(*) FILTER (WHERE st.contact_method = '電話') AS phone_count,
+          COUNT(*) FILTER (WHERE st.contact_method IN ('DM','LINE','メール','フォーム')) AS send_count,
+          COUNT(*) AS total_count,
+          COUNT(*) FILTER (WHERE st.status = '返信あり' OR st.status LIKE '%返信あり%') AS reply_count,
+          COUNT(*) FILTER (WHERE st.status = '商談中') AS negotiation_count,
+          COUNT(*) FILTER (WHERE st.status = '契約') AS contract_count
+        FROM sales_tracking st
+        WHERE st.date BETWEEN $1::date AND ($2::date + INTERVAL '1 day' - INTERVAL '1 second')
+        GROUP BY st_day, st.manager_name
+      ),
+      retarget AS (
+        SELECT date_trunc('day', st.date) AS st_day, st.manager_name, COUNT(DISTINCT rc.id) AS retargeting_count
+        FROM sales_tracking st
+        INNER JOIN retargeting_customers rc ON rc.sales_tracking_id = st.id
+        WHERE st.date BETWEEN $1::date AND ($2::date + INTERVAL '1 day' - INTERVAL '1 second')
+        GROUP BY st_day, st.manager_name
+      )
+    `
+
+    let query = ''
+    const params = [startDate, endDate]
+
+    if (String(scope) === 'by_manager') {
+      // 날짜 x 담당자
+      query = `
+        ${baseCTE}
+        SELECT 
+          d.day AS date,
+          a.manager_name AS manager,
+          COALESCE(a.phone_count,0) AS phone_count,
+          COALESCE(a.send_count,0) AS send_count,
+          COALESCE(a.total_count,0) AS total_count,
+          COALESCE(a.reply_count,0) AS reply_count,
+          CASE WHEN COALESCE(a.total_count,0) > 0 THEN ROUND((COALESCE(a.reply_count,0)::numeric / a.total_count) * 100, 1) ELSE 0 END AS reply_rate,
+          COALESCE(r.retargeting_count,0) AS retargeting_count,
+          COALESCE(a.negotiation_count,0) AS negotiation_count,
+          COALESCE(a.contract_count,0) AS contract_count
+        FROM days d
+        LEFT JOIN agg a ON a.st_day = d.day
+        LEFT JOIN retarget r ON r.st_day = d.day AND r.manager_name = a.manager_name
+        ${manager && manager !== 'all' ? 'WHERE a.manager_name = $3' : ''}
+        ORDER BY date DESC, manager ASC
+      `
+      if (manager && manager !== 'all') params.push(manager as any)
+    } else {
+      // 날짜 합계(담당자 합산)
+      query = `
+        ${baseCTE}
+        SELECT 
+          d.day AS date,
+          COALESCE(SUM(a.phone_count),0) AS phone_count,
+          COALESCE(SUM(a.send_count),0) AS send_count,
+          COALESCE(SUM(a.total_count),0) AS total_count,
+          COALESCE(SUM(a.reply_count),0) AS reply_count,
+          CASE WHEN COALESCE(SUM(a.total_count),0) > 0 THEN ROUND((SUM(a.reply_count)::numeric / SUM(a.total_count)) * 100, 1) ELSE 0 END AS reply_rate,
+          COALESCE(SUM(r.retargeting_count),0) AS retargeting_count,
+          COALESCE(SUM(a.negotiation_count),0) AS negotiation_count,
+          COALESCE(SUM(a.contract_count),0) AS contract_count
+        FROM days d
+        LEFT JOIN agg a ON a.st_day = d.day
+        LEFT JOIN retarget r ON r.st_day = d.day AND r.manager_name = a.manager_name
+        GROUP BY d.day
+        ORDER BY d.day DESC
+      `
+    }
+
+    const result = await pool.query(query, params)
+
+    const rows = result.rows.map((row: any) => ({
+      date: row.date?.toISOString?.() ? row.date.toISOString().split('T')[0] : row.date,
+      manager: row.manager,
+      phoneCount: parseInt(row.phone_count) || 0,
+      sendCount: parseInt(row.send_count) || 0,
+      totalCount: parseInt(row.total_count) || 0,
+      replyCount: parseInt(row.reply_count) || 0,
+      replyRate: `${(typeof row.reply_rate === 'number' ? row.reply_rate : parseFloat(row.reply_rate || '0')).toFixed(1)}%`,
+      retargetingCount: parseInt(row.retargeting_count) || 0,
+      negotiationCount: parseInt(row.negotiation_count) || 0,
+      contractCount: parseInt(row.contract_count) || 0
+    }))
+
+    res.json(rows)
+  } catch (error: any) {
+    console.error('Error fetching daily stats:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
 export default router

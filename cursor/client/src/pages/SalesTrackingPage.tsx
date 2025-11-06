@@ -54,12 +54,19 @@ export default function SalesTrackingPage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showStatsModal, setShowStatsModal] = useState(false)
+  const [showDailyStatsModal, setShowDailyStatsModal] = useState(false)
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [managerFilter, setManagerFilter] = useState<string>(user?.role === 'marketer' ? (user?.name || 'all') : 'all')
   const [managerOptions, setManagerOptions] = useState<string[]>([])
   const [, setUsers] = useState<any[]>([])
+  // Daily stats state
+  const [dailyStart, setDailyStart] = useState<string>('')
+  const [dailyEnd, setDailyEnd] = useState<string>('')
+  const [dailyScope, setDailyScope] = useState<'overall' | 'by_manager'>('overall')
+  const [dailyManager, setDailyManager] = useState<string>('all')
+  const [dailyStats, setDailyStats] = useState<any[]>([])
   
   // 이전 검색 요청 취소용
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -185,6 +192,34 @@ export default function SalesTrackingPage() {
       setRecords([]) // 에러 발생 시 빈 배열로 설정
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Daily stats
+  const openDailyStats = () => {
+    // default: this month
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth(), 1)
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    const startStr = start.toISOString().split('T')[0]
+    const endStr = end.toISOString().split('T')[0]
+    setDailyStart(startStr)
+    setDailyEnd(endStr)
+    setDailyScope('overall')
+    setDailyManager('all')
+    setShowDailyStatsModal(true)
+    fetchDailyStats(startStr, endStr, 'overall', 'all')
+  }
+
+  const fetchDailyStats = async (startDate: string, endDate: string, scope: 'overall'|'by_manager', manager: string) => {
+    try {
+      const params: any = { startDate, endDate, scope }
+      if (scope === 'by_manager' && manager && manager !== 'all') params.manager = manager
+      const response = await api.get('/sales-tracking/stats/daily', { params })
+      setDailyStats(response.data || [])
+    } catch (e) {
+      console.error('Failed to fetch daily stats', e)
+      setDailyStats([])
     }
   }
 
@@ -543,6 +578,14 @@ export default function SalesTrackingPage() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold">{t('salesTracking')}</h1>
         <div className="flex gap-2">
+          <Button 
+            onClick={openDailyStats}
+            variant="outline"
+            className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300 font-medium"
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            {t('dailyStats')}
+          </Button>
           <Button 
             onClick={() => fetchMonthlyStats()} 
             variant="outline"
@@ -960,6 +1003,121 @@ export default function SalesTrackingPage() {
                           <td className="px-3 py-2 border-r text-right">{stat.retargetingCount}</td>
                           <td className="px-3 py-2 border-r text-right">{stat.negotiationCount}</td>
                           <td className="px-3 py-2 text-right">{stat.contractCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Daily Stats Modal */}
+      {showDailyStatsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-5xl max-h-[90vh] flex flex-col bg-white shadow-2xl">
+            <CardHeader className="flex-shrink-0">
+              <CardTitle className="flex items-center justify-between flex-wrap gap-2">
+                <span>{t('dailyStats')}</span>
+                <div className="flex gap-2 flex-wrap items-center">
+                  <input
+                    type="date"
+                    className="px-3 py-2 border rounded text-sm"
+                    value={dailyStart}
+                    onChange={e => {
+                      const v = e.target.value
+                      setDailyStart(v)
+                      fetchDailyStats(v, dailyEnd, dailyScope, dailyManager)
+                    }}
+                  />
+                  <span>~</span>
+                  <input
+                    type="date"
+                    className="px-3 py-2 border rounded text-sm"
+                    value={dailyEnd}
+                    onChange={e => {
+                      const v = e.target.value
+                      setDailyEnd(v)
+                      fetchDailyStats(dailyStart, v, dailyScope, dailyManager)
+                    }}
+                  />
+                  <select
+                    value={dailyScope}
+                    onChange={e => {
+                      const v = e.target.value as 'overall'|'by_manager'
+                      setDailyScope(v)
+                      fetchDailyStats(dailyStart, dailyEnd, v, dailyManager)
+                    }}
+                    className="px-3 py-2 border rounded text-sm"
+                  >
+                    <option value="overall">{t('overall')}</option>
+                    <option value="by_manager">{t('byManager')}</option>
+                  </select>
+                  {dailyScope === 'by_manager' && (
+                    <select
+                      value={dailyManager}
+                      onChange={e => {
+                        const v = e.target.value
+                        setDailyManager(v)
+                        fetchDailyStats(dailyStart, dailyEnd, dailyScope, v)
+                      }}
+                      className="px-3 py-2 border rounded text-sm"
+                    >
+                      <option value="all">{t('all')}</option>
+                      {managerOptions.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDailyStatsModal(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-auto">
+              {dailyStats.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">{t('noData')}</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium border-r w-28">{t('date')}</th>
+                        {dailyScope === 'by_manager' && (
+                          <th className="px-3 py-2 text-left font-medium border-r w-32">{t('managerName')}</th>
+                        )}
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('phoneCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('sendCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('totalCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('replyCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('replyRate')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-24">{t('retargetingCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium border-r w-20">{t('negotiationCount')}</th>
+                        <th className="px-3 py-2 text-right font-medium w-20">{t('contractCount')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyStats.map((row, idx) => (
+                        <tr key={idx} className="border-b hover:bg-gray-50">
+                          <td className="px-3 py-2 border-r">{row.date}</td>
+                          {dailyScope === 'by_manager' && (
+                            <td className="px-3 py-2 border-r">{row.manager}</td>
+                          )}
+                          <td className="px-3 py-2 border-r text-right">{row.phoneCount}</td>
+                          <td className="px-3 py-2 border-r text-right">{row.sendCount}</td>
+                          <td className="px-3 py-2 border-r text-right font-medium">{row.totalCount}</td>
+                          <td className="px-3 py-2 border-r text-right">{row.replyCount}</td>
+                          <td className="px-3 py-2 border-r text-right">{row.replyRate}</td>
+                          <td className="px-3 py-2 border-r text-right">{row.retargetingCount}</td>
+                          <td className="px-3 py-2 border-r text-right">{row.negotiationCount}</td>
+                          <td className="px-3 py-2 text-right">{row.contractCount}</td>
                         </tr>
                       ))}
                     </tbody>
