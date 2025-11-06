@@ -518,16 +518,16 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       console.error('[MOVE-TO-RETARGETING] 오류 스택:', insertError.stack)
       console.error('[MOVE-TO-RETARGETING] 전체 오류 객체:', JSON.stringify(insertError, Object.getOwnPropertyNames(insertError), 2))
       
-          if (insertValues && insertValues.length > 0) {
-            console.error('[MOVE-TO-RETARGETING] 실제 전달된 값 재확인:')
-            const paramNames = ['company_name', 'industry', 'customer_name', 'phone', 'region', 'inflow_path', 
-                               'manager', 'manager_team', 'status', 'registered_at', 'memo', 'homepage', 'instagram', 'main_keywords', 'sales_tracking_id']
-            insertValues.forEach((v, i) => {
-              console.error(`   [$${i + 1}] ${paramNames[i]}: ${v === null ? 'null' : JSON.stringify(v)} (타입: ${typeof v}, null: ${v === null}, undefined: ${v === undefined}, 빈문자열: ${v === ''})`)
-            })
-          } else {
-            console.error('[MOVE-TO-RETARGETING] insertValues가 비어있거나 정의되지 않았습니다!')
-          }
+      if (insertValues && insertValues.length > 0) {
+        console.error('[MOVE-TO-RETARGETING] 실제 전달된 값 재확인:')
+        const paramNames = ['company_name', 'industry', 'customer_name', 'phone', 'region', 'inflow_path', 
+                           'manager', 'manager_team', 'status', 'registered_at', 'memo', 'homepage', 'instagram', 'main_keywords', 'sales_tracking_id']
+        insertValues.forEach((v, i) => {
+          console.error(`   [$${i + 1}] ${paramNames[i]}: ${v === null ? 'null' : JSON.stringify(v)} (타입: ${typeof v}, null: ${v === null}, undefined: ${v === undefined}, 빈문자열: ${v === ''})`)
+        })
+      } else {
+        console.error('[MOVE-TO-RETARGETING] insertValues가 비어있거나 정의되지 않았습니다!')
+      }
       console.error('[MOVE-TO-RETARGETING] ========== ERROR END ==========')
       
       throw insertError
