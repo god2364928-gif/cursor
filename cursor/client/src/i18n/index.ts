@@ -145,7 +145,7 @@ const translations: Record<Language, Translation> = {
     regionPlaceholder: 'ソウル、京畿、釜山 など',
     inflowPath: '流入経路',
     homepage: 'ホームページ',
-    instagram: 'インスタグラム',
+    instagram: 'インスタグラムID',
     mainKeywords: 'メインキーワード',
     monthlyBudget: '月額予算',
     contractStartDate: '契約開始日',
@@ -284,7 +284,7 @@ const translations: Record<Language, Translation> = {
     // Sales Tracking
     date: '日付',
     managerName: '担当者名',
-    accountId: 'アカウントID',
+    accountId: 'インスタグラムID',
     customerName: '顧客名',
     industry: '業種',
     contactMethod: '営業方法',

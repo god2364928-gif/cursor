@@ -376,25 +376,27 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       manager_name: record.manager_name
     })
     
-    // company_name: company_name, customer_name, account_id 순으로 fallback
+    // company_name: company_name, customer_name 순으로 fallback (account_id는 제외)
     const companyName = firstValidString(
-      [record.company_name, record.customer_name, record.account_id],
-      '未設定'
+      [record.company_name, record.customer_name],
+      '' // 빈 값 허용
     )
-    const companyNameFinal = safeStringWithLength(companyName, '未設定', 255)
+    const companyNameFinal = companyName ? safeStringWithLength(companyName, '', 255) : '未設定'
     
-    // customer_name: customer_name, account_id 순으로 fallback
-    const customerName = firstValidString(
-      [record.customer_name, record.account_id],
-      '未設定'
-    )
-    const customerNameFinal = safeStringWithLength(customerName, '未設定', 100)
+    // customer_name: customer_name만 사용 (account_id는 제외)
+    const customerName = safeString(record.customer_name, '')
+    const customerNameFinal = customerName ? safeStringWithLength(customerName, '', 100) : '未設定'
     
     // phone: phone 필드가 있으면 사용, 없으면 기본값 (NOT NULL 제약 조건, VARCHAR(20) 제한)
     const phoneFinal = safeStringWithLength(record.phone, '00000000000', 20)
     
-    // industry: 있으면 사용, 없으면 null
-    const industry = record.industry || null
+    // industry: 있으면 사용, 없으면 null (빈 값 허용)
+    const industry = record.industry ? record.industry.trim() : null
+    const industryFinal = (industry && industry !== '') ? industry : null
+    
+    // instagram: account_id를 instagram 필드에 저장 (빈 값 허용)
+    const instagram = safeString(record.account_id, '')
+    const instagramFinal = (instagram && instagram !== '') ? instagram.trim() : null
     
     // manager_name: 필수
     const managerName = safeString(record.manager_name, '')
@@ -411,7 +413,8 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       customerNameFinal,
       phoneFinal,
       managerName,
-      industry
+      industry: industryFinal,
+      instagram: instagramFinal
     })
     
     // Create retargeting customer from sales tracking record
@@ -425,10 +428,14 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       
       const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
       
+      // memo: 빈 값 허용
+      const memoFinal = record.memo ? record.memo.trim() : null
+      const memoFinalValue = (memoFinal && memoFinal !== '') ? memoFinal : null
+      
       // insertValues 배열 생성 (null-safe 유틸리티로 이미 처리된 값들 사용)
       insertValues = [
         companyNameFinal, // company_name (NOT NULL) - null-safe 처리 완료
-        industry, // industry
+        industryFinal, // industry (null 허용)
         customerNameFinal, // customer_name (NOT NULL) - null-safe 처리 완료
         phoneFinal, // phone (NOT NULL) - null-safe 처리 완료
         null, // region
@@ -437,7 +444,10 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
         null, // manager_team
         '시작', // status
         registeredAtDate, // registered_at (YYYY-MM-DD 형식)
-        record.memo || null, // memo
+        memoFinalValue, // memo (null 허용)
+        null, // homepage
+        instagramFinal, // instagram (account_id에서 가져옴, null 허용)
+        null, // main_keywords
         id // sales_tracking_id
       ]
       
@@ -457,7 +467,7 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
         manager: insertValues[6],
         allValues: insertValues.map((v, i) => {
           const paramNames = ['company_name', 'industry', 'customer_name', 'phone', 'region', 'inflow_path', 
-                             'manager', 'manager_team', 'status', 'registered_at', 'memo', 'sales_tracking_id']
+                             'manager', 'manager_team', 'status', 'registered_at', 'memo', 'homepage', 'instagram', 'main_keywords', 'sales_tracking_id']
           return {
             param: paramNames[i],
             value: v === null ? 'null' : JSON.stringify(v),
@@ -473,8 +483,8 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       const retargetingResult = await client.query(
         `INSERT INTO retargeting_customers (
           company_name, industry, customer_name, phone, region, inflow_path,
-          manager, manager_team, status, registered_at, memo, sales_tracking_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          manager, manager_team, status, registered_at, memo, homepage, instagram, main_keywords, sales_tracking_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING *`,
         insertValues
       )
