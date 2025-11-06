@@ -716,12 +716,12 @@ export default function SalesTrackingPage() {
                   <th className="px-2 py-2 text-left font-medium border-r w-24">{t('date')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-28">{t('managerName')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('companyName')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r w-32">{t('accountId')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r w-32">{t('customerName')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-24">{t('industry')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-32">{t('customerName')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-24">{t('phone')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-32">{t('accountId')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('contactMethod')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('status')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r w-24">{t('phone')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('memo')}</th>
                   <th className="px-2 py-2 text-center font-medium w-20">{t('actions')}</th>
                 </tr>
@@ -745,12 +745,12 @@ export default function SalesTrackingPage() {
                       <td className="px-2 py-1 border-r whitespace-nowrap">{formatDate(record.date)}</td>
                       <td className="px-2 py-1 border-r">{record.manager_name}</td>
                       <td className="px-2 py-1 border-r">{record.company_name || '-'}</td>
-                      <td className="px-2 py-1 border-r">{record.account_id || '-'}</td>
-                      <td className="px-2 py-1 border-r">{record.customer_name || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.industry || '-'}</td>
+                      <td className="px-2 py-1 border-r">{record.customer_name || '-'}</td>
+                      <td className="px-2 py-1 border-r">{record.phone || '-'}</td>
+                      <td className="px-2 py-1 border-r">{record.account_id || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.contact_method || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.status}</td>
-                      <td className="px-2 py-1 border-r">{record.phone || '-'}</td>
                       <td className="px-2 py-1 border-r truncate max-w-xs" title={record.memo || ''}>
                         {record.memo || '-'}
                       </td>
