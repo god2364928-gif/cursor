@@ -169,7 +169,7 @@ export default function SalesPage() {
   const handleAddSale = async () => {
     const companyName = (document.getElementById('add-companyName') as HTMLInputElement)?.value
     const payerName = (document.getElementById('add-payerName') as HTMLInputElement)?.value
-    const paymentMethod = (document.getElementById('add-paymentMethod') as HTMLSelectElement)?.value
+    const paymentMethodValue = (document.getElementById('add-paymentMethod') as HTMLSelectElement)?.value
     const salesType = (document.getElementById('add-salesType') as HTMLSelectElement)?.value
     const sourceType = (document.getElementById('add-sourceType') as HTMLSelectElement)?.value
     let amount = parseFormattedNumber((document.getElementById('add-amount') as HTMLInputElement)?.value || '0')
@@ -215,7 +215,7 @@ export default function SalesPage() {
     if (!editingSale) return
 
     const payerName = (document.getElementById('edit-payerName') as HTMLInputElement)?.value
-    const paymentMethod = (document.getElementById('edit-paymentMethod') as HTMLSelectElement)?.value
+    const paymentMethodValue = (document.getElementById('edit-paymentMethod') as HTMLSelectElement)?.value
     const salesType = (document.getElementById('edit-salesType') as HTMLSelectElement)?.value
     const sourceType = (document.getElementById('edit-sourceType') as HTMLSelectElement)?.value
     let amount = parseFormattedNumber((document.getElementById('edit-amount') as HTMLInputElement)?.value || '0')
