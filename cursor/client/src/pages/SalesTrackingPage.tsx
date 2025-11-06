@@ -878,7 +878,7 @@ export default function SalesTrackingPage() {
                     className="px-3 py-2 border rounded text-sm"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                      <option key={month} value={month}>{month} {t('month')}</option>
+                      <option key={month} value={month}>{month} {t('monthLabel')}</option>
                     ))}
                   </select>
                   <Button
