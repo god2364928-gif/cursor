@@ -317,6 +317,20 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       return res.status(403).json({ message: 'You can only move your own records' })
     }
     
+    // 이미 리타겟팅으로 이동된 경우 중복 체크
+    const existingCheck = await pool.query(
+      'SELECT id FROM retargeting_customers WHERE sales_tracking_id = $1',
+      [id]
+    )
+    
+    if (existingCheck.rows.length > 0) {
+      console.log(`[MOVE-TO-RETARGETING] Already moved to retargeting: ${existingCheck.rows[0].id}`)
+      return res.status(400).json({ 
+        message: '이미 리타겟팅으로 이동된 레코드입니다',
+        retargetingId: existingCheck.rows[0].id
+      })
+    }
+    
     // 필수 필드 준비 (NOT NULL 제약 조건 처리)
     // company_name: customer_name, account_id, 또는 기본값 사용
     // 빈 문자열도 null로 처리
