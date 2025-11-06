@@ -291,19 +291,58 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
   try {
     const { id } = req.params
     
+    console.log(`[MOVE-TO-RETARGETING] Attempting to move sales_tracking record: ${id}`)
+    console.log(`[MOVE-TO-RETARGETING] User: ${req.user?.name} (${req.user?.id}), Role: ${req.user?.role}`)
+    
     // Get sales tracking record
     const recordResult = await pool.query('SELECT * FROM sales_tracking WHERE id = $1', [id])
     
     if (recordResult.rows.length === 0) {
+      console.log(`[MOVE-TO-RETARGETING] Record not found: ${id}`)
       return res.status(404).json({ message: 'Sales tracking record not found' })
     }
     
     const record = recordResult.rows[0]
+    console.log(`[MOVE-TO-RETARGETING] Record found:`, {
+      customer_name: record.customer_name,
+      account_id: record.account_id,
+      phone: record.phone,
+      manager_name: record.manager_name,
+      industry: record.industry
+    })
     
     // Check if user is the owner of this record (or admin)
     if (req.user?.role !== 'admin' && record.user_id !== req.user?.id) {
+      console.log(`[MOVE-TO-RETARGETING] Permission denied: user_id mismatch (${req.user?.id} vs ${record.user_id})`)
       return res.status(403).json({ message: 'You can only move your own records' })
     }
+    
+    // 필수 필드 준비 (NOT NULL 제약 조건 처리)
+    // company_name: customer_name, account_id, 또는 기본값 사용
+    const companyName = record.customer_name || record.account_id || '（未設定）'
+    
+    // customer_name: customer_name, account_id, 또는 기본값 사용
+    const customerName = record.customer_name || record.account_id || '（未設定）'
+    
+    // phone: phone 필드가 있으면 사용, 없으면 기본값 (NOT NULL 제약 조건)
+    const phone = record.phone || '（未設定）'
+    
+    // industry: 있으면 사용, 없으면 null
+    const industry = record.industry || null
+    
+    // manager_name: 필수
+    if (!record.manager_name) {
+      console.error('[MOVE-TO-RETARGETING] Error: manager_name is required but not found')
+      return res.status(400).json({ message: 'Manager name is required' })
+    }
+    
+    console.log(`[MOVE-TO-RETARGETING] Prepared values:`, {
+      companyName,
+      customerName,
+      phone,
+      industry,
+      manager: record.manager_name
+    })
     
     // Create retargeting customer from sales tracking record
     const retargetingResult = await pool.query(
@@ -313,22 +352,23 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *`,
       [
-        record.customer_name || record.account_id || null, // company_name
-        record.industry || null,
-        record.customer_name || null,
-        record.phone || null,
+        companyName, // company_name (NOT NULL)
+        industry, // industry
+        customerName, // customer_name (NOT NULL)
+        phone, // phone (NOT NULL)
         null, // region
         null, // inflow_path
-        record.manager_name,
+        record.manager_name, // manager
         null, // manager_team
         '시작', // status
         record.date || new Date().toISOString().split('T')[0], // registered_at
-        record.memo || null,
+        record.memo || null, // memo
         id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
       ]
     )
     
     const retargetingCustomer = retargetingResult.rows[0]
+    console.log(`[MOVE-TO-RETARGETING] Successfully created retargeting customer: ${retargetingCustomer.id}`)
     
     // Sales tracking record remains unchanged (not deleted)
     
@@ -338,8 +378,19 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       message: 'Successfully moved to retargeting'
     })
   } catch (error: any) {
-    console.error('Error moving to retargeting:', error)
-    res.status(500).json({ message: 'Internal server error', error: error.message })
+    console.error('[MOVE-TO-RETARGETING] Error moving to retargeting:', error)
+    console.error('[MOVE-TO-RETARGETING] Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      stack: error.stack
+    })
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message,
+      detail: error.detail
+    })
   }
 })
 
