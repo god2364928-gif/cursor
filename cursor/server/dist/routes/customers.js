@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
+const nullSafe_1 = require("../utils/nullSafe");
 const multer_1 = __importDefault(require("multer"));
 const router = (0, express_1.Router)();
 // Helper function to decode file name
@@ -33,10 +34,12 @@ const upload = (0, multer_1.default)({
 router.post('/', auth_1.authMiddleware, async (req, res) => {
     try {
         const { companyName, industry, customerName, phone1, phone2, phone3, customerType, businessModel, region, homepage, blog, instagram, otherChannel, mainKeywords, monthlyBudget, contractStartDate, contractExpirationDate, productType, paymentDate, status, inflowPath, manager, managerTeam, memo } = req.body;
-        // 필수 필드 검증
-        if (!companyName || !customerName || !phone1) {
-            return res.status(400).json({ message: 'Company name, customer name, and phone1 are required' });
-        }
+        // null-safe 처리: 빈 문자열도 기본값으로 처리 (DB NOT NULL 제약조건 대응, 필수값 검증 제거)
+        // DB에 NOT NULL 제약조건이 있으므로 빈 문자열일 때 기본값 사용
+        const safeCompanyName = (0, nullSafe_1.safeStringWithLength)(companyName || '', '未設定', 255);
+        const safeIndustry = industry || null;
+        const safeCustomerName = (0, nullSafe_1.safeStringWithLength)(customerName || '', '未設定', 100);
+        const safePhone1 = (0, nullSafe_1.safeStringWithLength)(phone1 || '', '00000000000', 20);
         // 담당자와 팀을 자동으로 설정 (없으면 현재 사용자 정보)
         const finalManager = manager || req.user?.name;
         const finalTeam = managerTeam || req.user?.team;
@@ -49,7 +52,7 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
         inflow_path, manager, manager_team, memo
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
       RETURNING *`, [
-            companyName, industry, customerName, req.body.title || null, phone1, phone2 || null, phone3 || null,
+            safeCompanyName, safeIndustry, safeCustomerName, req.body.title || null, safePhone1, phone2 || null, phone3 || null,
             customerType || null, businessModel || null, region || null,
             homepage || null, blog || null, instagram || null,
             otherChannel || null, req.body.kpiDataUrl || null, req.body.topExposureCount || 0,
@@ -354,8 +357,19 @@ router.put('/:id', auth_1.authMiddleware, async (req, res) => {
         };
         for (const [key, value] of Object.entries(updates)) {
             if (fieldMap[key]) {
+                let processedValue = value;
+                // NOT NULL 필드에 대한 null-safe 처리 (빈 문자열일 때 기본값 사용)
+                if (fieldMap[key] === 'company_name' && (!value || value === '')) {
+                    processedValue = '未設定';
+                }
+                else if (fieldMap[key] === 'customer_name' && (!value || value === '')) {
+                    processedValue = '未設定';
+                }
+                else if (fieldMap[key] === 'phone1' && (!value || value === '')) {
+                    processedValue = '00000000000';
+                }
                 setClause.push(`${fieldMap[key]} = $${paramCount++}`);
-                values.push(value);
+                values.push(processedValue);
             }
         }
         if (setClause.length === 0) {

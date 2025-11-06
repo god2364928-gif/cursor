@@ -719,17 +719,10 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
             console.error(`  [${row.manager_name}] exact: ${row.reply_count_exact}, like_ari: ${row.reply_count_like_ari}, like_all: ${row.reply_count_like_all}, 최종: ${reply}`);
             const replyRate = total > 0 ? ((reply / total) * 100).toFixed(1) : '0.0';
             // 리타획득수: 맵에서 조회, 없으면 0 (작업에서 직접 이동한 건만 집계)
-            // 안전장치: 명시적으로 0으로 설정 (혹시 모를 오류 방지)
             let retargetingCount = 0;
             if (retargetingCountMap.has(row.manager_name)) {
                 const mapValue = retargetingCountMap.get(row.manager_name);
                 retargetingCount = (mapValue !== undefined && mapValue !== null && !isNaN(mapValue)) ? parseInt(String(mapValue)) : 0;
-            }
-            // 안전장치: retargetingCount가 0이 아닌 경우 경고 및 0으로 강제 설정
-            if (retargetingCount !== 0) {
-                process.stdout.write(`   ⚠️ 경고: ${row.manager_name}의 리타획득수가 0이 아닙니다: ${retargetingCount} -> 0으로 강제 설정\n`);
-                console.error(`   ⚠️ 경고: ${row.manager_name}의 리타획득수가 0이 아닙니다: ${retargetingCount} -> 0으로 강제 설정`);
-                retargetingCount = 0;
             }
             // 디버깅: 각 담당자별 리타획득수 확인
             process.stdout.write(`   [${row.manager_name}] 리타획득수: ${retargetingCount} (맵에 존재: ${retargetingCountMap.has(row.manager_name)})\n`);
@@ -741,7 +734,7 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
                 totalCount: total,
                 replyCount: reply,
                 replyRate: `${replyRate}%`,
-                retargetingCount: 0, // 작업에서 직접 이동한 건만 집계 (현재는 항상 0)
+                retargetingCount: retargetingCount, // 작업에서 직접 이동한 건만 집계
                 negotiationCount: parseInt(row.negotiation_count) || 0,
                 contractCount: parseInt(row.contract_count) || 0
             };
@@ -775,10 +768,6 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
         stats.forEach(stat => {
             process.stdout.write(`   - ${stat.manager}: ${stat.retargetingCount}\n`);
             console.error(`   - ${stat.manager}: ${stat.retargetingCount}`);
-            if (stat.retargetingCount !== 0) {
-                process.stdout.write(`     ⚠️ 경고: 리타획득수가 0이 아닙니다!\n`);
-                console.error(`     ⚠️ 경고: 리타획득수가 0이 아닙니다!`);
-            }
         });
         // 응답 구조: stats 배열과 debug 정보를 함께 반환
         const responseData = {

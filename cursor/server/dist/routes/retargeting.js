@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
+const nullSafe_1 = require("../utils/nullSafe");
 const multer_1 = __importDefault(require("multer"));
 const XLSX = __importStar(require("xlsx"));
 const sync_1 = require("csv-parse/sync");
@@ -115,11 +116,16 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
 router.post('/', auth_1.authMiddleware, async (req, res) => {
     try {
         const { companyName, industry, customerName, phone, region, inflowPath, manager, managerTeam, status, registeredAt, contractHistoryCategory } = req.body;
+        // null-safe 처리: 빈 문자열도 기본값으로 처리 (DB NOT NULL 제약조건 대응)
+        const safeCompanyName = (0, nullSafe_1.safeStringWithLength)(companyName || '', '未設定', 255);
+        const safeIndustry = industry || null;
+        const safeCustomerName = (0, nullSafe_1.safeStringWithLength)(customerName || '', '未設定', 100);
+        const safePhone = (0, nullSafe_1.safeStringWithLength)(phone || '', '00000000000', 20);
         const result = await db_1.pool.query(`INSERT INTO retargeting_customers (
         company_name, industry, customer_name, phone, region, inflow_path,
         manager, manager_team, status, registered_at, contract_history_category
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING *`, [companyName, industry, customerName, phone || null, region || null, inflowPath || null,
+      RETURNING *`, [safeCompanyName, safeIndustry, safeCustomerName, safePhone, region || null, inflowPath || null,
             manager, managerTeam || null, status || '시작', registeredAt || new Date().toISOString().split('T')[0], contractHistoryCategory || null]);
         const customer = result.rows[0];
         const camelCaseCustomer = {
@@ -202,12 +208,17 @@ router.put('/:id', auth_1.authMiddleware, async (req, res) => {
         if (req.user?.role !== 'admin' && customerManager !== userName) {
             return res.status(403).json({ message: 'You can only edit retargeting customers assigned to you' });
         }
+        // null-safe 처리: 빈 문자열도 기본값으로 처리 (DB NOT NULL 제약조건 대응)
+        const safeCompanyName = (0, nullSafe_1.safeStringWithLength)(companyName || '', '未設定', 255);
+        const safeIndustry = industry || null;
+        const safeCustomerName = (0, nullSafe_1.safeStringWithLength)(customerName || '', '未設定', 100);
+        const safePhone = (0, nullSafe_1.safeStringWithLength)(phone || '', '00000000000', 20);
         await db_1.pool.query(`UPDATE retargeting_customers SET
         company_name = $1, industry = $2, customer_name = $3, phone = $4,
         region = $5, inflow_path = $6, manager = $7, manager_team = $8,
         status = $9, last_contact_date = $10, contract_history_category = $11,
         memo = $12, homepage = $13, instagram = $14, main_keywords = $15, registered_at = $16
-      WHERE id = $17`, [companyName, industry, customerName, phone || null, region, inflowPath,
+      WHERE id = $17`, [safeCompanyName, safeIndustry, safeCustomerName, safePhone, region, inflowPath,
             manager, managerTeam, status, lastContactDate, contractHistoryCategory, memo, homepage, instagram, mainKeywords, registeredAt, id]);
         res.json({ success: true });
     }
