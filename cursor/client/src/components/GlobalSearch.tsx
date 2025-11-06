@@ -21,8 +21,9 @@ export default function GlobalSearch() {
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Debounce search
+  // Debounce search with request cancellation
   useEffect(() => {
     if (!query.trim()) {
       setResults([])
@@ -30,10 +31,19 @@ export default function GlobalSearch() {
       return
     }
 
+    // 이전 요청 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
     const timeoutId = setTimeout(async () => {
       try {
+        // 새로운 AbortController 생성
+        abortControllerRef.current = new AbortController()
+        
         const response = await api.get('/global-search', {
-          params: { q: query }
+          params: { q: query },
+          signal: abortControllerRef.current.signal
         })
         console.log('Global search response:', response.data)
         console.log('Response type:', typeof response.data)
@@ -45,7 +55,12 @@ export default function GlobalSearch() {
         setResults(Array.isArray(response.data) ? response.data : [])
         setIsOpen(Array.isArray(response.data) && response.data.length > 0)
         setSelectedIndex(-1)
-      } catch (error) {
+      } catch (error: any) {
+        // AbortError는 무시 (이전 요청이 취소된 것)
+        if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+          console.log('Previous search request cancelled')
+          return
+        }
         console.error('Search error:', error)
         setResults([])
         setIsOpen(false)

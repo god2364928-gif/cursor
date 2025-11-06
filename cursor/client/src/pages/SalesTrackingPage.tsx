@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
@@ -61,6 +61,9 @@ export default function SalesTrackingPage() {
   const [managerOptions, setManagerOptions] = useState<string[]>([])
   const [, setUsers] = useState<any[]>([])
   
+  // 이전 검색 요청 취소용
+  const abortControllerRef = useRef<AbortController | null>(null)
+  
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 100
@@ -115,7 +118,15 @@ export default function SalesTrackingPage() {
   }, [user])
 
   useEffect(() => {
-    fetchRecords()
+    // 이전 요청 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // 새로운 AbortController 생성
+    abortControllerRef.current = new AbortController()
+    
+    fetchRecords(abortControllerRef.current.signal)
   }, [searchQuery, managerFilter])
 
   // 통합검색에서 선택한 레코드 처리
@@ -153,16 +164,21 @@ export default function SalesTrackingPage() {
     }
   }, [location.state, records, managerFilter, navigate, location.pathname, itemsPerPage])
 
-  const fetchRecords = async () => {
+  const fetchRecords = async (signal?: AbortSignal) => {
     try {
       setLoading(true)
       const params: any = {}
       if (searchQuery) {
         params.search = searchQuery
       }
-      const response = await api.get('/sales-tracking', { params })
+      const response = await api.get('/sales-tracking', { params, signal })
       setRecords(response.data || [])
     } catch (error: any) {
+      // AbortError는 무시 (이전 요청이 취소된 것)
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+        console.log('Previous fetch request cancelled')
+        return
+      }
       console.error('Failed to fetch records:', error)
       const errorMessage = error.response?.data?.message || error.message || t('error')
       showToast(errorMessage, 'error')
