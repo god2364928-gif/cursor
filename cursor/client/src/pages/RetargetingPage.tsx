@@ -850,7 +850,7 @@ export default function RetargetingPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xl font-bold">{t('retargeting')}</h2>
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>+ {t('add')}</Button>
+                <Button size="sm" onClick={() => setShowAddForm(!showAddForm)} className="bg-green-500 hover:bg-green-600 text-white">+ {t('add')}</Button>
               </div>
             </div>
             
