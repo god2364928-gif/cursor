@@ -13,6 +13,7 @@ interface SalesTrackingRecord {
   id: string
   date: string
   manager_name: string
+  company_name?: string
   account_id?: string
   customer_name?: string
   industry?: string
@@ -66,6 +67,7 @@ export default function SalesTrackingPage() {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     managerName: user?.name || '',
+    companyName: '',
     accountId: '',
     customerName: '',
     industry: '',
@@ -191,6 +193,7 @@ export default function SalesTrackingPage() {
     setFormData({
       date: new Date().toISOString().split('T')[0],
       managerName: user?.name || '',
+      companyName: '',
       accountId: '',
       customerName: '',
       industry: '',
@@ -214,6 +217,7 @@ export default function SalesTrackingPage() {
     setFormData({
       date: record.date,
       managerName: record.manager_name,
+      companyName: record.company_name || '',
       accountId: record.account_id || '',
       customerName: record.customer_name || '',
       industry: record.industry || '',
@@ -569,6 +573,13 @@ export default function SalesTrackingPage() {
                 />
               </div>
               <div>
+                <label className="text-sm font-medium">{t('companyName')}</label>
+                <Input
+                  value={formData.companyName}
+                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                />
+              </div>
+              <div>
                 <label className="text-sm font-medium">{t('accountId')}</label>
                 <Input
                   value={formData.accountId}
@@ -666,6 +677,7 @@ export default function SalesTrackingPage() {
                 <tr>
                   <th className="px-2 py-2 text-left font-medium border-r w-24">{t('date')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-28">{t('managerName')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-32">{t('companyName')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('accountId')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('customerName')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-24">{t('industry')}</th>
@@ -679,13 +691,13 @@ export default function SalesTrackingPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
                       {t('loading')}
                     </td>
                   </tr>
                 ) : filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
                       {t('noData')}
                     </td>
                   </tr>
@@ -694,6 +706,7 @@ export default function SalesTrackingPage() {
                     <tr key={record.id} className="border-b hover:bg-gray-50">
                       <td className="px-2 py-1 border-r whitespace-nowrap">{formatDate(record.date)}</td>
                       <td className="px-2 py-1 border-r">{record.manager_name}</td>
+                      <td className="px-2 py-1 border-r">{record.company_name || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.account_id || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.customer_name || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.industry || '-'}</td>
