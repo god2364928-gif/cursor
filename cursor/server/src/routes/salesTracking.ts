@@ -351,21 +351,24 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     }
     
     // 필수 필드 준비 (NOT NULL 제약 조건 처리)
+    // 안전하게 null/undefined/빈 문자열 처리
+    const safeTrim = (value: any): string => {
+      if (value === null || value === undefined) return ''
+      if (typeof value !== 'string') return String(value).trim()
+      return value.trim()
+    }
+    
     // company_name: customer_name, account_id, 또는 기본값 사용
-    // 빈 문자열도 null로 처리
-    const companyName = (record.customer_name && record.customer_name.trim()) 
-      || (record.account_id && record.account_id.trim()) 
-      || '未設定'
+    const customerNameRaw = safeTrim(record.customer_name)
+    const accountIdRaw = safeTrim(record.account_id)
+    const companyName = (customerNameRaw || accountIdRaw || '未設定')
     
     // customer_name: customer_name, account_id, 또는 기본값 사용
-    // 빈 문자열도 null로 처리
-    const customerName = (record.customer_name && record.customer_name.trim()) 
-      || (record.account_id && record.account_id.trim()) 
-      || '未設定'
+    const customerName = (customerNameRaw || accountIdRaw || '未設定')
     
     // phone: phone 필드가 있으면 사용, 없으면 기본값 (NOT NULL 제약 조건, VARCHAR(20) 제한)
-    // 빈 문자열도 기본값으로 처리
-    const phone = (record.phone && record.phone.trim()) || '00000000000'
+    const phoneRaw = safeTrim(record.phone)
+    const phone = phoneRaw || '00000000000'
     
     // phone 필드 길이 제한 확인 (VARCHAR(20))
     const phoneFinal = phone.length > 20 ? phone.substring(0, 20) : phone
@@ -378,33 +381,63 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     const industry = record.industry || null
     
     // manager_name: 필수
-    if (!record.manager_name) {
-      console.error('[MOVE-TO-RETARGETING] Error: manager_name is required but not found')
+    const managerName = safeTrim(record.manager_name)
+    if (!managerName) {
+      console.error('[MOVE-TO-RETARGETING] Error: manager_name is required but not found', {
+        recordManagerName: record.manager_name,
+        managerNameAfterTrim: managerName
+      })
       return res.status(400).json({ message: 'Manager name is required' })
     }
     
-    // 최종 검증: 필수 필드가 비어있지 않은지 확인
-    if (!companyNameFinal || companyNameFinal.trim() === '') {
-      console.error('[MOVE-TO-RETARGETING] Error: companyName is empty after processing')
+    // 최종 검증: 필수 필드가 비어있지 않은지 확인 (추가 안전장치)
+    const finalCompanyName = companyNameFinal.trim() || '未設定'
+    const finalCustomerName = customerNameFinal.trim() || '未設定'
+    const finalPhone = phoneFinal.trim() || '00000000000'
+    
+    if (!finalCompanyName || finalCompanyName === '') {
+      console.error('[MOVE-TO-RETARGETING] Error: companyName is empty after processing', {
+        originalCustomerName: record.customer_name,
+        originalAccountId: record.account_id,
+        companyNameFinal,
+        finalCompanyName
+      })
       return res.status(400).json({ message: 'Company name cannot be empty' })
     }
     
-    if (!customerNameFinal || customerNameFinal.trim() === '') {
-      console.error('[MOVE-TO-RETARGETING] Error: customerName is empty after processing')
+    if (!finalCustomerName || finalCustomerName === '') {
+      console.error('[MOVE-TO-RETARGETING] Error: customerName is empty after processing', {
+        originalCustomerName: record.customer_name,
+        originalAccountId: record.account_id,
+        customerNameFinal,
+        finalCustomerName
+      })
       return res.status(400).json({ message: 'Customer name cannot be empty' })
     }
     
-    if (!phoneFinal || phoneFinal.trim() === '') {
-      console.error('[MOVE-TO-RETARGETING] Error: phone is empty after processing')
+    if (!finalPhone || finalPhone === '') {
+      console.error('[MOVE-TO-RETARGETING] Error: phone is empty after processing', {
+        originalPhone: record.phone,
+        phoneFinal,
+        finalPhone
+      })
       return res.status(400).json({ message: 'Phone cannot be empty' })
     }
     
     console.log(`[MOVE-TO-RETARGETING] Prepared values:`, {
-      companyName: companyNameFinal,
-      customerName: customerNameFinal,
-      phone: phoneFinal,
-      industry,
-      manager: record.manager_name
+      original: {
+        customer_name: record.customer_name,
+        account_id: record.account_id,
+        phone: record.phone,
+        manager_name: record.manager_name
+      },
+      processed: {
+        companyName: finalCompanyName,
+        customerName: finalCustomerName,
+        phone: finalPhone,
+        industry,
+        manager: managerName
+      }
     })
     
     // Create retargeting customer from sales tracking record
@@ -413,26 +446,36 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     try {
       await client.query('BEGIN')
       
+      // 최종 값들을 명시적으로 문자열로 변환하여 null이 들어가지 않도록 보장
+      const insertValues = [
+        String(finalCompanyName), // company_name (NOT NULL) - 명시적 문자열 변환
+        industry, // industry
+        String(finalCustomerName), // customer_name (NOT NULL) - 명시적 문자열 변환
+        String(finalPhone), // phone (NOT NULL, VARCHAR(20)) - 명시적 문자열 변환
+        null, // region
+        null, // inflow_path
+        String(managerName), // manager - 명시적 문자열 변환
+        null, // manager_team
+        '시작', // status
+        record.date || new Date().toISOString().split('T')[0], // registered_at
+        record.memo || null, // memo
+        id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
+      ]
+      
+      console.log(`[MOVE-TO-RETARGETING] Insert values (before query):`, {
+        company_name: insertValues[0],
+        customer_name: insertValues[2],
+        phone: insertValues[3],
+        values: insertValues.map((v, i) => ({ index: i, value: v, type: typeof v, isNull: v === null, isUndefined: v === undefined }))
+      })
+      
       const retargetingResult = await client.query(
         `INSERT INTO retargeting_customers (
           company_name, industry, customer_name, phone, region, inflow_path,
           manager, manager_team, status, registered_at, memo, sales_tracking_id
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *`,
-        [
-          companyNameFinal, // company_name (NOT NULL)
-          industry, // industry
-          customerNameFinal, // customer_name (NOT NULL)
-          phoneFinal, // phone (NOT NULL, VARCHAR(20))
-          null, // region
-          null, // inflow_path
-          record.manager_name, // manager
-          null, // manager_team
-          '시작', // status
-          record.date || new Date().toISOString().split('T')[0], // registered_at
-          record.memo || null, // memo
-          id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
-        ]
+        insertValues
       )
       
       await client.query('COMMIT')
