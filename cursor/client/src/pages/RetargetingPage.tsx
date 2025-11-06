@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { RetargetingCustomer, RetargetingHistory, RetargetingFile } from '../types'
 import { useAuthStore } from '../store/authStore'
@@ -17,6 +18,9 @@ export default function RetargetingPage() {
   const user = useAuthStore(state => state.user)
   const { showToast } = useToast()
   const isAdmin = user?.role === 'admin'
+  const location = useLocation()
+  const navigate = useNavigate()
+  const customerListRef = useRef<HTMLDivElement>(null)
   
   // Helper to translate server error messages
   const translateErrorMessage = (message: string): string => {
@@ -166,6 +170,30 @@ export default function RetargetingPage() {
       }
     }
   }, [])
+
+  // 통합검색에서 선택한 고객 처리
+  useEffect(() => {
+    const state = location.state as { selectedId?: string; searchQuery?: string } | null
+    if (state?.selectedId && customers.length > 0) {
+      const customer = customers.find(c => c.id === state.selectedId)
+      if (customer) {
+        setSelectedCustomer(customer)
+        // 검색어가 있으면 필터 설정
+        if (state.searchQuery) {
+          setSearchQuery(state.searchQuery)
+        }
+        // 고객 리스트로 스크롤 (약간의 딜레이를 두어 DOM이 업데이트된 후 실행)
+        setTimeout(() => {
+          const element = document.getElementById(`retargeting-customer-${customer.id}`)
+          if (element && customerListRef.current) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 100)
+        // state 초기화 (뒤로가기 시 다시 선택되지 않도록)
+        navigate(location.pathname, { replace: true, state: {} })
+      }
+    }
+  }, [location.state, customers, navigate, location.pathname])
   
   const fetchCustomers = async () => {
     try {
@@ -944,12 +972,13 @@ export default function RetargetingPage() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
           
           {/* Customer List */}
-          <div className="space-y-2">
+          <div ref={customerListRef} className="space-y-2">
           {filteredCustomers.map(customer => {
             const days = getDaysSinceLastContact(customer.lastContactDate)
             return (
               <div
                 key={customer.id}
+                id={`retargeting-customer-${customer.id}`}
                 onClick={() => setSelectedCustomer(customer)}
                 className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${getContactStatusColor(days)} ${
                   selectedCustomer?.id === customer.id ? 'bg-blue-50 border-blue-300' : ''

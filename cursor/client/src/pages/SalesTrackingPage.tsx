@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
@@ -44,6 +45,8 @@ export default function SalesTrackingPage() {
   const { t } = useI18nStore()
   const user = useAuthStore((state) => state.user)
   const { showToast } = useToast()
+  const location = useLocation()
+  const navigate = useNavigate()
   
   const [records, setRecords] = useState<SalesTrackingRecord[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -115,6 +118,41 @@ export default function SalesTrackingPage() {
   useEffect(() => {
     fetchRecords()
   }, [searchQuery, managerFilter])
+
+  // 통합검색에서 선택한 레코드 처리
+  useEffect(() => {
+    const state = location.state as { selectedId?: string; searchQuery?: string } | null
+    if (state?.selectedId && records.length > 0) {
+      const record = records.find(r => r.id === state.selectedId)
+      if (record) {
+        // 검색어가 있으면 필터 설정
+        if (state.searchQuery) {
+          setSearchQuery(state.searchQuery)
+        }
+        // 레코드가 있는 페이지로 이동 (filteredRecords를 직접 계산)
+        const filtered = records.filter(r => managerFilter === 'all' || r.manager_name === managerFilter)
+        const index = filtered.findIndex(r => r.id === record.id)
+        if (index >= 0) {
+          const page = Math.floor(index / itemsPerPage) + 1
+          setCurrentPage(page)
+          // 레코드로 스크롤 (약간의 딜레이를 두어 DOM이 업데이트된 후 실행)
+          setTimeout(() => {
+            const element = document.getElementById(`sales-tracking-record-${record.id}`)
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              // 하이라이트 효과
+              element.classList.add('bg-yellow-100')
+              setTimeout(() => {
+                element.classList.remove('bg-yellow-100')
+              }, 2000)
+            }
+          }, 300)
+        }
+        // state 초기화 (뒤로가기 시 다시 선택되지 않도록)
+        navigate(location.pathname, { replace: true, state: {} })
+      }
+    }
+  }, [location.state, records, managerFilter, navigate, location.pathname, itemsPerPage])
 
   const fetchRecords = async () => {
     try {
@@ -703,7 +741,7 @@ export default function SalesTrackingPage() {
                   </tr>
                 ) : (
                   paginatedRecords.map((record) => (
-                    <tr key={record.id} className="border-b hover:bg-gray-50">
+                    <tr key={record.id} id={`sales-tracking-record-${record.id}`} className="border-b hover:bg-gray-50">
                       <td className="px-2 py-1 border-r whitespace-nowrap">{formatDate(record.date)}</td>
                       <td className="px-2 py-1 border-r">{record.manager_name}</td>
                       <td className="px-2 py-1 border-r">{record.company_name || '-'}</td>
