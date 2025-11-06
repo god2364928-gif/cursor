@@ -74,13 +74,18 @@ export default function SalesPage() {
       if (!initialLoadComplete) {
         setLoading(true)
       }
+      console.log('Fetching sales with dates:', { startDate, endDate })
       const response = await api.get(`/sales?startDate=${startDate}&endDate=${endDate}`)
-      setSales(response.data)
+      console.log('Sales data received:', response.data?.length || 0, 'records')
+      setSales(response.data || [])
       if (!initialLoadComplete) {
         setInitialLoadComplete(true)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch sales:', error)
+      console.error('Error details:', error.response?.data)
+      showToast(error.response?.data?.message || t('error'), 'error')
+      setSales([])
     } finally {
       setLoading(false)
     }
