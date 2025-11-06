@@ -758,7 +758,7 @@ export default function CustomersPage() {
         <div style={{ flexShrink: 0, padding: '16px' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">{t('customerList')}</h2>
-            <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>+ {t('add')}</Button>
+            <Button size="sm" onClick={() => setShowAddForm(!showAddForm)} className="bg-green-500 hover:bg-green-600 text-white">+ {t('add')}</Button>
           </div>
 
           {/* Add Customer Form */}
