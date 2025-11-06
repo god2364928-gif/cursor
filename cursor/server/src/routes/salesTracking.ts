@@ -460,6 +460,9 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     
     // Create retargeting customer from sales tracking record
     // 트랜잭션으로 안전하게 처리
+    // insertValues를 try 블록 밖에서 선언하여 catch 블록에서도 접근 가능하도록 함
+    let insertValues: any[] = []
+    
     const client = await pool.connect()
     try {
       await client.query('BEGIN')
@@ -537,7 +540,8 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       
       const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
       
-      const insertValues = [
+      // insertValues 배열 생성 (절대 null이 들어가지 않도록 보장)
+      insertValues = [
         finalInsertCompanyName, // company_name (NOT NULL) - 최종 검증 완료
         industry, // industry
         finalInsertCustomerName, // customer_name (NOT NULL) - 최종 검증 완료
@@ -551,6 +555,14 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
         record.memo || null, // memo
         id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
       ]
+      
+      // INSERT 직전 최종 검증: customer_name이 절대 null이 아닌지 확인
+      if (insertValues[2] === null || insertValues[2] === undefined) {
+        console.error('[MOVE-TO-RETARGETING] CRITICAL: insertValues[2] (customer_name) is null or undefined!')
+        console.error('[MOVE-TO-RETARGETING] finalInsertCustomerName:', finalInsertCustomerName)
+        console.error('[MOVE-TO-RETARGETING] insertValues[2]:', insertValues[2])
+        throw new Error(`CRITICAL: customer_name cannot be null or undefined in insertValues array`)
+      }
       
       // INSERT 전 최종 검증 로그
       console.log(`[MOVE-TO-RETARGETING] Final insert values (before query):`, {
@@ -600,17 +612,28 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       })
       
       // 상세한 오류 로깅
+      console.error('[MOVE-TO-RETARGETING] ========== ERROR START ==========')
       console.error('[MOVE-TO-RETARGETING] INSERT 오류 발생!')
       console.error('[MOVE-TO-RETARGETING] 오류 메시지:', insertError.message)
       console.error('[MOVE-TO-RETARGETING] 오류 코드:', insertError.code)
       console.error('[MOVE-TO-RETARGETING] 오류 상세:', insertError.detail)
       console.error('[MOVE-TO-RETARGETING] 제약조건:', insertError.constraint)
-      console.error('[MOVE-TO-RETARGETING] 실제 전달된 값 재확인:')
-      insertValues.forEach((v, i) => {
+      console.error('[MOVE-TO-RETARGETING] 오류 힌트:', insertError.hint)
+      console.error('[MOVE-TO-RETARGETING] 오류 위치:', insertError.position)
+      console.error('[MOVE-TO-RETARGETING] 오류 스택:', insertError.stack)
+      console.error('[MOVE-TO-RETARGETING] 전체 오류 객체:', JSON.stringify(insertError, Object.getOwnPropertyNames(insertError), 2))
+      
+      if (insertValues && insertValues.length > 0) {
+        console.error('[MOVE-TO-RETARGETING] 실제 전달된 값 재확인:')
         const paramNames = ['company_name', 'industry', 'customer_name', 'phone', 'region', 'inflow_path', 
                            'manager', 'manager_team', 'status', 'registered_at', 'memo', 'sales_tracking_id']
-        console.error(`   ${paramNames[i]}: ${v === null ? 'null' : JSON.stringify(v)} (타입: ${typeof v}, null: ${v === null}, undefined: ${v === undefined})`)
-      })
+        insertValues.forEach((v, i) => {
+          console.error(`   [$${i + 1}] ${paramNames[i]}: ${v === null ? 'null' : JSON.stringify(v)} (타입: ${typeof v}, null: ${v === null}, undefined: ${v === undefined}, 빈문자열: ${v === ''})`)
+        })
+      } else {
+        console.error('[MOVE-TO-RETARGETING] insertValues가 비어있거나 정의되지 않았습니다!')
+      }
+      console.error('[MOVE-TO-RETARGETING] ========== ERROR END ==========')
       
       throw insertError
     } finally {
