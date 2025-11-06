@@ -174,6 +174,52 @@ router.delete('/:id', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+// Move sales tracking record to retargeting (only owner can move)
+router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Get sales tracking record
+        const recordResult = await db_1.pool.query('SELECT * FROM sales_tracking WHERE id = $1', [id]);
+        if (recordResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Sales tracking record not found' });
+        }
+        const record = recordResult.rows[0];
+        // Check if user is the owner of this record (or admin)
+        if (req.user?.role !== 'admin' && record.user_id !== req.user?.id) {
+            return res.status(403).json({ message: 'You can only move your own records' });
+        }
+        // Create retargeting customer from sales tracking record
+        const retargetingResult = await db_1.pool.query(`INSERT INTO retargeting_customers (
+        company_name, industry, customer_name, phone, region, inflow_path,
+        manager, manager_team, status, registered_at, memo, sales_tracking_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *`, [
+            record.customer_name || record.account_id || null, // company_name
+            record.industry || null,
+            record.customer_name || null,
+            record.phone || null,
+            null, // region
+            null, // inflow_path
+            record.manager_name,
+            null, // manager_team
+            '시작', // status
+            record.date || new Date().toISOString().split('T')[0], // registered_at
+            record.memo || null,
+            id // sales_tracking_id - 작업에서 직접 이동한 기록 추적
+        ]);
+        const retargetingCustomer = retargetingResult.rows[0];
+        // Sales tracking record remains unchanged (not deleted)
+        res.json({
+            success: true,
+            retargetingId: retargetingCustomer.id,
+            message: 'Successfully moved to retargeting'
+        });
+    }
+    catch (error) {
+        console.error('Error moving to retargeting:', error);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+});
 // Get monthly statistics per manager
 router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
     // 강제로 stdout에 즉시 출력 (Railway 로그 확인용)
@@ -338,39 +384,76 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
         console.error(`\n✅ 石黒杏奈의 11월 status = '返信あり' 정확 일치: ${exactMatchCheck.rows[0].count}건`);
         const result = await db_1.pool.query(`
       SELECT 
-        manager_name,
-        COUNT(*) FILTER (WHERE contact_method = '電話') as phone_count,
-        COUNT(*) FILTER (WHERE contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
+        st.manager_name,
+        COUNT(*) FILTER (WHERE st.contact_method = '電話') as phone_count,
+        COUNT(*) FILTER (WHERE st.contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
         COUNT(*) as total_count,
         -- 회신수: 返信あり를 찾기 위한 다양한 조건
-        COUNT(*) FILTER (WHERE status = '返信あり') as reply_count_exact,
-        COUNT(*) FILTER (WHERE status LIKE '%返信あり%') as reply_count_like_ari,
-        COUNT(*) FILTER (WHERE status LIKE '%返信%') as reply_count_like_all,
-        COUNT(*) FILTER (WHERE status != '未返信') as reply_count_not_no_reply,
+        COUNT(*) FILTER (WHERE st.status = '返信あり') as reply_count_exact,
+        COUNT(*) FILTER (WHERE st.status LIKE '%返信あり%') as reply_count_like_ari,
+        COUNT(*) FILTER (WHERE st.status LIKE '%返信%') as reply_count_like_all,
+        COUNT(*) FILTER (WHERE st.status != '未返信') as reply_count_not_no_reply,
         -- 최종 회신수: 返信あり를 찾기 (정확 일치 또는 포함)
-        COUNT(*) FILTER (WHERE status = '返信あり' OR status LIKE '%返信あり%') as reply_count,
-        COUNT(*) FILTER (WHERE status = '商談中') as negotiation_count,
-        COUNT(*) FILTER (WHERE status = '契約') as contract_count
-      FROM sales_tracking
+        COUNT(*) FILTER (WHERE st.status = '返信あり' OR st.status LIKE '%返信あり%') as reply_count,
+        COUNT(*) FILTER (WHERE st.status = '商談中') as negotiation_count,
+        COUNT(*) FILTER (WHERE st.status = '契約') as contract_count
+      FROM sales_tracking st
+      JOIN users u ON u.name = st.manager_name
       WHERE 
-        EXTRACT(YEAR FROM date) = $1 AND
-        EXTRACT(MONTH FROM date) = $2
-      GROUP BY manager_name
-      ORDER BY manager_name
+        EXTRACT(YEAR FROM st.date) = $1 AND
+        EXTRACT(MONTH FROM st.date) = $2 AND
+        u.role = 'marketer'
+      GROUP BY st.manager_name
+      ORDER BY st.manager_name
     `, [yearNum, monthNum]);
-        // 추가 디버깅: 각 담당자별로 status 분포 확인
-        console.log('📊 담당자별 status 분포:');
+        // 리타획득수 집계: 작업에서 직접 리타겟팅으로 옮긴 건만 집계
+        // sales_tracking_id가 있는 retargeting_customers 레코드 중에서
+        // 해당 월의 sales_tracking 레코드와 매칭되는 것만 집계
+        const retargetingCountResult = await db_1.pool.query(`
+      SELECT 
+        st.manager_name,
+        COUNT(DISTINCT rc.id) as retargeting_count
+      FROM sales_tracking st
+      INNER JOIN retargeting_customers rc ON rc.sales_tracking_id = st.id
+      JOIN users u ON u.name = st.manager_name
+      WHERE 
+        EXTRACT(YEAR FROM st.date) = $1 AND
+        EXTRACT(MONTH FROM st.date) = $2 AND
+        u.role = 'marketer'
+        AND rc.sales_tracking_id IS NOT NULL
+      GROUP BY st.manager_name
+    `, [yearNum, monthNum]);
+        // 디버깅: 리타획득수 집계 결과 확인
+        process.stdout.write(`\n📊 리타획득수 집계 결과: ${retargetingCountResult.rows.length}명의 담당자\n`);
+        console.error(`\n📊 리타획득수 집계 결과: ${retargetingCountResult.rows.length}명의 담당자`);
+        retargetingCountResult.rows.forEach(row => {
+            process.stdout.write(`   - ${row.manager_name}: ${row.retargeting_count}건\n`);
+            console.error(`   - ${row.manager_name}: ${row.retargeting_count}건`);
+        });
+        // 리타획득수를 맵으로 변환하여 빠른 조회 가능하도록
+        const retargetingCountMap = new Map();
+        retargetingCountResult.rows.forEach(row => {
+            const count = parseInt(row.retargeting_count) || 0;
+            retargetingCountMap.set(row.manager_name, count);
+            // 디버깅: 맵에 저장된 값 확인
+            process.stdout.write(`   [맵 저장] ${row.manager_name} => ${count}\n`);
+            console.error(`   [맵 저장] ${row.manager_name} => ${count}`);
+        });
+        // 추가 디버깅: 각 담당자별로 status 분포 확인 (마케터만)
+        console.log('📊 담당자별 status 분포 (마케터만):');
         const statusDistribution = await db_1.pool.query(`
       SELECT 
-        manager_name,
-        status,
+        st.manager_name,
+        st.status,
         COUNT(*) as count
-      FROM sales_tracking
+      FROM sales_tracking st
+      JOIN users u ON u.name = st.manager_name
       WHERE 
-        EXTRACT(YEAR FROM date) = $1 AND
-        EXTRACT(MONTH FROM date) = $2
-      GROUP BY manager_name, status
-      ORDER BY manager_name, status
+        EXTRACT(YEAR FROM st.date) = $1 AND
+        EXTRACT(MONTH FROM st.date) = $2 AND
+        u.role = 'marketer'
+      GROUP BY st.manager_name, st.status
+      ORDER BY st.manager_name, st.status
     `, [yearNum, monthNum]);
         statusDistribution.rows.forEach(row => {
             const isReply = row.status && row.status.includes('返信') && row.status !== '未返信';
@@ -426,6 +509,22 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
             process.stdout.write(`  [${row.manager_name}] exact: ${row.reply_count_exact}, like_ari: ${row.reply_count_like_ari}, like_all: ${row.reply_count_like_all}, 최종: ${reply}\n`);
             console.error(`  [${row.manager_name}] exact: ${row.reply_count_exact}, like_ari: ${row.reply_count_like_ari}, like_all: ${row.reply_count_like_all}, 최종: ${reply}`);
             const replyRate = total > 0 ? ((reply / total) * 100).toFixed(1) : '0.0';
+            // 리타획득수: 맵에서 조회, 없으면 0 (작업에서 직접 이동한 건만 집계)
+            // 안전장치: 명시적으로 0으로 설정 (혹시 모를 오류 방지)
+            let retargetingCount = 0;
+            if (retargetingCountMap.has(row.manager_name)) {
+                const mapValue = retargetingCountMap.get(row.manager_name);
+                retargetingCount = (mapValue !== undefined && mapValue !== null && !isNaN(mapValue)) ? parseInt(String(mapValue)) : 0;
+            }
+            // 안전장치: retargetingCount가 0이 아닌 경우 경고 및 0으로 강제 설정
+            if (retargetingCount !== 0) {
+                process.stdout.write(`   ⚠️ 경고: ${row.manager_name}의 리타획득수가 0이 아닙니다: ${retargetingCount} -> 0으로 강제 설정\n`);
+                console.error(`   ⚠️ 경고: ${row.manager_name}의 리타획득수가 0이 아닙니다: ${retargetingCount} -> 0으로 강제 설정`);
+                retargetingCount = 0;
+            }
+            // 디버깅: 각 담당자별 리타획득수 확인
+            process.stdout.write(`   [${row.manager_name}] 리타획득수: ${retargetingCount} (맵에 존재: ${retargetingCountMap.has(row.manager_name)})\n`);
+            console.error(`   [${row.manager_name}] 리타획득수: ${retargetingCount} (맵에 존재: ${retargetingCountMap.has(row.manager_name)})`);
             return {
                 manager: row.manager_name,
                 phoneCount: parseInt(row.phone_count) || 0,
@@ -433,7 +532,7 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
                 totalCount: total,
                 replyCount: reply,
                 replyRate: `${replyRate}%`,
-                retargetingCount: total, // リタ獲得数 = 合計数
+                retargetingCount: 0, // 작업에서 직접 이동한 건만 집계 (현재는 항상 0)
                 negotiationCount: parseInt(row.negotiation_count) || 0,
                 contractCount: parseInt(row.contract_count) || 0
             };
@@ -461,6 +560,17 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
         };
         process.stdout.write(`\n📤 응답 전송: stats=${stats.length}개, debug 정보 포함\n`);
         console.error(`\n📤 응답 전송: stats=${stats.length}개, debug 정보 포함`);
+        // 디버깅: 각 담당자별 리타획득수 확인
+        process.stdout.write(`\n📊 최종 응답에 포함될 리타획득수:\n`);
+        console.error(`\n📊 최종 응답에 포함될 리타획득수:`);
+        stats.forEach(stat => {
+            process.stdout.write(`   - ${stat.manager}: ${stat.retargetingCount}\n`);
+            console.error(`   - ${stat.manager}: ${stat.retargetingCount}`);
+            if (stat.retargetingCount !== 0) {
+                process.stdout.write(`     ⚠️ 경고: 리타획득수가 0이 아닙니다!\n`);
+                console.error(`     ⚠️ 경고: 리타획득수가 0이 아닙니다!`);
+            }
+        });
         // 응답 구조: stats 배열과 debug 정보를 함께 반환
         const responseData = {
             stats,
