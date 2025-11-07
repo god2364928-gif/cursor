@@ -95,17 +95,15 @@ router.post('/cpi/import-by-phone', auth_1.authMiddleware, async (req, res) => {
             for (const r of data) {
                 const externalId = String(r.record_id);
                 const managerName = r.username?.trim() || '';
-                const dateStr = (r.created_at || '').slice(0, 10);
+                const dateStr = r.created_at ? r.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10);
                 const companyName = r.company?.trim() || '';
                 const phoneNum = (0, nullSafe_1.formatPhoneNumber)(r.phone_number) || '';
                 const exists = await db_1.pool.query('SELECT 1 FROM sales_tracking WHERE external_call_id = $1 LIMIT 1', [externalId]);
                 const occurredAt = (() => {
                     if (r.created_at) {
-                        const d = new Date(r.created_at);
-                        if (!isNaN(d.getTime()))
-                            return d;
+                        return r.created_at.replace('T', ' ').replace('Z', '').slice(0, 19);
                     }
-                    return new Date(`${dateStr}T00:00:00`);
+                    return `${dateStr} 00:00:00`;
                 })();
                 if (exists.rowCount && exists.rowCount > 0) {
                     await db_1.pool.query(`UPDATE sales_tracking SET

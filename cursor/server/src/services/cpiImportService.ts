@@ -66,10 +66,9 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
       const phone = formatPhoneNumber(r.phone_number) || ''
       const occurredAt = (() => {
         if (r.created_at) {
-          const d = new Date(r.created_at)
-          if (!isNaN(d.getTime())) return d
+          return r.created_at.replace('T', ' ').replace('Z', '').slice(0, 19)
         }
-        return new Date(`${dateStr}T00:00:00`)
+        return `${dateStr} 00:00:00`
       })()
 
       try {

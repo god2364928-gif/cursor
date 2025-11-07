@@ -11,6 +11,13 @@ import {
 
 const router = Router()
 
+const toSeoulTimestampString = (input: Date) => {
+  const utc = input.getTime() + input.getTimezoneOffset() * 60000
+  const seoul = new Date(utc + 9 * 60 * 60 * 1000)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${seoul.getUTCFullYear()}-${pad(seoul.getUTCMonth() + 1)}-${pad(seoul.getUTCDate())} ${pad(seoul.getUTCHours())}:${pad(seoul.getUTCMinutes())}:${pad(seoul.getUTCSeconds())}`
+}
+
 // Get all sales tracking records (with search)
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -131,6 +138,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     
     const occurredAt = new Date()
 
+    const occurredAtStr = toSeoulTimestampString(new Date())
+
     const result = await pool.query(
       `INSERT INTO sales_tracking (
         date, occurred_at, manager_name, company_name, account_id, customer_name, industry,
@@ -139,7 +148,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       RETURNING *`,
       [
         date,
-        occurredAt,
+        occurredAtStr,
         managerName,
         companyName || null,
         accountId || null,
