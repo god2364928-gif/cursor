@@ -315,6 +315,31 @@ const translations: Record<Language, Translation> = {
     view: '表示',
     overall: '全体表示',
     byManager: '担当者別',
+
+    // Option labels (industries)
+    industryRestaurant: '飲食店',
+    industryEntertainment: '娯楽/観光/レジャー',
+    industryBeautySalon: '美容サロン',
+    industryTangible: '有形商材',
+    industryPersonal: '個人利用',
+    industryIntangible: '無形商材',
+    industryAgency: '代理店',
+    industryEducation: '教育',
+    industryOther: 'その他',
+    industryArtMake: 'アートメイク',
+
+    // Option labels (contact methods)
+    contactPhone: '電話',
+    contactLINE: 'LINE',
+    contactDM: 'DM',
+    contactMail: 'メール',
+    contactForm: 'フォーム',
+
+    // Option labels (statuses)
+    statusNoReply: '未返信',
+    statusReplied: '返信済み',
+    statusNegotiating: '商談中',
+    statusContract: '契約',
   },
   ko: {
     // Navigation
@@ -624,6 +649,31 @@ const translations: Record<Language, Translation> = {
     view: '보기',
     overall: '전체 보기',
     byManager: '담당자별',
+
+    // Option labels (industries)
+    industryRestaurant: '음식점',
+    industryEntertainment: '여가/관광/레저',
+    industryBeautySalon: '미용 살롱',
+    industryTangible: '유형 상품',
+    industryPersonal: '개인 이용',
+    industryIntangible: '무형 상품',
+    industryAgency: '대리점',
+    industryEducation: '교육',
+    industryOther: '기타',
+    industryArtMake: '반영구(아트메이크)',
+
+    // Option labels (contact methods)
+    contactPhone: '전화',
+    contactLINE: '라인',
+    contactDM: 'DM',
+    contactMail: '메일',
+    contactForm: '폼',
+
+    // Option labels (statuses)
+    statusNoReply: '미회신',
+    statusReplied: '회신 있음',
+    statusNegotiating: '상담중',
+    statusContract: '계약',
   },
 }
 
