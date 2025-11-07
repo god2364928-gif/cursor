@@ -35,7 +35,13 @@ router.post('/cpi/import', authMiddleware, async (req: AuthRequest, res: Respons
     }
     const sinceParam = req.query.since as string | undefined
     const until = new Date()
-    const since = parseDateFlexible(sinceParam, new Date(until.getTime() - 2 * 60 * 60 * 1000))
+    let since: Date
+    try {
+      since = parseDateFlexible(sinceParam, new Date(until.getTime() - 2 * 60 * 60 * 1000))
+    } catch {
+      // 파싱 실패 시에도 수집이 멈추지 않도록 최근 24시간으로 진행
+      since = new Date(until.getTime() - 24 * 60 * 60 * 1000)
+    }
 
     const result = await importRecentCalls(since, until)
     res.json({ ok: true, ...result })
@@ -58,6 +64,49 @@ router.get('/cpi/peek', authMiddleware, async (req: AuthRequest, res: Response) 
     const username = (req.query.username as string) || ''
     const filtered = username ? data.filter(d => (d.username || '').trim() === username.trim()) : data
     res.json({ total, count: filtered.length, sample: filtered.slice(0, 10), page, row })
+  } catch (e: any) {
+    res.status(500).json({ message: e.message || 'Internal error' })
+  }
+})
+
+// Import by phone (precise) - fetch OUT calls for a given phone
+router.post('/cpi/import-by-phone', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Forbidden' })
+    const phone = (req.query.phone as string)?.trim()
+    const day = (req.query.day as string) || new Date().toISOString().slice(0, 10)
+    if (!phone) return res.status(400).json({ message: 'phone required' })
+
+    // Use CPI client directly with query by phone
+    const start = day
+    const end = day
+    let page = 1
+    let totalInserted = 0
+    while (true) {
+      const { data, total } = await fetchFirstOutCalls({ startDate: start, endDate: end, page, row: 100, query: phone, queryType: 2 })
+      if (!data || data.length === 0) break
+      for (const r of data) {
+        const externalId = String(r.record_id)
+        const exists = await pool.query('SELECT 1 FROM sales_tracking WHERE external_call_id = $1 LIMIT 1', [externalId])
+        if (exists.rowCount && exists.rowCount > 0) continue
+        const managerName = r.username?.trim() || ''
+        const dateStr = (r.created_at || '').slice(0, 10)
+        const companyName = r.company?.trim() || ''
+        const phoneNum = r.phone_number?.trim() || ''
+        await pool.query(
+          `INSERT INTO sales_tracking (
+            date, manager_name, company_name, customer_name, industry, contact_method, status, contact_person, phone, memo, memo_note, user_id, created_at, updated_at, external_call_id, external_source
+          ) VALUES (
+            $1, $2, $3, '', NULL, '電話', '未返信', NULL, $4, NULL, NULL, NULL, NOW(), NOW(), $5, 'cpi'
+          ) ON CONFLICT (external_call_id) DO NOTHING`,
+          [dateStr, managerName, companyName, phoneNum, externalId]
+        )
+        totalInserted++
+      }
+      if (page * 100 >= total) break
+      page++
+    }
+    res.json({ ok: true, inserted: totalInserted })
   } catch (e: any) {
     res.status(500).json({ message: e.message || 'Internal error' })
   }

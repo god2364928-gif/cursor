@@ -23,11 +23,13 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         CASE
           WHEN company_name = $2 OR customer_name = $2 OR instagram = $2 OR phone1 = $2 OR phone2 = $2 OR phone3 = $2 THEN 1
           WHEN company_name ILIKE $3 OR customer_name ILIKE $3 OR instagram ILIKE $3 OR phone1 ILIKE $3 OR phone2 ILIKE $3 OR phone3 ILIKE $3 THEN 2
+          WHEN company_name ILIKE $1 OR customer_name ILIKE $1 OR instagram ILIKE $1 OR phone1 ILIKE $1 OR phone2 ILIKE $1 OR phone3 ILIKE $1 THEN 3
         END as match_priority
       FROM customers
       WHERE 
         (company_name = $2 OR customer_name = $2 OR instagram = $2 OR phone1 = $2 OR phone2 = $2 OR phone3 = $2) OR
-        (company_name ILIKE $3 OR customer_name ILIKE $3 OR instagram ILIKE $3 OR phone1 ILIKE $3 OR phone2 ILIKE $3 OR phone3 ILIKE $3)
+        (company_name ILIKE $3 OR customer_name ILIKE $3 OR instagram ILIKE $3 OR phone1 ILIKE $3 OR phone2 ILIKE $3 OR phone3 ILIKE $3) OR
+        (company_name ILIKE $1 OR customer_name ILIKE $1 OR instagram ILIKE $1 OR phone1 ILIKE $1 OR phone2 ILIKE $1 OR phone3 ILIKE $1)
       ORDER BY match_priority, company_name
       LIMIT 10
     `, [searchTerm, keyword.trim(), `${keyword.trim()}%`]);
@@ -41,11 +43,13 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         CASE
           WHEN company_name = $2 OR customer_name = $2 OR instagram = $2 OR phone = $2 THEN 1
           WHEN company_name ILIKE $3 OR customer_name ILIKE $3 OR instagram ILIKE $3 OR phone ILIKE $3 THEN 2
+          WHEN company_name ILIKE $1 OR customer_name ILIKE $1 OR instagram ILIKE $1 OR phone ILIKE $1 THEN 3
         END as match_priority
       FROM retargeting_customers
       WHERE 
         (company_name = $2 OR customer_name = $2 OR instagram = $2 OR phone = $2) OR
-        (company_name ILIKE $3 OR customer_name ILIKE $3 OR instagram ILIKE $3 OR phone ILIKE $3)
+        (company_name ILIKE $3 OR customer_name ILIKE $3 OR instagram ILIKE $3 OR phone ILIKE $3) OR
+        (company_name ILIKE $1 OR customer_name ILIKE $1 OR instagram ILIKE $1 OR phone ILIKE $1)
       ORDER BY match_priority, company_name
       LIMIT 10
     `, [searchTerm, keyword.trim(), `${keyword.trim()}%`]);
@@ -59,11 +63,13 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         CASE
           WHEN customer_name = $2 OR account_id = $2 OR phone = $2 OR contact_person = $2 THEN 1
           WHEN customer_name ILIKE $3 OR account_id ILIKE $3 OR phone ILIKE $3 OR contact_person ILIKE $3 THEN 2
+          WHEN customer_name ILIKE $1 OR account_id ILIKE $1 OR phone ILIKE $1 OR contact_person ILIKE $1 THEN 3
         END as match_priority
       FROM sales_tracking
       WHERE 
         (customer_name = $2 OR account_id = $2 OR phone = $2 OR contact_person = $2) OR
-        (customer_name ILIKE $3 OR account_id ILIKE $3 OR phone ILIKE $3 OR contact_person ILIKE $3)
+        (customer_name ILIKE $3 OR account_id ILIKE $3 OR phone ILIKE $3 OR contact_person ILIKE $3) OR
+        (customer_name ILIKE $1 OR account_id ILIKE $1 OR phone ILIKE $1 OR contact_person ILIKE $1)
       ORDER BY match_priority, date DESC
       LIMIT 10
     `, [searchTerm, keyword.trim(), `${keyword.trim()}%`]);
