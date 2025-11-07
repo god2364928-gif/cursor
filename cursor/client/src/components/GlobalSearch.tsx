@@ -22,10 +22,12 @@ export default function GlobalSearch() {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const lastQueryRef = useRef<string>('')
 
   // Debounce search with request cancellation
   useEffect(() => {
-    if (!query.trim()) {
+    const trimmed = query.trim()
+    if (!trimmed) {
       setResults([])
       setIsOpen(false)
       return
@@ -36,13 +38,14 @@ export default function GlobalSearch() {
       abortControllerRef.current.abort()
     }
 
+    const requestQuery = trimmed
     const timeoutId = setTimeout(async () => {
       try {
         // 새로운 AbortController 생성
         abortControllerRef.current = new AbortController()
         
         const response = await api.get('/global-search', {
-          params: { q: query },
+          params: { q: requestQuery },
           signal: abortControllerRef.current.signal
         })
         console.log('Global search response:', response.data)
@@ -52,6 +55,8 @@ export default function GlobalSearch() {
           console.log('Response length:', response.data.length)
           console.log('First result:', response.data[0])
         }
+        // 최신 입력과 응답 쿼리가 일치할 때만 반영 (레이스 컨디션 방지)
+        if (lastQueryRef.current !== requestQuery) return
         setResults(Array.isArray(response.data) ? response.data : [])
         setIsOpen(Array.isArray(response.data) && response.data.length > 0)
         setSelectedIndex(-1)
@@ -159,7 +164,10 @@ export default function GlobalSearch() {
           placeholder={t('searchPlaceholder')}
           value={query}
           onChange={(e) => {
-            setQuery(e.target.value)
+            const v = e.target.value
+            lastQueryRef.current = v.trim()
+            setResults([]) // 입력 중에는 이전 결과 즉시 비우기 (고정 목록 방지)
+            setQuery(v)
             if (e.target.value.trim()) {
               setIsOpen(true)
             }
