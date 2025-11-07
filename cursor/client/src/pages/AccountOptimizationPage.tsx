@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Loader2, Sparkle, AlertCircle, Hash, ShieldCheck, Timer } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Loader2, Sparkle, AlertCircle, Hash, ShieldCheck, Timer, Download } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -102,6 +102,29 @@ export default function AccountOptimizationPage() {
   const [result, setResult] = useState<AccountAnalyticsResult | null>(null)
   const [searchedId, setSearchedId] = useState<string | null>(null)
   const [history, setHistory] = useState<string[]>([])
+  const resultRef = useRef<HTMLDivElement>(null)
+
+  const handleDownloadPNG = async () => {
+    if (!resultRef.current) return
+
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const canvas = await html2canvas(resultRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        logging: false,
+        useCORS: true,
+      })
+
+      const link = document.createElement('a')
+      link.download = `${searchedId || 'account'}_analysis_${new Date().toISOString().split('T')[0]}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (error) {
+      console.error('Failed to download PNG:', error)
+      alert(t('accountOptimizationDownloadFailed'))
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -262,8 +285,20 @@ export default function AccountOptimizationPage() {
       )}
 
       {result && (
-        <div className="space-y-8">
-          <Card className="shadow-sm">
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button
+              onClick={handleDownloadPNG}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {t('accountOptimizationDownloadPNG')}
+            </Button>
+          </div>
+          <div ref={resultRef} className="space-y-8 bg-white p-8 rounded-lg">
+          <Card className="shadow-sm bg-white">
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row gap-6">
                 <div className="flex-shrink-0">
@@ -431,6 +466,7 @@ export default function AccountOptimizationPage() {
               </CardContent>
             </Card>
           )}
+          </div>
         </div>
       )}
     </div>
