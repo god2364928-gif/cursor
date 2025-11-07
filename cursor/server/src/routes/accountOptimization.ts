@@ -86,6 +86,45 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 })
 
+router.get('/image-proxy', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const rawUrl = String(req.query.url ?? '').trim()
+    if (!rawUrl) {
+      return res.status(400).json(createErrorResponse('画像URLが必要です。'))
+    }
+
+    let parsed: URL
+    try {
+      parsed = new URL(rawUrl)
+    } catch (error) {
+      return res.status(400).json(createErrorResponse('無効なURLです。'))
+    }
+
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return res.status(400).json(createErrorResponse('対応していないURLです。'))
+    }
+
+    const host = parsed.hostname
+    if (!host.includes('growthcore')) {
+      return res.status(400).json(createErrorResponse('許可されていない画像ホストです。'))
+    }
+
+    const upstream = await fetch(parsed.toString())
+    if (!upstream.ok) {
+      return res.status(502).json(createErrorResponse('画像を取得できませんでした。'))
+    }
+
+    const arrayBuffer = await upstream.arrayBuffer()
+    const contentType = upstream.headers.get('content-type') || 'image/jpeg'
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+
+    return res.json({ dataUrl: `data:${contentType};base64,${base64}` })
+  } catch (error) {
+    console.error('[AccountOptimization] Image proxy failed', error)
+    return res.status(500).json(createErrorResponse('画像取得中にエラーが発生しました。'))
+  }
+})
+
 export default router
 
 

@@ -284,6 +284,14 @@ const translations: Record<Language, Translation> = {
     accountOptimizationFollowerGrade: 'フォロワー',
     accountOptimizationPostGrade: '投稿数',
     accountOptimizationActivityGrade: '活動量',
+    accountOptimizationLegendOverallLabel: '総合評価',
+    accountOptimizationLegendOverallDesc: '全指標を総合した最終ランクです。',
+    accountOptimizationLegendFollowerLabel: 'フォロワー指標',
+    accountOptimizationLegendFollowerDesc: 'フォロワー増加状況から算出した評価です。',
+    accountOptimizationLegendPostLabel: '投稿数指標',
+    accountOptimizationLegendPostDesc: '最近の投稿本数が基準を満たしているかを示します。',
+    accountOptimizationLegendActivityLabel: '活動量指標',
+    accountOptimizationLegendActivityDesc: '投稿頻度や更新間隔から見たアクティブ度です。',
 
     // Messages
     success: '成功',
@@ -663,6 +671,14 @@ const translations: Record<Language, Translation> = {
     accountOptimizationFollowerGrade: '팔로워',
     accountOptimizationPostGrade: '게시물 수',
     accountOptimizationActivityGrade: '활동량',
+    accountOptimizationLegendOverallLabel: '종합 평가',
+    accountOptimizationLegendOverallDesc: '모든 지표를 합산한 최종 등급입니다.',
+    accountOptimizationLegendFollowerLabel: '팔로워 지표',
+    accountOptimizationLegendFollowerDesc: '팔로워 증감 추이를 반영한 등급입니다.',
+    accountOptimizationLegendPostLabel: '게시물 지표',
+    accountOptimizationLegendPostDesc: '최근 게시물 수가 기준치를 충족하는지 나타냅니다.',
+    accountOptimizationLegendActivityLabel: '활동량 지표',
+    accountOptimizationLegendActivityDesc: '업데이트 빈도와 활동성을 토대로 계산한 등급입니다.',
 
     // Messages
     success: '성공',
