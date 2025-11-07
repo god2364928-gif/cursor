@@ -237,7 +237,9 @@ export default function SalesTrackingPage() {
     const endStr = end.toISOString().split('T')[0]
     setDailyStart(startStr)
     setDailyEnd(endStr)
-    const defaultManager = user?.name || 'all'
+    const userName = user?.name || ''
+    const marketerNames = new Set(managerOptions)
+    const defaultManager = (user?.role === 'marketer' && userName && marketerNames.has(userName)) ? userName : 'all'
     setDailyManager(defaultManager)
     const initialScope: 'overall'|'by_manager' = defaultManager === 'all' ? 'overall' : 'by_manager'
     setDailyScope(initialScope)
