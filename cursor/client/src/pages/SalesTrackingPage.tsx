@@ -557,19 +557,11 @@ export default function SalesTrackingPage() {
   const formatDateTime = (primary?: string, fallback?: string) => {
     const source = primary || fallback
     if (!source) return '-'
-    const date = new Date(source)
-    if (isNaN(date.getTime())) {
-      if (primary) return primary
-      if (fallback) return fallback
-      return '-'
-    }
-    const pad = (n: number) => n.toString().padStart(2, '0')
-    const y = date.getFullYear()
-    const m = pad(date.getMonth() + 1)
-    const d = pad(date.getDate())
-    const h = pad(date.getHours())
-    const min = pad(date.getMinutes())
-    return `${y}-${m}-${d} ${h}:${min}`
+    const normalized = source
+      .replace('T', ' ')
+      .replace('Z', '')
+      .slice(0, 16)
+    return normalized
   }
 
   // Translate option labels for table display while keeping DB values as-is
