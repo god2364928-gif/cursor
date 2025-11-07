@@ -611,7 +611,11 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
       SELECT 
         st.manager_name,
         COUNT(*) FILTER (WHERE st.contact_method = '電話') as phone_count,
-        COUNT(*) FILTER (WHERE st.contact_method IN ('DM', 'LINE', 'メール', 'フォーム')) as send_count,
+        COUNT(*) FILTER (
+          WHERE st.contact_method IN ('DM', 'LINE', 'メール', 'フォーム')
+            OR st.contact_method IS NULL
+            OR TRIM(COALESCE(st.contact_method, '')) = ''
+        ) as send_count,
         COUNT(*) as total_count,
         -- 회신수: 返信あり를 찾기 위한 다양한 조건
         COUNT(*) FILTER (WHERE st.status = '返信あり') as reply_count_exact,
@@ -815,7 +819,11 @@ router.get('/stats/daily', auth_1.authMiddleware, async (req, res) => {
           date_trunc('day', st.date) AS st_day,
           st.manager_name,
           COUNT(*) FILTER (WHERE st.contact_method = '電話') AS phone_count,
-          COUNT(*) FILTER (WHERE st.contact_method IN ('DM','LINE','メール','フォーム')) AS send_count,
+          COUNT(*) FILTER (
+            WHERE st.contact_method IN ('DM','LINE','メール','フォーム')
+              OR st.contact_method IS NULL
+              OR TRIM(COALESCE(st.contact_method, '')) = ''
+          ) AS send_count,
           COUNT(*) AS total_count,
           COUNT(*) FILTER (WHERE st.status = '返信あり' OR st.status LIKE '%返信あり%') AS reply_count,
           COUNT(*) FILTER (WHERE st.status = '商談中') AS negotiation_count,
