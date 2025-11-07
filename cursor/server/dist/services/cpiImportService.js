@@ -25,6 +25,11 @@ async function importRecentCalls(since, until) {
             break;
         for (const r of data) {
             const externalId = String(r.record_id);
+            // 첫콜+OUT (type=1)만 수집 (type=8은 분류없음이므로 제외)
+            if (r.type !== 1) {
+                skipped++;
+                continue;
+            }
             // dedupe by external_call_id
             const exists = await db_1.pool.query('SELECT 1 FROM sales_tracking WHERE external_call_id = $1 LIMIT 1', [externalId]);
             if (exists.rowCount && exists.rowCount > 0) {
