@@ -128,8 +128,8 @@ app.listen(PORT, () => {
       const now = new Date()
       const since = new Date(now.getTime() - 6 * 60 * 60 * 1000) // last 6 hours
       const result = await importRecentCalls(since, now)
-      if (result.inserted > 0 || result.skipped > 0) {
-        console.log(`[CPI] Scheduled import: inserted=${result.inserted}, skipped=${result.skipped}`)
+            if (result.inserted > 0 || result.updated > 0 || result.skipped > 0) {
+              console.log(`[CPI] Scheduled import: inserted=${result.inserted}, updated=${result.updated}, skipped=${result.skipped}`)
       }
     } catch (e) {
       console.error('[CPI] scheduler error:', e)

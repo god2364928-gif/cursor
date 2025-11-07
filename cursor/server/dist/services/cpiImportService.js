@@ -17,6 +17,7 @@ async function importRecentCalls(since, until) {
     const endDate = toDateString(until.toISOString());
     let page = 1;
     let inserted = 0;
+    let updated = 0;
     let skipped = 0;
     while (true) {
         // 모든 OUT 통화 수집 (첫콜 제한 없음)
@@ -26,8 +27,10 @@ async function importRecentCalls(since, until) {
         for (const r of data) {
             const externalId = String(r.record_id);
             const rawPhoneDigits = r.phone_number ? String(r.phone_number).replace(/\D/g, '') : '';
+            const existingRecord = await db_1.pool.query('SELECT id FROM sales_tracking WHERE external_call_id = $1 LIMIT 1', [externalId]);
+            const hasExisting = (existingRecord.rowCount ?? 0) > 0;
             // 첫콜+OUT (type=1) 우선, 분류없음(type=8)은 같은 번호가 이전에 없을 때만 허용
-            if (r.type !== 1) {
+            if (!hasExisting && r.type !== 1) {
                 if (r.type === 8) {
                     if (!rawPhoneDigits) {
                         skipped++;
@@ -43,12 +46,6 @@ async function importRecentCalls(since, until) {
                     skipped++;
                     continue;
                 }
-            }
-            // dedupe by external_call_id
-            const exists = await db_1.pool.query('SELECT 1 FROM sales_tracking WHERE external_call_id = $1 LIMIT 1', [externalId]);
-            if (exists.rowCount && exists.rowCount > 0) {
-                skipped++;
-                continue;
             }
             const managerName = r.username?.trim();
             if (!managerName) {
@@ -69,8 +66,23 @@ async function importRecentCalls(since, until) {
             date, manager_name, company_name, customer_name, industry, contact_method, status, contact_person, phone, memo, memo_note, user_id, created_at, updated_at, external_call_id, external_source
           ) VALUES (
             $1, $2, $3, '', NULL, '電話', '未返信', NULL, $4, NULL, NULL, $5, NOW(), NOW(), $6, 'cpi'
-          )`, [dateStr, managerName, companyName, phone, userId, externalId]);
-                inserted++;
+          )
+          ON CONFLICT (external_call_id)
+          DO UPDATE SET
+            date = EXCLUDED.date,
+            manager_name = EXCLUDED.manager_name,
+            company_name = EXCLUDED.company_name,
+            phone = EXCLUDED.phone,
+            user_id = EXCLUDED.user_id,
+            contact_method = EXCLUDED.contact_method,
+            status = EXCLUDED.status,
+            updated_at = NOW()`, [dateStr, managerName, companyName, phone, userId, externalId]);
+                if (hasExisting) {
+                    updated++;
+                }
+                else {
+                    inserted++;
+                }
             }
             catch (e) {
                 console.error('[CPI] insert failed:', e);
@@ -82,6 +94,6 @@ async function importRecentCalls(since, until) {
             break;
         page++;
     }
-    return { inserted, skipped };
+    return { inserted, updated, skipped };
 }
 //# sourceMappingURL=cpiImportService.js.map

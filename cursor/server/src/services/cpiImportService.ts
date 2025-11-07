@@ -10,12 +10,13 @@ function toDateString(isoLike: string): string {
   return i > 0 ? isoLike.slice(0, i) : isoLike.slice(0, 10)
 }
 
-export async function importRecentCalls(since: Date, until: Date): Promise<{ inserted: number; skipped: number }> {
+export async function importRecentCalls(since: Date, until: Date): Promise<{ inserted: number; updated: number; skipped: number }> {
   const startDate = toDateString(since.toISOString())
   const endDate = toDateString(until.toISOString())
 
   let page = 1
   let inserted = 0
+  let updated = 0
   let skipped = 0
 
   while (true) {
@@ -26,9 +27,11 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
     for (const r of data) {
       const externalId = String(r.record_id)
       const rawPhoneDigits = r.phone_number ? String(r.phone_number).replace(/\D/g, '') : ''
-      
+      const existingRecord = await pool.query('SELECT id FROM sales_tracking WHERE external_call_id = $1 LIMIT 1', [externalId])
+      const hasExisting = (existingRecord.rowCount ?? 0) > 0
+
       // 첫콜+OUT (type=1) 우선, 분류없음(type=8)은 같은 번호가 이전에 없을 때만 허용
-      if (r.type !== 1) {
+      if (!hasExisting && r.type !== 1) {
         if (r.type === 8) {
           if (!rawPhoneDigits) {
             skipped++
@@ -46,13 +49,6 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
           skipped++
           continue
         }
-      }
-      
-      // dedupe by external_call_id
-      const exists = await pool.query('SELECT 1 FROM sales_tracking WHERE external_call_id = $1 LIMIT 1', [externalId])
-      if (exists.rowCount && exists.rowCount > 0) {
-        skipped++
-        continue
       }
 
       const managerName = r.username?.trim()
@@ -75,10 +71,24 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
             date, manager_name, company_name, customer_name, industry, contact_method, status, contact_person, phone, memo, memo_note, user_id, created_at, updated_at, external_call_id, external_source
           ) VALUES (
             $1, $2, $3, '', NULL, '電話', '未返信', NULL, $4, NULL, NULL, $5, NOW(), NOW(), $6, 'cpi'
-          )`,
+          )
+          ON CONFLICT (external_call_id)
+          DO UPDATE SET
+            date = EXCLUDED.date,
+            manager_name = EXCLUDED.manager_name,
+            company_name = EXCLUDED.company_name,
+            phone = EXCLUDED.phone,
+            user_id = EXCLUDED.user_id,
+            contact_method = EXCLUDED.contact_method,
+            status = EXCLUDED.status,
+            updated_at = NOW()`,
           [dateStr, managerName, companyName, phone, userId, externalId]
         )
-        inserted++
+        if (hasExisting) {
+          updated++
+        } else {
+          inserted++
+        }
       } catch (e) {
         console.error('[CPI] insert failed:', e)
         skipped++
@@ -90,7 +100,7 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
     page++
   }
 
-  return { inserted, skipped }
+  return { inserted, updated, skipped }
 }
 
 
