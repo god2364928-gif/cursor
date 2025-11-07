@@ -9,6 +9,7 @@ import {
   History,
   BarChart3,
   Settings,
+  Gauge,
   LogOut,
   Languages,
 } from 'lucide-react'
@@ -21,6 +22,7 @@ const navigation = [
   { name: 'salesTracking', href: '/sales-tracking', icon: History },
   { name: 'sales', href: '/sales', icon: BarChart3 },
   { name: 'settings', href: '/settings', icon: Settings },
+  { name: 'accountOptimization', href: '/settings/account-optimization', icon: Gauge, nested: true },
 ]
 
 export default function Layout() {
@@ -64,18 +66,21 @@ export default function Layout() {
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
-            const isActive = location.pathname === item.href
+            const isActive =
+              location.pathname === item.href ||
+              (item.href !== '/' && location.pathname.startsWith(item.href + '/'))
+            const paddingClass = item.nested ? 'pl-12 pr-4 py-2 text-sm' : 'px-4 py-3 text-sm'
             return (
               <Link
                 key={item.name}
                 to={item.href}
-                className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                className={`flex items-center ${paddingClass} font-medium rounded-lg transition-colors ${
                   isActive
                     ? 'bg-blue-50 text-blue-700'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <item.icon className="mr-3 h-5 w-5" />
+                <item.icon className={`mr-3 h-5 w-5 ${item.nested ? 'text-blue-400' : ''}`} />
                 {t(item.name)}
               </Link>
             )
