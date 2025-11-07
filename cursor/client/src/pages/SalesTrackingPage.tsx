@@ -225,6 +225,18 @@ export default function SalesTrackingPage() {
     }
   }
 
+  // Keep scope in sync with manager selection
+  useEffect(() => {
+    setDailyScope(dailyManager === 'all' ? 'overall' : 'by_manager')
+  }, [dailyManager])
+
+  // Fetch when params change while modal open
+  useEffect(() => {
+    if (!showDailyStatsModal) return
+    const scope = dailyManager === 'all' ? 'overall' : 'by_manager'
+    fetchDailyStats(dailyStart, dailyEnd, scope, dailyManager)
+  }, [showDailyStatsModal, dailyStart, dailyEnd, dailyManager])
+
   const handleAdd = async () => {
     try {
       await api.post('/sales-tracking', formData)
@@ -1099,9 +1111,6 @@ export default function SalesTrackingPage() {
                     onChange={e => {
                       const v = e.target.value
                       setDailyManager(v)
-                      const scope = v === 'all' ? 'overall' : 'by_manager'
-                      setDailyScope(scope)
-                      fetchDailyStats(dailyStart, dailyEnd, scope, v)
                     }}
                     className="px-3 py-2 border rounded text-sm"
                   >
