@@ -1027,6 +1027,7 @@ export default function SalesTrackingPage() {
                   </span>
                 </span>
                 <div className="flex gap-2 flex-wrap items-center">
+                  <span className="text-sm text-gray-600">{t('startDate')}</span>
                   <input
                     type="date"
                     className="px-3 py-2 border rounded text-sm"
@@ -1038,6 +1039,7 @@ export default function SalesTrackingPage() {
                     }}
                   />
                   <span>~</span>
+                  <span className="text-sm text-gray-600">{t('endDate')}</span>
                   <input
                     type="date"
                     className="px-3 py-2 border rounded text-sm"
@@ -1048,6 +1050,7 @@ export default function SalesTrackingPage() {
                       fetchDailyStats(dailyStart, v, dailyScope, dailyManager)
                     }}
                   />
+                  <span className="text-sm text-gray-600">{t('view')}</span>
                   <select
                     value={dailyScope}
                     onChange={e => {
@@ -1061,20 +1064,23 @@ export default function SalesTrackingPage() {
                     <option value="by_manager">{t('byManager')}</option>
                   </select>
                   {dailyScope === 'by_manager' && (
-                    <select
-                      value={dailyManager}
-                      onChange={e => {
-                        const v = e.target.value
-                        setDailyManager(v)
-                        fetchDailyStats(dailyStart, dailyEnd, dailyScope, v)
-                      }}
-                      className="px-3 py-2 border rounded text-sm"
-                    >
-                      <option value="all">{t('all')}</option>
-                      {managerOptions.map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
+                    <>
+                      <span className="text-sm text-gray-600">{t('managerName')}</span>
+                      <select
+                        value={dailyManager}
+                        onChange={e => {
+                          const v = e.target.value
+                          setDailyManager(v)
+                          fetchDailyStats(dailyStart, dailyEnd, dailyScope, v)
+                        }}
+                        className="px-3 py-2 border rounded text-sm"
+                      >
+                        <option value="all">{t('all')}</option>
+                        {managerOptions.map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </>
                   )}
                   <Button
                     variant="ghost"

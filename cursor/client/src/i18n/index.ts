@@ -312,7 +312,8 @@ const translations: Record<Language, Translation> = {
 
     // Daily stats (new)
     dailyStats: '日別統計',
-    overall: '全体',
+    view: '表示',
+    overall: '全体表示',
     byManager: '担当者別',
   },
   ko: {
@@ -620,7 +621,8 @@ const translations: Record<Language, Translation> = {
 
     // Daily stats (new)
     dailyStats: '일별 통계',
-    overall: '전체',
+    view: '보기',
+    overall: '전체 보기',
     byManager: '담당자별',
   },
 }
