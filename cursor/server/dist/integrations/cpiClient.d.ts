@@ -12,6 +12,8 @@ export interface FetchParams {
     endDate: string;
     page?: number;
     row?: number;
+    query?: string;
+    queryType?: number;
 }
 export declare function fetchFirstOutCalls(params: FetchParams): Promise<{
     data: CpiRecord[];
