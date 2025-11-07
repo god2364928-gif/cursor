@@ -65,4 +65,18 @@ router.get('/cpi/check', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ message: e.message || 'Internal error' });
     }
 });
+// Find a row by external_call_id (debug)
+router.get('/cpi/by-id', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const rid = req.query.rid?.trim();
+        if (!rid)
+            return res.status(400).json({ message: 'rid required' });
+        const r = await db_1.pool.query(`SELECT id, date, manager_name, company_name, phone, contact_method, status, external_call_id
+       FROM sales_tracking WHERE external_call_id = $1`, [rid]);
+        res.json({ count: r.rowCount || 0, rows: r.rows });
+    }
+    catch (e) {
+        res.status(500).json({ message: e.message || 'Internal error' });
+    }
+});
 //# sourceMappingURL=integrations.js.map
