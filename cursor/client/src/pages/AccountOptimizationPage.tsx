@@ -109,11 +109,34 @@ export default function AccountOptimizationPage() {
 
     try {
       const html2canvas = (await import('html2canvas')).default
+      
+      // 프로필 이미지를 미리 로드
+      const images = resultRef.current.querySelectorAll('img')
+      await Promise.all(
+        Array.from(images).map((img) => {
+          if (img.complete) return Promise.resolve()
+          return new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+          })
+        })
+      )
+
       const canvas = await html2canvas(resultRef.current, {
         backgroundColor: '#ffffff',
         scale: 2,
         logging: false,
         useCORS: true,
+        allowTaint: true,
+        foreignObjectRendering: false,
+        imageTimeout: 15000,
+        onclone: (clonedDoc) => {
+          const clonedElement = clonedDoc.querySelector('[data-screenshot]') as HTMLElement
+          if (clonedElement) {
+            // 폰트 로딩 보장
+            clonedElement.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+          }
+        },
       })
 
       const link = document.createElement('a')
@@ -297,28 +320,28 @@ export default function AccountOptimizationPage() {
               {t('accountOptimizationDownloadPNG')}
             </Button>
           </div>
-          <div ref={resultRef} className="space-y-8 bg-white p-8 rounded-lg">
+          <div ref={resultRef} data-screenshot className="space-y-8 bg-white p-8 rounded-lg max-w-6xl mx-auto">
           <Card className="shadow-sm bg-white">
             <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row gap-6">
+              <div className="flex flex-col lg:flex-row gap-8">
                 <div className="flex-shrink-0">
                   {result.profile_image_url ? (
                     <img
                       src={result.profile_image_url}
                       alt={result.username || ''}
-                      className="h-36 w-36 rounded-2xl object-cover border shadow-sm"
+                      className="h-40 w-40 rounded-2xl object-cover border shadow-sm"
+                      crossOrigin="anonymous"
                     />
                   ) : (
-                    <div className="h-36 w-36 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 text-3xl font-semibold">
+                    <div className="h-40 w-40 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 text-3xl font-semibold">
                       {result.username?.slice(0, 2).toUpperCase() || 'IG'}
                     </div>
                   )}
                 </div>
 
-                <div className="flex-1 space-y-4">
+                <div className="flex-1 space-y-4 min-w-0">
                   <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-2xl font-bold text-gray-900">{result.username}</h2>
-                    <GradeBadge label={result.total_grade} />
                     {searchedId && (
                       <span className="text-xs md:text-sm text-gray-400">
                         {language === 'ja' ? `分析ID: ${searchedId}` : `조회 ID: ${searchedId}`}
@@ -334,6 +357,7 @@ export default function AccountOptimizationPage() {
                     </div>
                   )}
                   <div className="flex flex-wrap gap-3">
+                    <GradeBadge label={result.total_grade} />
                     <GradeBadge label={result.follower_grade} />
                     <GradeBadge label={result.post_count_grade} />
                     <GradeBadge label={result.activity_grade} />
@@ -348,6 +372,36 @@ export default function AccountOptimizationPage() {
                         : result.growthcore_customer.message || t('accountOptimizationNonCallable')}
                     </div>
                   )}
+                </div>
+
+                <div className="flex-shrink-0 lg:w-48 space-y-4">
+                  <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl border border-blue-100">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
+                      {t('accountOptimizationTotalGrade')}
+                    </p>
+                    <div className="flex justify-center">
+                      <div className={`text-5xl font-bold px-6 py-3 rounded-2xl ${
+                        gradeColor[result.total_grade ?? ''] || 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {result.total_grade || '-'}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="p-3 bg-white border border-gray-100 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">{t('accountOptimizationFollowerGrade')}</p>
+                      <GradeBadge label={result.follower_grade} />
+                    </div>
+                    <div className="p-3 bg-white border border-gray-100 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">{t('accountOptimizationPostGrade')}</p>
+                      <GradeBadge label={result.post_count_grade} />
+                    </div>
+                    <div className="p-3 bg-white border border-gray-100 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">{t('accountOptimizationActivityGrade')}</p>
+                      <GradeBadge label={result.activity_grade} />
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
