@@ -61,26 +61,35 @@ async function importRecentCalls(since, until) {
             const dateStr = toDateString(r.created_at);
             const companyName = r.company?.trim() || '';
             const phone = (0, nullSafe_1.formatPhoneNumber)(r.phone_number) || '';
+            const occurredAt = (() => {
+                if (r.created_at) {
+                    const d = new Date(r.created_at);
+                    if (!isNaN(d.getTime()))
+                        return d;
+                }
+                return new Date(`${dateStr}T00:00:00`);
+            })();
             try {
                 if (hasExisting) {
                     await db_1.pool.query(`UPDATE sales_tracking SET
               date = $1,
-              manager_name = $2,
-              company_name = $3,
-              phone = $4,
-              user_id = $5,
+              occurred_at = $2,
+              manager_name = $3,
+              company_name = $4,
+              phone = $5,
+              user_id = $6,
               contact_method = '電話',
               status = '未返信',
               updated_at = NOW()
-            WHERE external_call_id = $6`, [dateStr, managerName, companyName, phone, userId, externalId]);
+            WHERE external_call_id = $7`, [dateStr, occurredAt, managerName, companyName, phone, userId, externalId]);
                     updated++;
                 }
                 else {
                     await db_1.pool.query(`INSERT INTO sales_tracking (
-              date, manager_name, company_name, customer_name, industry, contact_method, status, contact_person, phone, memo, memo_note, user_id, created_at, updated_at, external_call_id, external_source
+              date, occurred_at, manager_name, company_name, customer_name, industry, contact_method, status, contact_person, phone, memo, memo_note, user_id, created_at, updated_at, external_call_id, external_source
             ) VALUES (
-              $1, $2, $3, '', NULL, '電話', '未返信', NULL, $4, NULL, NULL, $5, NOW(), NOW(), $6, 'cpi'
-            )`, [dateStr, managerName, companyName, phone, userId, externalId]);
+              $1, $2, $3, $4, '', NULL, '電話', '未返信', NULL, $5, NULL, NULL, $6, NOW(), NOW(), $7, 'cpi'
+            )`, [dateStr, occurredAt, managerName, companyName, phone, userId, externalId]);
                     inserted++;
                 }
             }

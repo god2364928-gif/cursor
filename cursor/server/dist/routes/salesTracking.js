@@ -14,6 +14,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
       SELECT 
         id,
         date,
+        occurred_at,
         manager_name,
         company_name,
         account_id,
@@ -52,10 +53,10 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
       `;
             const kw = search.trim();
             params.push(kw, `${kw}%`, `%${kw}%`);
-            query += ` ORDER BY match_priority, date DESC, created_at DESC`;
+            query += ` ORDER BY match_priority, COALESCE(occurred_at, date::timestamp) DESC`;
         }
         else {
-            query += ` ORDER BY date DESC, created_at DESC`;
+            query += ` ORDER BY COALESCE(occurred_at, date::timestamp) DESC`;
         }
         const result = await db_1.pool.query(query, params);
         res.json(result.rows);
@@ -97,12 +98,14 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
         if (!date || !managerName || !status) {
             return res.status(400).json({ message: 'Date, manager name, and status are required' });
         }
+        const occurredAt = new Date();
         const result = await db_1.pool.query(`INSERT INTO sales_tracking (
-        date, manager_name, company_name, account_id, customer_name, industry,
+        date, occurred_at, manager_name, company_name, account_id, customer_name, industry,
         contact_method, status, contact_person, phone, memo, memo_note, user_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`, [
             date,
+            occurredAt,
             managerName,
             companyName || null,
             accountId || null,
