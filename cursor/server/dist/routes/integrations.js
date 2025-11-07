@@ -14,7 +14,19 @@ router.post('/cpi/import', auth_1.authMiddleware, async (req, res) => {
         }
         const sinceParam = req.query.since;
         const until = new Date();
-        const since = sinceParam ? new Date(sinceParam) : new Date(until.getTime() - 2 * 60 * 60 * 1000); // last 2h
+        const parseSince = (s) => {
+            if (!s)
+                return new Date(until.getTime() - 2 * 60 * 60 * 1000);
+            // YYYY-MM-DD 만 들어오면 00:00:00로 보정
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+                return new Date(`${s}T00:00:00`);
+            }
+            const d = new Date(s);
+            if (isNaN(d.getTime()))
+                throw new Error('Invalid time value');
+            return d;
+        };
+        const since = parseSince(sinceParam);
         const result = await (0, cpiImportService_1.importRecentCalls)(since, until);
         res.json({ ok: true, ...result });
     }
