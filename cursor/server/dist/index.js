@@ -115,7 +115,7 @@ async function startServer() {
         setInterval(async () => {
             try {
                 const now = new Date();
-                const since = new Date(now.getTime() - 2 * 60 * 60 * 1000); // last 2 hours
+                const since = new Date(now.getTime() - 6 * 60 * 60 * 1000); // last 6 hours (더 안정적으로 커버)
                 const result = await (0, cpiImportService_1.importRecentCalls)(since, now);
                 if (result.inserted > 0) {
                     console.log(`[CPI] Imported calls: +${result.inserted}, skipped: ${result.skipped}`);
