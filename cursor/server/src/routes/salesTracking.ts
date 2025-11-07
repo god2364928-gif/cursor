@@ -40,11 +40,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       query += `,
         CASE
           WHEN manager_name = $1 OR company_name = $1 OR account_id = $1 OR customer_name = $1 OR industry = $1 OR phone = $1
-               OR regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g') THEN 1
+               OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) THEN 1
           WHEN manager_name ILIKE $2 OR company_name ILIKE $2 OR account_id ILIKE $2 OR customer_name ILIKE $2 OR industry ILIKE $2 OR phone ILIKE $2
-               OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '' THEN 2
+               OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '') THEN 2
           WHEN manager_name ILIKE $3 OR company_name ILIKE $3 OR account_id ILIKE $3 OR customer_name ILIKE $3 OR industry ILIKE $3 OR phone ILIKE $3
-               OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || regexp_replace($1, '[^0-9]', '', 'g') || '%' THEN 3
+               OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || regexp_replace($1, '[^0-9]', '', 'g') || '%') THEN 3
           ELSE 999
         END as match_priority`
     }
@@ -54,11 +54,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     if (search) {
       query += ` WHERE 
         (manager_name = $1 OR company_name = $1 OR account_id = $1 OR customer_name = $1 OR industry = $1 OR phone = $1
-         OR regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) OR
+         OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g'))) OR
         (manager_name ILIKE $2 OR company_name ILIKE $2 OR account_id ILIKE $2 OR customer_name ILIKE $2 OR industry ILIKE $2 OR phone ILIKE $2
-         OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '') OR
+         OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '')) OR
         (manager_name ILIKE $3 OR company_name ILIKE $3 OR account_id ILIKE $3 OR customer_name ILIKE $3 OR industry ILIKE $3 OR phone ILIKE $3
-         OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || regexp_replace($1, '[^0-9]', '', 'g') || '%')
+         OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || regexp_replace($1, '[^0-9]', '', 'g') || '%'))
       `
       const kw = search.trim()
       params.push(kw, `${kw}%`, `%${kw}%`)
