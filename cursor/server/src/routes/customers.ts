@@ -1,7 +1,7 @@
 import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
-import { safeString, safeStringWithLength } from '../utils/nullSafe'
+import { safeString, safeStringWithLength, formatPhoneNumber } from '../utils/nullSafe'
 import multer from 'multer'
 
 const router = Router()
@@ -46,7 +46,9 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const safeCompanyName = safeStringWithLength(companyName || '', '未設定', 255)
     const safeIndustry = industry || null
     const safeCustomerName = safeStringWithLength(customerName || '', '未設定', 100)
-    const safePhone1 = safeStringWithLength(phone1 || '', '00000000000', 20)
+    const safePhone1 = formatPhoneNumber(phone1) || '00000000000'
+    const safePhone2 = formatPhoneNumber(phone2) || null
+    const safePhone3 = formatPhoneNumber(phone3) || null
     
     // 담당자와 팀을 자동으로 설정 (없으면 현재 사용자 정보)
     const finalManager = manager || req.user?.name
@@ -63,7 +65,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
       RETURNING *`,
       [
-        safeCompanyName, safeIndustry, safeCustomerName, req.body.title || null, safePhone1, phone2 || null, phone3 || null,
+        safeCompanyName, safeIndustry, safeCustomerName, req.body.title || null, safePhone1, safePhone2, safePhone3,
         customerType || null, businessModel || null, region || null,
         homepage || null, blog || null, instagram || null,
         otherChannel || null, req.body.kpiDataUrl || null, req.body.topExposureCount || 0,
@@ -429,6 +431,9 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
           processedValue = '未設定'
         } else if (fieldMap[key] === 'phone1' && (!value || value === '')) {
           processedValue = '00000000000'
+        } else if (['phone1', 'phone2', 'phone3'].includes(fieldMap[key])) {
+          // 전화번호 포매팅 (phone1, phone2, phone3)
+          processedValue = formatPhoneNumber(value) || null
         }
         
         setClause.push(`${fieldMap[key]} = $${paramCount++}`)

@@ -5,7 +5,8 @@ import {
   safeString, 
   safeStringWithLength, 
   firstValidString, 
-  validateInsertValues 
+  validateInsertValues, 
+  formatPhoneNumber 
 } from '../utils/nullSafe'
 
 const router = Router()
@@ -143,7 +144,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         contactMethod || null,
         status,
         contactPerson || null,
-        phone || null,
+        formatPhoneNumber(phone) || null,
         memo || null,
         memoNote || null,
         req.user?.id
@@ -219,7 +220,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
         contactMethod || null,
         status,
         contactPerson || null,
-        phone || null,
+        formatPhoneNumber(phone) || null,
         memo || null,
         memoNote || null,
         id

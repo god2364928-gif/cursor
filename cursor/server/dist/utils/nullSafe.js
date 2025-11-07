@@ -9,6 +9,7 @@ exports.safeStringWithLength = safeStringWithLength;
 exports.firstValidString = firstValidString;
 exports.validateInsertValues = validateInsertValues;
 exports.sanitizeObject = sanitizeObject;
+exports.formatPhoneNumber = formatPhoneNumber;
 /**
  * 안전하게 문자열로 변환하고 null/undefined를 기본값으로 대체
  * @param value - 변환할 값
@@ -136,5 +137,30 @@ function sanitizeObject(obj, fields, defaultValues = {}) {
         }
     }
     return sanitized;
+}
+/**
+ * 전화번호를 000-0000-0000 형식으로 포매팅
+ * 숫자만 추출하고 앞 3자리-중간 4자리-뒤 4자리로 포매팅
+ * @param phone - 전화번호 (하이픈 있음/없음 모두 지원)
+ * @returns 포매팅된 전화번호 (000-0000-0000) 또는 빈 문자열
+ */
+function formatPhoneNumber(phone) {
+    if (!phone)
+        return '';
+    // 숫자만 추출
+    const digits = String(phone).replace(/\D/g, '');
+    // 숫자가 없으면 반환
+    if (digits.length === 0)
+        return '';
+    // 11자리일 때만 포매팅 (한국 휴대폰은 보통 11자리)
+    if (digits.length === 11) {
+        return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+    }
+    // 10자리 (유선전화)
+    if (digits.length === 10) {
+        return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    // 기타 길이는 그대로 반환 (또는 필요에 따라 처리)
+    return digits;
 }
 //# sourceMappingURL=nullSafe.js.map

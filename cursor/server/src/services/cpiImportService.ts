@@ -1,5 +1,6 @@
 import { pool } from '../db'
 import { fetchFirstOutCalls } from '../integrations/cpiClient'
+import { formatPhoneNumber } from '../utils/nullSafe'
 
 // CPI created_at은 KST 형식 문자열(예: 2025-11-07T11:13:25.xxx)로 반환됨.
 // 타임존 오프셋을 추가하지 않고 'YYYY-MM-DD'만 안정적으로 추출한다.
@@ -36,7 +37,7 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
 
       const dateStr = toDateString(r.created_at)
       const companyName = r.company?.trim() || ''
-      const phone = r.phone_number?.trim() || ''
+      const phone = formatPhoneNumber(r.phone_number) || ''
 
       try {
         await pool.query(

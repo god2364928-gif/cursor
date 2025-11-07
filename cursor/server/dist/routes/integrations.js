@@ -4,6 +4,7 @@ const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
 const cpiImportService_1 = require("../services/cpiImportService");
 const cpiClient_1 = require("../integrations/cpiClient");
+const nullSafe_1 = require("../utils/nullSafe");
 const db_1 = require("../db");
 const router = (0, express_1.Router)();
 // Trigger CPI import manually (admin only)
@@ -99,7 +100,7 @@ router.post('/cpi/import-by-phone', auth_1.authMiddleware, async (req, res) => {
                 const managerName = r.username?.trim() || '';
                 const dateStr = (r.created_at || '').slice(0, 10);
                 const companyName = r.company?.trim() || '';
-                const phoneNum = r.phone_number?.trim() || '';
+                const phoneNum = (0, nullSafe_1.formatPhoneNumber)(r.phone_number) || '';
                 await db_1.pool.query(`INSERT INTO sales_tracking (
             date, manager_name, company_name, customer_name, industry, contact_method, status, contact_person, phone, memo, memo_note, user_id, created_at, updated_at, external_call_id, external_source
           ) VALUES (
