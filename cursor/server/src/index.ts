@@ -13,6 +13,7 @@ import perfRoutes from './routes/perf'
 import salesTrackingRoutes from './routes/salesTracking'
 import globalSearchRoutes from './routes/globalSearch'
 import integrationsRoutes from './routes/integrations'
+import accountOptimizationRoutes from './routes/accountOptimization'
 import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking } from './migrations/autoMigrate'
 
@@ -87,6 +88,7 @@ app.use('/api/perf', perfRoutes)
 app.use('/api/sales-tracking', salesTrackingRoutes)
 app.use('/api/global-search', globalSearchRoutes)
 app.use('/api/integrations', integrationsRoutes)
+app.use('/api/account-optimization', accountOptimizationRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
