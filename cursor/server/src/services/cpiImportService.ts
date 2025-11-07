@@ -66,27 +66,30 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
       const phone = formatPhoneNumber(r.phone_number) || ''
 
       try {
-        await pool.query(
-          `INSERT INTO sales_tracking (
-            date, manager_name, company_name, customer_name, industry, contact_method, status, contact_person, phone, memo, memo_note, user_id, created_at, updated_at, external_call_id, external_source
-          ) VALUES (
-            $1, $2, $3, '', NULL, '電話', '未返信', NULL, $4, NULL, NULL, $5, NOW(), NOW(), $6, 'cpi'
-          )
-          ON CONFLICT (external_call_id)
-          DO UPDATE SET
-            date = EXCLUDED.date,
-            manager_name = EXCLUDED.manager_name,
-            company_name = EXCLUDED.company_name,
-            phone = EXCLUDED.phone,
-            user_id = EXCLUDED.user_id,
-            contact_method = EXCLUDED.contact_method,
-            status = EXCLUDED.status,
-            updated_at = NOW()`,
-          [dateStr, managerName, companyName, phone, userId, externalId]
-        )
         if (hasExisting) {
+          await pool.query(
+            `UPDATE sales_tracking SET
+              date = $1,
+              manager_name = $2,
+              company_name = $3,
+              phone = $4,
+              user_id = $5,
+              contact_method = '電話',
+              status = '未返信',
+              updated_at = NOW()
+            WHERE external_call_id = $6`,
+            [dateStr, managerName, companyName, phone, userId, externalId]
+          )
           updated++
         } else {
+          await pool.query(
+            `INSERT INTO sales_tracking (
+              date, manager_name, company_name, customer_name, industry, contact_method, status, contact_person, phone, memo, memo_note, user_id, created_at, updated_at, external_call_id, external_source
+            ) VALUES (
+              $1, $2, $3, '', NULL, '電話', '未返信', NULL, $4, NULL, NULL, $5, NOW(), NOW(), $6, 'cpi'
+            )`,
+            [dateStr, managerName, companyName, phone, userId, externalId]
+          )
           inserted++
         }
       } catch (e) {
