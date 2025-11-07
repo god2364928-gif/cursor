@@ -25,10 +25,24 @@ async function importRecentCalls(since, until) {
             break;
         for (const r of data) {
             const externalId = String(r.record_id);
-            // 첫콜+OUT (type=1)만 수집 (type=8은 분류없음이므로 제외)
+            const rawPhoneDigits = r.phone_number ? String(r.phone_number).replace(/\D/g, '') : '';
+            // 첫콜+OUT (type=1) 우선, 분류없음(type=8)은 같은 번호가 이전에 없을 때만 허용
             if (r.type !== 1) {
-                skipped++;
-                continue;
+                if (r.type === 8) {
+                    if (!rawPhoneDigits) {
+                        skipped++;
+                        continue;
+                    }
+                    const existingSamePhone = await db_1.pool.query(`SELECT 1 FROM sales_tracking WHERE external_source = 'cpi' AND regexp_replace(phone, '[^0-9]', '', 'g') = $1 LIMIT 1`, [rawPhoneDigits]);
+                    if ((existingSamePhone.rowCount ?? 0) > 0) {
+                        skipped++;
+                        continue;
+                    }
+                }
+                else {
+                    skipped++;
+                    continue;
+                }
             }
             // dedupe by external_call_id
             const exists = await db_1.pool.query('SELECT 1 FROM sales_tracking WHERE external_call_id = $1 LIMIT 1', [externalId]);
@@ -41,6 +55,12 @@ async function importRecentCalls(since, until) {
                 skipped++;
                 continue;
             }
+            const userResult = await db_1.pool.query('SELECT id FROM users WHERE name = $1 LIMIT 1', [managerName]);
+            if (userResult.rowCount === 0) {
+                skipped++;
+                continue;
+            }
+            const userId = userResult.rows[0].id;
             const dateStr = toDateString(r.created_at);
             const companyName = r.company?.trim() || '';
             const phone = (0, nullSafe_1.formatPhoneNumber)(r.phone_number) || '';
@@ -48,8 +68,8 @@ async function importRecentCalls(since, until) {
                 await db_1.pool.query(`INSERT INTO sales_tracking (
             date, manager_name, company_name, customer_name, industry, contact_method, status, contact_person, phone, memo, memo_note, user_id, created_at, updated_at, external_call_id, external_source
           ) VALUES (
-            $1, $2, $3, '', NULL, '電話', '未返信', NULL, $4, NULL, NULL, NULL, NOW(), NOW(), $5, 'cpi'
-          ) ON CONFLICT (external_call_id) DO NOTHING`, [dateStr, managerName, companyName, phone, externalId]);
+            $1, $2, $3, '', NULL, '電話', '未返信', NULL, $4, NULL, NULL, $5, NOW(), NOW(), $6, 'cpi'
+          )`, [dateStr, managerName, companyName, phone, userId, externalId]);
                 inserted++;
             }
             catch (e) {

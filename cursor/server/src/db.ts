@@ -13,7 +13,7 @@ const poolConfig: any = {
   connectionString: databaseUrl,
   max: 20,                          // 최대 연결 수
   idleTimeoutMillis: 30000,         // idle 연결 타임아웃 (30초)
-  connectionTimeoutMillis: 2000,    // 연결 대기 시간 (2초)
+  connectionTimeoutMillis: 10000,   // 연결 대기 시간 (10초)
 }
 
 // Only use SSL for remote connections (Railway)
