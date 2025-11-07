@@ -369,7 +369,6 @@ export default function AccountOptimizationPage() {
                   src={result.profile_image_url}
                   alt={result.username || ''}
                   className="h-32 w-32 rounded-2xl object-cover border-2 shadow-sm"
-                  crossOrigin="anonymous"
                 />
               ) : (
                 <div className="h-32 w-32 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 text-3xl font-semibold">
