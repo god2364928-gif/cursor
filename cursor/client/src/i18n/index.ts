@@ -278,6 +278,8 @@ const translations: Record<Language, Translation> = {
     accountOptimizationAnalysisMessageTitle: '診断メッセージ',
     accountOptimizationRecommendationTitle: 'おすすめサービス',
     accountOptimizationRecentSearches: '最近検索したID',
+    accountOptimizationDownloadPNG: 'PNG ダウンロード',
+    accountOptimizationDownloadFailed: 'ダウンロードに失敗しました。',
 
     // Messages
     success: '成功',
@@ -651,6 +653,8 @@ const translations: Record<Language, Translation> = {
     accountOptimizationAnalysisMessageTitle: '진단 메시지',
     accountOptimizationRecommendationTitle: '추천 서비스',
     accountOptimizationRecentSearches: '최근 조회한 ID',
+    accountOptimizationDownloadPNG: 'PNG 다운로드',
+    accountOptimizationDownloadFailed: '다운로드에 실패했습니다.',
 
     // Messages
     success: '성공',
