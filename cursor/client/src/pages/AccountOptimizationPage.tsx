@@ -109,6 +109,28 @@ export default function AccountOptimizationPage() {
 
     try {
       const html2canvas = (await import('html2canvas')).default
+
+      const images = Array.from(resultRef.current.querySelectorAll('img'))
+      const originalSources: Array<{ element: HTMLImageElement; src: string }> = []
+
+      await Promise.all(
+        images.map(async (img) => {
+          const originalSrc = img.getAttribute('data-original-src') || img.src
+          originalSources.push({ element: img, src: originalSrc })
+          try {
+            const response = await api.get<{ dataUrl?: string }>('/account-optimization/image-proxy', {
+              params: { url: originalSrc },
+            })
+            if (response.data?.dataUrl) {
+              img.setAttribute('data-original-src', originalSrc)
+              img.src = response.data.dataUrl
+            }
+          } catch (error) {
+            console.warn('Image proxy failed, fallback to original source', error)
+            img.src = originalSrc
+          }
+        })
+      )
       
       // 이미지를 proxy를 통해 로드
       const canvas = await html2canvas(resultRef.current, {
@@ -117,7 +139,6 @@ export default function AccountOptimizationPage() {
         logging: false,
         useCORS: true,
         allowTaint: true,
-        proxy: undefined,
       })
 
       canvas.toBlob((blob) => {
@@ -130,6 +151,10 @@ export default function AccountOptimizationPage() {
           URL.revokeObjectURL(url)
         }
       }, 'image/png')
+
+      originalSources.forEach(({ element, src }) => {
+        element.src = src
+      })
     } catch (error) {
       console.error('Failed to download PNG:', error)
       alert(t('accountOptimizationDownloadFailed'))
@@ -344,6 +369,29 @@ export default function AccountOptimizationPage() {
                 <GradeBadge label={result.post_count_grade} />
                 <GradeBadge label={result.activity_grade} />
               </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <LegendItem
+                  title={t('accountOptimizationLegendOverallLabel')}
+                  description={t('accountOptimizationLegendOverallDesc')}
+                  badge={result.total_grade}
+                />
+                <LegendItem
+                  title={t('accountOptimizationLegendFollowerLabel')}
+                  description={t('accountOptimizationLegendFollowerDesc')}
+                  badge={result.follower_grade}
+                />
+                <LegendItem
+                  title={t('accountOptimizationLegendPostLabel')}
+                  description={t('accountOptimizationLegendPostDesc')}
+                  badge={result.post_count_grade}
+                />
+                <LegendItem
+                  title={t('accountOptimizationLegendActivityLabel')}
+                  description={t('accountOptimizationLegendActivityDesc')}
+                  badge={result.activity_grade}
+                />
+              </div>
             </div>
           </div>
 
@@ -489,6 +537,26 @@ function DistributionBar({
       <div className="h-3 rounded-full bg-gray-100 overflow-hidden">
         <div className={`h-full transition-all duration-700 ${color}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
       </div>
+    </div>
+  )
+}
+
+function LegendItem({
+  title,
+  description,
+  badge,
+}: {
+  title: string
+  description: string
+  badge?: string
+}) {
+  return (
+    <div className="p-3 rounded-lg border border-blue-100 bg-blue-50/60">
+      <p className="text-xs font-semibold text-blue-700 mb-1 flex items-center gap-2">
+        <span>{title}</span>
+        {badge && <GradeBadge label={badge} />}
+      </p>
+      <p className="text-xs text-blue-600 leading-relaxed">{description}</p>
     </div>
   )
 }
