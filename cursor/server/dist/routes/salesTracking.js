@@ -14,7 +14,9 @@ const toSeoulTimestampString = (input) => {
 // Get all sales tracking records (with search)
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
-        const search = req.query.search || '';
+        const search = (req.query.search || '').trim();
+        const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '500'), 10) || 500, 1), 2000);
+        const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
         const params = [];
         let query = `
       SELECT 
@@ -35,6 +37,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         user_id,
         created_at,
         updated_at`;
+        let orderClause = '';
         if (search) {
             query += `,
         CASE
@@ -59,13 +62,17 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
       `;
             const kw = search.trim();
             params.push(kw, `${kw}%`, `%${kw}%`);
-            query += ` ORDER BY match_priority, COALESCE(occurred_at, date::timestamp) DESC`;
+            orderClause = ` ORDER BY match_priority, COALESCE(occurred_at, date::timestamp) DESC`;
         }
         else {
-            query += ` ORDER BY COALESCE(occurred_at, date::timestamp) DESC`;
+            orderClause = ` ORDER BY COALESCE(occurred_at, date::timestamp) DESC`;
         }
+        params.push(limit, offset);
+        query += `${orderClause} LIMIT $${params.length - 1} OFFSET $${params.length}`;
         const result = await db_1.pool.query(query, params);
-        res.json(result.rows);
+        const rows = result.rows.map(({ customer_name: _ignored, ...rest }) => rest);
+        const hasMore = result.rows.length === limit;
+        res.json({ rows, hasMore });
     }
     catch (error) {
         console.error('Error fetching sales tracking:', error);
@@ -100,7 +107,7 @@ router.get('/:id', auth_1.authMiddleware, async (req, res) => {
 // Create new sales tracking record
 router.post('/', auth_1.authMiddleware, async (req, res) => {
     try {
-        const { date, managerName, companyName, accountId, customerName, industry, contactMethod, status, contactPerson, phone, memo, memoNote } = req.body;
+        const { date, managerName, companyName, accountId, industry, contactMethod, status, contactPerson, phone, memo, memoNote } = req.body;
         if (!date || !managerName || !status) {
             return res.status(400).json({ message: 'Date, manager name, and status are required' });
         }
@@ -109,14 +116,13 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
         const result = await db_1.pool.query(`INSERT INTO sales_tracking (
         date, occurred_at, manager_name, company_name, account_id, customer_name, industry,
         contact_method, status, contact_person, phone, memo, memo_note, user_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`, [
             date,
             occurredAtStr,
             managerName,
             companyName || null,
             accountId || null,
-            customerName || null,
             industry || null,
             contactMethod || null,
             status,
@@ -147,27 +153,26 @@ router.put('/:id', auth_1.authMiddleware, async (req, res) => {
         if (req.user?.role !== 'admin' && req.user?.id !== recordUserId) {
             return res.status(403).json({ message: 'You can only edit your own records' });
         }
-        const { date, managerName, companyName, accountId, customerName, industry, contactMethod, status, contactPerson, phone, memo, memoNote } = req.body;
+        const { date, managerName, companyName, accountId, industry, contactMethod, status, contactPerson, phone, memo, memoNote } = req.body;
         await db_1.pool.query(`UPDATE sales_tracking SET
         date = $1,
         manager_name = $2,
         company_name = $3,
         account_id = $4,
-        customer_name = $5,
-        industry = $6,
-        contact_method = $7,
-        status = $8,
-        contact_person = $9,
-        phone = $10,
-        memo = $11,
-        memo_note = $12,
+        customer_name = '',
+        industry = $5,
+        contact_method = $6,
+        status = $7,
+        contact_person = $8,
+        phone = $9,
+        memo = $10,
+        memo_note = $11,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $13`, [
+      WHERE id = $12`, [
             date,
             managerName,
             companyName || null,
             accountId || null,
-            customerName || null,
             industry || null,
             contactMethod || null,
             status,
@@ -310,11 +315,10 @@ router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) 
             manager_name: record.manager_name
         });
         // company_name: 빈값이면 빈값 유지 (NOT NULL이지만 빈 문자열 허용)
-        const companyName = record.company_name ? record.company_name.trim() : '';
-        const companyNameFinal = companyName || '';
-        // customer_name: 빈값이면 빈값 유지 (NOT NULL이지만 빈 문자열 허용)
-        const customerName = record.customer_name ? record.customer_name.trim() : '';
-        const customerNameFinal = customerName || '';
+        const rawCompanyName = record.company_name ? record.company_name.trim() : '';
+        const rawCustomerName = record.customer_name ? record.customer_name.trim() : '';
+        const companyNameFinal = rawCompanyName || rawCustomerName || '';
+        const customerNameFinal = rawCustomerName || companyNameFinal;
         // phone: 빈값이면 빈값 유지 (NOT NULL이지만 빈 문자열 허용)
         const phoneFinal = record.phone ? record.phone.trim() : '';
         // industry: 있으면 사용, 없으면 null (빈 값 허용)

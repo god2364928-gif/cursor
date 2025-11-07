@@ -21,8 +21,10 @@ const toSeoulTimestampString = (input: Date) => {
 // Get all sales tracking records (with search)
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const search = req.query.search as string || ''
-    
+    const search = (req.query.search as string || '').trim()
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '500'), 10) || 500, 1), 2000)
+    const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0)
+
     const params: any[] = []
     let query = `
       SELECT 
@@ -43,7 +45,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         user_id,
         created_at,
         updated_at`
-    
+
+    let orderClause = ''
+
     if (search) {
       query += `,
         CASE
@@ -56,9 +60,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
           ELSE 999
         END as match_priority`
     }
-    
+
     query += ` FROM sales_tracking`
-    
+
     if (search) {
       query += ` WHERE 
         (manager_name = $1 OR company_name = $1 OR account_id = $1 OR customer_name = $1 OR industry = $1 OR phone = $1
@@ -70,14 +74,19 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       `
       const kw = search.trim()
       params.push(kw, `${kw}%`, `%${kw}%`)
-      query += ` ORDER BY match_priority, COALESCE(occurred_at, date::timestamp) DESC`
+      orderClause = ` ORDER BY match_priority, COALESCE(occurred_at, date::timestamp) DESC`
     } else {
-    query += ` ORDER BY COALESCE(occurred_at, date::timestamp) DESC`
+      orderClause = ` ORDER BY COALESCE(occurred_at, date::timestamp) DESC`
     }
-    
+
+    params.push(limit, offset)
+    query += `${orderClause} LIMIT $${params.length - 1} OFFSET $${params.length}`
+
     const result = await pool.query(query, params)
-    
-    res.json(result.rows)
+    const rows = result.rows.map(({ customer_name: _ignored, ...rest }) => rest)
+    const hasMore = result.rows.length === limit
+
+    res.json({ rows, hasMore })
   } catch (error: any) {
     console.error('Error fetching sales tracking:', error)
     console.error('Error details:', {
@@ -122,7 +131,6 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       managerName,
       companyName,
       accountId,
-      customerName,
       industry,
       contactMethod,
       status,
@@ -144,7 +152,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       `INSERT INTO sales_tracking (
         date, occurred_at, manager_name, company_name, account_id, customer_name, industry,
         contact_method, status, contact_person, phone, memo, memo_note, user_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         date,
@@ -152,7 +160,6 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         managerName,
         companyName || null,
         accountId || null,
-        customerName || null,
         industry || null,
         contactMethod || null,
         status,
@@ -197,7 +204,6 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       managerName,
       companyName,
       accountId,
-      customerName,
       industry,
       contactMethod,
       status,
@@ -213,22 +219,21 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
         manager_name = $2,
         company_name = $3,
         account_id = $4,
-        customer_name = $5,
-        industry = $6,
-        contact_method = $7,
-        status = $8,
-        contact_person = $9,
-        phone = $10,
-        memo = $11,
-        memo_note = $12,
+        customer_name = '',
+        industry = $5,
+        contact_method = $6,
+        status = $7,
+        contact_person = $8,
+        phone = $9,
+        memo = $10,
+        memo_note = $11,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $13`,
+      WHERE id = $12`,
       [
         date,
         managerName,
         companyName || null,
         accountId || null,
-        customerName || null,
         industry || null,
         contactMethod || null,
         status,
@@ -406,12 +411,10 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     })
     
     // company_name: 빈값이면 빈값 유지 (NOT NULL이지만 빈 문자열 허용)
-    const companyName = record.company_name ? record.company_name.trim() : ''
-    const companyNameFinal = companyName || ''
-    
-    // customer_name: 빈값이면 빈값 유지 (NOT NULL이지만 빈 문자열 허용)
-    const customerName = record.customer_name ? record.customer_name.trim() : ''
-    const customerNameFinal = customerName || ''
+    const rawCompanyName = record.company_name ? record.company_name.trim() : ''
+    const rawCustomerName = record.customer_name ? record.customer_name.trim() : ''
+    const companyNameFinal = rawCompanyName || rawCustomerName || ''
+    const customerNameFinal = rawCustomerName || companyNameFinal
     
     // phone: 빈값이면 빈값 유지 (NOT NULL이지만 빈 문자열 허용)
     const phoneFinal = record.phone ? record.phone.trim() : ''
