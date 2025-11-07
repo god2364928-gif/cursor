@@ -699,16 +699,16 @@ export default function SalesTrackingPage() {
                   className="w-full px-3 py-2 border rounded"
                 >
                   <option value="">-</option>
-                  <option value="飲食店">飲食店</option>
-                  <option value="娯楽/観光/レジャー">娯楽/観光/レジャー</option>
-                  <option value="美容サロン">美容サロン</option>
-                  <option value="有形商材">有形商材</option>
-                  <option value="個人利用">個人利用</option>
-                  <option value="無形商材">無形商材</option>
-                  <option value="代理店">代理店</option>
-                  <option value="教育">教育</option>
-                  <option value="その他">その他</option>
-                  <option value="アートメイク">アートメイク</option>
+                  <option value="飲食店">{t('industryRestaurant')}</option>
+                  <option value="娯楽/観光/レジャー">{t('industryEntertainment')}</option>
+                  <option value="美容サロン">{t('industryBeautySalon')}</option>
+                  <option value="有形商材">{t('industryTangible')}</option>
+                  <option value="個人利用">{t('industryPersonal')}</option>
+                  <option value="無形商材">{t('industryIntangible')}</option>
+                  <option value="代理店">{t('industryAgency')}</option>
+                  <option value="教育">{t('industryEducation')}</option>
+                  <option value="その他">{t('industryOther')}</option>
+                  <option value="アートメイク">{t('industryArtMake')}</option>
                 </select>
               </div>
               <div>
@@ -719,11 +719,11 @@ export default function SalesTrackingPage() {
                   className="w-full px-3 py-2 border rounded"
                 >
                   <option value="">-</option>
-                  <option value="電話">電話</option>
-                  <option value="LINE">LINE</option>
-                  <option value="DM">DM</option>
-                  <option value="メール">メール</option>
-                  <option value="フォーム">フォーム</option>
+                  <option value="電話">{t('contactPhone')}</option>
+                  <option value="LINE">{t('contactLINE')}</option>
+                  <option value="DM">{t('contactDM')}</option>
+                  <option value="メール">{t('contactMail')}</option>
+                  <option value="フォーム">{t('contactForm')}</option>
                 </select>
               </div>
               <div>
@@ -733,10 +733,10 @@ export default function SalesTrackingPage() {
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                   className="w-full px-3 py-2 border rounded"
                 >
-                  <option value="未返信">未返信</option>
-                  <option value="返信済み">返信済み</option>
-                  <option value="商談中">商談中</option>
-                  <option value="契約">契約</option>
+                  <option value="未返信">{t('statusNoReply')}</option>
+                  <option value="返信済み">{t('statusReplied')}</option>
+                  <option value="商談中">{t('statusNegotiating')}</option>
+                  <option value="契約">{t('statusContract')}</option>
                 </select>
               </div>
               <div>
