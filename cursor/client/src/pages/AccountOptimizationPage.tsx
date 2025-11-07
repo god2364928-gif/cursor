@@ -512,9 +512,30 @@ function MetricBox({
   value: string
 }) {
   return (
-    <div className="text-center p-4 bg-white border border-gray-200 rounded-lg flex flex-col justify-center h-full">
-      <p className="text-xs text-gray-500 font-medium leading-tight mb-2">{label}</p>
-      <p className="text-xl font-bold text-gray-900 leading-tight">{value}</p>
+    <div style={{
+      textAlign: 'center',
+      padding: '16px',
+      backgroundColor: '#ffffff',
+      border: '1px solid #e5e7eb',
+      borderRadius: '8px',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      minHeight: '90px'
+    }}>
+      <p style={{
+        fontSize: '12px',
+        color: '#6b7280',
+        fontWeight: 500,
+        lineHeight: 1.2,
+        marginBottom: '8px'
+      }}>{label}</p>
+      <p style={{
+        fontSize: '20px',
+        fontWeight: 700,
+        color: '#111827',
+        lineHeight: 1.2
+      }}>{value}</p>
     </div>
   )
 }
@@ -528,14 +549,47 @@ function DistributionBar({
   value: number
   color: string
 }) {
+  const colorMap: Record<string, string> = {
+    'bg-sky-400': '#38bdf8',
+    'bg-amber-400': '#fbbf24',
+    'bg-emerald-400': '#34d399'
+  }
+  
   return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between items-center">
-        <span className="text-xs font-semibold text-gray-600 leading-tight">{label}</span>
-        <span className="text-xs font-bold text-gray-900 leading-tight">{Math.round(Math.min(100, Math.max(0, value)))}%</span>
+    <div style={{ marginBottom: '12px' }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '6px'
+      }}>
+        <span style={{
+          fontSize: '12px',
+          fontWeight: 600,
+          color: '#4b5563',
+          lineHeight: 1.2
+        }}>{label}</span>
+        <span style={{
+          fontSize: '12px',
+          fontWeight: 700,
+          color: '#111827',
+          lineHeight: 1.2
+        }}>{Math.round(Math.min(100, Math.max(0, value)))}%</span>
       </div>
-      <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden flex items-center">
-        <div className={`h-full transition-all duration-700 ${color}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+      <div style={{
+        height: '10px',
+        borderRadius: '9999px',
+        backgroundColor: '#f3f4f6',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center'
+      }}>
+        <div style={{
+          height: '100%',
+          width: `${Math.min(100, Math.max(0, value))}%`,
+          backgroundColor: colorMap[color] || '#38bdf8',
+          transition: 'width 0.7s ease'
+        }} />
       </div>
     </div>
   )
@@ -551,12 +605,35 @@ function LegendItem({
   badge?: string
 }) {
   return (
-    <div className="p-4 rounded-lg border border-blue-100 bg-blue-50/60 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-semibold text-blue-700">{title}</p>
+    <div style={{
+      padding: '16px',
+      borderRadius: '8px',
+      border: '1px solid #dbeafe',
+      backgroundColor: 'rgba(239, 246, 255, 0.6)',
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100px'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '8px'
+      }}>
+        <p style={{
+          fontSize: '14px',
+          fontWeight: 600,
+          color: '#1d4ed8',
+          lineHeight: 1.2
+        }}>{title}</p>
         {badge && <GradeBadge label={badge} />}
       </div>
-      <p className="text-xs text-blue-600 leading-relaxed flex-1">{description}</p>
+      <p style={{
+        fontSize: '12px',
+        color: '#2563eb',
+        lineHeight: 1.5,
+        flex: 1
+      }}>{description}</p>
     </div>
   )
 }
