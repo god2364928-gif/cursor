@@ -7,6 +7,27 @@ import { pool } from '../db'
 const router = Router()
 
 // Trigger CPI import manually (admin only)
+// Flexible date parser (accepts multiple formats, defaults to KST)
+function parseDateFlexible(input: string | undefined, fallback: Date): Date {
+  if (!input) return fallback
+  const s = input.trim()
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(`${s}T00:00:00+09:00`)
+  // YYYY/MM/DD
+  if (/^\d{4}\/\d{2}\/\d{2}$/.test(s)) {
+    const t = s.split('/').join('-')
+    return new Date(`${t}T00:00:00+09:00`)
+  }
+  // YYYY-MM-DD HH:mm:ss
+  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/.test(s)) return new Date(s.replace(' ', 'T') + '+09:00')
+  // YYYY-MM-DDTHH:mm:ss (no tz)
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(s)) return new Date(s + '+09:00')
+  // ISO with tz
+  const d = new Date(s)
+  if (!isNaN(d.getTime())) return d
+  throw new Error('Invalid time format. Use ISO or YYYY-MM-DD( HH:mm:ss).')
+}
+
 router.post('/cpi/import', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role !== 'admin') {
@@ -14,17 +35,7 @@ router.post('/cpi/import', authMiddleware, async (req: AuthRequest, res: Respons
     }
     const sinceParam = req.query.since as string | undefined
     const until = new Date()
-    const parseSince = (s?: string) => {
-      if (!s) return new Date(until.getTime() - 2 * 60 * 60 * 1000)
-      // YYYY-MM-DD 만 들어오면 00:00:00로 보정
-      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-        return new Date(`${s}T00:00:00`)
-      }
-      const d = new Date(s)
-      if (isNaN(d.getTime())) throw new Error('Invalid time value')
-      return d
-    }
-    const since = parseSince(sinceParam)
+    const since = parseDateFlexible(sinceParam, new Date(until.getTime() - 2 * 60 * 60 * 1000))
 
     const result = await importRecentCalls(since, until)
     res.json({ ok: true, ...result })
@@ -41,10 +52,12 @@ router.get('/cpi/peek', authMiddleware, async (req: AuthRequest, res: Response) 
     if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Forbidden' })
     const start = (req.query.start as string) || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const end = (req.query.end as string) || new Date().toISOString().slice(0, 10)
-    const { data, total } = await fetchFirstOutCalls({ startDate: start, endDate: end, row: 50, page: 1 })
+    const page = parseInt(String(req.query.page || '1'), 10) || 1
+    const row = parseInt(String(req.query.row || '50'), 10) || 50
+    const { data, total } = await fetchFirstOutCalls({ startDate: start, endDate: end, row, page })
     const username = (req.query.username as string) || ''
     const filtered = username ? data.filter(d => (d.username || '').trim() === username.trim()) : data
-    res.json({ total, count: filtered.length, sample: filtered.slice(0, 10) })
+    res.json({ total, count: filtered.length, sample: filtered.slice(0, 10), page, row })
   } catch (e: any) {
     res.status(500).json({ message: e.message || 'Internal error' })
   }
