@@ -109,26 +109,26 @@ async function startServer() {
         console.log(`CORS enabled for all origins`);
     });
     // Start CPI scheduler (every 1 min)
+    // 환경변수가 없어도 스케줄러는 시작하되, 에러 메시지로 환경변수 부재를 알림
     const token = process.env.CPI_API_TOKEN;
-    if (token) {
-        console.log('CPI scheduler enabled (every 1 min)');
-        setInterval(async () => {
-            try {
-                const now = new Date();
-                const since = new Date(now.getTime() - 6 * 60 * 60 * 1000); // last 6 hours (더 안정적으로 커버)
-                const result = await (0, cpiImportService_1.importRecentCalls)(since, now);
-                if (result.inserted > 0) {
-                    console.log(`[CPI] Imported calls: +${result.inserted}, skipped: ${result.skipped}`);
-                }
-            }
-            catch (e) {
-                console.error('[CPI] scheduler error:', e);
-            }
-        }, 60 * 1000);
+    const base = process.env.CPI_API_BASE;
+    console.log('CPI scheduler enabled (every 1 min)');
+    if (!token || !base) {
+        console.warn('⚠️  CPI_API_TOKEN or CPI_API_BASE not set - CPI import will fail until environment variables are configured');
     }
-    else {
-        console.log('CPI scheduler disabled: CPI_API_TOKEN not set');
-    }
+    setInterval(async () => {
+        try {
+            const now = new Date();
+            const since = new Date(now.getTime() - 6 * 60 * 60 * 1000); // last 6 hours
+            const result = await (0, cpiImportService_1.importRecentCalls)(since, now);
+            if (result.inserted > 0 || result.skipped > 0) {
+                console.log(`[CPI] Scheduled import: inserted=${result.inserted}, skipped=${result.skipped}`);
+            }
+        }
+        catch (e) {
+            console.error('[CPI] scheduler error:', e);
+        }
+    }, 60 * 1000);
 }
 startServer().catch((error) => {
     console.error('Failed to start server:', error);
