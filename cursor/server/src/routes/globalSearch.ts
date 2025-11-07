@@ -9,8 +9,10 @@ const router = Router()
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const keyword = req.query.q as string || ''
+    console.log(`[Global Search] Received keyword: "${keyword}"`)
     
     if (!keyword || keyword.trim().length === 0) {
+      console.log('[Global Search] Empty keyword, returning empty array')
       return res.json([])
     }
     
@@ -18,6 +20,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const startsWithKeyword = `${exactKeyword}%`
     // 부분 일치: 최소 4자 이상만 부분 일치 허용 (짧은 검색어는 정확/시작 일치만)
     const partialKeyword = exactKeyword.length >= 4 ? `%${exactKeyword}%` : null
+    console.log(`[Global Search] exactKeyword="${exactKeyword}", startsWithKeyword="${startsWithKeyword}", partialKeyword="${partialKeyword}")`)
     
     // 1. 고객관리 검색 - company/customer는 부분일치, instagram/phone은 정확만 (정확도 우선)
     const customersQuery = partialKeyword
@@ -143,6 +146,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         id: r.id
       }))
     ]
+    
+    console.log(`[Global Search] Results: customers=${customersResult.rows.length}, retargeting=${retargetingResult.rows.length}, salesTracking=${salesTrackingResult.rows.length}, total=${results.length}`)
     
     res.json(results)
   } catch (error: any) {

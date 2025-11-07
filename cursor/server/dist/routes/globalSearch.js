@@ -9,13 +9,16 @@ const router = (0, express_1.Router)();
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
         const keyword = req.query.q || '';
+        console.log(`[Global Search] Received keyword: "${keyword}"`);
         if (!keyword || keyword.trim().length === 0) {
+            console.log('[Global Search] Empty keyword, returning empty array');
             return res.json([]);
         }
         const exactKeyword = keyword.trim();
         const startsWithKeyword = `${exactKeyword}%`;
         // 부분 일치: 최소 4자 이상만 부분 일치 허용 (짧은 검색어는 정확/시작 일치만)
         const partialKeyword = exactKeyword.length >= 4 ? `%${exactKeyword}%` : null;
+        console.log(`[Global Search] exactKeyword="${exactKeyword}", startsWithKeyword="${startsWithKeyword}", partialKeyword="${partialKeyword}")`);
         // 1. 고객관리 검색 - company/customer는 부분일치, instagram/phone은 정확만 (정확도 우선)
         const customersQuery = partialKeyword
             ? `SELECT 
@@ -75,23 +78,23 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         ORDER BY match_priority, company_name
         LIMIT 10`;
         const customersResult = await db_1.pool.query(customersQuery, partialKeyword ? [exactKeyword, startsWithKeyword, partialKeyword] : [exactKeyword, startsWithKeyword]);
-        // 2. 리타겟팅 검색 - 정확 일치 > 시작 일치 > 부분 일치 (4자 이상만)
+        // 2. 리타겟팅 검색 - 정확 일치 > 시작 일치 > 부분 일치 (4자 이상만, instagram/phone은 정확만)
         const retargetingQuery = partialKeyword
             ? `SELECT 'retargeting' as page, manager as manager_name, COALESCE(company_name || ' - ' || customer_name, customer_name) as display_name, id,
           CASE WHEN company_name = $1 OR customer_name = $1 OR instagram = $1 OR phone = $1 OR regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g') THEN 1
-               WHEN company_name ILIKE $2 OR customer_name ILIKE $2 OR instagram ILIKE $2 OR phone ILIKE $2 OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '' THEN 2
-               WHEN company_name ILIKE $3 OR customer_name ILIKE $3 OR instagram ILIKE $3 OR phone ILIKE $3 THEN 3 END as match_priority
+               WHEN company_name ILIKE $2 OR customer_name ILIKE $2 OR phone ILIKE $2 OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '' THEN 2
+               WHEN company_name ILIKE $3 OR customer_name ILIKE $3 THEN 3 END as match_priority
         FROM retargeting_customers
         WHERE (company_name = $1 OR customer_name = $1 OR instagram = $1 OR phone = $1 OR regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) 
-           OR (company_name ILIKE $2 OR customer_name ILIKE $2 OR instagram ILIKE $2 OR phone ILIKE $2 OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '')
-           OR (company_name ILIKE $3 OR customer_name ILIKE $3 OR instagram ILIKE $3 OR phone ILIKE $3)
+           OR (company_name ILIKE $2 OR customer_name ILIKE $2 OR phone ILIKE $2 OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '')
+           OR (company_name ILIKE $3 OR customer_name ILIKE $3)
         ORDER BY match_priority, company_name LIMIT 10`
             : `SELECT 'retargeting' as page, manager as manager_name, COALESCE(company_name || ' - ' || customer_name, customer_name) as display_name, id,
           CASE WHEN company_name = $1 OR customer_name = $1 OR instagram = $1 OR phone = $1 OR regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g') THEN 1
-               WHEN company_name ILIKE $2 OR customer_name ILIKE $2 OR instagram ILIKE $2 OR phone ILIKE $2 OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '' THEN 2 END as match_priority
+               WHEN company_name ILIKE $2 OR customer_name ILIKE $2 OR phone ILIKE $2 OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '' THEN 2 END as match_priority
         FROM retargeting_customers
         WHERE (company_name = $1 OR customer_name = $1 OR instagram = $1 OR phone = $1 OR regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g'))
-           OR (company_name ILIKE $2 OR customer_name ILIKE $2 OR instagram ILIKE $2 OR phone ILIKE $2 OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '')
+           OR (company_name ILIKE $2 OR customer_name ILIKE $2 OR phone ILIKE $2 OR regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '')
         ORDER BY match_priority, company_name LIMIT 10`;
         const retargetingResult = await db_1.pool.query(retargetingQuery, partialKeyword ? [exactKeyword, startsWithKeyword, partialKeyword] : [exactKeyword, startsWithKeyword]);
         // 3. 영업이력 검색 - 정확 일치 > 시작 일치 > 부분 일치 (4자 이상만)
@@ -134,6 +137,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
                 id: r.id
             }))
         ];
+        console.log(`[Global Search] Results: customers=${customersResult.rows.length}, retargeting=${retargetingResult.rows.length}, salesTracking=${salesTrackingResult.rows.length}, total=${results.length}`);
         res.json(results);
     }
     catch (error) {
