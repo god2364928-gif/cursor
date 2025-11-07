@@ -110,39 +110,42 @@ export default function AccountOptimizationPage() {
     try {
       const html2canvas = (await import('html2canvas')).default
       
-      // 프로필 이미지를 미리 로드
+      // 프로필 이미지를 base64로 변환
       const images = resultRef.current.querySelectorAll('img')
-      await Promise.all(
-        Array.from(images).map((img) => {
-          if (img.complete) return Promise.resolve()
-          return new Promise((resolve, reject) => {
-            img.onload = resolve
-            img.onerror = reject
-          })
-        })
-      )
+      for (const img of Array.from(images)) {
+        if (img.src && !img.src.startsWith('data:')) {
+          try {
+            const response = await fetch(img.src)
+            const blob = await response.blob()
+            const reader = new FileReader()
+            await new Promise((resolve) => {
+              reader.onloadend = () => {
+                img.src = reader.result as string
+                resolve(null)
+              }
+              reader.readAsDataURL(blob)
+            })
+          } catch (e) {
+            console.warn('Failed to convert image to base64:', e)
+          }
+        }
+      }
 
       const canvas = await html2canvas(resultRef.current, {
         backgroundColor: '#ffffff',
         scale: 2,
         logging: false,
-        useCORS: true,
+        useCORS: false,
         allowTaint: true,
-        foreignObjectRendering: false,
-        imageTimeout: 15000,
-        onclone: (clonedDoc) => {
-          const clonedElement = clonedDoc.querySelector('[data-screenshot]') as HTMLElement
-          if (clonedElement) {
-            // 폰트 로딩 보장
-            clonedElement.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-          }
-        },
       })
 
       const link = document.createElement('a')
       link.download = `${searchedId || 'account'}_analysis_${new Date().toISOString().split('T')[0]}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
+      
+      // 페이지 새로고침으로 이미지 원복
+      window.location.reload()
     } catch (error) {
       console.error('Failed to download PNG:', error)
       alert(t('accountOptimizationDownloadFailed'))
@@ -228,13 +231,10 @@ export default function AccountOptimizationPage() {
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={t('accountOptimizationPlaceholder')}
+                placeholder=""
                 disabled={loading}
                 className="h-12 text-base"
               />
-              <p className="text-xs text-gray-400 mt-2">
-                {t('accountOptimizationHint')}
-              </p>
               {history.length > 0 && (
                 <div className="mt-4">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
@@ -320,17 +320,16 @@ export default function AccountOptimizationPage() {
               {t('accountOptimizationDownloadPNG')}
             </Button>
           </div>
-          <div ref={resultRef} data-screenshot className="space-y-8 bg-white p-8 rounded-lg max-w-6xl mx-auto">
+          <div ref={resultRef} data-screenshot className="space-y-8 bg-white p-8 rounded-lg">
           <Card className="shadow-sm bg-white">
             <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row gap-8">
-                <div className="flex-shrink-0">
+              <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_200px] gap-8">
+                <div className="flex justify-center lg:justify-start">
                   {result.profile_image_url ? (
                     <img
                       src={result.profile_image_url}
                       alt={result.username || ''}
                       className="h-40 w-40 rounded-2xl object-cover border shadow-sm"
-                      crossOrigin="anonymous"
                     />
                   ) : (
                     <div className="h-40 w-40 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 text-3xl font-semibold">
@@ -339,7 +338,7 @@ export default function AccountOptimizationPage() {
                   )}
                 </div>
 
-                <div className="flex-1 space-y-4 min-w-0">
+                <div className="space-y-4 min-w-0">
                   <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-2xl font-bold text-gray-900">{result.username}</h2>
                     {searchedId && (
@@ -374,7 +373,7 @@ export default function AccountOptimizationPage() {
                   )}
                 </div>
 
-                <div className="flex-shrink-0 lg:w-48 space-y-4">
+                <div className="space-y-4">
                   <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl border border-blue-100">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
                       {t('accountOptimizationTotalGrade')}
