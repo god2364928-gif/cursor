@@ -48,19 +48,6 @@ interface AccountOptimizationResponse {
   error_code?: string
 }
 
-const gradeColor: Record<string, string> = {
-  S: 'bg-gradient-to-r from-amber-500 to-red-500 text-white',
-  A: 'bg-amber-400 text-white',
-  B: 'bg-emerald-400 text-white',
-  C: 'bg-sky-400 text-white',
-  D: 'bg-slate-300 text-slate-800',
-  F: 'bg-slate-300 text-slate-800',
-  充分: 'bg-emerald-400 text-white',
-  不足: 'bg-amber-300 text-slate-900',
-  やや不足: 'bg-amber-200 text-slate-900',
-  とても不足: 'bg-rose-300 text-white',
-}
-
 const postTypeLabel: Record<string, string> = {
   PHOTO: 'フォト中心',
   REELS: 'リール中心',
@@ -86,9 +73,38 @@ const formatHourInterval = (value?: number | null) => {
 
 function GradeBadge({ label }: { label?: string }) {
   if (!label) return null
-  const style = gradeColor[label] || 'bg-slate-200 text-slate-800'
+  
+  const gradeColorMap: Record<string, { bg: string; text: string }> = {
+    S: { bg: 'linear-gradient(to right, #f59e0b, #ef4444)', text: '#ffffff' },
+    A: { bg: '#fbbf24', text: '#ffffff' },
+    B: { bg: '#34d399', text: '#ffffff' },
+    C: { bg: '#38bdf8', text: '#ffffff' },
+    D: { bg: '#cbd5e1', text: '#1e293b' },
+    F: { bg: '#cbd5e1', text: '#1e293b' },
+    充分: { bg: '#34d399', text: '#ffffff' },
+    不足: { bg: '#fcd34d', text: '#1e293b' },
+    やや不足: { bg: '#fde68a', text: '#1e293b' },
+    とても不足: { bg: '#fda4af', text: '#ffffff' },
+  }
+  
+  const colors = gradeColorMap[label] || { bg: '#e2e8f0', text: '#1e293b' }
+  
   return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${style}`}>
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      paddingLeft: '12px',
+      paddingRight: '12px',
+      paddingTop: '4px',
+      paddingBottom: '4px',
+      borderRadius: '9999px',
+      fontSize: '12px',
+      fontWeight: 600,
+      letterSpacing: '0.025em',
+      background: colors.bg,
+      color: colors.text,
+      lineHeight: 1.2
+    }}>
       {label}
     </span>
   )
