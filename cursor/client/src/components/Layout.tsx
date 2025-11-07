@@ -66,9 +66,7 @@ export default function Layout() {
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
-            const isActive =
-              location.pathname === item.href ||
-              (item.href !== '/' && location.pathname.startsWith(item.href + '/'))
+            const isActive = location.pathname === item.href
             const paddingClass = item.nested ? 'pl-12 pr-4 py-2 text-sm' : 'px-4 py-3 text-sm'
             return (
               <Link
