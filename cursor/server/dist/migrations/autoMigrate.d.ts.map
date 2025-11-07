@@ -1,1 +1,1 @@
-{"version":3,"file":"autoMigrate.d.ts","sourceRoot":"","sources":["../../src/migrations/autoMigrate.ts"],"names":[],"mappings":"AAIA,wBAAsB,wBAAwB,IAAI,OAAO,CAAC,IAAI,CAAC,CAgD9D"}
+{"version":3,"file":"autoMigrate.d.ts","sourceRoot":"","sources":["../../src/migrations/autoMigrate.ts"],"names":[],"mappings":"AAIA,wBAAsB,wBAAwB,IAAI,OAAO,CAAC,IAAI,CAAC,CAuE9D"}

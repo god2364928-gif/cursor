@@ -17,6 +17,8 @@ const dashboard_1 = __importDefault(require("./routes/dashboard"));
 const perf_1 = __importDefault(require("./routes/perf"));
 const salesTracking_1 = __importDefault(require("./routes/salesTracking"));
 const globalSearch_1 = __importDefault(require("./routes/globalSearch"));
+const integrations_1 = __importDefault(require("./routes/integrations"));
+const cpiImportService_1 = require("./services/cpiImportService");
 const autoMigrate_1 = require("./migrations/autoMigrate");
 dotenv_1.default.config();
 // Debug: Check if globalSearch.js has correct code (only in production)
@@ -83,6 +85,7 @@ app.use('/api/dashboard', dashboard_1.default);
 app.use('/api/perf', perf_1.default);
 app.use('/api/sales-tracking', salesTracking_1.default);
 app.use('/api/global-search', globalSearch_1.default);
+app.use('/api/integrations', integrations_1.default);
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
@@ -105,6 +108,27 @@ async function startServer() {
         console.log(`Server is running on port ${PORT}`);
         console.log(`CORS enabled for all origins`);
     });
+    // Start CPI scheduler (every 1 min)
+    const token = process.env.CPI_API_TOKEN;
+    if (token) {
+        console.log('CPI scheduler enabled (every 1 min)');
+        setInterval(async () => {
+            try {
+                const now = new Date();
+                const since = new Date(now.getTime() - 2 * 60 * 60 * 1000); // last 2 hours
+                const result = await (0, cpiImportService_1.importRecentCalls)(since, now);
+                if (result.inserted > 0) {
+                    console.log(`[CPI] Imported calls: +${result.inserted}, skipped: ${result.skipped}`);
+                }
+            }
+            catch (e) {
+                console.error('[CPI] scheduler error:', e);
+            }
+        }, 60 * 1000);
+    }
+    else {
+        console.log('CPI scheduler disabled: CPI_API_TOKEN not set');
+    }
 }
 startServer().catch((error) => {
     console.error('Failed to start server:', error);

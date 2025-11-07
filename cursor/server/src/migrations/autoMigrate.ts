@@ -17,6 +17,29 @@ export async function autoMigrateSalesTracking(): Promise<void> {
     
     if (checkResult.rows[0].exists) {
       console.log('✓ sales_tracking table already exists')
+      // Ensure external_call_id column exists (for CPI integration)
+      try {
+        await pool.query(`
+          ALTER TABLE sales_tracking
+          ADD COLUMN IF NOT EXISTS external_call_id TEXT,
+          ADD COLUMN IF NOT EXISTS external_source TEXT;
+        `)
+        // Add unique index for external_call_id when not null
+        await pool.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'idx_sales_tracking_external_call_id_unique'
+            ) THEN
+              CREATE UNIQUE INDEX idx_sales_tracking_external_call_id_unique
+              ON sales_tracking ((external_call_id))
+              WHERE external_call_id IS NOT NULL;
+            END IF;
+          END$$;
+        `)
+      } catch (e) {
+        console.error('Failed ensuring external_call_id columns:', e)
+      }
       return
     }
     

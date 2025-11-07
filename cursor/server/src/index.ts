@@ -12,6 +12,8 @@ import dashboardRoutes from './routes/dashboard'
 import perfRoutes from './routes/perf'
 import salesTrackingRoutes from './routes/salesTracking'
 import globalSearchRoutes from './routes/globalSearch'
+import integrationsRoutes from './routes/integrations'
+import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking } from './migrations/autoMigrate'
 
 dotenv.config()
@@ -84,6 +86,7 @@ app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/perf', perfRoutes)
 app.use('/api/sales-tracking', salesTrackingRoutes)
 app.use('/api/global-search', globalSearchRoutes)
+app.use('/api/integrations', integrationsRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -109,6 +112,26 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`)
   console.log(`CORS enabled for all origins`)
   })
+
+  // Start CPI scheduler (every 1 min)
+  const token = process.env.CPI_API_TOKEN
+  if (token) {
+    console.log('CPI scheduler enabled (every 1 min)')
+    setInterval(async () => {
+      try {
+        const now = new Date()
+        const since = new Date(now.getTime() - 2 * 60 * 60 * 1000) // last 2 hours
+        const result = await importRecentCalls(since, now)
+        if (result.inserted > 0) {
+          console.log(`[CPI] Imported calls: +${result.inserted}, skipped: ${result.skipped}`)
+        }
+      } catch (e) {
+        console.error('[CPI] scheduler error:', e)
+      }
+    }, 60 * 1000)
+  } else {
+    console.log('CPI scheduler disabled: CPI_API_TOKEN not set')
+  }
 }
 
 startServer().catch((error) => {
