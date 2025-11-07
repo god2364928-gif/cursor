@@ -51,7 +51,7 @@ async function autoMigrateSalesTracking() {
         `);
                 await db_1.pool.query(`
           UPDATE sales_tracking
-          SET occurred_at = COALESCE(occurred_at, date::timestamp)
+          SET occurred_at = COALESCE(occurred_at, created_at, date::timestamp)
           WHERE occurred_at IS NULL;
         `);
                 await db_1.pool.query(`

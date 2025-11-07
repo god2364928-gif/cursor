@@ -48,7 +48,7 @@ export async function autoMigrateSalesTracking(): Promise<void> {
         `)
         await pool.query(`
           UPDATE sales_tracking
-          SET occurred_at = COALESCE(occurred_at, date::timestamp)
+          SET occurred_at = COALESCE(occurred_at, created_at, date::timestamp)
           WHERE occurred_at IS NULL;
         `)
         await pool.query(`
