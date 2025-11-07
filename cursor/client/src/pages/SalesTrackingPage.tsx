@@ -250,7 +250,12 @@ export default function SalesTrackingPage() {
       const params: any = { startDate, endDate, scope }
       if (scope === 'by_manager' && manager && manager !== 'all') params.manager = manager
       const response = await api.get('/sales-tracking/stats/daily', { params })
-      setDailyStats(response.data || [])
+      const rows = Array.isArray(response.data)
+        ? response.data
+        : Array.isArray(response.data?.rows)
+          ? response.data.rows
+          : []
+      setDailyStats(rows)
     } catch (e) {
       console.error('Failed to fetch daily stats', e)
       setDailyStats([])
@@ -1109,7 +1114,7 @@ export default function SalesTrackingPage() {
                 <span className="flex items-center gap-2">
                   {t('dailyStats')}
                   <span className="text-xs px-2 py-1 rounded-full bg-gray-100 border text-gray-700">
-                    {t('total')}: {dailyStats.reduce((s, r) => s + (r.totalCount || 0), 0)}
+                {t('total')}: {Array.isArray(dailyStats) ? dailyStats.reduce((s, r) => s + (r.totalCount || 0), 0) : 0}
                   </span>
                 </span>
                 <div className="flex gap-2 flex-wrap items-center">
@@ -1161,7 +1166,7 @@ export default function SalesTrackingPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto">
-              {dailyStats.length === 0 ? (
+            {!Array.isArray(dailyStats) || dailyStats.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">{t('noData')}</div>
               ) : (
                 <div className="overflow-x-auto">
@@ -1183,7 +1188,7 @@ export default function SalesTrackingPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dailyStats.map((row, idx) => (
+                {Array.isArray(dailyStats) && dailyStats.map((row, idx) => (
                         <tr key={idx} className="border-b hover:bg-gray-50">
                           <td className="px-3 py-2 border-r">{row.date}</td>
                           {dailyScope === 'by_manager' && (
