@@ -197,18 +197,20 @@ export default function SalesTrackingPage() {
 
   // Daily stats
   const openDailyStats = () => {
-    // default: last 7 days
+    // default: last 2 weeks (14 days inclusive)
     const end = new Date()
     const start = new Date(end)
-    start.setDate(end.getDate() - 6)
+    start.setDate(end.getDate() - 13)
     const startStr = start.toISOString().split('T')[0]
     const endStr = end.toISOString().split('T')[0]
     setDailyStart(startStr)
     setDailyEnd(endStr)
-    setDailyScope('overall')
-    setDailyManager('all')
+    const defaultManager = user?.name || 'all'
+    setDailyManager(defaultManager)
+    const initialScope: 'overall'|'by_manager' = defaultManager === 'all' ? 'overall' : 'by_manager'
+    setDailyScope(initialScope)
     setShowDailyStatsModal(true)
-    fetchDailyStats(startStr, endStr, 'overall', 'all')
+    fetchDailyStats(startStr, endStr, initialScope, defaultManager)
   }
 
   const fetchDailyStats = async (startDate: string, endDate: string, scope: 'overall'|'by_manager', manager: string) => {
@@ -1050,38 +1052,23 @@ export default function SalesTrackingPage() {
                       fetchDailyStats(dailyStart, v, dailyScope, dailyManager)
                     }}
                   />
-                  <span className="text-sm text-gray-600">{t('view')}</span>
+                  <span className="text-sm text-gray-600">{t('managerName')}</span>
                   <select
-                    value={dailyScope}
+                    value={dailyManager}
                     onChange={e => {
-                      const v = e.target.value as 'overall'|'by_manager'
-                      setDailyScope(v)
-                      fetchDailyStats(dailyStart, dailyEnd, v, dailyManager)
+                      const v = e.target.value
+                      setDailyManager(v)
+                      const scope = v === 'all' ? 'overall' : 'by_manager'
+                      setDailyScope(scope)
+                      fetchDailyStats(dailyStart, dailyEnd, scope, v)
                     }}
                     className="px-3 py-2 border rounded text-sm"
                   >
-                    <option value="overall">{t('overall')}</option>
-                    <option value="by_manager">{t('byManager')}</option>
+                    <option value="all">{t('all')}</option>
+                    {managerOptions.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
                   </select>
-                  {dailyScope === 'by_manager' && (
-                    <>
-                      <span className="text-sm text-gray-600">{t('managerName')}</span>
-                      <select
-                        value={dailyManager}
-                        onChange={e => {
-                          const v = e.target.value
-                          setDailyManager(v)
-                          fetchDailyStats(dailyStart, dailyEnd, dailyScope, v)
-                        }}
-                        className="px-3 py-2 border rounded text-sm"
-                      >
-                        <option value="all">{t('all')}</option>
-                        {managerOptions.map(m => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                    </>
-                  )}
                   <Button
                     variant="ghost"
                     size="sm"
