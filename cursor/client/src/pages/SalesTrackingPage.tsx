@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
@@ -17,7 +17,6 @@ interface SalesTrackingRecord {
   manager_name: string
   company_name?: string
   account_id?: string
-  customer_name?: string
   industry?: string
   contact_method?: string
   status: string
@@ -29,6 +28,8 @@ interface SalesTrackingRecord {
   created_at: string
   updated_at: string
 }
+
+const PAGE_SIZE = 500
 
 interface MonthlyStats {
   manager: string
@@ -52,6 +53,7 @@ export default function SalesTrackingPage() {
   const [records, setRecords] = useState<SalesTrackingRecord[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showStatsModal, setShowStatsModal] = useState(false)
@@ -68,6 +70,8 @@ export default function SalesTrackingPage() {
   const [dailyScope, setDailyScope] = useState<'overall' | 'by_manager'>('overall')
   const [dailyManager, setDailyManager] = useState<string>('all')
   const [dailyStats, setDailyStats] = useState<any[]>([])
+  const [offset, setOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   
   // 이전 검색 요청 취소용
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -82,7 +86,6 @@ export default function SalesTrackingPage() {
     managerName: user?.name || '',
     companyName: '',
     accountId: '',
-    customerName: '',
     industry: '',
     contactMethod: '',
     status: '未返信',
@@ -125,17 +128,64 @@ export default function SalesTrackingPage() {
     })()
   }, [user])
 
+  const fetchRecords = useCallback(async (append: boolean, nextOffset: number, signal?: AbortSignal) => {
+    if (append) {
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+    }
+
+    try {
+      const params: any = { limit: PAGE_SIZE, offset: nextOffset }
+      if (searchQuery.trim()) {
+        params.search = searchQuery.trim()
+      }
+      const config: any = { params }
+      if (signal) {
+        config.signal = signal
+      }
+      const response = await api.get('/sales-tracking', config)
+      const rows = response.data?.rows ?? response.data ?? []
+      const more = response.data?.hasMore ?? (Array.isArray(rows) && rows.length === PAGE_SIZE)
+      setHasMore(more)
+      setOffset(nextOffset)
+      if (append) {
+        setRecords(prev => [...prev, ...rows])
+      } else {
+        setRecords(rows)
+        setCurrentPage(1)
+      }
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
+        console.log('Previous fetch request cancelled')
+        return
+      }
+      console.error('Failed to fetch records:', error)
+      const errorMessage = error?.response?.data?.message || error?.message || t('error')
+      showToast(errorMessage, 'error')
+      if (!append) {
+        setRecords([])
+      }
+    } finally {
+      if (append) {
+        setLoadingMore(false)
+      } else {
+        setLoading(false)
+      }
+    }
+  }, [searchQuery, showToast, t])
+
   useEffect(() => {
-    // 이전 요청 취소
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
-
-    // 새로운 AbortController 생성
-    abortControllerRef.current = new AbortController()
-    
-    fetchRecords(abortControllerRef.current.signal)
-  }, [searchQuery, managerFilter])
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    fetchRecords(false, 0, controller.signal)
+    return () => {
+      controller.abort()
+    }
+  }, [fetchRecords])
 
   // 통합검색에서 선택한 레코드 처리
   useEffect(() => {
@@ -172,28 +222,9 @@ export default function SalesTrackingPage() {
     }
   }, [location.state, records, managerFilter, navigate, location.pathname, itemsPerPage])
 
-  const fetchRecords = async (signal?: AbortSignal) => {
-    try {
-      setLoading(true)
-      const params: any = {}
-      if (searchQuery) {
-        params.search = searchQuery
-      }
-      const response = await api.get('/sales-tracking', { params, signal })
-      setRecords(response.data || [])
-    } catch (error: any) {
-      // AbortError는 무시 (이전 요청이 취소된 것)
-      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
-        console.log('Previous fetch request cancelled')
-        return
-      }
-      console.error('Failed to fetch records:', error)
-      const errorMessage = error.response?.data?.message || error.message || t('error')
-      showToast(errorMessage, 'error')
-      setRecords([]) // 에러 발생 시 빈 배열로 설정
-    } finally {
-      setLoading(false)
-    }
+  const handleLoadMore = () => {
+    if (!hasMore || loading || loadingMore) return
+    fetchRecords(true, offset + PAGE_SIZE)
   }
 
   // Daily stats
@@ -244,7 +275,7 @@ export default function SalesTrackingPage() {
       showToast(t('saved'), 'success')
       setShowAddForm(false)
       resetForm()
-      fetchRecords()
+      fetchRecords(false, 0)
     } catch (error: any) {
       console.error('Failed to add record:', error)
       showToast(error.response?.data?.message || t('addFailed'), 'error')
@@ -257,7 +288,7 @@ export default function SalesTrackingPage() {
       showToast(t('updated'), 'success')
       setEditingId(null)
       resetForm()
-      fetchRecords()
+      fetchRecords(false, 0)
     } catch (error: any) {
       console.error('Failed to update record:', error)
       showToast(error.response?.data?.message || t('updateFailed'), 'error')
@@ -270,7 +301,7 @@ export default function SalesTrackingPage() {
     try {
       await api.delete(`/sales-tracking/${id}`)
       showToast(t('deleted'), 'success')
-      fetchRecords()
+      fetchRecords(false, 0)
     } catch (error: any) {
       console.error('Failed to delete record:', error)
       showToast(error.response?.data?.message || t('deleteFailed'), 'error')
@@ -283,6 +314,7 @@ export default function SalesTrackingPage() {
     try {
       await api.post(`/sales-tracking/${record.id}/move-to-retargeting`)
       showToast(t('movedToRetargeting'), 'success')
+      fetchRecords(false, 0)
     } catch (error: any) {
       if (error.response?.status === 403) {
         showToast(t('onlyOwnerCanModify'), 'error')
@@ -298,7 +330,6 @@ export default function SalesTrackingPage() {
       managerName: user?.name || '',
       companyName: '',
       accountId: '',
-      customerName: '',
       industry: '',
       contactMethod: '',
       status: '未返信',
@@ -322,7 +353,6 @@ export default function SalesTrackingPage() {
       managerName: record.manager_name,
       companyName: record.company_name || '',
       accountId: record.account_id || '',
-      customerName: record.customer_name || '',
       industry: record.industry || '',
       contactMethod: record.contact_method || '',
       status: record.status,
@@ -617,9 +647,8 @@ export default function SalesTrackingPage() {
   const paginatedRecords = filteredRecords.slice(startIndex, endIndex)
 
   useEffect(() => {
-    // 검색 또는 필터 변경 시 첫 페이지로 리셋
     setCurrentPage(1)
-  }, [searchQuery, managerFilter])
+  }, [managerFilter])
 
   return (
     <div className="p-6 pt-8">
@@ -737,13 +766,6 @@ export default function SalesTrackingPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">{t('customerName')}</label>
-                <Input
-                  value={formData.customerName}
-                  onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                />
-              </div>
-              <div>
                 <label className="text-sm font-medium">{t('industry')}</label>
                 <select
                   value={formData.industry}
@@ -829,7 +851,6 @@ export default function SalesTrackingPage() {
                   <th className="px-2 py-2 text-left font-medium border-r w-28">{t('managerName')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('companyName')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-24">{t('industry')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r w-32">{t('customerName')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-24">{t('phone')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('accountId')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('contactMethod')}</th>
@@ -841,13 +862,13 @@ export default function SalesTrackingPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                       {t('loading')}
                     </td>
                   </tr>
                 ) : filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                       {t('noData')}
                     </td>
                   </tr>
@@ -858,7 +879,6 @@ export default function SalesTrackingPage() {
                       <td className="px-2 py-1 border-r">{record.manager_name}</td>
                       <td className="px-2 py-1 border-r">{record.company_name || '-'}</td>
                       <td className="px-2 py-1 border-r">{translateIndustryLabel(record.industry as any)}</td>
-                      <td className="px-2 py-1 border-r">{record.customer_name || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.phone || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.account_id || '-'}</td>
                       <td className="px-2 py-1 border-r">{translateContactMethodLabel(record.contact_method as any)}</td>
@@ -952,6 +972,18 @@ export default function SalesTrackingPage() {
                   {t('next')}
                 </Button>
               </div>
+            </div>
+          )}
+          {hasMore && (
+            <div className="px-4 py-3 border-t flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLoadMore}
+                disabled={loading || loadingMore}
+              >
+                {loadingMore ? t('loading') : t('loadMore')}
+              </Button>
             </div>
           )}
         </CardContent>

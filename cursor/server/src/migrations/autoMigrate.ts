@@ -58,6 +58,18 @@ export async function autoMigrateSalesTracking(): Promise<void> {
       } catch (e) {
         console.error('Failed ensuring occurred_at column:', e)
       }
+
+      try {
+        await pool.query(`
+          UPDATE sales_tracking
+          SET company_name = customer_name
+          WHERE (company_name IS NULL OR TRIM(company_name) = '')
+            AND customer_name IS NOT NULL
+            AND TRIM(customer_name) <> '';
+        `)
+      } catch (e) {
+        console.error('Failed migrating customer_name into company_name:', e)
+      }
       return
     }
     

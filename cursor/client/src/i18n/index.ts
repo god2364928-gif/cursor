@@ -31,6 +31,7 @@ const translations: Record<Language, Translation> = {
     
     // Common
     loading: '読み込み中...',
+    loadMore: 'さらに読み込む',
     search: '検索',
     create: '作成',
     update: '更新',
@@ -366,6 +367,7 @@ const translations: Record<Language, Translation> = {
     
     // Common
     loading: '로딩 중...',
+    loadMore: '더 불러오기',
     search: '검색',
     create: '생성',
     update: '수정',
