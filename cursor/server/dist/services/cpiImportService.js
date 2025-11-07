@@ -18,6 +18,7 @@ async function importRecentCalls(since, until) {
     let inserted = 0;
     let skipped = 0;
     while (true) {
+        // 모든 OUT 통화 수집 (첫콜 제한 없음)
         const { data, total } = await (0, cpiClient_1.fetchFirstOutCalls)({ startDate, endDate, page, row: 100 });
         if (!data || data.length === 0)
             break;

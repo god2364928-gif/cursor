@@ -18,6 +18,7 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
   let skipped = 0
 
   while (true) {
+    // 모든 OUT 통화 수집 (첫콜 제한 없음)
     const { data, total } = await fetchFirstOutCalls({ startDate, endDate, page, row: 100 })
     if (!data || data.length === 0) break
 

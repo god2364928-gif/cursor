@@ -16,8 +16,12 @@ async function fetchFirstOutCalls(params) {
     url.searchParams.set('page', String(params.page ?? 1));
     url.searchParams.set('start_date', params.startDate);
     url.searchParams.set('end_date', params.endDate);
-    url.searchParams.append('call_type', '1'); // 첫콜 OUT
-    url.searchParams.set('is_out', '1'); // 발신
+    // 모든 OUT 통화 수집 (첫콜 제한 제거) - 안정성 우선
+    url.searchParams.set('is_out', '1');
+    if (params.query) {
+        url.searchParams.set('query', params.query);
+        url.searchParams.set('query_type', String(params.queryType ?? 0));
+    }
     url.searchParams.set('sort', 'date-desc');
     const res = await fetch(url.toString(), {
         method: 'GET',
