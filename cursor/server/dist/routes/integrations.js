@@ -99,6 +99,10 @@ router.post('/cpi/import-by-phone', auth_1.authMiddleware, async (req, res) => {
                 const companyName = r.company?.trim() || '';
                 const phoneNum = (0, nullSafe_1.formatPhoneNumber)(r.phone_number) || '';
                 const exists = await db_1.pool.query('SELECT 1 FROM sales_tracking WHERE external_call_id = $1 LIMIT 1', [externalId]);
+                const manualExisting = await db_1.pool.query(`SELECT id, company_name, account_id FROM sales_tracking
+           WHERE manager_name = $1 AND date = $2 AND phone = $3
+             AND (external_call_id IS NULL OR TRIM(external_call_id) = '')
+           ORDER BY created_at ASC LIMIT 1`, [managerName, dateStr, phoneNum]);
                 const occurredAt = (() => {
                     if (r.created_at) {
                         return r.created_at.replace('T', ' ').replace('Z', '').slice(0, 19);
@@ -116,6 +120,23 @@ router.post('/cpi/import-by-phone', auth_1.authMiddleware, async (req, res) => {
               status = '未返信',
               updated_at = NOW()
             WHERE external_call_id = $6`, [dateStr, occurredAt, managerName, companyName, phoneNum, externalId]);
+                    continue;
+                }
+                else if ((manualExisting.rowCount ?? 0) > 0) {
+                    const manual = manualExisting.rows[0];
+                    const newCompany = companyName || manual.company_name || '';
+                    await db_1.pool.query(`UPDATE sales_tracking SET
+              date = $1,
+              occurred_at = $2,
+              manager_name = $3,
+              company_name = $4,
+              phone = $5,
+              contact_method = '電話',
+              status = '未返信',
+              external_call_id = $6,
+              external_source = 'cpi',
+              updated_at = NOW()
+            WHERE id = $7`, [dateStr, occurredAt, managerName, newCompany, phoneNum, externalId, manual.id]);
                     continue;
                 }
                 await db_1.pool.query(`INSERT INTO sales_tracking (
