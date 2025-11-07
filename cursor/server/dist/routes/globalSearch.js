@@ -16,7 +16,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         const startsWithKeyword = `${exactKeyword}%`;
         // 부분 일치: 최소 4자 이상만 부분 일치 허용 (짧은 검색어는 정확/시작 일치만)
         const partialKeyword = exactKeyword.length >= 4 ? `%${exactKeyword}%` : null;
-        // 1. 고객관리 검색 - 정확 일치 > 시작 일치 > 부분 일치 (4자 이상만)
+        // 1. 고객관리 검색 - company/customer는 부분일치, instagram/phone은 정확만 (정확도 우선)
         const customersQuery = partialKeyword
             ? `SELECT 
           'customers' as page,
@@ -28,11 +28,11 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
                  OR regexp_replace(phone1, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')
                  OR regexp_replace(phone2, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')
                  OR regexp_replace(phone3, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g') THEN 1
-            WHEN company_name ILIKE $2 OR customer_name ILIKE $2 OR instagram ILIKE $2 OR phone1 ILIKE $2 OR phone2 ILIKE $2 OR phone3 ILIKE $2
+            WHEN company_name ILIKE $2 OR customer_name ILIKE $2 OR phone1 ILIKE $2 OR phone2 ILIKE $2 OR phone3 ILIKE $2
                  OR regexp_replace(phone1, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || ''
                  OR regexp_replace(phone2, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || ''
                  OR regexp_replace(phone3, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '' THEN 2
-            WHEN company_name ILIKE $3 OR customer_name ILIKE $3 OR instagram ILIKE $3 OR phone1 ILIKE $3 OR phone2 ILIKE $3 OR phone3 ILIKE $3 THEN 3
+            WHEN company_name ILIKE $3 OR customer_name ILIKE $3 THEN 3
           END as match_priority
         FROM customers
         WHERE 
@@ -40,11 +40,11 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
            OR regexp_replace(phone1, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')
            OR regexp_replace(phone2, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')
            OR regexp_replace(phone3, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) OR
-          (company_name ILIKE $2 OR customer_name ILIKE $2 OR instagram ILIKE $2 OR phone1 ILIKE $2 OR phone2 ILIKE $2 OR phone3 ILIKE $2
+          (company_name ILIKE $2 OR customer_name ILIKE $2 OR phone1 ILIKE $2 OR phone2 ILIKE $2 OR phone3 ILIKE $2
            OR regexp_replace(phone1, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || ''
            OR regexp_replace(phone2, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || ''
            OR regexp_replace(phone3, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '') OR
-          (company_name ILIKE $3 OR customer_name ILIKE $3 OR instagram ILIKE $3 OR phone1 ILIKE $3 OR phone2 ILIKE $3 OR phone3 ILIKE $3)
+          (company_name ILIKE $3 OR customer_name ILIKE $3)
         ORDER BY match_priority, company_name
         LIMIT 10`
             : `SELECT 
@@ -57,7 +57,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
                  OR regexp_replace(phone1, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')
                  OR regexp_replace(phone2, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')
                  OR regexp_replace(phone3, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g') THEN 1
-            WHEN company_name ILIKE $2 OR customer_name ILIKE $2 OR instagram ILIKE $2 OR phone1 ILIKE $2 OR phone2 ILIKE $2 OR phone3 ILIKE $2
+            WHEN company_name ILIKE $2 OR customer_name ILIKE $2 OR phone1 ILIKE $2 OR phone2 ILIKE $2 OR phone3 ILIKE $2
                  OR regexp_replace(phone1, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || ''
                  OR regexp_replace(phone2, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || ''
                  OR regexp_replace(phone3, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '' THEN 2
@@ -68,7 +68,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
            OR regexp_replace(phone1, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')
            OR regexp_replace(phone2, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')
            OR regexp_replace(phone3, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) OR
-          (company_name ILIKE $2 OR customer_name ILIKE $2 OR instagram ILIKE $2 OR phone1 ILIKE $2 OR phone2 ILIKE $2 OR phone3 ILIKE $2
+          (company_name ILIKE $2 OR customer_name ILIKE $2 OR phone1 ILIKE $2 OR phone2 ILIKE $2 OR phone3 ILIKE $2
            OR regexp_replace(phone1, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || ''
            OR regexp_replace(phone2, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || ''
            OR regexp_replace(phone3, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '')
