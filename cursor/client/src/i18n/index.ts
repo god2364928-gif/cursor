@@ -282,6 +282,7 @@ const translations: Record<Language, Translation> = {
     
     // Sales Tracking
     date: '日付',
+    dateTime: '日付/時間',
     managerName: '担当者名',
     accountId: 'インスタグラムID',
     contactMethod: '営業方法',
@@ -616,6 +617,7 @@ const translations: Record<Language, Translation> = {
     
     // Sales Tracking
     date: '날짜',
+    dateTime: '날짜/시간',
     managerName: '담당자명',
     accountId: '계정 ID',
     contactMethod: '영업 방법',

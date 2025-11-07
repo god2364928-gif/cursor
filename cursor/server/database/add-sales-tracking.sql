@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS sales_tracking (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   date DATE NOT NULL,
+  occurred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   manager_name VARCHAR(100) NOT NULL,
   account_id VARCHAR(255),
   customer_name VARCHAR(255),

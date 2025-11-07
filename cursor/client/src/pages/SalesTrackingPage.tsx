@@ -13,6 +13,7 @@ import GlobalSearch from '../components/GlobalSearch'
 interface SalesTrackingRecord {
   id: string
   date: string
+  occurred_at?: string
   manager_name: string
   company_name?: string
   account_id?: string
@@ -553,16 +554,22 @@ export default function SalesTrackingPage() {
   }
 
   // 날짜 포맷 함수 (YYYY-MM-DD)
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-'
-    try {
-      const date = new Date(dateString)
-      if (isNaN(date.getTime())) return dateString
-      return date.toISOString().split('T')[0]
-    } catch {
-      // 이미 YYYY-MM-DD 형식인 경우
-      return dateString.split('T')[0]
+  const formatDateTime = (primary?: string, fallback?: string) => {
+    const source = primary || fallback
+    if (!source) return '-'
+    const date = new Date(source)
+    if (isNaN(date.getTime())) {
+      if (primary) return primary
+      if (fallback) return fallback
+      return '-'
     }
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    const y = date.getFullYear()
+    const m = pad(date.getMonth() + 1)
+    const d = pad(date.getDate())
+    const h = pad(date.getHours())
+    const min = pad(date.getMinutes())
+    return `${y}-${m}-${d} ${h}:${min}`
   }
 
   // Translate option labels for table display while keeping DB values as-is
@@ -826,7 +833,7 @@ export default function SalesTrackingPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-2 py-2 text-left font-medium border-r w-24">{t('date')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-28">{t('dateTime')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-28">{t('managerName')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('companyName')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-24">{t('industry')}</th>
@@ -855,7 +862,7 @@ export default function SalesTrackingPage() {
                 ) : (
                   paginatedRecords.map((record) => (
                     <tr key={record.id} id={`sales-tracking-record-${record.id}`} className="border-b hover:bg-gray-50">
-                      <td className="px-2 py-1 border-r whitespace-nowrap">{formatDate(record.date)}</td>
+                      <td className="px-2 py-1 border-r whitespace-nowrap">{formatDateTime(record.occurred_at, record.date)}</td>
                       <td className="px-2 py-1 border-r">{record.manager_name}</td>
                       <td className="px-2 py-1 border-r">{record.company_name || '-'}</td>
                       <td className="px-2 py-1 border-r">{translateIndustryLabel(record.industry as any)}</td>

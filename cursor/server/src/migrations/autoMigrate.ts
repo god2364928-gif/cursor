@@ -40,6 +40,24 @@ export async function autoMigrateSalesTracking(): Promise<void> {
       } catch (e) {
         console.error('Failed ensuring external_call_id columns:', e)
       }
+
+      try {
+        await pool.query(`
+          ALTER TABLE sales_tracking
+          ADD COLUMN IF NOT EXISTS occurred_at TIMESTAMP WITHOUT TIME ZONE;
+        `)
+        await pool.query(`
+          UPDATE sales_tracking
+          SET occurred_at = COALESCE(occurred_at, date::timestamp)
+          WHERE occurred_at IS NULL;
+        `)
+        await pool.query(`
+          ALTER TABLE sales_tracking
+          ALTER COLUMN occurred_at SET DEFAULT NOW();
+        `)
+      } catch (e) {
+        console.error('Failed ensuring occurred_at column:', e)
+      }
       return
     }
     
