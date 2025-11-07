@@ -3,14 +3,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.importRecentCalls = importRecentCalls;
 const db_1 = require("../db");
 const cpiClient_1 = require("../integrations/cpiClient");
-function toKstDate(dateIso) {
-    const d = new Date(dateIso);
-    const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-    return kst.toISOString().split('T')[0];
+// CPI created_at은 KST 형식 문자열(예: 2025-11-07T11:13:25.xxx)로 반환됨.
+// 타임존 오프셋을 추가하지 않고 'YYYY-MM-DD'만 안정적으로 추출한다.
+function toDateString(isoLike) {
+    if (!isoLike)
+        return new Date().toISOString().split('T')[0];
+    const i = isoLike.indexOf('T');
+    return i > 0 ? isoLike.slice(0, i) : isoLike.slice(0, 10);
 }
 async function importRecentCalls(since, until) {
-    const startDate = toKstDate(since.toISOString());
-    const endDate = toKstDate(until.toISOString());
+    const startDate = toDateString(since.toISOString());
+    const endDate = toDateString(until.toISOString());
     let page = 1;
     let inserted = 0;
     let skipped = 0;
@@ -31,7 +34,7 @@ async function importRecentCalls(since, until) {
                 skipped++;
                 continue;
             }
-            const dateStr = toKstDate(r.created_at);
+            const dateStr = toDateString(r.created_at);
             const companyName = r.company?.trim() || '';
             const phone = r.phone_number?.trim() || '';
             try {

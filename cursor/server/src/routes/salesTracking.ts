@@ -54,7 +54,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       params.push(search.trim(), `${search.trim()}%`)
       query += ` ORDER BY match_priority, date DESC, created_at DESC`
     } else {
-      query += ` ORDER BY date DESC, created_at DESC`
+    query += ` ORDER BY date DESC, created_at DESC`
     }
     
     const result = await pool.query(query, params)
