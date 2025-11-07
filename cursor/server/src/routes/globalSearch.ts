@@ -18,8 +18,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     
     const exactKeyword = keyword.trim()
     const startsWithKeyword = `${exactKeyword}%`
-    // 부분 일치: 최소 4자 이상만 부분 일치 허용 (짧은 검색어는 정확/시작 일치만)
-    const partialKeyword = exactKeyword.length >= 4 ? `%${exactKeyword}%` : null
+    // 부분 일치: 최소 2자 이상만 부분 일치 허용 (1자는 정확/시작 일치만)
+    const partialKeyword = exactKeyword.length >= 2 ? `%${exactKeyword}%` : null
     console.log(`[Global Search] exactKeyword="${exactKeyword}", startsWithKeyword="${startsWithKeyword}", partialKeyword="${partialKeyword}")`)
     
     // 1. 고객관리 검색 - company/customer는 부분일치, instagram/phone은 정확만 (정확도 우선)
