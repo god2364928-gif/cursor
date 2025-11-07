@@ -15,9 +15,8 @@ async function fetchFirstOutCalls(params) {
     url.searchParams.set('page', String(params.page ?? 1));
     url.searchParams.set('start_date', params.startDate);
     url.searchParams.set('end_date', params.endDate);
-    // 첫콜(call_type=1) + OUT(is_out=1)만 수집
+    // OUT 전체 수집 (첫콜 필터링은 코드에서 처리 - API 필터가 정확하지 않음)
     url.searchParams.set('is_out', '1');
-    url.searchParams.set('call_type', '1');
     if (params.query) {
         url.searchParams.set('query', params.query);
         url.searchParams.set('query_type', String(params.queryType ?? 0));

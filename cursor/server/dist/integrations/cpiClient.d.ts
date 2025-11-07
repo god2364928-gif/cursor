@@ -6,6 +6,7 @@ type CpiRecord = {
     created_at: string;
     is_out: number;
     is_contract: number;
+    type?: number;
 };
 export interface FetchParams {
     startDate: string;
