@@ -31,8 +31,9 @@ export async function fetchFirstOutCalls(params: FetchParams): Promise<{ data: C
   url.searchParams.set('page', String(params.page ?? 1))
   url.searchParams.set('start_date', params.startDate)
   url.searchParams.set('end_date', params.endDate)
-  // 모든 OUT 통화 수집 (첫콜 제한 제거) - 안정성 우선
+  // 첫콜(call_type=1) + OUT(is_out=1)만 수집
   url.searchParams.set('is_out', '1')
+  url.searchParams.set('call_type', '1')
   if (params.query) {
     url.searchParams.set('query', params.query)
     url.searchParams.set('query_type', String(params.queryType ?? 0))
