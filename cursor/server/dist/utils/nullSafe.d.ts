@@ -42,4 +42,11 @@ export declare function validateInsertValues(values: any[], notNullIndices: numb
  * @returns 모든 필드가 유효한 값으로 채워진 객체
  */
 export declare function sanitizeObject<T extends Record<string, any>>(obj: T, fields: (keyof T)[], defaultValues?: Partial<Record<keyof T, string>>): T;
+/**
+ * 전화번호를 000-0000-0000 형식으로 포매팅
+ * 숫자만 추출하고 앞 3자리-중간 4자리-뒤 4자리로 포매팅
+ * @param phone - 전화번호 (하이픈 있음/없음 모두 지원)
+ * @returns 포매팅된 전화번호 (000-0000-0000) 또는 빈 문자열
+ */
+export declare function formatPhoneNumber(phone: any): string;
 //# sourceMappingURL=nullSafe.d.ts.map

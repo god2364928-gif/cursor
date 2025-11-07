@@ -120,7 +120,7 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
         const safeCompanyName = (0, nullSafe_1.safeStringWithLength)(companyName || '', '未設定', 255);
         const safeIndustry = industry || null;
         const safeCustomerName = (0, nullSafe_1.safeStringWithLength)(customerName || '', '未設定', 100);
-        const safePhone = (0, nullSafe_1.safeStringWithLength)(phone || '', '00000000000', 20);
+        const safePhone = (0, nullSafe_1.formatPhoneNumber)(phone) || '00000000000';
         const result = await db_1.pool.query(`INSERT INTO retargeting_customers (
         company_name, industry, customer_name, phone, region, inflow_path,
         manager, manager_team, status, registered_at, contract_history_category
@@ -737,7 +737,7 @@ router.post('/import', auth_1.authMiddleware, upload.single('file'), async (req,
             const homepage = (row['ホームページ'] || '').trim() || null;
             const instagram = extractInstagramId(row['Instagram']);
             const memo = (row['メモ'] || '').trim() || null;
-            const phone = normalizePhone(row['電話番号']);
+            const phone = (0, nullSafe_1.formatPhoneNumber)(row['電話番号']) || normalizePhone(row['電話番号']);
             if (!companyName && !customerName)
                 continue;
             if (!customerName)

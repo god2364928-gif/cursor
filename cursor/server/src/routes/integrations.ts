@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { importRecentCalls } from '../services/cpiImportService'
 import { fetchFirstOutCalls } from '../integrations/cpiClient'
+import { formatPhoneNumber } from '../utils/nullSafe'
 import { pool } from '../db'
 
 const router = Router()
@@ -92,7 +93,7 @@ router.post('/cpi/import-by-phone', authMiddleware, async (req: AuthRequest, res
         const managerName = r.username?.trim() || ''
         const dateStr = (r.created_at || '').slice(0, 10)
         const companyName = r.company?.trim() || ''
-        const phoneNum = r.phone_number?.trim() || ''
+        const phoneNum = formatPhoneNumber(r.phone_number) || ''
         await pool.query(
           `INSERT INTO sales_tracking (
             date, manager_name, company_name, customer_name, industry, contact_method, status, contact_person, phone, memo, memo_note, user_id, created_at, updated_at, external_call_id, external_source

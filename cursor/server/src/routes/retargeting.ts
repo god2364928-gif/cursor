@@ -1,7 +1,7 @@
 import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
-import { safeString, safeStringWithLength, firstValidString } from '../utils/nullSafe'
+import { safeString, safeStringWithLength, firstValidString, formatPhoneNumber } from '../utils/nullSafe'
 import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { parse as parseCsvSync } from 'csv-parse/sync'
@@ -93,7 +93,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const safeCompanyName = safeStringWithLength(companyName || '', '未設定', 255)
     const safeIndustry = industry || null
     const safeCustomerName = safeStringWithLength(customerName || '', '未設定', 100)
-    const safePhone = safeStringWithLength(phone || '', '00000000000', 20)
+    const safePhone = formatPhoneNumber(phone) || '00000000000'
     
     const result = await pool.query(
       `INSERT INTO retargeting_customers (
@@ -847,7 +847,7 @@ router.post('/import', authMiddleware, upload.single('file'), async (req: AuthRe
       const homepage = (row['ホームページ'] || '').trim() || null
       const instagram = extractInstagramId(row['Instagram'])
       const memo = (row['メモ'] || '').trim() || null
-      const phone = normalizePhone(row['電話番号'])
+      const phone = formatPhoneNumber(row['電話番号']) || normalizePhone(row['電話番号'])
 
       if (!companyName && !customerName) continue
       if (!customerName) customerName = ''

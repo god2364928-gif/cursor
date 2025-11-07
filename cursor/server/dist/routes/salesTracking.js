@@ -111,7 +111,7 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
             contactMethod || null,
             status,
             contactPerson || null,
-            phone || null,
+            (0, nullSafe_1.formatPhoneNumber)(phone) || null,
             memo || null,
             memoNote || null,
             req.user?.id
@@ -162,7 +162,7 @@ router.put('/:id', auth_1.authMiddleware, async (req, res) => {
             contactMethod || null,
             status,
             contactPerson || null,
-            phone || null,
+            (0, nullSafe_1.formatPhoneNumber)(phone) || null,
             memo || null,
             memoNote || null,
             id

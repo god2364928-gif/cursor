@@ -39,7 +39,9 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
         const safeCompanyName = (0, nullSafe_1.safeStringWithLength)(companyName || '', '未設定', 255);
         const safeIndustry = industry || null;
         const safeCustomerName = (0, nullSafe_1.safeStringWithLength)(customerName || '', '未設定', 100);
-        const safePhone1 = (0, nullSafe_1.safeStringWithLength)(phone1 || '', '00000000000', 20);
+        const safePhone1 = (0, nullSafe_1.formatPhoneNumber)(phone1) || '00000000000';
+        const safePhone2 = (0, nullSafe_1.formatPhoneNumber)(phone2) || null;
+        const safePhone3 = (0, nullSafe_1.formatPhoneNumber)(phone3) || null;
         // 담당자와 팀을 자동으로 설정 (없으면 현재 사용자 정보)
         const finalManager = manager || req.user?.name;
         const finalTeam = managerTeam || req.user?.team;
@@ -52,7 +54,7 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
         inflow_path, manager, manager_team, memo
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
       RETURNING *`, [
-            safeCompanyName, safeIndustry, safeCustomerName, req.body.title || null, safePhone1, phone2 || null, phone3 || null,
+            safeCompanyName, safeIndustry, safeCustomerName, req.body.title || null, safePhone1, safePhone2, safePhone3,
             customerType || null, businessModel || null, region || null,
             homepage || null, blog || null, instagram || null,
             otherChannel || null, req.body.kpiDataUrl || null, req.body.topExposureCount || 0,
@@ -367,6 +369,10 @@ router.put('/:id', auth_1.authMiddleware, async (req, res) => {
                 }
                 else if (fieldMap[key] === 'phone1' && (!value || value === '')) {
                     processedValue = '00000000000';
+                }
+                else if (['phone1', 'phone2', 'phone3'].includes(fieldMap[key])) {
+                    // 전화번호 포매팅 (phone1, phone2, phone3)
+                    processedValue = (0, nullSafe_1.formatPhoneNumber)(value) || null;
                 }
                 setClause.push(`${fieldMap[key]} = $${paramCount++}`);
                 values.push(processedValue);
