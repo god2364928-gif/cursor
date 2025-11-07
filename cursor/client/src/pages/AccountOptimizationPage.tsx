@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Loader2, Sparkle, AlertCircle, Hash, ShieldCheck, Timer, Download } from 'lucide-react'
+import { Loader2, Sparkle, AlertCircle, Hash, Download } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -110,12 +110,14 @@ export default function AccountOptimizationPage() {
     try {
       const html2canvas = (await import('html2canvas')).default
       
+      // 이미지를 proxy를 통해 로드
       const canvas = await html2canvas(resultRef.current, {
         backgroundColor: '#ffffff',
         scale: 2,
         logging: false,
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
+        proxy: undefined,
       })
 
       canvas.toBlob((blob) => {
@@ -302,165 +304,111 @@ export default function AccountOptimizationPage() {
               {t('accountOptimizationDownloadPNG')}
             </Button>
           </div>
-          <div ref={resultRef} data-screenshot className="space-y-8 bg-white p-8 rounded-lg">
-          <Card className="shadow-sm bg-white">
-            <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row gap-8 items-start">
-                <div className="flex-shrink-0">
-                  {result.profile_image_url ? (
-                    <img
-                      src={result.profile_image_url}
-                      alt={result.username || ''}
-                      className="h-40 w-40 rounded-2xl object-cover border shadow-sm"
-                    />
-                  ) : (
-                    <div className="h-40 w-40 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 text-3xl font-semibold">
-                      {result.username?.slice(0, 2).toUpperCase() || 'IG'}
-                    </div>
-                  )}
+          <div ref={resultRef} data-screenshot className="space-y-6 bg-white p-6 rounded-lg">
+          <div className="flex items-start gap-6 pb-6 border-b">
+            <div className="flex-shrink-0">
+              {result.profile_image_url ? (
+                <img
+                  src={result.profile_image_url}
+                  alt={result.username || ''}
+                  className="h-32 w-32 rounded-2xl object-cover border-2 shadow-sm"
+                  crossOrigin="anonymous"
+                />
+              ) : (
+                <div className="h-32 w-32 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 text-3xl font-semibold">
+                  {result.username?.slice(0, 2).toUpperCase() || 'IG'}
                 </div>
+              )}
+            </div>
 
-                <div className="flex-1 min-w-0 space-y-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-2xl font-bold text-gray-900">{result.username}</h2>
-                    {searchedId && (
-                      <span className="text-xs md:text-sm text-gray-400">
-                        {language === 'ja' ? `分析ID: ${searchedId}` : `조회 ID: ${searchedId}`}
-                      </span>
-                    )}
-                  </div>
-                  {result.full_name && (
-                    <p className="text-sm text-gray-600 leading-relaxed">{result.full_name}</p>
-                  )}
-                  {result.biography && (
-                    <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                      {result.biography}
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-3">
-                    <GradeBadge label={result.total_grade} />
-                    <GradeBadge label={result.follower_grade} />
-                    <GradeBadge label={result.post_count_grade} />
-                    <GradeBadge label={result.activity_grade} />
-                  </div>
-                  {result.growthcore_customer && (
-                    <div className={`flex items-center gap-2 text-sm ${
-                      result.growthcore_customer.is_callable ? 'text-emerald-600' : 'text-gray-500'
-                    }`}>
-                      <ShieldCheck className="h-4 w-4" />
-                      {result.growthcore_customer.is_callable
-                        ? t('accountOptimizationCallable')
-                        : result.growthcore_customer.message || t('accountOptimizationNonCallable')}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-shrink-0 w-full lg:w-52 space-y-4">
-                  <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl border border-blue-100">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
-                      {t('accountOptimizationTotalGrade')}
-                    </p>
-                    <div className="flex justify-center">
-                      <div className={`text-5xl font-bold px-6 py-3 rounded-2xl ${
-                        gradeColor[result.total_grade ?? ''] || 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {result.total_grade || '-'}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="p-3 bg-white border border-gray-100 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-1">{t('accountOptimizationFollowerGrade')}</p>
-                      <GradeBadge label={result.follower_grade} />
-                    </div>
-                    <div className="p-3 bg-white border border-gray-100 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-1">{t('accountOptimizationPostGrade')}</p>
-                      <GradeBadge label={result.post_count_grade} />
-                    </div>
-                    <div className="p-3 bg-white border border-gray-100 rounded-lg">
-                      <p className="text-xs text-gray-500 mb-1">{t('accountOptimizationActivityGrade')}</p>
-                      <GradeBadge label={result.activity_grade} />
-                    </div>
-                  </div>
-                </div>
+            <div className="flex-1 min-w-0 space-y-3">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-1">{result.username}</h2>
+                {searchedId && (
+                  <span className="text-sm text-gray-400">
+                    {language === 'ja' ? `分析ID: ${searchedId}` : `조회 ID: ${searchedId}`}
+                  </span>
+                )}
               </div>
+              {result.full_name && (
+                <p className="text-base text-gray-700 font-medium">{result.full_name}</p>
+              )}
+              {result.biography && (
+                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                  {result.biography}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2 pt-2">
+                <GradeBadge label={result.total_grade} />
+                <GradeBadge label={result.follower_grade} />
+                <GradeBadge label={result.post_count_grade} />
+                <GradeBadge label={result.activity_grade} />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+            <MetricBox label={t('accountOptimizationFollowerCount')} value={formatNumber(result.follower_count)} />
+            <MetricBox label={t('accountOptimizationFollowCount')} value={formatNumber(result.follow_count)} />
+            <MetricBox label={t('accountOptimizationPostCount')} value={formatNumber(result.post_count)} />
+            <MetricBox label={t('accountOptimizationAverageLikes')} value={formatNumber(result.average_like_count)} />
+            <MetricBox label={t('accountOptimizationAverageComments')} value={formatNumber(result.average_comment_count)} />
+            <MetricBox
+              label={t('accountOptimizationAverageInterval')}
+              value={formatHourInterval(result.average_post_hour)}
+            />
+          </div>
+
+          <Card className="shadow-sm bg-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                <Sparkle className="h-5 w-5 text-amber-500" />
+                {t('accountOptimizationPostTypeTitle')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm font-medium text-gray-600">
+                {postTypeLabel[result.post_type ?? ''] || t('accountOptimizationPostTypeFallback')}
+              </p>
+              <div className="grid grid-cols-3 gap-4">
+                <DistributionBar
+                  label={t('accountOptimizationPhotoRate')}
+                  value={result.photo_rate ?? 0}
+                  color="bg-sky-400"
+                />
+                <DistributionBar
+                  label={t('accountOptimizationReelsRate')}
+                  value={result.reels_rate ?? 0}
+                  color="bg-amber-400"
+                />
+                <DistributionBar
+                  label={t('accountOptimizationCarouselRate')}
+                  value={result.carousel_rate ?? 0}
+                  color="bg-emerald-400"
+                />
+              </div>
+              {result.recent_hashtag_list && result.recent_hashtag_list.length > 0 && (
+                <div className="pt-4 border-t">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1">
+                    <Hash className="h-4 w-4" />
+                    {t('accountOptimizationHashtagTitle')}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {result.recent_hashtag_list.slice(0, 15).map((tag) => (
+                      <span
+                        key={`${tag.hashtag}-${tag.count}`}
+                        className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium"
+                      >
+                        #{tag.hashtag}
+                        {tag.count > 1 && <span className="ml-1 text-gray-400">×{tag.count}</span>}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-sm text-gray-500 uppercase tracking-wider">
-                  {t('accountOptimizationMetricsTitle')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <MetricTile label={t('accountOptimizationFollowerCount')} value={formatNumber(result.follower_count)} />
-                <MetricTile label={t('accountOptimizationFollowCount')} value={formatNumber(result.follow_count)} />
-                <MetricTile label={t('accountOptimizationPostCount')} value={formatNumber(result.post_count)} />
-                <MetricTile label={t('accountOptimizationAverageLikes')} value={formatNumber(result.average_like_count)} />
-                <MetricTile label={t('accountOptimizationAverageComments')} value={formatNumber(result.average_comment_count)} />
-                <MetricTile
-                  label={t('accountOptimizationAverageInterval')}
-                  value={formatHourInterval(result.average_post_hour)}
-                  icon={<Timer className="h-4 w-4 text-blue-500" />}
-                />
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-sm text-gray-500 uppercase tracking-wider">
-                  {t('accountOptimizationPostTypeTitle')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Sparkle className="h-5 w-5 text-amber-500" />
-                  <p className="text-sm font-semibold text-gray-700">
-                    {postTypeLabel[result.post_type ?? ''] || t('accountOptimizationPostTypeFallback')}
-                  </p>
-                </div>
-                <div className="grid grid-cols-3 gap-3 text-sm">
-                  <DistributionBar
-                    label={t('accountOptimizationPhotoRate')}
-                    value={result.photo_rate ?? 0}
-                    color="bg-sky-400"
-                  />
-                  <DistributionBar
-                    label={t('accountOptimizationReelsRate')}
-                    value={result.reels_rate ?? 0}
-                    color="bg-amber-400"
-                  />
-                  <DistributionBar
-                    label={t('accountOptimizationCarouselRate')}
-                    value={result.carousel_rate ?? 0}
-                    color="bg-emerald-400"
-                  />
-                </div>
-                {result.recent_hashtag_list && result.recent_hashtag_list.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1">
-                      <Hash className="h-4 w-4" />
-                      {t('accountOptimizationHashtagTitle')}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {result.recent_hashtag_list.slice(0, 12).map((tag) => (
-                        <span
-                          key={`${tag.hashtag}-${tag.count}`}
-                          className="px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium"
-                        >
-                          #{tag.hashtag}
-                          {tag.count > 1 && <span className="ml-1 text-gray-400">×{tag.count}</span>}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
 
           {(result.analytics_message || (result.recommend_service_message && result.recommend_service_message.length > 0)) && (
             <Card className="shadow-sm border-blue-100">
@@ -508,22 +456,17 @@ export default function AccountOptimizationPage() {
   )
 }
 
-function MetricTile({
+function MetricBox({
   label,
   value,
-  icon,
 }: {
   label: string
   value: string
-  icon?: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-gray-100 bg-white px-4 py-5 shadow-sm flex flex-col gap-2">
-      <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-        {icon}
-        {label}
-      </span>
-      <span className="text-xl font-semibold text-gray-900">{value}</span>
+    <div className="text-center p-4 bg-white border border-gray-200 rounded-lg">
+      <p className="text-xs text-gray-500 mb-2 font-medium">{label}</p>
+      <p className="text-xl font-bold text-gray-900">{value}</p>
     </div>
   )
 }
@@ -539,11 +482,13 @@ function DistributionBar({
 }) {
   return (
     <div className="space-y-2">
-      <div className="text-xs font-semibold text-gray-500 uppercase tracking-widest">{label}</div>
-      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+      <div className="flex justify-between items-baseline">
+        <span className="text-xs font-semibold text-gray-600">{label}</span>
+        <span className="text-xs font-bold text-gray-900">{Math.round(Math.min(100, Math.max(0, value)))}%</span>
+      </div>
+      <div className="h-3 rounded-full bg-gray-100 overflow-hidden">
         <div className={`h-full transition-all duration-700 ${color}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
       </div>
-      <div className="text-xs text-gray-500 text-right">{Math.round(Math.min(100, Math.max(0, value)))}%</div>
     </div>
   )
 }
