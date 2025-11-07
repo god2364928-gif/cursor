@@ -553,6 +553,47 @@ export default function SalesTrackingPage() {
     }
   }
 
+  // Translate option labels for table display while keeping DB values as-is
+  const translateIndustryLabel = (value?: string) => {
+    if (!value) return '-'
+    switch (value) {
+      case '飲食店': return t('industryRestaurant')
+      case '娯楽/観光/レジャー': return t('industryEntertainment')
+      case '美容サロン': return t('industryBeautySalon')
+      case '有形商材': return t('industryTangible')
+      case '個人利用': return t('industryPersonal')
+      case '無形商材': return t('industryIntangible')
+      case '代理店': return t('industryAgency')
+      case '教育': return t('industryEducation')
+      case 'その他': return t('industryOther')
+      case 'アートメイク': return t('industryArtMake')
+      default: return value
+    }
+  }
+
+  const translateContactMethodLabel = (value?: string) => {
+    if (!value) return '-'
+    switch (value) {
+      case '電話': return t('contactPhone')
+      case 'LINE': return t('contactLINE')
+      case 'DM': return t('contactDM')
+      case 'メール': return t('contactMail')
+      case 'フォーム': return t('contactForm')
+      default: return value
+    }
+  }
+
+  const translateStatusLabel = (value?: string) => {
+    if (!value) return '-'
+    switch (value) {
+      case '未返信': return t('statusNoReply')
+      case '返信済み': return t('statusReplied')
+      case '商談中': return t('statusNegotiating')
+      case '契約': return t('statusContract')
+      default: return value
+    }
+  }
+
   // 담당자별 필터링
   const filteredRecords = records.filter(r => 
     managerFilter === 'all' || r.manager_name === managerFilter
@@ -805,12 +846,12 @@ export default function SalesTrackingPage() {
                       <td className="px-2 py-1 border-r whitespace-nowrap">{formatDate(record.date)}</td>
                       <td className="px-2 py-1 border-r">{record.manager_name}</td>
                       <td className="px-2 py-1 border-r">{record.company_name || '-'}</td>
-                      <td className="px-2 py-1 border-r">{record.industry || '-'}</td>
+                      <td className="px-2 py-1 border-r">{translateIndustryLabel(record.industry as any)}</td>
                       <td className="px-2 py-1 border-r">{record.customer_name || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.phone || '-'}</td>
                       <td className="px-2 py-1 border-r">{record.account_id || '-'}</td>
-                      <td className="px-2 py-1 border-r">{record.contact_method || '-'}</td>
-                      <td className="px-2 py-1 border-r">{record.status}</td>
+                      <td className="px-2 py-1 border-r">{translateContactMethodLabel(record.contact_method as any)}</td>
+                      <td className="px-2 py-1 border-r">{translateStatusLabel(record.status as any)}</td>
                       <td className="px-2 py-1 border-r truncate max-w-xs" title={record.memo || ''}>
                         {record.memo || '-'}
                       </td>
