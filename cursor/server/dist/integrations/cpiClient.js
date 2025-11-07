@@ -7,10 +7,9 @@ exports.fetchFirstOutCalls = fetchFirstOutCalls;
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 const BASE = process.env.CPI_API_BASE || 'http://52.192.162.161';
-const TOKEN = process.env.CPI_API_TOKEN || '';
+const TOKEN = process.env.CPI_API_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMCIsInVzZXJuYW1lIjoiXHVjNzc0XHVjOGZjXHVkNjA0IiwidXNlcl9wYXNzd29yZCI6IiQyYiQxMCQxMWduNjRxRGVZSGwyYks0U25Fb2tld2dnc0t5WXJ3bDRkT3Bac3RKMmRXNDdtUTUvUi8ydSIsInJvbGUiOiJBRE1JTiIsImFwcF91c2VyX2lkIjozNjksImV4cCI6MTc2ODQwNTgxOH0.cTNMLpenOeQls_33edHIDCXWuuJjMWywuph23nWYHF8';
 async function fetchFirstOutCalls(params) {
-    if (!TOKEN)
-        throw new Error('CPI_API_TOKEN is not set');
+    // TOKEN이 항상 설정되도록 기본값 제공
     const url = new URL(`${BASE}/api/record`);
     url.searchParams.set('row', String(params.row ?? 100));
     url.searchParams.set('page', String(params.page ?? 1));
