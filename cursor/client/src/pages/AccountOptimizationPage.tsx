@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Loader2, Sparkle, AlertCircle, Hash, Copy } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
@@ -114,6 +114,16 @@ export default function AccountOptimizationPage() {
   const [searchedId, setSearchedId] = useState<string | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const resultRef = useRef<HTMLDivElement>(null)
+  const [copyFeedback, setCopyFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current) {
+        clearTimeout(feedbackTimerRef.current)
+      }
+    }
+  }, [])
 
   const handleCopyToClipboard = async () => {
     if (!resultRef.current) return
@@ -162,16 +172,39 @@ export default function AccountOptimizationPage() {
             await navigator.clipboard.write([
               new ClipboardItem({ 'image/png': blob })
             ])
-            alert(language === 'ja' ? 'クリップボードにコピーしました！' : '클립보드에 복사되었습니다!')
+            const successMessage =
+              language === 'ja' ? 'クリップボードにコピーしました！' : '클립보드에 복사되었습니다!'
+            setCopyFeedback({ type: 'success', message: successMessage })
+            if (feedbackTimerRef.current) {
+              clearTimeout(feedbackTimerRef.current)
+            }
+            feedbackTimerRef.current = setTimeout(() => {
+              setCopyFeedback(null)
+            }, 3000)
           } catch (err) {
             console.error('Clipboard copy failed:', err)
-            alert(language === 'ja' ? 'クリップボードへのコピーに失敗しました' : '클립보드 복사에 실패했습니다')
+            const errorMessage =
+              language === 'ja' ? 'クリップボードへのコピーに失敗しました' : '클립보드 복사에 실패했습니다'
+            setCopyFeedback({ type: 'error', message: errorMessage })
+            if (feedbackTimerRef.current) {
+              clearTimeout(feedbackTimerRef.current)
+            }
+            feedbackTimerRef.current = setTimeout(() => {
+              setCopyFeedback(null)
+            }, 3000)
           }
         }
       }, 'image/png')
     } catch (error) {
       console.error('Failed to copy:', error)
-      alert(language === 'ja' ? 'コピーに失敗しました' : '복사에 실패했습니다')
+      const errorMessage = language === 'ja' ? 'コピーに失敗しました' : '복사에 실패했습니다'
+      setCopyFeedback({ type: 'error', message: errorMessage })
+      if (feedbackTimerRef.current) {
+        clearTimeout(feedbackTimerRef.current)
+      }
+      feedbackTimerRef.current = setTimeout(() => {
+        setCopyFeedback(null)
+      }, 3000)
     }
   }
 
@@ -214,6 +247,25 @@ export default function AccountOptimizationPage() {
 
   return (
     <div className="space-y-8">
+      {copyFeedback && (
+        <div className="fixed top-6 right-6 z-50">
+          <div
+            className={`rounded-xl px-5 py-3 shadow-lg border ${
+              copyFeedback.type === 'success'
+                ? 'bg-white border-emerald-200'
+                : 'bg-white border-red-200'
+            }`}
+          >
+            <p
+              className={`text-sm font-semibold ${
+                copyFeedback.type === 'success' ? 'text-emerald-600' : 'text-red-500'
+              }`}
+            >
+              {copyFeedback.message}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="bg-gradient-to-r from-blue-500 via-blue-400 to-sky-400 rounded-2xl p-6 text-white shadow-md">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -666,7 +718,10 @@ function LegendItem({
         lineHeight: '20px',
         margin: 0,
         fontWeight: 500,
-        letterSpacing: '0.01em'
+        letterSpacing: '0.01em',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
       }}>{description}</p>
     </div>
   )
