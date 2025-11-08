@@ -117,6 +117,12 @@ export default function AccountOptimizationPage() {
   const [copyFeedback, setCopyFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const normalizeJapaneseText = (value?: string | null) => {
+    if (value === undefined || value === null) return value ?? ''
+    if (language !== 'ja') return value
+    return value.replace(/([\u3040-\u30FF\u4E00-\u9FFF])[\u0020\u3000]+([\u3040-\u30FF\u4E00-\u9FFF])/g, '$1$2')
+  }
+
   useEffect(() => {
     return () => {
       if (feedbackTimerRef.current) {
@@ -152,7 +158,10 @@ export default function AccountOptimizationPage() {
 
       // 짧은 딜레이로 이미지 로드 대기
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+      if ('fonts' in document && document.fonts.ready) {
+        await document.fonts.ready
+      }
+
       const canvas = await html2canvas(resultRef.current, {
         backgroundColor: '#ffffff',
         scale: 2,
@@ -558,7 +567,7 @@ export default function AccountOptimizationPage() {
                       {t('accountOptimizationAnalysisMessageTitle')}
                     </h3>
                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm leading-relaxed text-blue-900 whitespace-pre-line">
-                      {result.analytics_message}
+                      {normalizeJapaneseText(result.analytics_message)}
                     </div>
                   </section>
                 )}
@@ -574,7 +583,7 @@ export default function AccountOptimizationPage() {
                           key={`${index}-${message.slice(0, 8)}`}
                           className="bg-white border border-blue-100 rounded-xl p-4 text-sm leading-relaxed text-gray-700 whitespace-pre-line shadow-sm"
                         >
-                          {message}
+                          {normalizeJapaneseText(message)}
                         </div>
                       ))}
                     </div>
@@ -692,6 +701,11 @@ function LegendItem({
   badge?: string
   language: string
 }) {
+  const displayDescription =
+    language === 'ja'
+      ? description.replace(/([\u3040-\u30FF\u4E00-\u9FFF])[\u0020\u3000]+([\u3040-\u30FF\u4E00-\u9FFF])/g, '$1$2')
+      : description
+
   return (
     <div style={{
       padding: '18px 20px',
@@ -725,8 +739,9 @@ function LegendItem({
         margin: 0,
         fontWeight: 500,
         letterSpacing: language === 'ja' ? '-0.01em' : '0.01em',
-        whiteSpace: 'nowrap'
-      }}>{description}</p>
+        whiteSpace: 'nowrap',
+        wordBreak: 'keep-all'
+      }}>{displayDescription}</p>
     </div>
   )
 }
