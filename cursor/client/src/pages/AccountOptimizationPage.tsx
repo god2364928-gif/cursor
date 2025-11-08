@@ -345,7 +345,7 @@ export default function AccountOptimizationPage() {
           </div>
           <div ref={resultRef} className="space-y-6 bg-white p-6 rounded-lg">
             <div className="flex flex-col lg:flex-row items-start gap-6 pb-6 border-b">
-              <div className="flex items-start gap-6 flex-1 w-full">
+              <div className="flex items-start gap-6 w-full lg:w-1/2">
                 <div className="flex-shrink-0">
                   {result.profile_image_url ? (
                     <img
@@ -380,7 +380,7 @@ export default function AccountOptimizationPage() {
                 </div>
               </div>
 
-              <div className="w-full lg:max-w-md">
+              <div className="w-full lg:w-1/2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <LegendItem
                     title={t('accountOptimizationLegendOverallLabel')}
@@ -406,9 +406,9 @@ export default function AccountOptimizationPage() {
               </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+            <div className="grid gap-6 lg:grid-cols-2">
               <div className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <MetricBox
                     label={t('accountOptimizationFollowerCount')}
                     value={formatNumber(result.follower_count)}
