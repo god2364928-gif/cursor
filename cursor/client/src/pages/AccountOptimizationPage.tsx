@@ -74,36 +74,31 @@ const formatHourInterval = (value?: number | null) => {
 function GradeBadge({ label }: { label?: string }) {
   if (!label) return null
   
-  const gradeColorMap: Record<string, { bg: string; text: string }> = {
-    S: { bg: 'linear-gradient(to right, #f59e0b, #ef4444)', text: '#ffffff' },
-    A: { bg: '#fbbf24', text: '#ffffff' },
-    B: { bg: '#34d399', text: '#ffffff' },
-    C: { bg: '#38bdf8', text: '#ffffff' },
-    D: { bg: '#cbd5e1', text: '#1e293b' },
-    F: { bg: '#cbd5e1', text: '#1e293b' },
-    充分: { bg: '#34d399', text: '#ffffff' },
-    不足: { bg: '#fcd34d', text: '#1e293b' },
-    やや不足: { bg: '#fde68a', text: '#1e293b' },
-    とても不足: { bg: '#fda4af', text: '#ffffff' },
+  const gradeColorMap: Record<string, string> = {
+    S: '#f97316',
+    A: '#f59e0b',
+    B: '#22c55e',
+    C: '#0ea5e9',
+    D: '#64748b',
+    F: '#64748b',
+    充分: '#22c55e',
+    不足: '#f59e0b',
+    やや不足: '#f97316',
+    とても不足: '#ef4444',
   }
   
-  const colors = gradeColorMap[label] || { bg: '#e2e8f0', text: '#1e293b' }
+  const color = gradeColorMap[label] || '#334155'
   
   return (
     <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      paddingLeft: '12px',
-      paddingRight: '12px',
-      paddingTop: '4px',
-      paddingBottom: '4px',
-      borderRadius: '9999px',
-      fontSize: '12px',
-      fontWeight: 600,
-      letterSpacing: '0.025em',
-      background: colors.bg,
-      color: colors.text,
-      lineHeight: 1.2
+      display: 'inline-block',
+      fontSize: '18px',
+      fontWeight: 800,
+      letterSpacing: '0.04em',
+      color,
+      lineHeight: '22px',
+      minWidth: '32px',
+      textAlign: 'right'
     }}>
       {label}
     </span>
@@ -624,30 +619,37 @@ function LegendItem({
 }) {
   return (
     <div style={{
-      padding: '16px 0',
-      marginBottom: '12px'
+      padding: '18px 20px',
+      borderRadius: '14px',
+      border: '1px solid #dbeafe',
+      backgroundColor: 'rgba(239, 246, 255, 0.65)',
+      marginBottom: '16px',
+      boxShadow: '0 6px 12px rgba(148, 163, 184, 0.18)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px'
     }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
-        marginBottom: '6px'
+        justifyContent: 'space-between'
       }}>
-        {badge && <GradeBadge label={badge} />}
         <span style={{
           fontSize: '16px',
           fontWeight: 700,
-          color: '#1e3a8a',
-          lineHeight: '22px'
+          color: '#1d4ed8',
+          lineHeight: '22px',
+          letterSpacing: '0.01em'
         }}>{title}</span>
+        {badge && <GradeBadge label={badge} />}
       </div>
       <p style={{
-        fontSize: '14px',
-        color: '#3b82f6',
+        fontSize: '13px',
+        color: '#2563eb',
         lineHeight: '20px',
         margin: 0,
         fontWeight: 500,
-        paddingLeft: badge ? '0px' : '0px'
+        letterSpacing: '0.01em'
       }}>{description}</p>
     </div>
   )
