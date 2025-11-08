@@ -1,6 +1,7 @@
 import { Router, Response } from 'express'
 import { fetch } from 'undici'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { generateScreenshot } from '../services/screenshotService'
 
 const router = Router()
 
@@ -122,6 +123,25 @@ router.get('/image-proxy', authMiddleware, async (req: AuthRequest, res: Respons
   } catch (error) {
     console.error('[AccountOptimization] Image proxy failed', error)
     return res.status(500).json(createErrorResponse('画像取得中にエラーが発生しました。'))
+  }
+})
+
+router.post('/screenshot', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { url, id } = req.body
+
+    if (!url) {
+      return res.status(400).json(createErrorResponse('URLが必要です。'))
+    }
+
+    const screenshot = await generateScreenshot(url)
+    
+    res.setHeader('Content-Type', 'image/png')
+    res.setHeader('Content-Disposition', `attachment; filename="${id || 'account'}_analysis_${new Date().toISOString().split('T')[0]}.png"`)
+    res.send(screenshot)
+  } catch (error: any) {
+    console.error('[AccountOptimization] Screenshot failed', error)
+    return res.status(500).json(createErrorResponse('スクリーンショット生成に失敗しました。'))
   }
 })
 

@@ -121,51 +121,23 @@ export default function AccountOptimizationPage() {
   const resultRef = useRef<HTMLDivElement>(null)
 
   const handleDownloadPNG = async () => {
-    if (!resultRef.current) return
-
     try {
-      const html2canvas = (await import('html2canvas')).default
-
-      const images = Array.from(resultRef.current.querySelectorAll('img'))
-      const originalSources: Array<{ element: HTMLImageElement; src: string }> = []
-
-      await Promise.all(
-        images.map(async (img) => {
-          const originalSrc = img.getAttribute('data-original-src') || img.src
-          originalSources.push({ element: img, src: originalSrc })
-          try {
-            const response = await api.get<{ dataUrl?: string }>('/account-optimization/image-proxy', {
-              params: { url: originalSrc },
-            })
-            if (response.data?.dataUrl) {
-              img.setAttribute('data-original-src', originalSrc)
-              img.src = response.data.dataUrl
-            }
-          } catch (error) {
-            console.warn('Image proxy failed, fallback to original source', error)
-            img.src = originalSrc
-          }
-        })
-      )
+      const currentUrl = window.location.href
       
-      // 이미지를 proxy를 통해 로드
-      const canvas = await html2canvas(resultRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
+      const response = await api.post('/account-optimization/screenshot', {
+        url: currentUrl,
+        id: searchedId
+      }, {
+        responseType: 'blob'
       })
 
-      originalSources.forEach(({ element, src }) => {
-        element.src = src
-      })
-
-      // Convert to PNG
+      const blob = response.data
+      const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.download = `${searchedId || 'account'}_analysis_${new Date().toISOString().split('T')[0]}.png`
-      link.href = canvas.toDataURL('image/png')
+      link.href = url
       link.click()
+      URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Failed to download PNG:', error)
       alert(t('accountOptimizationDownloadFailed'))
