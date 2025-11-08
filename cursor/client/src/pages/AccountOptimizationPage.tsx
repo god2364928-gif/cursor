@@ -120,28 +120,8 @@ export default function AccountOptimizationPage() {
   const [history, setHistory] = useState<string[]>([])
   const resultRef = useRef<HTMLDivElement>(null)
 
-  const handleDownloadPNG = async () => {
-    try {
-      const currentUrl = window.location.href
-      
-      const response = await api.post('/account-optimization/screenshot', {
-        url: currentUrl,
-        id: searchedId
-      }, {
-        responseType: 'blob'
-      })
-
-      const blob = response.data
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.download = `${searchedId || 'account'}_analysis_${new Date().toISOString().split('T')[0]}.png`
-      link.href = url
-      link.click()
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Failed to download PNG:', error)
-      alert(t('accountOptimizationDownloadFailed'))
-    }
+  const handleDownloadPNG = () => {
+    window.print()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
