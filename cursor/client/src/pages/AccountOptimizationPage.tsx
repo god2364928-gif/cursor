@@ -408,15 +408,27 @@ export default function AccountOptimizationPage() {
 
             <div className="space-y-6">
               <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-            <MetricBox label={t('accountOptimizationFollowerCount')} value={formatNumber(result.follower_count)} />
-            <MetricBox label={t('accountOptimizationFollowCount')} value={formatNumber(result.follow_count)} />
-            <MetricBox label={t('accountOptimizationPostCount')} value={formatNumber(result.post_count)} />
-            <MetricBox label={t('accountOptimizationAverageLikes')} value={formatNumber(result.average_like_count)} />
-            <MetricBox label={t('accountOptimizationAverageComments')} value={formatNumber(result.average_comment_count)} />
-            <MetricBox
-              label={t('accountOptimizationAverageInterval')}
-              value={formatHourInterval(result.average_post_hour)}
-            />
+                <MetricBox
+                  label={t('accountOptimizationFollowerCount')}
+                  value={formatNumber(result.follower_count)}
+                />
+                <MetricBox
+                  label={t('accountOptimizationFollowCount')}
+                  value={formatNumber(result.follow_count)}
+                />
+                <MetricBox label={t('accountOptimizationPostCount')} value={formatNumber(result.post_count)} />
+                <MetricBox
+                  label={t('accountOptimizationAverageLikes')}
+                  value={formatNumber(result.average_like_count)}
+                />
+                <MetricBox
+                  label={t('accountOptimizationAverageComments')}
+                  value={formatNumber(result.average_comment_count)}
+                />
+                <MetricBox
+                  label={t('accountOptimizationAverageInterval')}
+                  value={formatHourInterval(result.average_post_hour)}
+                />
               </div>
 
               <Card className="shadow-sm bg-white">
@@ -469,7 +481,6 @@ export default function AccountOptimizationPage() {
                 </CardContent>
               </Card>
             </div>
-          </div>
 
 
           {(result.analytics_message || (result.recommend_service_message && result.recommend_service_message.length > 0)) && (
