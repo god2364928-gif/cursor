@@ -126,12 +126,39 @@ export default function AccountOptimizationPage() {
     try {
       const html2canvas = (await import('html2canvas')).default
       
+      // 이미지 프록시 처리
+      const images = Array.from(resultRef.current.querySelectorAll('img'))
+      const originalSources: Array<{ element: HTMLImageElement; src: string }> = []
+
+      for (const img of images) {
+        const originalSrc = img.src
+        originalSources.push({ element: img, src: originalSrc })
+        try {
+          const response = await api.get<{ dataUrl?: string }>('/account-optimization/image-proxy', {
+            params: { url: originalSrc },
+          })
+          if (response.data?.dataUrl) {
+            img.src = response.data.dataUrl
+          }
+        } catch (error) {
+          console.warn('Image proxy failed, using original', error)
+        }
+      }
+
+      // 짧은 딜레이로 이미지 로드 대기
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       const canvas = await html2canvas(resultRef.current, {
         backgroundColor: '#ffffff',
         scale: 2,
         logging: false,
         useCORS: true,
         allowTaint: true,
+      })
+
+      // 원본 이미지 복원
+      originalSources.forEach(({ element, src }) => {
+        element.src = src
       })
 
       canvas.toBlob(async (blob) => {
@@ -597,33 +624,30 @@ function LegendItem({
 }) {
   return (
     <div style={{
-      padding: '16px',
-      borderRadius: '8px',
-      border: '1px solid #dbeafe',
-      backgroundColor: 'rgba(239, 246, 255, 0.6)',
-      display: 'flex',
-      flexDirection: 'column',
-      minHeight: '100px'
+      padding: '16px 0',
+      marginBottom: '12px'
     }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '8px'
+        gap: '10px',
+        marginBottom: '6px'
       }}>
-        <p style={{
-          fontSize: '14px',
-          fontWeight: 600,
-          color: '#1d4ed8',
-          lineHeight: 1.2
-        }}>{title}</p>
         {badge && <GradeBadge label={badge} />}
+        <span style={{
+          fontSize: '16px',
+          fontWeight: 700,
+          color: '#1e3a8a',
+          lineHeight: '22px'
+        }}>{title}</span>
       </div>
       <p style={{
-        fontSize: '12px',
-        color: '#2563eb',
-        lineHeight: 1.5,
-        flex: 1
+        fontSize: '14px',
+        color: '#3b82f6',
+        lineHeight: '20px',
+        margin: 0,
+        fontWeight: 500,
+        paddingLeft: badge ? '0px' : '0px'
       }}>{description}</p>
     </div>
   )
