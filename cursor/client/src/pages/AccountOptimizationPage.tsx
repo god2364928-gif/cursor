@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Loader2, Sparkle, AlertCircle, Hash } from 'lucide-react'
+import { Loader2, Sparkle, AlertCircle, Hash, Copy } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -119,6 +119,39 @@ export default function AccountOptimizationPage() {
   const [searchedId, setSearchedId] = useState<string | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const resultRef = useRef<HTMLDivElement>(null)
+
+  const handleCopyToClipboard = async () => {
+    if (!resultRef.current) return
+
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      
+      const canvas = await html2canvas(resultRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+      })
+
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ])
+            alert(language === 'ja' ? 'クリップボードにコピーしました！' : '클립보드에 복사되었습니다!')
+          } catch (err) {
+            console.error('Clipboard copy failed:', err)
+            alert(language === 'ja' ? 'クリップボードへのコピーに失敗しました' : '클립보드 복사에 실패했습니다')
+          }
+        }
+      }, 'image/png')
+    } catch (error) {
+      console.error('Failed to copy:', error)
+      alert(language === 'ja' ? 'コピーに失敗しました' : '복사에 실패했습니다')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -276,7 +309,18 @@ export default function AccountOptimizationPage() {
       )}
 
       {result && (
-        <div className="space-y-6">
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button
+              onClick={handleCopyToClipboard}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Copy className="h-4 w-4" />
+              {t('accountOptimizationCopyToClipboard')}
+            </Button>
+          </div>
           <div ref={resultRef} className="space-y-6 bg-white p-6 rounded-lg">
           <div className="flex items-start gap-6 pb-6 border-b">
             <div className="flex-shrink-0">
