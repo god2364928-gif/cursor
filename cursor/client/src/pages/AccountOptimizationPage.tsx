@@ -344,42 +344,68 @@ export default function AccountOptimizationPage() {
             </Button>
           </div>
           <div ref={resultRef} className="space-y-6 bg-white p-6 rounded-lg">
-          <div className="flex items-start gap-6 pb-6 border-b">
-            <div className="flex-shrink-0">
-              {result.profile_image_url ? (
-                <img
-                  src={result.profile_image_url}
-                  alt={result.username || ''}
-                  className="h-32 w-32 rounded-2xl object-cover border-2 shadow-sm"
-                />
-              ) : (
-                <div className="h-32 w-32 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 text-3xl font-semibold">
-                  {result.username?.slice(0, 2).toUpperCase() || 'IG'}
+            <div className="flex flex-col lg:flex-row items-start gap-6 pb-6 border-b">
+              <div className="flex items-start gap-6 flex-1 w-full">
+                <div className="flex-shrink-0">
+                  {result.profile_image_url ? (
+                    <img
+                      src={result.profile_image_url}
+                      alt={result.username || ''}
+                      className="h-32 w-32 rounded-2xl object-cover border-2 shadow-sm"
+                    />
+                  ) : (
+                    <div className="h-32 w-32 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 text-3xl font-semibold">
+                      {result.username?.slice(0, 2).toUpperCase() || 'IG'}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="flex-1 min-w-0 space-y-3">
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-1">{result.username}</h2>
-                {searchedId && (
-                  <span className="text-sm text-gray-400">
-                    {language === 'ja' ? `分析ID: ${searchedId}` : `조회 ID: ${searchedId}`}
-                  </span>
-                )}
+                <div className="flex-1 min-w-0 space-y-3">
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-900 mb-1">{result.username}</h2>
+                    {searchedId && (
+                      <span className="text-sm text-gray-400">
+                        {language === 'ja' ? `分析ID: ${searchedId}` : `조회 ID: ${searchedId}`}
+                      </span>
+                    )}
+                  </div>
+                  {result.full_name && (
+                    <p className="text-base text-gray-700 font-medium">{result.full_name}</p>
+                  )}
+                  {result.biography && (
+                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                      {result.biography}
+                    </p>
+                  )}
+                </div>
               </div>
-              {result.full_name && (
-                <p className="text-base text-gray-700 font-medium">{result.full_name}</p>
-              )}
-              {result.biography && (
-                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                  {result.biography}
-                </p>
-              )}
-            </div>
-          </div>
 
-          <div className="grid gap-6 lg:grid-cols-[1fr_auto]">
+              <div className="w-full lg:w-80">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                  <LegendItem
+                    title={t('accountOptimizationLegendOverallLabel')}
+                    description={t('accountOptimizationLegendOverallDesc')}
+                    badge={result.total_grade}
+                  />
+                  <LegendItem
+                    title={t('accountOptimizationLegendFollowerLabel')}
+                    description={t('accountOptimizationLegendFollowerDesc')}
+                    badge={result.follower_grade}
+                  />
+                  <LegendItem
+                    title={t('accountOptimizationLegendPostLabel')}
+                    description={t('accountOptimizationLegendPostDesc')}
+                    badge={result.post_count_grade}
+                  />
+                  <LegendItem
+                    title={t('accountOptimizationLegendActivityLabel')}
+                    description={t('accountOptimizationLegendActivityDesc')}
+                    badge={result.activity_grade}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-6">
               <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
             <MetricBox label={t('accountOptimizationFollowerCount')} value={formatNumber(result.follower_count)} />
@@ -442,31 +468,6 @@ export default function AccountOptimizationPage() {
                   )}
                 </CardContent>
               </Card>
-            </div>
-
-            <div className="lg:w-80">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <LegendItem
-                  title={t('accountOptimizationLegendOverallLabel')}
-                  description={t('accountOptimizationLegendOverallDesc')}
-                  badge={result.total_grade}
-                />
-                <LegendItem
-                  title={t('accountOptimizationLegendFollowerLabel')}
-                  description={t('accountOptimizationLegendFollowerDesc')}
-                  badge={result.follower_grade}
-                />
-                <LegendItem
-                  title={t('accountOptimizationLegendPostLabel')}
-                  description={t('accountOptimizationLegendPostDesc')}
-                  badge={result.post_count_grade}
-                />
-                <LegendItem
-                  title={t('accountOptimizationLegendActivityLabel')}
-                  description={t('accountOptimizationLegendActivityDesc')}
-                  badge={result.activity_grade}
-                />
-              </div>
             </div>
           </div>
 
