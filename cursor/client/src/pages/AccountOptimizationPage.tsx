@@ -438,21 +438,25 @@ export default function AccountOptimizationPage() {
                     title={t('accountOptimizationLegendOverallLabel')}
                     description={t('accountOptimizationLegendOverallDesc')}
                     badge={result.total_grade}
+                    language={language}
                   />
                   <LegendItem
                     title={t('accountOptimizationLegendFollowerLabel')}
                     description={t('accountOptimizationLegendFollowerDesc')}
                     badge={result.follower_grade}
+                    language={language}
                   />
                   <LegendItem
                     title={t('accountOptimizationLegendPostLabel')}
                     description={t('accountOptimizationLegendPostDesc')}
                     badge={result.post_count_grade}
+                    language={language}
                   />
                   <LegendItem
                     title={t('accountOptimizationLegendActivityLabel')}
                     description={t('accountOptimizationLegendActivityDesc')}
                     badge={result.activity_grade}
+                    language={language}
                   />
                 </div>
               </div>
@@ -681,10 +685,12 @@ function LegendItem({
   title,
   description,
   badge,
+  language,
 }: {
   title: string
   description: string
   badge?: string
+  language: string
 }) {
   return (
     <div style={{
@@ -713,15 +719,13 @@ function LegendItem({
         {badge && <GradeBadge label={badge} />}
       </div>
       <p style={{
-        fontSize: '13px',
+        fontSize: language === 'ja' ? '12px' : '13px',
         color: '#2563eb',
         lineHeight: '20px',
         margin: 0,
         fontWeight: 500,
-        letterSpacing: '0.01em',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis'
+        letterSpacing: language === 'ja' ? '-0.01em' : '0.01em',
+        whiteSpace: 'nowrap'
       }}>{description}</p>
     </div>
   )
