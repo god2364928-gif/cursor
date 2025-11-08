@@ -120,7 +120,7 @@ export default function AccountOptimizationPage() {
   const [history, setHistory] = useState<string[]>([])
   const resultRef = useRef<HTMLDivElement>(null)
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPNG = async () => {
     if (!resultRef.current) return
 
     try {
@@ -161,34 +161,13 @@ export default function AccountOptimizationPage() {
         element.src = src
       })
 
-      // Convert to PDF
-      const jsPDF = (await import('jspdf')).default
-      const imgData = canvas.toDataURL('image/jpeg', 0.95)
-      const imgWidth = canvas.width
-      const imgHeight = canvas.height
-      
-      // A4 size in mm
-      const pdfWidth = 210
-      const pdfHeight = 297
-      
-      // Calculate scaling to fit A4
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
-      const scaledWidth = imgWidth * ratio
-      const scaledHeight = imgHeight * ratio
-      
-      const pdf = new jsPDF({
-        orientation: scaledWidth > scaledHeight ? 'landscape' : 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      })
-
-      const xOffset = (pdfWidth - scaledWidth) / 2
-      const yOffset = 10
-
-      pdf.addImage(imgData, 'JPEG', xOffset, yOffset, scaledWidth, scaledHeight)
-      pdf.save(`${searchedId || 'account'}_analysis_${new Date().toISOString().split('T')[0]}.pdf`)
+      // Convert to PNG
+      const link = document.createElement('a')
+      link.download = `${searchedId || 'account'}_analysis_${new Date().toISOString().split('T')[0]}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
     } catch (error) {
-      console.error('Failed to download PDF:', error)
+      console.error('Failed to download PNG:', error)
       alert(t('accountOptimizationDownloadFailed'))
     }
   }
@@ -352,13 +331,13 @@ export default function AccountOptimizationPage() {
         <div className="space-y-4">
           <div className="flex justify-end">
             <Button
-              onClick={handleDownloadPDF}
+              onClick={handleDownloadPNG}
               variant="outline"
               size="sm"
               className="flex items-center gap-2"
             >
               <Download className="h-4 w-4" />
-              {t('accountOptimizationDownloadPDF')}
+              {t('accountOptimizationDownloadPNG')}
             </Button>
           </div>
           <div ref={resultRef} data-screenshot className="space-y-6 bg-white p-6 rounded-lg">
