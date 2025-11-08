@@ -26,9 +26,10 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "pg": "^8.11.3",
+    "puppeteer": "^24.29.1",
+    "typescript": "^5.3.3",
     "undici": "^6.19.8",
-    "xlsx": "^0.18.5",
-    "typescript": "^5.3.3"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
