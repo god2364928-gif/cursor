@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Loader2, Sparkle, AlertCircle, Hash, Download } from 'lucide-react'
+import { Loader2, Sparkle, AlertCircle, Hash } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -119,10 +119,6 @@ export default function AccountOptimizationPage() {
   const [searchedId, setSearchedId] = useState<string | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const resultRef = useRef<HTMLDivElement>(null)
-
-  const handleDownloadPNG = () => {
-    window.print()
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -280,19 +276,8 @@ export default function AccountOptimizationPage() {
       )}
 
       {result && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            <Button
-              onClick={handleDownloadPNG}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              {t('accountOptimizationDownloadPNG')}
-            </Button>
-          </div>
-          <div ref={resultRef} data-screenshot className="space-y-6 bg-white p-6 rounded-lg">
+        <div className="space-y-6">
+          <div ref={resultRef} className="space-y-6 bg-white p-6 rounded-lg">
           <div className="flex items-start gap-6 pb-6 border-b">
             <div className="flex-shrink-0">
               {result.profile_image_url ? (
