@@ -380,8 +380,8 @@ export default function AccountOptimizationPage() {
                 </div>
               </div>
 
-              <div className="w-full lg:w-80">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="w-full lg:max-w-md">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <LegendItem
                     title={t('accountOptimizationLegendOverallLabel')}
                     description={t('accountOptimizationLegendOverallDesc')}
@@ -406,29 +406,34 @@ export default function AccountOptimizationPage() {
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-                <MetricBox
-                  label={t('accountOptimizationFollowerCount')}
-                  value={formatNumber(result.follower_count)}
-                />
-                <MetricBox
-                  label={t('accountOptimizationFollowCount')}
-                  value={formatNumber(result.follow_count)}
-                />
-                <MetricBox label={t('accountOptimizationPostCount')} value={formatNumber(result.post_count)} />
-                <MetricBox
-                  label={t('accountOptimizationAverageLikes')}
-                  value={formatNumber(result.average_like_count)}
-                />
-                <MetricBox
-                  label={t('accountOptimizationAverageComments')}
-                  value={formatNumber(result.average_comment_count)}
-                />
-                <MetricBox
-                  label={t('accountOptimizationAverageInterval')}
-                  value={formatHourInterval(result.average_post_hour)}
-                />
+            <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+                  <MetricBox
+                    label={t('accountOptimizationFollowerCount')}
+                    value={formatNumber(result.follower_count)}
+                  />
+                  <MetricBox
+                    label={t('accountOptimizationFollowCount')}
+                    value={formatNumber(result.follow_count)}
+                  />
+                  <MetricBox
+                    label={t('accountOptimizationPostCount')}
+                    value={formatNumber(result.post_count)}
+                  />
+                  <MetricBox
+                    label={t('accountOptimizationAverageLikes')}
+                    value={formatNumber(result.average_like_count)}
+                  />
+                  <MetricBox
+                    label={t('accountOptimizationAverageComments')}
+                    value={formatNumber(result.average_comment_count)}
+                  />
+                  <MetricBox
+                    label={t('accountOptimizationAverageInterval')}
+                    value={formatHourInterval(result.average_post_hour)}
+                  />
+                </div>
               </div>
 
               <Card className="shadow-sm bg-white">
