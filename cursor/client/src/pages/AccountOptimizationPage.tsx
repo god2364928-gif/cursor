@@ -278,9 +278,6 @@ export default function AccountOptimizationPage() {
       <div className="bg-gradient-to-r from-blue-500 via-blue-400 to-sky-400 rounded-2xl p-6 text-white shadow-md">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <p className="uppercase tracking-widest text-xs md:text-sm text-blue-100 mb-2">
-              Growth Core Insight
-            </p>
             <h1 className="text-2xl md:text-3xl font-bold">
               {t('accountOptimizationHeading')}
             </h1>
