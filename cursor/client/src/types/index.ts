@@ -5,6 +5,7 @@ export interface User {
   team: string
   role: 'admin' | 'manager' | 'user' | 'marketer'
   createdAt: string
+  lastLoginAt?: string | null
 }
 
 export interface Customer {

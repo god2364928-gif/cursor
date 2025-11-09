@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
+import { formatDateTime } from '../lib/utils'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -14,6 +15,7 @@ interface User {
   email: string
   role: string
   created_at: string
+  last_login_at?: string | null
 }
 
 export default function SettingsPage() {
@@ -304,6 +306,9 @@ export default function SettingsPage() {
                           {t('role')}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          {t('lastLogin')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           작업
                         </th>
                       </tr>
@@ -319,6 +324,9 @@ export default function SettingsPage() {
                             }`}>
                               {u.role}
                             </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {formatDateTime(u.last_login_at) || '-'}
                           </td>
                           <td className="px-4 py-3 text-sm">
                             <div className="flex gap-2">

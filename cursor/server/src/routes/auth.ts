@@ -35,6 +35,12 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' })
     }
 
+    // Update last login timestamp
+    await pool.query(
+      'UPDATE users SET last_login_at = NOW() WHERE id = $1',
+      [user.id]
+    )
+
     // Generate JWT token
     const token = jwt.sign(
       { id: user.id, email: user.email, name: user.name, role: user.role, team: user.team },
@@ -113,7 +119,7 @@ router.post('/users', authMiddleware, async (req: AuthRequest, res: Response) =>
 router.get('/users', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, team, role, created_at FROM users ORDER BY created_at DESC'
+      'SELECT id, name, email, team, role, created_at, last_login_at FROM users ORDER BY created_at DESC'
     )
     res.json(result.rows)
   } catch (error) {
