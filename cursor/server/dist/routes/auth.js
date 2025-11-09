@@ -29,6 +29,8 @@ router.post('/login', async (req, res) => {
             console.log(`Login attempt: Invalid password for email: ${email}`);
             return res.status(401).json({ message: 'Invalid credentials' });
         }
+        // Update last login timestamp
+        await db_1.pool.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
         // Generate JWT token
         const token = jsonwebtoken_1.default.sign({ id: user.id, email: user.email, name: user.name, role: user.role, team: user.team }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
         console.log(`Login success: ${email}, name: ${user.name}, role: ${user.role}, team: ${user.team}`);
@@ -93,7 +95,7 @@ router.post('/users', auth_1.authMiddleware, async (req, res) => {
 // Get all users (all authenticated users can access)
 router.get('/users', auth_1.authMiddleware, async (req, res) => {
     try {
-        const result = await db_1.pool.query('SELECT id, name, email, team, role, created_at FROM users ORDER BY created_at DESC');
+        const result = await db_1.pool.query('SELECT id, name, email, team, role, created_at, last_login_at FROM users ORDER BY created_at DESC');
         res.json(result.rows);
     }
     catch (error) {
