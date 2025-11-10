@@ -596,8 +596,8 @@ function MetricBox({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: '6px',
-        minHeight: '90px',
+        gap: '8px',
+        minHeight: '96px',
       }}
     >
       <p
@@ -638,7 +638,7 @@ function DistributionBar({
   const colorMap: Record<string, string> = {
     'bg-sky-400': '#38bdf8',
     'bg-amber-400': '#fbbf24',
-    'bg-emerald-400': '#34d399'
+    'bg-emerald-400': '#34d399',
   }
   
   return (
@@ -716,7 +716,7 @@ function LegendItem({
         boxShadow: '0 6px 12px rgba(148, 163, 184, 0.18)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px',
+        gap: '8px',
       }}
     >
       <div
@@ -744,6 +744,8 @@ function LegendItem({
           fontSize: language === 'ja' ? '12px' : '13px',
           color: '#2563eb',
           lineHeight: language === 'ja' ? '18px' : '20px',
+          display: 'flex',
+          alignItems: 'center',
           margin: 0,
           fontWeight: 500,
           letterSpacing: language === 'ja' ? '-0.01em' : '0.01em',
