@@ -42,6 +42,8 @@ interface AccountAnalyticsResult {
   recommend_service_message?: string[]
 }
 
+type SectionKey = 'profile' | 'evaluation' | 'information' | 'type' | 'strategy'
+
 interface AccountOptimizationResponse {
   status: 'success' | 'error'
   result?: AccountAnalyticsResult
@@ -116,6 +118,22 @@ export default function AccountOptimizationPage() {
   const [history, setHistory] = useState<string[]>([])
   const resultRef = useRef<HTMLDivElement>(null)
   const { copyFeedback, copyToClipboard } = useClipboardCapture(language)
+
+  const sectionOptions: Array<{ key: SectionKey; labelKo: string; labelJa: string }> = [
+    { key: 'profile', labelKo: '프로필', labelJa: 'プロフィール' },
+    { key: 'evaluation', labelKo: '등급', labelJa: '評価' },
+    { key: 'information', labelKo: '지표', labelJa: '指標' },
+    { key: 'type', labelKo: '콘텐츠 구성', labelJa: '投稿構成' },
+    { key: 'strategy', labelKo: '추천 전략', labelJa: '推奨戦略' },
+  ]
+
+  const [visibleSections, setVisibleSections] = useState<Record<SectionKey, boolean>>({
+    profile: true,
+    evaluation: true,
+    information: true,
+    type: true,
+    strategy: true,
+  })
 
   const normalizeJapaneseText = (value?: string | null) => {
     if (value === undefined || value === null) return value ?? ''
@@ -296,205 +314,246 @@ export default function AccountOptimizationPage() {
 
       {result && (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {sectionOptions.map((option) => {
+                const label = language === 'ja' ? option.labelJa : option.labelKo
+                return (
+                  <label
+                    key={option.key}
+                    className="flex items-center gap-2 text-sm text-gray-600 bg-white px-3 py-2 rounded-md border border-gray-200 shadow-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={visibleSections[option.key]}
+                      onChange={() =>
+                        setVisibleSections((prev) => ({
+                          ...prev,
+                          [option.key]: !prev[option.key],
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>{label}</span>
+                  </label>
+                )
+              })}
+            </div>
             <Button
               onClick={() => copyToClipboard(resultRef.current)}
               variant="outline"
               size="sm"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 self-start md:self-auto"
             >
               <Copy className="h-4 w-4" />
               {t('accountOptimizationCopyToClipboard')}
             </Button>
           </div>
           <div ref={resultRef} className="space-y-6 bg-white p-6 rounded-lg">
-            <div className="flex flex-col lg:flex-row items-start gap-6 pb-6 border-b">
-              <div className="flex items-start gap-6 w-full lg:w-1/2">
-                <div className="flex-shrink-0">
-                  {result.profile_image_url ? (
-                    <img
-                      src={result.profile_image_url}
-                      alt={result.username || ''}
-                      className="h-32 w-32 rounded-2xl object-cover border-2 shadow-sm"
-                    />
-                  ) : (
-                    <div className="h-32 w-32 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 text-3xl font-semibold">
-                      {result.username?.slice(0, 2).toUpperCase() || 'IG'}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0 space-y-3">
-                  <div>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-1">{result.username}</h2>
-                    {searchedId && (
-                      <span className="text-sm text-gray-400">
-                        {language === 'ja' ? `分析ID: ${searchedId}` : `조회 ID: ${searchedId}`}
-                      </span>
-                    )}
-                  </div>
-                  {result.full_name && (
-                    <p className="text-base text-gray-700 font-medium">{result.full_name}</p>
-                  )}
-                  {result.biography && (
-                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                      {result.biography}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="w-full lg:w-1/2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <LegendItem
-                    title={t('accountOptimizationLegendOverallLabel')}
-                    description={t('accountOptimizationLegendOverallDesc')}
-                    badge={result.total_grade}
-                    language={language}
-                  />
-                  <LegendItem
-                    title={t('accountOptimizationLegendFollowerLabel')}
-                    description={t('accountOptimizationLegendFollowerDesc')}
-                    badge={result.follower_grade}
-                    language={language}
-                  />
-                  <LegendItem
-                    title={t('accountOptimizationLegendPostLabel')}
-                    description={t('accountOptimizationLegendPostDesc')}
-                    badge={result.post_count_grade}
-                    language={language}
-                  />
-                  <LegendItem
-                    title={t('accountOptimizationLegendActivityLabel')}
-                    description={t('accountOptimizationLegendActivityDesc')}
-                    badge={result.activity_grade}
-                    language={language}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <MetricBox
-                    label={t('accountOptimizationFollowerCount')}
-                    value={formatNumber(result.follower_count)}
-                  />
-                  <MetricBox
-                    label={t('accountOptimizationFollowCount')}
-                    value={formatNumber(result.follow_count)}
-                  />
-                  <MetricBox
-                    label={t('accountOptimizationPostCount')}
-                    value={formatNumber(result.post_count)}
-                  />
-                  <MetricBox
-                    label={t('accountOptimizationAverageLikes')}
-                    value={formatNumber(result.average_like_count)}
-                  />
-                  <MetricBox
-                    label={t('accountOptimizationAverageComments')}
-                    value={formatNumber(result.average_comment_count)}
-                  />
-                  <MetricBox
-                    label={t('accountOptimizationAverageInterval')}
-                    value={formatHourInterval(result.average_post_hour)}
-                  />
-                </div>
-              </div>
-
-              <Card className="shadow-sm bg-white">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-blue-600 flex items-center gap-2">
-                    <Sparkle className="h-4 w-4" />
-                    {t('accountOptimizationPostTypeTitle')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-gray-700 font-medium">
-                    {postTypeLabel[result.post_type ?? ''] || t('accountOptimizationPostTypeFallback')}
-                  </p>
-                  <div className="space-y-3">
-                    <DistributionBar
-                      label={t('accountOptimizationPhotoRate')}
-                      value={result.photo_rate ?? 0}
-                      color="bg-sky-400"
-                    />
-                    <DistributionBar
-                      label={t('accountOptimizationReelsRate')}
-                      value={result.reels_rate ?? 0}
-                      color="bg-amber-400"
-                    />
-                    <DistributionBar
-                      label={t('accountOptimizationCarouselRate')}
-                      value={result.carousel_rate ?? 0}
-                      color="bg-emerald-400"
-                    />
-                  </div>
-                  {result.recent_hashtag_list && result.recent_hashtag_list.length > 0 && (
-                    <div className="pt-3 border-t border-blue-100">
-                      <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-2 flex items-center gap-1">
-                        <Hash className="h-4 w-4" />
-                        {t('accountOptimizationHashtagTitle')}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {result.recent_hashtag_list.slice(0, 15).map((tag) => (
-                          <span
-                            key={`${tag.hashtag}-${tag.count}`}
-                            className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-medium"
-                          >
-                            #{tag.hashtag}
-                            {tag.count > 1 && <span className="ml-1 text-blue-400">×{tag.count}</span>}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-
-          {(result.analytics_message || (result.recommend_service_message && result.recommend_service_message.length > 0)) && (
-            <Card className="shadow-sm border-blue-100">
-              <CardHeader>
-                <CardTitle className="text-sm text-blue-500 uppercase tracking-wider">
-                  {t('accountOptimizationStrategyTitle')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {result.analytics_message && (
-                  <section>
-                    <h3 className="text-base font-semibold text-gray-800 mb-2">
-                      {t('accountOptimizationAnalysisMessageTitle')}
-                    </h3>
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm leading-relaxed text-blue-900 whitespace-pre-line">
-                      {normalizeJapaneseText(result.analytics_message)}
-                    </div>
-                  </section>
-                )}
-
-                {result.recommend_service_message && result.recommend_service_message.length > 0 && (
-                  <section>
-                    <h3 className="text-base font-semibold text-gray-800 mb-3">
-                      {t('accountOptimizationRecommendationTitle')}
-                    </h3>
-                    <div className="space-y-3">
-                      {result.recommend_service_message.map((message, index) => (
-                        <div
-                          key={`${index}-${message.slice(0, 8)}`}
-                          className="bg-white border border-blue-100 rounded-xl p-4 text-sm leading-relaxed text-gray-700 whitespace-pre-line shadow-sm"
-                        >
-                          {normalizeJapaneseText(message)}
+            {(visibleSections.profile || visibleSections.evaluation) && (
+              <div
+                className={`flex flex-col lg:flex-row items-start gap-6 ${
+                  visibleSections.information || visibleSections.type || visibleSections.strategy ? 'pb-6 border-b' : ''
+                }`}
+              >
+                {visibleSections.profile && (
+                  <div className="flex items-start gap-6 w-full lg:w-1/2">
+                    <div className="flex-shrink-0">
+                      {result.profile_image_url ? (
+                        <img
+                          src={result.profile_image_url}
+                          alt={result.username || ''}
+                          className="h-32 w-32 rounded-2xl object-cover border-2 shadow-sm"
+                        />
+                      ) : (
+                        <div className="h-32 w-32 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 text-3xl font-semibold">
+                          {result.username?.slice(0, 2).toUpperCase() || 'IG'}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </section>
+
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <div>
+                        <h2 className="text-3xl font-bold text-gray-900 mb-1">{result.username}</h2>
+                        {searchedId && (
+                          <span className="text-sm text-gray-400">
+                            {language === 'ja' ? `分析ID: ${searchedId}` : `조회 ID: ${searchedId}`}
+                          </span>
+                        )}
+                      </div>
+                      {result.full_name && (
+                        <p className="text-base text-gray-700 font-medium">{result.full_name}</p>
+                      )}
+                      {result.biography && (
+                        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                          {result.biography}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-          )}
+
+                {visibleSections.evaluation && (
+                  <div className="w-full lg:w-1/2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <LegendItem
+                        title={t('accountOptimizationLegendOverallLabel')}
+                        description={t('accountOptimizationLegendOverallDesc')}
+                        badge={result.total_grade}
+                        language={language}
+                      />
+                      <LegendItem
+                        title={t('accountOptimizationLegendFollowerLabel')}
+                        description={t('accountOptimizationLegendFollowerDesc')}
+                        badge={result.follower_grade}
+                        language={language}
+                      />
+                      <LegendItem
+                        title={t('accountOptimizationLegendPostLabel')}
+                        description={t('accountOptimizationLegendPostDesc')}
+                        badge={result.post_count_grade}
+                        language={language}
+                      />
+                      <LegendItem
+                        title={t('accountOptimizationLegendActivityLabel')}
+                        description={t('accountOptimizationLegendActivityDesc')}
+                        badge={result.activity_grade}
+                        language={language}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(visibleSections.information || visibleSections.type) && (
+              <div className="grid gap-6 lg:grid-cols-2">
+                {visibleSections.information && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <MetricBox
+                        label={t('accountOptimizationFollowerCount')}
+                        value={formatNumber(result.follower_count)}
+                      />
+                      <MetricBox
+                        label={t('accountOptimizationFollowCount')}
+                        value={formatNumber(result.follow_count)}
+                      />
+                      <MetricBox
+                        label={t('accountOptimizationPostCount')}
+                        value={formatNumber(result.post_count)}
+                      />
+                      <MetricBox
+                        label={t('accountOptimizationAverageLikes')}
+                        value={formatNumber(result.average_like_count)}
+                      />
+                      <MetricBox
+                        label={t('accountOptimizationAverageComments')}
+                        value={formatNumber(result.average_comment_count)}
+                      />
+                      <MetricBox
+                        label={t('accountOptimizationAverageInterval')}
+                        value={formatHourInterval(result.average_post_hour)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {visibleSections.type && (
+                  <Card className="shadow-sm bg-white">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold text-blue-600 flex items-center gap-2">
+                        <Sparkle className="h-4 w-4" />
+                        {t('accountOptimizationPostTypeTitle')}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-gray-700 font-medium">
+                        {postTypeLabel[result.post_type ?? ''] || t('accountOptimizationPostTypeFallback')}
+                      </p>
+                      <div className="space-y-3">
+                        <DistributionBar
+                          label={t('accountOptimizationPhotoRate')}
+                          value={result.photo_rate ?? 0}
+                          color="bg-sky-400"
+                        />
+                        <DistributionBar
+                          label={t('accountOptimizationReelsRate')}
+                          value={result.reels_rate ?? 0}
+                          color="bg-amber-400"
+                        />
+                        <DistributionBar
+                          label={t('accountOptimizationCarouselRate')}
+                          value={result.carousel_rate ?? 0}
+                          color="bg-emerald-400"
+                        />
+                      </div>
+                      {result.recent_hashtag_list && result.recent_hashtag_list.length > 0 && (
+                        <div className="pt-3 border-t border-blue-100">
+                          <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-2 flex items-center gap-1">
+                            <Hash className="h-4 w-4" />
+                            {t('accountOptimizationHashtagTitle')}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {result.recent_hashtag_list.slice(0, 15).map((tag) => (
+                              <span
+                                key={`${tag.hashtag}-${tag.count}`}
+                                className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-medium"
+                              >
+                                #{tag.hashtag}
+                                {tag.count > 1 && <span className="ml-1 text-blue-400">×{tag.count}</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {visibleSections.strategy &&
+              (result.analytics_message ||
+                (result.recommend_service_message && result.recommend_service_message.length > 0)) && (
+                <Card className="shadow-sm border-blue-100">
+                  <CardHeader>
+                    <CardTitle className="text-sm text-blue-500 uppercase tracking-wider">
+                      {t('accountOptimizationStrategyTitle')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {result.analytics_message && (
+                      <section>
+                        <h3 className="text-base font-semibold text-gray-800 mb-2">
+                          {t('accountOptimizationAnalysisMessageTitle')}
+                        </h3>
+                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm leading-relaxed text-blue-900 whitespace-pre-line">
+                          {normalizeJapaneseText(result.analytics_message)}
+                        </div>
+                      </section>
+                    )}
+
+                    {result.recommend_service_message && result.recommend_service_message.length > 0 && (
+                      <section>
+                        <h3 className="text-base font-semibold text-gray-800 mb-3">
+                          {t('accountOptimizationRecommendationTitle')}
+                        </h3>
+                        <div className="space-y-3">
+                          {result.recommend_service_message.map((message, index) => (
+                            <div
+                              key={`${index}-${message.slice(0, 8)}`}
+                              className="bg-white border border-blue-100 rounded-xl p-4 text-sm leading-relaxed text-gray-700 whitespace-pre-line shadow-sm"
+                            >
+                              {normalizeJapaneseText(message)}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
           </div>
         </div>
       )}
