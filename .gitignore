@@ -34,3 +34,4 @@ build/
 *.swo
 
 RAILWAY-DB-INFO.md
+.vercel

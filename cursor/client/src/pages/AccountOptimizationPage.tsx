@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react'
-import { Loader2, Sparkle, AlertCircle, Hash, Copy } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import { Loader2, Sparkle, AlertCircle, Hash, Copy, TrendingUp } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
+import { useClipboardCapture } from '../hooks/useClipboardCapture'
 
 interface HashtagInfo {
   hashtag: string
@@ -114,107 +116,12 @@ export default function AccountOptimizationPage() {
   const [searchedId, setSearchedId] = useState<string | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const resultRef = useRef<HTMLDivElement>(null)
-  const [copyFeedback, setCopyFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { copyFeedback, copyToClipboard } = useClipboardCapture(language)
 
   const normalizeJapaneseText = (value?: string | null) => {
     if (value === undefined || value === null) return value ?? ''
     if (language !== 'ja') return value
     return value.replace(/([\u3040-\u30FF\u4E00-\u9FFF])[\u0020\u3000]+([\u3040-\u30FF\u4E00-\u9FFF])/g, '$1$2')
-  }
-
-  useEffect(() => {
-    return () => {
-      if (feedbackTimerRef.current) {
-        clearTimeout(feedbackTimerRef.current)
-      }
-    }
-  }, [])
-
-  const handleCopyToClipboard = async () => {
-    if (!resultRef.current) return
-
-    try {
-      const html2canvas = (await import('html2canvas')).default
-      
-      // 이미지 프록시 처리
-      const images = Array.from(resultRef.current.querySelectorAll('img'))
-      const originalSources: Array<{ element: HTMLImageElement; src: string }> = []
-
-      for (const img of images) {
-        const originalSrc = img.src
-        originalSources.push({ element: img, src: originalSrc })
-        try {
-          const response = await api.get<{ dataUrl?: string }>('/account-optimization/image-proxy', {
-            params: { url: originalSrc },
-          })
-          if (response.data?.dataUrl) {
-            img.src = response.data.dataUrl
-          }
-        } catch (error) {
-          console.warn('Image proxy failed, using original', error)
-        }
-      }
-
-      // 짧은 딜레이로 이미지 로드 대기
-      await new Promise(resolve => setTimeout(resolve, 500))
-      if ('fonts' in document && document.fonts.ready) {
-        await document.fonts.ready
-      }
-
-      const canvas = await html2canvas(resultRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-      })
-
-      // 원본 이미지 복원
-      originalSources.forEach(({ element, src }) => {
-        element.src = src
-      })
-
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          try {
-            await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob })
-            ])
-            const successMessage =
-              language === 'ja' ? 'クリップボードにコピーしました！' : '클립보드에 복사되었습니다!'
-            setCopyFeedback({ type: 'success', message: successMessage })
-            if (feedbackTimerRef.current) {
-              clearTimeout(feedbackTimerRef.current)
-            }
-            feedbackTimerRef.current = setTimeout(() => {
-              setCopyFeedback(null)
-            }, 3000)
-          } catch (err) {
-            console.error('Clipboard copy failed:', err)
-            const errorMessage =
-              language === 'ja' ? 'クリップボードへのコピーに失敗しました' : '클립보드 복사에 실패했습니다'
-            setCopyFeedback({ type: 'error', message: errorMessage })
-            if (feedbackTimerRef.current) {
-              clearTimeout(feedbackTimerRef.current)
-            }
-            feedbackTimerRef.current = setTimeout(() => {
-              setCopyFeedback(null)
-            }, 3000)
-          }
-        }
-      }, 'image/png')
-    } catch (error) {
-      console.error('Failed to copy:', error)
-      const errorMessage = language === 'ja' ? 'コピーに失敗しました' : '복사에 실패했습니다'
-      setCopyFeedback({ type: 'error', message: errorMessage })
-      if (feedbackTimerRef.current) {
-        clearTimeout(feedbackTimerRef.current)
-      }
-      feedbackTimerRef.current = setTimeout(() => {
-        setCopyFeedback(null)
-      }, 3000)
-    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -276,7 +183,7 @@ export default function AccountOptimizationPage() {
         </div>
       )}
       <div className="bg-gradient-to-r from-blue-500 via-blue-400 to-sky-400 rounded-2xl p-6 text-white shadow-md">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
               {t('accountOptimizationHeading')}
@@ -294,6 +201,16 @@ export default function AccountOptimizationPage() {
               {t('accountOptimizationMemoBody')}
             </p>
           </div>
+          <Link to="/settings/keyword-analysis" className="self-start lg:self-auto">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="bg-white text-blue-600 hover:bg-blue-50 border border-white/40 mt-2 lg:mt-0"
+            >
+              <TrendingUp className="h-4 w-4 mr-2" />
+              {t('keywordAnalysisMenu')}
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -392,7 +309,7 @@ export default function AccountOptimizationPage() {
         <div className="space-y-4">
           <div className="flex justify-end">
             <Button
-              onClick={handleCopyToClipboard}
+              onClick={() => copyToClipboard(resultRef.current)}
               variant="outline"
               size="sm"
               className="flex items-center gap-2"

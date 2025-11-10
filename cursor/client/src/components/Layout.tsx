@@ -10,6 +10,7 @@ import {
   BarChart3,
   Settings,
   Gauge,
+  TrendingUp,
   LogOut,
   Languages,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'sales', href: '/sales', icon: BarChart3 },
   { name: 'settings', href: '/settings', icon: Settings },
   { name: 'accountOptimization', href: '/settings/account-optimization', icon: Gauge, nested: true },
+  { name: 'keywordAnalysisMenu', href: '/settings/keyword-analysis', icon: TrendingUp, nested: true },
 ]
 
 export default function Layout() {
