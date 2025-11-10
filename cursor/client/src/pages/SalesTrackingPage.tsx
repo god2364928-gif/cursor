@@ -578,6 +578,14 @@ export default function SalesTrackingPage() {
   }
 
   // 날짜 포맷 함수 (YYYY-MM-DD)
+  const trimDateTime = (value: string) => {
+    const normalized = value.replace('T', ' ').replace('Z', '').trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+      return `${normalized} 00:00:00`
+    }
+    return normalized.length >= 19 ? normalized.slice(0, 19) : normalized.slice(0, 16)
+  }
+
   const formatDateTime = (dateValue?: string, occurredValue?: string) => {
     const normalizedOccurred = occurredValue
       ? occurredValue.replace('T', ' ').replace('Z', '').trim()
@@ -590,18 +598,15 @@ export default function SalesTrackingPage() {
     const datePart = normalizedDate ? normalizedDate.slice(0, 10) : ''
 
     if (normalizedOccurred && datePart && occurredDatePart === datePart) {
-      return normalizedOccurred.slice(0, 16)
+      return trimDateTime(normalizedOccurred)
     }
 
     if (normalizedDate) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
-        return `${normalizedDate} 00:00`
-      }
-      return normalizedDate.slice(0, 16)
+      return trimDateTime(normalizedDate)
     }
 
     if (normalizedOccurred) {
-      return normalizedOccurred.slice(0, 16)
+      return trimDateTime(normalizedOccurred)
     }
 
     return '-'
