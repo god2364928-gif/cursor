@@ -42,7 +42,7 @@ interface AccountAnalyticsResult {
   recommend_service_message?: string[]
 }
 
-type SectionKey = 'profile' | 'evaluation' | 'information' | 'type' | 'strategy'
+type SectionKey = 'profile' | 'evaluation' | 'information' | 'type' | 'hashtags' | 'strategy'
 
 interface AccountOptimizationResponse {
   status: 'success' | 'error'
@@ -124,6 +124,7 @@ export default function AccountOptimizationPage() {
     { key: 'evaluation', labelKo: '등급', labelJa: '評価' },
     { key: 'information', labelKo: '지표', labelJa: '指標' },
     { key: 'type', labelKo: '콘텐츠 구성', labelJa: '投稿構成' },
+    { key: 'hashtags', labelKo: '최근 해시태그', labelJa: '最近のハッシュタグ' },
     { key: 'strategy', labelKo: '추천 전략', labelJa: '推奨戦略' },
   ]
 
@@ -132,6 +133,7 @@ export default function AccountOptimizationPage() {
     evaluation: true,
     information: true,
     type: true,
+    hashtags: true,
     strategy: true,
   })
 
@@ -177,6 +179,8 @@ export default function AccountOptimizationPage() {
       setLoading(false)
     }
   }
+
+  const hasHashtagData = Boolean(result?.recent_hashtag_list && result.recent_hashtag_list.length > 0)
 
   return (
     <div className="space-y-8">
@@ -426,7 +430,7 @@ export default function AccountOptimizationPage() {
               </div>
             )}
 
-            {(visibleSections.information || visibleSections.type) && (
+            {(visibleSections.information || visibleSections.type || (visibleSections.hashtags && hasHashtagData)) && (
               <div className="grid gap-6 lg:grid-cols-2">
                 {visibleSections.information && (
                   <div className="space-y-6">
@@ -459,43 +463,52 @@ export default function AccountOptimizationPage() {
                   </div>
                 )}
 
-                {visibleSections.type && (
-                  <Card className="shadow-sm bg-white">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-semibold text-blue-600 flex items-center gap-2">
-                        <Sparkle className="h-4 w-4" />
-                        {t('accountOptimizationPostTypeTitle')}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm text-gray-700 font-medium">
-                        {postTypeLabel[result.post_type ?? ''] || t('accountOptimizationPostTypeFallback')}
-                      </p>
-                      <div className="space-y-3">
-                        <DistributionBar
-                          label={t('accountOptimizationPhotoRate')}
-                          value={result.photo_rate ?? 0}
-                          color="bg-sky-400"
-                        />
-                        <DistributionBar
-                          label={t('accountOptimizationReelsRate')}
-                          value={result.reels_rate ?? 0}
-                          color="bg-amber-400"
-                        />
-                        <DistributionBar
-                          label={t('accountOptimizationCarouselRate')}
-                          value={result.carousel_rate ?? 0}
-                          color="bg-emerald-400"
-                        />
-                      </div>
-                      {result.recent_hashtag_list && result.recent_hashtag_list.length > 0 && (
-                        <div className="pt-3 border-t border-blue-100">
-                          <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-2 flex items-center gap-1">
+                {(visibleSections.type || (visibleSections.hashtags && hasHashtagData)) && (
+                  <div className="space-y-6">
+                    {visibleSections.type && (
+                      <Card className="shadow-sm bg-white">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-semibold text-blue-600 flex items-center gap-2">
+                            <Sparkle className="h-4 w-4" />
+                            {t('accountOptimizationPostTypeTitle')}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <p className="text-sm text-gray-700 font-medium">
+                            {postTypeLabel[result.post_type ?? ''] || t('accountOptimizationPostTypeFallback')}
+                          </p>
+                          <div className="space-y-3">
+                            <DistributionBar
+                              label={t('accountOptimizationPhotoRate')}
+                              value={result.photo_rate ?? 0}
+                              color="bg-sky-400"
+                            />
+                            <DistributionBar
+                              label={t('accountOptimizationReelsRate')}
+                              value={result.reels_rate ?? 0}
+                              color="bg-amber-400"
+                            />
+                            <DistributionBar
+                              label={t('accountOptimizationCarouselRate')}
+                              value={result.carousel_rate ?? 0}
+                              color="bg-emerald-400"
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {visibleSections.hashtags && hasHashtagData && (
+                      <Card className="shadow-sm bg-white">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-semibold text-blue-600 flex items-center gap-2">
                             <Hash className="h-4 w-4" />
                             {t('accountOptimizationHashtagTitle')}
-                          </p>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
                           <div className="flex flex-wrap gap-2">
-                            {result.recent_hashtag_list.slice(0, 15).map((tag) => (
+                            {result.recent_hashtag_list!.slice(0, 15).map((tag) => (
                               <span
                                 key={`${tag.hashtag}-${tag.count}`}
                                 className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-medium"
@@ -505,10 +518,10 @@ export default function AccountOptimizationPage() {
                               </span>
                             ))}
                           </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
                 )}
               </div>
             )}
