@@ -154,14 +154,20 @@ function buildInsights(lang, monthlyRanking, weekdayRanking) {
 async function buildFallbackSummary(keyword, geo, lang, timeframe) {
     const { startTime, endTime } = computeTimeWindow(timeframe);
     const hl = lang === 'ko' ? 'ko' : 'ja';
-    const interestResponse = await google_trends_api_1.default.interestOverTime({
-        keyword,
-        geo,
-        startTime,
-        endTime,
-        hl,
-    });
-    const interestPayload = JSON.parse(interestResponse || '{}');
+    let interestPayload = null;
+    try {
+        const interestResponse = await google_trends_api_1.default.interestOverTime({
+            keyword,
+            geo,
+            startTime,
+            endTime,
+            hl,
+        });
+        interestPayload = JSON.parse(interestResponse || '{}');
+    }
+    catch (error) {
+        console.error('[KeywordAnalysis] interestOverTime fallback failed', error);
+    }
     const timelineData = interestPayload?.default?.timelineData ?? [];
     const timeSeries = timelineData.map((entry) => {
         const timestamp = Number(entry.time) * 1000;

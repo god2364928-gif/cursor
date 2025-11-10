@@ -193,15 +193,19 @@ async function buildFallbackSummary(
   const { startTime, endTime } = computeTimeWindow(timeframe)
   const hl = lang === 'ko' ? 'ko' : 'ja'
 
-  const interestResponse = await googleTrends.interestOverTime({
-    keyword,
-    geo,
-    startTime,
-    endTime,
-    hl,
-  })
-
-  const interestPayload = JSON.parse(interestResponse || '{}')
+  let interestPayload: any = null
+  try {
+    const interestResponse = await googleTrends.interestOverTime({
+      keyword,
+      geo,
+      startTime,
+      endTime,
+      hl,
+    })
+    interestPayload = JSON.parse(interestResponse || '{}')
+  } catch (error) {
+    console.error('[KeywordAnalysis] interestOverTime fallback failed', error)
+  }
   const timelineData: Array<{
     time: string
     formattedTime?: string

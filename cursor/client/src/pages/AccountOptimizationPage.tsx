@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
-import { Link } from 'react-router-dom'
-import { Loader2, Sparkle, AlertCircle, Hash, Copy, TrendingUp } from 'lucide-react'
+import { Loader2, Sparkle, AlertCircle, Hash, Copy } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -201,16 +200,6 @@ export default function AccountOptimizationPage() {
               {t('accountOptimizationMemoBody')}
             </p>
           </div>
-          <Link to="/settings/keyword-analysis" className="self-start lg:self-auto">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="bg-white text-blue-600 hover:bg-blue-50 border border-white/40 mt-2 lg:mt-0"
-            >
-              <TrendingUp className="h-4 w-4 mr-2" />
-              {t('keywordAnalysisMenu')}
-            </Button>
-          </Link>
         </div>
       </div>
 

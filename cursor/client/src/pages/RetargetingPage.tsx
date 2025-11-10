@@ -643,12 +643,7 @@ export default function RetargetingPage() {
   }
 
   const normalizeName = (name?: string) => (name || '').replace('﨑', '崎').trim()
-  const statCustomers = managerFilter === 'all'
-    ? customers
-    : customers.filter(c => normalizeName(c.manager) === normalizeName(managerFilter))
-  const distinctManagers = Array.from(new Set(customers.map(c => normalizeName(c.manager)).filter(Boolean)))
-  const target = (managerFilter === 'all' ? distinctManagers.length * RETARGETING_TARGET : RETARGETING_TARGET)
-  
+
   // 필터 값을 데이터베이스 상태 값으로 매핑하는 함수
   const mapFilterToStatus = (filterValue: string) => {
     const mapping: { [key: string]: string } = {
@@ -699,6 +694,16 @@ export default function RetargetingPage() {
     return 'bg-gray-100 text-gray-800'
   }
 
+  const statBaseCustomers = managerFilter === 'all'
+    ? customers
+    : customers.filter(c => normalizeName(c.manager) === normalizeName(managerFilter))
+  const statCustomers = statBaseCustomers.filter((c) => {
+    const norm = normalizeStatus(c.status)
+    return norm !== 'ゴミ箱' && norm !== 'trash'
+  })
+  const distinctManagers = Array.from(new Set(customers.map(c => normalizeName(c.manager)).filter(Boolean)))
+  const target = (managerFilter === 'all' ? distinctManagers.length * RETARGETING_TARGET : RETARGETING_TARGET)
+  
   const filteredCustomers = customers.filter(c => {
     const managerMatch = managerFilter === 'all' || c.manager === managerFilter
     
