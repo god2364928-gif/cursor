@@ -578,14 +578,14 @@ export default function SalesTrackingPage() {
   }
 
   // 날짜 포맷 함수 (YYYY-MM-DD)
-  const formatDateTime = (primary?: string, fallback?: string) => {
-    const source = primary || fallback
+  const formatDateTime = (preferred?: string, fallback?: string) => {
+    const source = preferred || fallback
     if (!source) return '-'
-    const normalized = source
-      .replace('T', ' ')
-      .replace('Z', '')
-      .slice(0, 16)
-    return normalized
+    const normalized = source.replace('T', ' ').replace('Z', '').trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+      return `${normalized} 00:00`
+    }
+    return normalized.slice(0, 16)
   }
 
   // Translate option labels for table display while keeping DB values as-is
@@ -869,7 +869,7 @@ export default function SalesTrackingPage() {
                 ) : (
                   paginatedRecords.map((record) => (
                     <tr key={record.id} id={`sales-tracking-record-${record.id}`} className="border-b hover:bg-gray-50">
-                      <td className="px-2 py-1 border-r whitespace-nowrap">{formatDateTime(record.occurred_at, record.date)}</td>
+                      <td className="px-2 py-1 border-r whitespace-nowrap">{formatDateTime(record.date, record.occurred_at)}</td>
                       <td className="px-2 py-1 border-r">{record.manager_name}</td>
                       <td className="px-2 py-1 border-r">{record.company_name || '-'}</td>
                       <td className="px-2 py-1 border-r">{translateIndustryLabel(record.industry as any)}</td>
