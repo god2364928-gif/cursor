@@ -353,7 +353,10 @@ export default function AccountOptimizationPage() {
               {t('accountOptimizationCopyToClipboard')}
             </Button>
           </div>
-          <div ref={resultRef} className="space-y-6 bg-white p-6 rounded-lg">
+          <div
+            ref={resultRef}
+            className="space-y-6 bg-white p-6 rounded-xl border border-gray-200 shadow-md"
+          >
             {(visibleSections.profile || visibleSections.evaluation) && (
               <div
                 className={`flex flex-col lg:flex-row items-start gap-6 ${
@@ -582,30 +585,43 @@ function MetricBox({
   value: string
 }) {
   return (
-    <div style={{
-      textAlign: 'center',
-      padding: '16px',
-      backgroundColor: '#ffffff',
-      border: '1px solid #e5e7eb',
-      borderRadius: '8px',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      minHeight: '90px'
-    }}>
-      <p style={{
-        fontSize: '12px',
-        color: '#6b7280',
-        fontWeight: 500,
-        lineHeight: 1.2,
-        marginBottom: '8px'
-      }}>{label}</p>
-      <p style={{
-        fontSize: '20px',
-        fontWeight: 700,
-        color: '#111827',
-        lineHeight: 1.2
-      }}>{value}</p>
+    <div
+      style={{
+        textAlign: 'center',
+        padding: '16px',
+        backgroundColor: '#ffffff',
+        border: '1px solid #e5e7eb',
+        borderRadius: '10px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '6px',
+        minHeight: '90px',
+      }}
+    >
+      <p
+        style={{
+          fontSize: '12px',
+          color: '#6b7280',
+          fontWeight: 500,
+          lineHeight: '16px',
+          margin: 0,
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          fontSize: '20px',
+          fontWeight: 700,
+          color: '#111827',
+          lineHeight: '24px',
+          margin: 0,
+        }}
+      >
+        {value}
+      </p>
     </div>
   )
 }
@@ -633,18 +649,26 @@ function DistributionBar({
         alignItems: 'center',
         marginBottom: '6px'
       }}>
-        <span style={{
-          fontSize: '12px',
-          fontWeight: 600,
-          color: '#4b5563',
-          lineHeight: 1.2
-        }}>{label}</span>
-        <span style={{
-          fontSize: '12px',
-          fontWeight: 700,
-          color: '#111827',
-          lineHeight: 1.2
-        }}>{Math.round(Math.min(100, Math.max(0, value)))}%</span>
+        <span
+          style={{
+            fontSize: '12px',
+            fontWeight: 600,
+            color: '#4b5563',
+            lineHeight: '16px',
+          }}
+        >
+          {label}
+        </span>
+        <span
+          style={{
+            fontSize: '12px',
+            fontWeight: 700,
+            color: '#111827',
+            lineHeight: '16px',
+          }}
+        >
+          {Math.round(Math.min(100, Math.max(0, value)))}%
+        </span>
       </div>
       <div style={{
         height: '10px',
@@ -682,41 +706,53 @@ function LegendItem({
       : description
 
   return (
-    <div style={{
-      padding: '18px 20px',
-      borderRadius: '14px',
-      border: '1px solid #dbeafe',
-      backgroundColor: 'rgba(239, 246, 255, 0.65)',
-      marginBottom: '16px',
-      boxShadow: '0 6px 12px rgba(148, 163, 184, 0.18)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px'
-    }}>
-      <div style={{
+    <div
+      style={{
+        padding: '18px 20px',
+        borderRadius: '14px',
+        border: '1px solid #dbeafe',
+        backgroundColor: 'rgba(239, 246, 255, 0.65)',
+        marginBottom: '16px',
+        boxShadow: '0 6px 12px rgba(148, 163, 184, 0.18)',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
-        <span style={{
-          fontSize: '16px',
-          fontWeight: 700,
-          color: '#1d4ed8',
-          lineHeight: '22px',
-          letterSpacing: '0.01em'
-        }}>{title}</span>
+        flexDirection: 'column',
+        gap: '10px',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span
+          style={{
+            fontSize: '16px',
+            fontWeight: 700,
+            color: '#1d4ed8',
+            lineHeight: '22px',
+            letterSpacing: '0.01em',
+          }}
+        >
+          {title}
+        </span>
         {badge && <GradeBadge label={badge} />}
       </div>
-      <p style={{
-        fontSize: language === 'ja' ? '12px' : '13px',
-        color: '#2563eb',
-        lineHeight: '20px',
-        margin: 0,
-        fontWeight: 500,
-        letterSpacing: language === 'ja' ? '-0.01em' : '0.01em',
-        whiteSpace: 'nowrap',
-        wordBreak: 'keep-all'
-      }}>{displayDescription}</p>
+      <p
+        style={{
+          fontSize: language === 'ja' ? '12px' : '13px',
+          color: '#2563eb',
+          lineHeight: language === 'ja' ? '18px' : '20px',
+          margin: 0,
+          fontWeight: 500,
+          letterSpacing: language === 'ja' ? '-0.01em' : '0.01em',
+          whiteSpace: 'nowrap',
+          wordBreak: 'keep-all',
+        }}
+      >
+        {displayDescription}
+      </p>
     </div>
   )
 }
