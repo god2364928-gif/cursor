@@ -84,9 +84,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       `
       const kw = search.trim()
       params.push(kw, `${kw}%`, `%${kw}%`)
-      orderClause = ` ORDER BY match_priority, COALESCE(occurred_at, date::timestamp) DESC`
+      orderClause = ` ORDER BY match_priority, date DESC, COALESCE(occurred_at, date::timestamp) DESC`
     } else {
-      orderClause = ` ORDER BY COALESCE(occurred_at, date::timestamp) DESC`
+      orderClause = ` ORDER BY date DESC, COALESCE(occurred_at, date::timestamp) DESC`
     }
 
     query += orderClause
