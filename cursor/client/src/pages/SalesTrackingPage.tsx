@@ -578,14 +578,33 @@ export default function SalesTrackingPage() {
   }
 
   // 날짜 포맷 함수 (YYYY-MM-DD)
-  const formatDateTime = (preferred?: string, fallback?: string) => {
-    const source = preferred || fallback
-    if (!source) return '-'
-    const normalized = source.replace('T', ' ').replace('Z', '').trim()
-    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-      return `${normalized} 00:00`
+  const formatDateTime = (dateValue?: string, occurredValue?: string) => {
+    const normalizedOccurred = occurredValue
+      ? occurredValue.replace('T', ' ').replace('Z', '').trim()
+      : ''
+    const normalizedDate = dateValue
+      ? dateValue.replace('T', ' ').replace('Z', '').trim()
+      : ''
+
+    const occurredDatePart = normalizedOccurred ? normalizedOccurred.slice(0, 10) : ''
+    const datePart = normalizedDate ? normalizedDate.slice(0, 10) : ''
+
+    if (normalizedOccurred && datePart && occurredDatePart === datePart) {
+      return normalizedOccurred.slice(0, 16)
     }
-    return normalized.slice(0, 16)
+
+    if (normalizedDate) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+        return `${normalizedDate} 00:00`
+      }
+      return normalizedDate.slice(0, 16)
+    }
+
+    if (normalizedOccurred) {
+      return normalizedOccurred.slice(0, 16)
+    }
+
+    return '-'
   }
 
   // Translate option labels for table display while keeping DB values as-is
