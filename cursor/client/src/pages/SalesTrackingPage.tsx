@@ -128,15 +128,12 @@ export default function SalesTrackingPage() {
     })()
   }, [user])
 
-  const fetchRecords = useCallback(async (append: boolean, nextOffset: number, signal?: AbortSignal) => {
-    if (append) {
-      setLoadingMore(true)
-    } else {
-      setLoading(true)
-    }
+  const fetchRecords = useCallback(async (_append: boolean, _nextOffset: number, signal?: AbortSignal) => {
+    setLoading(true)
+    setLoadingMore(false)
 
     try {
-      const params: any = { limit: PAGE_SIZE, offset: nextOffset }
+      const params: any = { limit: 'all' }
       if (searchQuery.trim()) {
         params.search = searchQuery.trim()
       }
@@ -146,15 +143,10 @@ export default function SalesTrackingPage() {
       }
       const response = await api.get('/sales-tracking', config)
       const rows = response.data?.rows ?? response.data ?? []
-      const more = response.data?.hasMore ?? (Array.isArray(rows) && rows.length === PAGE_SIZE)
-      setHasMore(more)
-      setOffset(nextOffset)
-      if (append) {
-        setRecords(prev => [...prev, ...rows])
-      } else {
-        setRecords(rows)
-        setCurrentPage(1)
-      }
+      setHasMore(false)
+      setOffset(0)
+      setRecords(rows)
+      setCurrentPage(1)
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
         console.log('Previous fetch request cancelled')
@@ -163,15 +155,10 @@ export default function SalesTrackingPage() {
       console.error('Failed to fetch records:', error)
       const errorMessage = error?.response?.data?.message || error?.message || t('error')
       showToast(errorMessage, 'error')
-      if (!append) {
-        setRecords([])
-      }
+      setRecords([])
     } finally {
-      if (append) {
-        setLoadingMore(false)
-      } else {
-        setLoading(false)
-      }
+      setLoading(false)
+      setLoadingMore(false)
     }
   }, [searchQuery, showToast, t])
 

@@ -22,8 +22,18 @@ const toSeoulTimestampString = (input: Date) => {
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const search = (req.query.search as string || '').trim()
-    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '500'), 10) || 500, 1), 2000)
-    const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0)
+    const rawLimit = req.query.limit as string | undefined
+    const limit =
+      typeof rawLimit === 'string' && rawLimit.toLowerCase() === 'all'
+        ? null
+        : (() => {
+            const parsed = parseInt(String(rawLimit ?? '500'), 10)
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : 500
+          })()
+    const offset =
+      limit === null
+        ? 0
+        : Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0)
 
     const params: any[] = []
     let query = `
@@ -79,12 +89,16 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       orderClause = ` ORDER BY COALESCE(occurred_at, date::timestamp) DESC`
     }
 
-    params.push(limit, offset)
-    query += `${orderClause} LIMIT $${params.length - 1} OFFSET $${params.length}`
+    query += orderClause
+
+    if (limit !== null) {
+      params.push(limit, offset)
+      query += ` LIMIT $${params.length - 1} OFFSET $${params.length}`
+    }
 
     const result = await pool.query(query, params)
     const rows = result.rows.map(({ customer_name: _ignored, ...rest }) => rest)
-    const hasMore = result.rows.length === limit
+    const hasMore = limit !== null && result.rows.length === limit
 
     res.json({ rows, hasMore })
   } catch (error: any) {
