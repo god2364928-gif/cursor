@@ -274,7 +274,7 @@ export default function SalesPage() {
       [t('manager')]: sale.userName,
       [t('companyName')]: sale.companyName,
       [t('payerName')]: sale.payerName || '',
-      [t('paymentMethod')]: sale.paymentMethod || '',
+      [t('paymentMethod')]: paymentMethodLabel(sale.paymentMethod),
       [t('salesType')]: typeLabel(sale.salesType),
       [t('sourceType')]: sourceLabel(sale.sourceType),
       [t('amountWithTax')]: Math.round(sale.amount * 1.1),
@@ -340,6 +340,16 @@ export default function SalesPage() {
   const sourceLabel = (v?: string): string => {
     const token = toSourceToken(v)
     return token ? t(token) : (v || '')
+  }
+
+  // 결제방식 라벨 현지화
+  const paymentMethodLabel = (v?: string): string => {
+    const s = (v || '').trim()
+    if (s === '계좌이체') return t('paymentMethodBankTransfer')
+    if (s === 'PayPay') return t('paymentMethodPayPay')
+    if (s === '페이팔') return t('paymentMethodPayPal')
+    if (s === '신용카드') return t('paymentMethodCreditCard')
+    return v || ''
   }
 
   // 통계 계산
@@ -709,7 +719,7 @@ export default function SalesPage() {
                         <td className="px-2 py-3 text-sm text-gray-900">{sale.userName}</td>
                         <td className="px-2 py-3 text-sm text-gray-900">{sale.companyName}</td>
                         <td className="px-2 py-3 text-sm text-gray-900">{sale.payerName || ''}</td>
-                        <td className="px-2 py-3 text-sm text-gray-900">{sale.paymentMethod || ''}</td>
+                        <td className="px-2 py-3 text-sm text-gray-900">{paymentMethodLabel(sale.paymentMethod)}</td>
                         <td className="px-2 py-3 text-sm">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             toTypeCode(sale.salesType) === 'new' ? 'bg-green-100 text-green-800' :
