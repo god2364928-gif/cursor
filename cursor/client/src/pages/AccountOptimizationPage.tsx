@@ -183,7 +183,7 @@ export default function AccountOptimizationPage() {
   const hasHashtagData = Boolean(result?.recent_hashtag_list && result.recent_hashtag_list.length > 0)
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-gray-100 p-6 space-y-8">
       {copyFeedback && (
         <div className="fixed top-6 right-6 z-50">
           <div
@@ -203,29 +203,32 @@ export default function AccountOptimizationPage() {
           </div>
         </div>
       )}
-      <div className="bg-gradient-to-r from-blue-500 via-blue-400 to-sky-400 rounded-2xl p-6 text-white shadow-md">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">
-              {t('accountOptimizationHeading')}
-            </h1>
-            <p className="mt-2 text-sm md:text-base text-blue-50/90">
-              {t('accountOptimizationSubheading')}
-            </p>
-          </div>
-          <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-3 text-sm leading-relaxed border border-white/20">
-            <p className="font-semibold text-white flex items-center gap-2">
-              <Sparkle className="h-4 w-4" />
-              {t('accountOptimizationMemoTitle')}
-            </p>
-            <p className="text-blue-50 mt-1 text-xs md:text-sm whitespace-pre-line">
-              {t('accountOptimizationMemoBody')}
-            </p>
-          </div>
-        </div>
-      </div>
 
-      <Card className="shadow-sm">
+      <Card className="bg-gradient-to-r from-blue-500 via-blue-400 to-sky-400 text-white shadow-md border-0">
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">
+                {t('accountOptimizationHeading')}
+              </h1>
+              <p className="mt-2 text-sm md:text-base text-blue-50/90">
+                {t('accountOptimizationSubheading')}
+              </p>
+            </div>
+            <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-3 text-sm leading-relaxed border border-white/20">
+              <p className="font-semibold text-white flex items-center gap-2">
+                <Sparkle className="h-4 w-4" />
+                {t('accountOptimizationMemoTitle')}
+              </p>
+              <p className="text-blue-50 mt-1 text-xs md:text-sm whitespace-pre-line">
+                {t('accountOptimizationMemoBody')}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-white shadow-sm">
         <CardHeader>
           <CardTitle className="text-xl font-semibold text-gray-800">
             {t('accountOptimizationSearchTitle')}
