@@ -172,6 +172,7 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
   try {
     const {
       transactionDate,
+      transactionTime,
       transactionType,
       category,
       paymentMethod,
@@ -183,12 +184,33 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
       attachmentUrl,
     } = req.body
 
+    const normalizeTime = (value?: string | null) => {
+      if (!value) return null
+      const trimmed = String(value).trim()
+      if (!trimmed) return null
+      return trimmed.length === 5 ? `${trimmed}:00` : trimmed
+    }
+
+    const normalizedTime = normalizeTime(transactionTime)
+
     const result = await pool.query(
       `INSERT INTO accounting_transactions 
-       (transaction_date, transaction_type, category, payment_method, item_name, amount, employee_id, account_id, memo, attachment_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, employee_id, account_id, memo, attachment_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [transactionDate, transactionType, category, paymentMethod, itemName, amount, employeeId || null, accountId || null, memo || null, attachmentUrl || null]
+      [
+        transactionDate,
+        normalizedTime,
+        transactionType,
+        category,
+        paymentMethod,
+        itemName,
+        amount,
+        employeeId || null,
+        accountId || null,
+        memo || null,
+        attachmentUrl || null,
+      ]
     )
 
     const transaction = result.rows[0]
@@ -221,6 +243,66 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
   } catch (error) {
     console.error('Transaction create error:', error)
     res.status(500).json({ error: '거래내역 추가에 실패했습니다' })
+  }
+})
+
+router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const {
+      transactionDate,
+      transactionTime,
+      transactionType,
+      category,
+      paymentMethod,
+      itemName,
+      amount,
+      memo,
+    } = req.body
+
+    const normalizeTime = (value?: string | null) => {
+      if (!value) return null
+      const trimmed = String(value).trim()
+      if (!trimmed) return null
+      return trimmed.length === 5 ? `${trimmed}:00` : trimmed
+    }
+
+    const normalizedTime = normalizeTime(transactionTime)
+
+    const result = await pool.query(
+      `UPDATE accounting_transactions
+       SET transaction_date = $1,
+           transaction_time = $2,
+           transaction_type = $3,
+           category = $4,
+           payment_method = $5,
+           item_name = $6,
+           amount = $7,
+           memo = $8,
+           updated_at = NOW()
+       WHERE id = $9
+       RETURNING *`,
+      [
+        transactionDate,
+        normalizedTime,
+        transactionType,
+        category,
+        paymentMethod,
+        itemName,
+        amount,
+        memo || null,
+        id,
+      ]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '거래내역을 찾을 수 없습니다' })
+    }
+
+    res.json({ success: true, transaction: result.rows[0] })
+  } catch (error) {
+    console.error('Transaction update error:', error)
+    res.status(500).json({ error: '거래내역 수정에 실패했습니다' })
   }
 })
 
@@ -733,6 +815,17 @@ router.put('/capital/:id', authMiddleware, adminOnly, async (req: AuthRequest, r
   } catch (error) {
     console.error('Capital update error:', error)
     res.status(500).json({ error: '계좌 수정에 실패했습니다' })
+  }
+})
+
+router.delete('/capital/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    await pool.query(`DELETE FROM accounting_capital WHERE id = $1`, [id])
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Capital delete error:', error)
+    res.status(500).json({ error: '계좌 삭제에 실패했습니다' })
   }
 })
 
