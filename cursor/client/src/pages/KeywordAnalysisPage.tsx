@@ -195,7 +195,7 @@ export default function KeywordAnalysisPage() {
   const placesExamples = result?.places.examples ?? []
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-100 p-6 space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('keywordAnalysisHeading')}</h1>
@@ -224,21 +224,23 @@ export default function KeywordAnalysisPage() {
       )}
 
       <section className="space-y-8">
-        <div className="bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 rounded-2xl p-6 text-white shadow-md">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-                <TrendingUp className="h-6 w-6" />
-                {t('keywordAnalysisHeading')}
-              </h2>
-              <p className="mt-2 text-sm md:text-base text-purple-50/90">
-                {t('keywordAnalysisSubheading')}
-              </p>
+        <Card className="bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 text-white shadow-md border-0">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+                  <TrendingUp className="h-6 w-6" />
+                  {t('keywordAnalysisHeading')}
+                </h2>
+                <p className="mt-2 text-sm md:text-base text-purple-50/90">
+                  {t('keywordAnalysisSubheading')}
+                </p>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <Card className="shadow-sm">
+        <Card className="bg-white shadow-sm">
           <CardHeader>
             <CardTitle className="text-xl font-semibold text-gray-800 flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-purple-500" />

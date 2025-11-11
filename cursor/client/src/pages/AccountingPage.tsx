@@ -677,7 +677,7 @@ export default function AccountingPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-100 space-y-6 p-6">
       {/* 저장 완료 토스트 */}
       {showSaveToast && (
         <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in-down">
@@ -690,18 +690,22 @@ export default function AccountingPage() {
         </div>
       )}
 
-      <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl p-6 text-white shadow-md">
-        <h1 className="text-3xl font-bold mb-2">
-          {language === 'ja' ? '会計ソフト' : '회계 소프트'}
-        </h1>
-        <p className="text-emerald-50">
-          {language === 'ja' ? '財務管理システム（決算: 10月基準）' : '재무 관리 시스템 (결산: 10월 기준)'}
-        </p>
-      </div>
+      <Card className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-md border-0">
+        <CardContent className="p-6">
+          <h1 className="text-3xl font-bold mb-2">
+            {language === 'ja' ? '会計ソフト' : '회계 소프트'}
+          </h1>
+          <p className="text-emerald-50">
+            {language === 'ja' ? '財務管理システム（決算: 10月基準）' : '재무 관리 시스템 (결산: 10월 기준)'}
+          </p>
+        </CardContent>
+      </Card>
 
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-4">
+      <Card className="bg-white">
+        <CardContent className="p-6">
+          {/* Tab Navigation */}
+          <div className="border-b border-gray-200">
+            <nav className="flex gap-4">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -1724,6 +1728,8 @@ export default function AccountingPage() {
           </div>
         </div>
       )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

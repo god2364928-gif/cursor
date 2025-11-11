@@ -732,15 +732,17 @@ export default function SalesTrackingPage() {
   }, [managerFilter])
 
   return (
-    <div className="p-6 pt-8">
+    <div className="min-h-screen bg-gray-100 p-6 pt-8">
       {/* Global Search - 통합 검색 */}
       <div className="mb-4 -mt-8">
         <h2 className="text-lg font-semibold mb-2">{t('globalSearch')}</h2>
         <GlobalSearch />
       </div>
 
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold">{t('salesTracking')}</h1>
+      <Card className="bg-white">
+        <CardContent className="p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h1 className="text-lg font-semibold">{t('salesTracking')}</h1>
         <div className="flex gap-2">
           <Button 
             onClick={openDailyStats}
@@ -1408,6 +1410,8 @@ export default function SalesTrackingPage() {
           </Card>
         </div>
       )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
