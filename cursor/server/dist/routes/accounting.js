@@ -295,6 +295,7 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
         }
         console.log('=== CSV Upload Started ===');
         console.log('File size:', req.file.buffer.length);
+        console.log('Timestamp:', new Date().toISOString());
         // 인코딩 감지: 가장 많은 일본어 문자를 올바르게 디코딩하는 인코딩 선택
         let utf8Content = '';
         let bestEncoding = 'UTF-8';
