@@ -417,12 +417,17 @@ export default function AccountingPage() {
     }
   }
 
-  const handleMemoChange = (id: string, value: string) => {
+  const handleMemoFocus = (id: string) => {
     if (!isAdmin) return
+    // focus 시점에 원본 값 저장 (한 번만)
     if (!(id in memoDraftOriginalRef.current)) {
       const current = transactions.find((tx) => tx.id === id)
       memoDraftOriginalRef.current[id] = current?.memo ?? null
     }
+  }
+
+  const handleMemoChange = (id: string, value: string) => {
+    if (!isAdmin) return
     setTransactions((prev) =>
       prev.map((tx) => (tx.id === id ? { ...tx, memo: value } : tx))
     )
@@ -1089,6 +1094,7 @@ export default function AccountingPage() {
                           <Input
                             value={tx.memo ?? ''}
                             placeholder={language === 'ja' ? 'メモを入力' : '메모 입력'}
+                            onFocus={() => handleMemoFocus(tx.id)}
                             onChange={(e) => handleMemoChange(tx.id, e.target.value)}
                             onBlur={(e) => {
                               e.preventDefault()
