@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useI18nStore } from '../i18n'
+import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
@@ -13,7 +14,6 @@ import {
   Plus,
   Trash2,
   Upload,
-  Pencil,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -118,6 +118,8 @@ const CATEGORY_OPTIONS = [
 
 export default function AccountingPage() {
   const { language } = useI18nStore()
+  const user = useAuthStore((state) => state.user)
+  const isAdmin = user?.role === 'admin'
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'employees' | 'payroll' | 'recurring' | 'capital'>('dashboard')
   const [fiscalYear, setFiscalYear] = useState<number>(
     new Date().getMonth() >= 9 ? new Date().getFullYear() + 1 : new Date().getFullYear()
@@ -131,6 +133,8 @@ export default function AccountingPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [nameOptions, setNameOptions] = useState<SimpleUser[]>([])
   const [updatingTransactionId, setUpdatingTransactionId] = useState<string | null>(null)
+  const [resettingTransactions, setResettingTransactions] = useState(false)
+  const memoDraftOriginalRef = useRef<Record<string, string | null>>({})
 
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
@@ -148,16 +152,18 @@ export default function AccountingPage() {
     fetchDashboard()
   }, [fiscalYear])
 
-useEffect(() => {
+  useEffect(() => {
     if (activeTab === 'transactions') {
       fetchTransactions()
-      fetchNameOptions()
+      if (nameOptions.length === 0) {
+        fetchNameOptions()
+      }
     }
     if (activeTab === 'employees') fetchEmployees()
     if (activeTab === 'payroll') fetchPayrolls()
     if (activeTab === 'recurring') fetchRecurringExpenses()
     if (activeTab === 'capital') fetchAccounts()
-  }, [activeTab])
+  }, [activeTab, nameOptions.length])
 
   const fetchDashboard = async () => {
     try {
@@ -304,18 +310,21 @@ useEffect(() => {
       return str.length === 5 ? `${str}` : str
     }
 
+    const assignedUserIdValue = formData.get('assignedUserId')
+    const memoValue = formData.get('memo')
+    const itemNameValue = formData.get('itemName')
+
     try {
-      const assignedUserIdValue = formData.get('assignedUserId')
-      const payload = {
+    const payload = {
         transactionDate: formData.get('transactionDate'),
         transactionTime: formatTimeValue(formData.get('transactionTime')),
         transactionType: formData.get('transactionType'),
         category: formData.get('category'),
         paymentMethod: formData.get('paymentMethod'),
-        itemName: formData.get('itemName'),
+        itemName: itemNameValue ? String(itemNameValue) : '',
         amount: Number(formData.get('amount')),
-        assignedUserId: assignedUserIdValue ? String(assignedUserIdValue) : null,
-        memo: formData.get('memo'),
+      assignedUserId: assignedUserIdValue ? String(assignedUserIdValue) : null,
+      memo: memoValue ? String(memoValue) : null,
       }
 
       if (editingTransaction) {
@@ -350,14 +359,21 @@ useEffect(() => {
 
   const handleQuickUpdateTransaction = async (
     id: string,
-    updates: { category?: string; assignedUserId?: string | null }
+    updates: { category?: string; assignedUserId?: string | null; memo?: string | null }
   ) => {
+    if (!isAdmin) return
     const target = transactions.find((tx) => tx.id === id)
     if (!target) return
 
     const nextCategory = updates.category ?? target.category
     const nextAssignedUserId =
       updates.assignedUserId !== undefined ? updates.assignedUserId : target.assignedUserId ?? null
+    const nextMemo =
+      updates.memo !== undefined
+        ? updates.memo
+        : target.memo !== undefined && target.memo !== null
+        ? target.memo
+        : null
 
     const payload = {
       transactionDate: target.transactionDate,
@@ -367,7 +383,7 @@ useEffect(() => {
       paymentMethod: target.paymentMethod,
       itemName: target.itemName,
       amount: target.amount,
-      memo: target.memo ?? null,
+      memo: nextMemo ?? null,
       assignedUserId: nextAssignedUserId,
     }
 
@@ -388,6 +404,7 @@ useEffect(() => {
             category: nextCategory,
             assignedUserId: nextAssignedUserId,
             assignedUserName: assignedName,
+            memo: nextMemo ?? null,
           }
         })
       )
@@ -397,6 +414,53 @@ useEffect(() => {
       fetchTransactions()
     } finally {
       setUpdatingTransactionId(null)
+    }
+  }
+
+  const handleMemoChange = (id: string, value: string) => {
+    if (!isAdmin) return
+    if (!(id in memoDraftOriginalRef.current)) {
+      const current = transactions.find((tx) => tx.id === id)
+      memoDraftOriginalRef.current[id] = current?.memo ?? null
+    }
+    setTransactions((prev) =>
+      prev.map((tx) => (tx.id === id ? { ...tx, memo: value } : tx))
+    )
+  }
+
+  const handleMemoBlur = (id: string, value: string) => {
+    if (!isAdmin) return
+    const original = memoDraftOriginalRef.current[id] ?? transactions.find((tx) => tx.id === id)?.memo ?? null
+    delete memoDraftOriginalRef.current[id]
+    if ((original ?? '') === value) {
+      return
+    }
+    handleQuickUpdateTransaction(id, { memo: value.length > 0 ? value : null })
+  }
+
+  const handleResetTransactions = async () => {
+    if (!isAdmin) return
+    if (
+      !confirm(
+        language === 'ja'
+          ? 'すべての取引データを削除しますか？'
+          : '모든 거래 데이터를 삭제하시겠습니까?'
+      )
+    ) {
+      return
+    }
+    setResettingTransactions(true)
+    try {
+      await api.delete('/accounting/transactions/all')
+      memoDraftOriginalRef.current = {}
+      await fetchTransactions()
+      await fetchDashboard()
+      alert(language === 'ja' ? '取引データを削除しました' : '거래 데이터를 모두 삭제했습니다')
+    } catch (error) {
+      console.error('Transaction reset error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
+    } finally {
+      setResettingTransactions(false)
     }
   }
 
@@ -787,6 +851,23 @@ useEffect(() => {
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{language === 'ja' ? '取引履歴' : '거래내역'}</h2>
             <div className="flex gap-2">
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetTransactions}
+                  disabled={resettingTransactions || uploadingCsv || updatingTransactionId !== null}
+                  className="border-red-500 text-red-600 hover:bg-red-50"
+                >
+                  {resettingTransactions
+                    ? language === 'ja'
+                      ? '削除中...'
+                      : '삭제 중...'
+                    : language === 'ja'
+                    ? '全件削除'
+                    : '모두 삭제'}
+                </Button>
+              )}
               <label className="cursor-pointer">
                 <input
                   type="file"
@@ -997,7 +1078,7 @@ useEffect(() => {
                           <select
                             value={tx.category}
                             onChange={(e) => handleQuickUpdateTransaction(tx.id, { category: e.target.value })}
-                            disabled={updatingTransactionId === tx.id}
+                            disabled={!isAdmin || updatingTransactionId === tx.id}
                             className={`w-full border rounded px-2 py-1 text-sm ${updatingTransactionId === tx.id ? 'opacity-60 cursor-wait' : ''}`}
                           >
                             {CATEGORY_OPTIONS.map((option) => (
@@ -1015,7 +1096,7 @@ useEffect(() => {
                                 assignedUserId: e.target.value ? e.target.value : null,
                               })
                             }
-                            disabled={updatingTransactionId === tx.id || nameOptions.length === 0}
+                            disabled={!isAdmin || updatingTransactionId === tx.id || nameOptions.length === 0}
                             className={`w-full border rounded px-2 py-1 text-sm ${
                               updatingTransactionId === tx.id ? 'opacity-60 cursor-wait' : ''
                             }`}
@@ -1030,8 +1111,15 @@ useEffect(() => {
                         </td>
                         <td className="px-3 py-2 text-right font-semibold text-sm">{formatCurrency(tx.amount)}</td>
                         <td className="px-3 py-2 text-sm">{tx.paymentMethod}</td>
-                        <td className="px-3 py-2 text-gray-600 text-xs" style={{ maxWidth: '150px' }}>
-                          <div className="truncate">{tx.memo || '-'}</div>
+                        <td className="px-3 py-2" style={{ maxWidth: '200px' }}>
+                          <Input
+                            value={tx.memo ?? ''}
+                            placeholder={language === 'ja' ? 'メモを入力' : '메모 입력'}
+                            onChange={(e) => handleMemoChange(tx.id, e.target.value)}
+                            onBlur={(e) => handleMemoBlur(tx.id, e.target.value)}
+                            disabled={!isAdmin || updatingTransactionId === tx.id}
+                            className="text-xs"
+                          />
                         </td>
                         <td className="px-3 py-2 text-center">
                           <Button
