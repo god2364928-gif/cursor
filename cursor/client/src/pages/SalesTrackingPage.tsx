@@ -666,9 +666,10 @@ export default function SalesTrackingPage() {
   const trimDateTime = (value: string) => {
     const normalized = value.replace('T', ' ').replace('Z', '').trim()
     if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-      return `${normalized} 00:00:00`
+      return `${normalized} 00:00`
     }
-    return normalized.length >= 19 ? normalized.slice(0, 19) : normalized.slice(0, 16)
+    // 초 단위 제거: HH:MM:SS -> HH:MM
+    return normalized.length >= 16 ? normalized.slice(0, 16) : normalized
   }
 
   const formatDateTime = (dateValue?: string, occurredValue?: string) => {
@@ -1112,7 +1113,7 @@ export default function SalesTrackingPage() {
                     >
                       <td className="px-2 py-1 border-r text-center relative overflow-hidden">
                         {record.moved_to_retargeting && (
-                          <div className="fixed left-1/2 -translate-x-1/2 mt-8 px-3 py-2 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none z-50 shadow-lg">
+                          <div className="fixed left-1/2 -translate-x-1/2 mt-8 px-3 py-2 bg-gray-900 text-white text-xs rounded whitespace-nowrap group-hover:opacity-100 opacity-0 transition-opacity duration-75 pointer-events-none z-50 shadow-lg">
                             {t('movedToRetargeting') || '리타겟팅으로 이동했습니다'}
                           </div>
                         )}
@@ -1126,14 +1127,14 @@ export default function SalesTrackingPage() {
                         )}
                       </td>
                       <td className="px-2 py-1 border-r whitespace-nowrap overflow-hidden">{formatDateTime(record.date, record.occurred_at)}</td>
-                      <td className="px-2 py-1 border-r truncate overflow-hidden">{record.manager_name}</td>
-                      <td className="px-2 py-1 border-r truncate overflow-hidden" title={!record.moved_to_retargeting ? (record.company_name || '-') : undefined}>{record.company_name || '-'}</td>
-                      <td className="px-2 py-1 border-r truncate overflow-hidden">{translateIndustryLabel(record.industry as any)}</td>
-                      <td className="px-2 py-1 border-r truncate overflow-hidden">{record.phone || '-'}</td>
-                      <td className="px-2 py-1 border-r truncate overflow-hidden" title={!record.moved_to_retargeting ? (record.account_id || '-') : undefined}>{record.account_id || '-'}</td>
-                      <td className="px-2 py-1 border-r truncate overflow-hidden">{translateContactMethodLabel(record.contact_method as any)}</td>
-                      <td className="px-2 py-1 border-r truncate overflow-hidden">{translateStatusLabel(record.status as any)}</td>
-                      <td className="px-2 py-1 border-r truncate overflow-hidden w-24 max-w-[6rem]" title={!record.moved_to_retargeting ? (record.memo || '') : undefined}>
+                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2">{record.manager_name}</td>
+                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2" title={!record.moved_to_retargeting ? (record.company_name || '-') : undefined}>{record.company_name || '-'}</td>
+                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2">{translateIndustryLabel(record.industry as any)}</td>
+                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2">{record.phone || '-'}</td>
+                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2" title={!record.moved_to_retargeting ? (record.account_id || '-') : undefined}>{record.account_id || '-'}</td>
+                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2">{translateContactMethodLabel(record.contact_method as any)}</td>
+                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2">{translateStatusLabel(record.status as any)}</td>
+                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2 w-24 max-w-[6rem]" title={!record.moved_to_retargeting ? (record.memo || '') : undefined}>
                         {record.memo || '-'}
                       </td>
                       <td className="px-2 py-1 text-center overflow-hidden">
