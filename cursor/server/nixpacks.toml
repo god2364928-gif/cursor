@@ -4,13 +4,9 @@ nixPkgs = ['nodejs-18_x']
 [phases.build]
 cmds = [
   'npm ci',
-  'rm -rf dist',
-  'rm -rf node_modules/.cache',
-  'rm -rf .cache',
-  'npm run build',
+  'echo "✅ Using pre-built dist folder from Git"',
   'ls -la dist/routes/accounting.js',
-  'grep -c "Best encoding" dist/routes/accounting.js || echo "ERROR: Code not built properly"',
-  'echo "✅ Build completed with new code"'
+  'grep -c "Best encoding" dist/routes/accounting.js && echo "✅ New code verified"'
 ]
 
 [start]
