@@ -4,6 +4,8 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 // Ensure we use the correct database connection
+process.env.PGCLIENTENCODING = 'utf8'
+
 const databaseUrl = process.env.DATABASE_URL || 'postgresql://postgres:xodrn123@localhost:5432/crm_db'
 console.log('Database URL:', databaseUrl.replace(/password=[^@]+/, 'password=***'))
 
@@ -26,8 +28,12 @@ if (!isLocalhost) {
 export const pool = new Pool(poolConfig)
 
 // Ensure UTF-8 encoding for all connections
-pool.on('connect', (client) => {
-  client.query('SET client_encoding TO UTF8')
+pool.on('connect', async (client) => {
+  try {
+    await client.query(`SET client_encoding TO 'UTF8'`)
+  } catch (error) {
+    console.error('Failed to set client encoding', error)
+  }
 })
 
 
