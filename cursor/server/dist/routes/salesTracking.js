@@ -957,10 +957,10 @@ router.get('/stats/daily', auth_1.authMiddleware, async (req, res) => {
         GROUP BY st_day, st.manager_name
       ),
       retarget AS (
-        SELECT date_trunc('day', st.date) AS st_day, st.manager_name, COUNT(DISTINCT rc.id) AS retargeting_count
+        SELECT date_trunc('day', rc.last_contact_date) AS st_day, st.manager_name, COUNT(DISTINCT rc.id) AS retargeting_count
         FROM sales_tracking st
         INNER JOIN retargeting_customers rc ON rc.sales_tracking_id = st.id
-        WHERE st.date BETWEEN $1::date AND ($2::date + INTERVAL '1 day' - INTERVAL '1 second')
+        WHERE rc.last_contact_date BETWEEN $1::date AND ($2::date + INTERVAL '1 day' - INTERVAL '1 second')
         GROUP BY st_day, st.manager_name
       )
     `;

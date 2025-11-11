@@ -1104,14 +1104,18 @@ export default function SalesTrackingPage() {
                     <tr 
                       key={record.id} 
                       id={`sales-tracking-record-${record.id}`} 
-                      className={`border-b ${
+                      className={`border-b relative group ${
                         record.moved_to_retargeting 
                           ? 'bg-gray-200 text-gray-500 opacity-60' 
                           : 'hover:bg-gray-50'
                       }`}
-                      title={record.moved_to_retargeting ? t('movedToRetargeting') || 'リタゲ티팅으로 이동 완료' : ''}
                     >
-                      <td className="px-2 py-1 border-r text-center">
+                      <td className="px-2 py-1 border-r text-center relative">
+                        {record.moved_to_retargeting && (
+                          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none z-10">
+                            {t('movedToRetargeting') || '리타겟팅으로 이동했습니다'}
+                          </div>
+                        )}
                         {record.user_id === user?.id && !record.moved_to_retargeting && (
                           <input
                             type="checkbox"
