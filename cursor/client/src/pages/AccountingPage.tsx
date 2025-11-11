@@ -608,9 +608,13 @@ export default function AccountingPage() {
                     {transactions.map((tx) => (
                       <tr key={tx.id} className="border-t hover:bg-gray-50">
                         <td className="px-3 py-2 text-sm">
-                          <div>{tx.transactionDate}</div>
-                          {tx.transactionTime && (
-                            <div className="text-xs text-gray-500">{tx.transactionTime.slice(0, 5)}</div>
+                          {tx.transactionTime ? (
+                            <>
+                              <div>{tx.transactionDate}</div>
+                              <div className="text-xs text-gray-500">{tx.transactionTime.slice(0, 5)}</div>
+                            </>
+                          ) : (
+                            <div>{tx.transactionDate}</div>
                           )}
                         </td>
                         <td className="px-3 py-2 text-center">
@@ -620,14 +624,22 @@ export default function AccountingPage() {
                             {tx.transactionType === '입금' ? (language === 'ja' ? '入' : '입') : (language === 'ja' ? '出' : '출')}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-sm" style={{ maxWidth: '280px' }}>
-                          <div className="truncate" title={tx.itemName}>{tx.itemName}</div>
+                        <td className="px-3 py-2 text-sm group relative" style={{ maxWidth: '280px' }}>
+                          <div className="truncate cursor-help">{tx.itemName}</div>
+                          <div className="hidden group-hover:block absolute z-50 bg-gray-900 text-white text-xs rounded px-2 py-1 left-0 top-full mt-1 shadow-lg max-w-md whitespace-normal">
+                            {tx.itemName}
+                          </div>
                         </td>
                         <td className="px-3 py-2 text-sm">{tx.category}</td>
                         <td className="px-3 py-2 text-right font-semibold text-sm">{formatCurrency(tx.amount)}</td>
                         <td className="px-3 py-2 text-sm">{tx.paymentMethod}</td>
-                        <td className="px-3 py-2 text-gray-600 text-xs" style={{ maxWidth: '150px' }}>
-                          <div className="truncate" title={tx.memo || ''}>{tx.memo || '-'}</div>
+                        <td className="px-3 py-2 text-gray-600 text-xs group relative" style={{ maxWidth: '150px' }}>
+                          <div className="truncate cursor-help">{tx.memo || '-'}</div>
+                          {tx.memo && (
+                            <div className="hidden group-hover:block absolute z-50 bg-gray-900 text-white text-xs rounded px-2 py-1 left-0 top-full mt-1 shadow-lg max-w-md whitespace-normal">
+                              {tx.memo}
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <Button size="sm" variant="ghost" onClick={() => handleDeleteTransaction(tx.id)}>
