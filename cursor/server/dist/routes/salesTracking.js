@@ -176,6 +176,65 @@ router.put('/bulk-memo', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ message: '일괄 메모 수정에 실패했습니다' });
     }
 });
+// 일괄 리타겟팅 이동 (본인 담당 항목만)
+router.post('/bulk-move-to-retargeting', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ message: '선택된 항목이 없습니다' });
+        }
+        // 본인이 작성한 레코드만 조회
+        const recordsResult = await db_1.pool.query(`SELECT id, company_name, customer_name, phone, account_id, memo, industry
+       FROM sales_tracking 
+       WHERE id = ANY($1) AND user_id = $2`, [ids, req.user?.id]);
+        if (recordsResult.rows.length === 0) {
+            return res.status(400).json({ message: '이동할 수 있는 항목이 없습니다' });
+        }
+        let successCount = 0;
+        let failCount = 0;
+        const errors = [];
+        // 각 레코드를 리타겟팅으로 이동
+        for (const record of recordsResult.rows) {
+            try {
+                // 리타겟팅 고객으로 추가
+                await db_1.pool.query(`INSERT INTO retargeting_customers 
+           (name, company_name, phone, account_id, memo, main_keywords, homepage, instagram, user_id, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+           ON CONFLICT (phone) DO UPDATE 
+           SET memo = EXCLUDED.memo, updated_at = CURRENT_TIMESTAMP`, [
+                    record.customer_name || record.company_name || '이름 없음',
+                    record.company_name || '',
+                    record.phone || '',
+                    record.account_id || '',
+                    record.memo || '',
+                    record.industry || '',
+                    '', // homepage
+                    '', // instagram
+                    req.user?.id
+                ]);
+                // 영업이력에서 삭제
+                await db_1.pool.query(`DELETE FROM sales_tracking WHERE id = $1`, [record.id]);
+                successCount++;
+            }
+            catch (error) {
+                console.error(`Failed to move record ${record.id}:`, error);
+                failCount++;
+                errors.push(`${record.company_name || record.customer_name}: ${error.message}`);
+            }
+        }
+        res.json({
+            success: true,
+            successCount,
+            failCount,
+            message: `${successCount}건을 리타겟팅으로 이동했습니다${failCount > 0 ? ` (실패: ${failCount}건)` : ''}`,
+            errors: errors.length > 0 ? errors : undefined
+        });
+    }
+    catch (error) {
+        console.error('Bulk move to retargeting error:', error);
+        res.status(500).json({ message: '리타겟팅 이동에 실패했습니다' });
+    }
+});
 // Update sales tracking record (only owner can update)
 router.put('/:id', auth_1.authMiddleware, async (req, res) => {
     try {

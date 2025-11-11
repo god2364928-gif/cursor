@@ -381,6 +381,27 @@ export default function SalesTrackingPage() {
     }
   }
 
+  // 일괄 리타겟팅 이동
+  const handleBulkMoveToRetargeting = async () => {
+    if (selectedIds.size === 0) return
+    
+    if (!confirm(`선택한 ${selectedIds.size}건을 리타겟팅으로 이동하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      await api.post('/sales-tracking/bulk-move-to-retargeting', {
+        ids: Array.from(selectedIds)
+      })
+      
+      showToast(`${selectedIds.size}건을 리타겟팅으로 이동했습니다`, 'success')
+      setSelectedIds(new Set())
+      fetchRecords(false, 0)
+    } catch (error: any) {
+      showToast(error.response?.data?.message || '리타겟팅 이동에 실패했습니다', 'error')
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       date: new Date().toISOString().split('T')[0],
@@ -850,7 +871,7 @@ export default function SalesTrackingPage() {
         )}
       </div>
 
-      {/* 일괄 메모 수정 */}
+      {/* 일괄 작업 */}
       {selectedIds.size > 0 && (
         <Card className="mb-4 border-blue-200 bg-blue-50">
           <CardContent className="p-4">
@@ -860,9 +881,19 @@ export default function SalesTrackingPage() {
                   {selectedIds.size}건 선택됨
                 </span>
                 {!showBulkMemoForm && (
-                  <Button size="sm" onClick={() => setShowBulkMemoForm(true)}>
-                    선택 항목 메모 변경
-                  </Button>
+                  <>
+                    <Button size="sm" onClick={() => setShowBulkMemoForm(true)}>
+                      선택 항목 메모 변경
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      className="bg-orange-500 hover:bg-orange-600"
+                      onClick={handleBulkMoveToRetargeting}
+                    >
+                      리타겟팅으로 이동
+                    </Button>
+                  </>
                 )}
                 <Button 
                   size="sm" 
