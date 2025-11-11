@@ -402,6 +402,9 @@ const translations: Record<Language, Translation> = {
     moveToRetargeting: 'リターゲティングへ移動',
     movedToRetargeting: 'リターゲティングへ移動しました',
     moveToRetargetingFailed: 'リターゲティングへの移動に失敗しました',
+    bulkMemoChange: '選択項目メモ変更',
+    deselectAll: '選択解除',
+    selected: '選択済み',
 
     // Daily stats (new)
     dailyStats: '日別統計',
@@ -829,6 +832,9 @@ const translations: Record<Language, Translation> = {
     moveToRetargeting: '리타겟팅으로 이동',
     movedToRetargeting: '리타겟팅으로 이동했습니다',
     moveToRetargetingFailed: '리타겟팅으로 이동에 실패했습니다',
+    bulkMemoChange: '선택 항목 메모 변경',
+    deselectAll: '선택 해제',
+    selected: '선택됨',
 
     // Daily stats (new)
     dailyStats: '일별 통계',

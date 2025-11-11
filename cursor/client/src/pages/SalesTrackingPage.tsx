@@ -880,12 +880,12 @@ export default function SalesTrackingPage() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-blue-900">
-                  {selectedIds.size}건 선택됨
+                  {selectedIds.size}{t('cases')} {t('selected')}
                 </span>
                 {!showBulkMemoForm && (
                   <>
                     <Button size="sm" onClick={() => setShowBulkMemoForm(true)}>
-                      선택 항목 메모 변경
+                      {t('bulkMemoChange')}
                     </Button>
                     <Button 
                       size="sm" 
@@ -893,7 +893,7 @@ export default function SalesTrackingPage() {
                       className="bg-orange-500 hover:bg-orange-600"
                       onClick={handleBulkMoveToRetargeting}
                     >
-                      리타겟팅으로 이동
+                      {t('moveToRetargeting')}
                     </Button>
                   </>
                 )}
@@ -902,7 +902,7 @@ export default function SalesTrackingPage() {
                   variant="outline" 
                   onClick={() => setSelectedIds(new Set())}
                 >
-                  선택 해제
+                  {t('deselectAll')}
                 </Button>
               </div>
               {showBulkMemoForm && (
@@ -1107,9 +1107,10 @@ export default function SalesTrackingPage() {
                       id={`sales-tracking-record-${record.id}`} 
                       className={`border-b relative group ${
                         record.moved_to_retargeting 
-                          ? 'bg-gray-200 text-gray-500 opacity-60' 
+                          ? 'bg-gray-200 text-gray-500' 
                           : 'hover:bg-gray-50'
                       }`}
+                      style={record.moved_to_retargeting ? { opacity: 0.6 } : undefined}
                     >
                       <td className="px-2 py-1 border-r text-center relative overflow-hidden">
                         {record.moved_to_retargeting && (
