@@ -439,7 +439,7 @@ router.post('/:id/convert', authMiddleware, async (req: AuthRequest, res: Respon
         monthlyBudget,
         contractStartDate,
         contractExpirationDate,
-        '계약중',
+        '契約中',
         retargetingCustomer.homepage,
         retargetingCustomer.instagram,
         retargetingCustomer.main_keywords,

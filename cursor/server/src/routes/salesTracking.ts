@@ -192,6 +192,39 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 })
 
+// 일괄 메모 업데이트 (본인 담당 항목만)
+router.put('/bulk-memo', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { ids, memo } = req.body
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: '선택된 항목이 없습니다' })
+    }
+    
+    if (typeof memo !== 'string') {
+      return res.status(400).json({ message: '메모 내용이 필요합니다' })
+    }
+    
+    // 본인이 작성한 레코드만 업데이트
+    const result = await pool.query(
+      `UPDATE sales_tracking 
+       SET memo = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ANY($2) AND user_id = $3
+       RETURNING id`,
+      [memo, ids, req.user?.id]
+    )
+    
+    res.json({ 
+      success: true, 
+      updated: result.rowCount,
+      message: `${result.rowCount}건의 메모를 수정했습니다`
+    })
+  } catch (error) {
+    console.error('Bulk memo update error:', error)
+    res.status(500).json({ message: '일괄 메모 수정에 실패했습니다' })
+  }
+})
+
 // Update sales tracking record (only owner can update)
 router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {

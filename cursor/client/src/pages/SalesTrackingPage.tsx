@@ -80,6 +80,12 @@ export default function SalesTrackingPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 100
 
+  // 체크박스 및 일괄 메모 수정
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showBulkMemoForm, setShowBulkMemoForm] = useState(false)
+  const [bulkMemo, setBulkMemo] = useState('')
+  const [updatingBulkMemo, setUpdatingBulkMemo] = useState(false)
+
   // Form state
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -315,6 +321,63 @@ export default function SalesTrackingPage() {
       } else {
         showToast(error.response?.data?.message || t('moveToRetargetingFailed'), 'error')
       }
+    }
+  }
+
+  // 체크박스 토글
+  const toggleSelectRecord = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  // 전체 선택/해제 (현재 페이지의 본인 담당 항목만)
+  const toggleSelectAll = () => {
+    const myRecords = paginatedRecords.filter(r => r.user_id === user?.id)
+    const myIds = myRecords.map(r => r.id)
+    const allSelected = myIds.every(id => selectedIds.has(id))
+    
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (allSelected) {
+        myIds.forEach(id => next.delete(id))
+      } else {
+        myIds.forEach(id => next.add(id))
+      }
+      return next
+    })
+  }
+
+  // 일괄 메모 수정
+  const handleBulkMemoUpdate = async () => {
+    if (selectedIds.size === 0) return
+    if (!bulkMemo.trim()) {
+      alert('메모를 입력해 주세요')
+      return
+    }
+
+    setUpdatingBulkMemo(true)
+    try {
+      await api.put('/sales-tracking/bulk-memo', {
+        ids: Array.from(selectedIds),
+        memo: bulkMemo.trim()
+      })
+      
+      showToast(`${selectedIds.size}건의 메모를 수정했습니다`, 'success')
+      setSelectedIds(new Set())
+      setBulkMemo('')
+      setShowBulkMemoForm(false)
+      fetchRecords(false, 0)
+    } catch (error: any) {
+      showToast(error.response?.data?.message || '일괄 수정에 실패했습니다', 'error')
+    } finally {
+      setUpdatingBulkMemo(false)
     }
   }
 
@@ -739,6 +802,61 @@ export default function SalesTrackingPage() {
         </div>
       </div>
 
+      {/* 일괄 메모 수정 */}
+      {selectedIds.size > 0 && (
+        <Card className="mb-4 border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-blue-900">
+                  {selectedIds.size}건 선택됨
+                </span>
+                {!showBulkMemoForm && (
+                  <Button size="sm" onClick={() => setShowBulkMemoForm(true)}>
+                    선택 항목 메모 변경
+                  </Button>
+                )}
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  선택 해제
+                </Button>
+              </div>
+              {showBulkMemoForm && (
+                <div className="flex items-center gap-2 flex-1 max-w-xl">
+                  <Input
+                    value={bulkMemo}
+                    onChange={(e) => setBulkMemo(e.target.value)}
+                    placeholder="새 메모 내용 입력"
+                    disabled={updatingBulkMemo}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleBulkMemoUpdate}
+                    disabled={updatingBulkMemo || !bulkMemo.trim()}
+                  >
+                    {updatingBulkMemo ? '저장 중...' : '저장'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowBulkMemoForm(false)
+                      setBulkMemo('')
+                    }}
+                    disabled={updatingBulkMemo}
+                  >
+                    취소
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Quick Add Form */}
       {showAddForm && (
         <Card className="mb-4">
@@ -858,6 +976,57 @@ export default function SalesTrackingPage() {
         </Card>
       )}
 
+      {/* 상단 페이지네이션 */}
+      {filteredRecords.length > 0 && totalPages > 1 && (
+        <div className="mb-4 px-4 py-3 bg-white border rounded flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            {t('showing')} {startIndex + 1} - {Math.min(endIndex, filteredRecords.length)} {t('of')} {filteredRecords.length}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              {t('previous')}
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = currentPage - 2 + i
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </Button>
+                )
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              {t('next')}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Records Table - CSV Style */}
       <Card>
         <CardContent className="p-0">
@@ -865,6 +1034,17 @@ export default function SalesTrackingPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
+                  <th className="px-2 py-2 text-center font-medium border-r w-10">
+                    <input
+                      type="checkbox"
+                      onChange={toggleSelectAll}
+                      checked={
+                        paginatedRecords.filter(r => r.user_id === user?.id).length > 0 &&
+                        paginatedRecords.filter(r => r.user_id === user?.id).every(r => selectedIds.has(r.id))
+                      }
+                      className="cursor-pointer"
+                    />
+                  </th>
                   <th className="px-2 py-2 text-left font-medium border-r w-28">{t('dateTime')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-28">{t('managerName')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('companyName')}</th>
@@ -880,19 +1060,29 @@ export default function SalesTrackingPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
                       {t('loading')}
                     </td>
                   </tr>
                 ) : filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
                       {t('noData')}
                     </td>
                   </tr>
                 ) : (
                   paginatedRecords.map((record) => (
                     <tr key={record.id} id={`sales-tracking-record-${record.id}`} className="border-b hover:bg-gray-50">
+                      <td className="px-2 py-1 border-r text-center">
+                        {record.user_id === user?.id && (
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(record.id)}
+                            onChange={() => toggleSelectRecord(record.id)}
+                            className="cursor-pointer"
+                          />
+                        )}
+                      </td>
                       <td className="px-2 py-1 border-r whitespace-nowrap">{formatDateTime(record.date, record.occurred_at)}</td>
                       <td className="px-2 py-1 border-r">{record.manager_name}</td>
                       <td className="px-2 py-1 border-r">{record.company_name || '-'}</td>
