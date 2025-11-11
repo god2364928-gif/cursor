@@ -76,6 +76,22 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
 
     const newCustomersResult = await pool.query(newCustomersQuery, newCustomersParams)
 
+    // 리타 획득수 (해당 기간에 리타겟팅으로 이동한 고객 수) - 매니저 필터 적용
+    let retargetingAcquiredQuery = `
+      SELECT COUNT(*) as retargeting_acquired
+      FROM retargeting_customers
+      WHERE last_contact_date BETWEEN $1 AND $2
+      AND status NOT IN ('ゴミ箱', '휴지통')
+    `
+    let retargetingAcquiredParams = [startDate, endDate]
+    
+    if (manager && manager !== 'all') {
+      retargetingAcquiredQuery += ` AND manager = $3`
+      retargetingAcquiredParams.push(manager)
+    }
+
+    const retargetingAcquiredResult = await pool.query(retargetingAcquiredQuery, retargetingAcquiredParams)
+
     // 리타겟팅 진행률 - 매니저 필터 적용
     let retargetingQuery = `
       SELECT COUNT(*) as total
@@ -116,6 +132,7 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
       totalSales: parseInt(salesResult.rows[0].total_sales),
       contractCustomers: parseInt(contractCustomersResult.rows[0].contract_customers),
       newCustomers: parseInt(newCustomersResult.rows[0].new_customers),
+      retargetingAcquired: parseInt(retargetingAcquiredResult.rows[0].retargeting_acquired),
       dbStatus: {
         salesStart: parseInt(dbStatusResult.rows[0].sales_start),
         awareness: parseInt(dbStatusResult.rows[0].awareness),

@@ -266,6 +266,10 @@ export default function DashboardPage() {
                     <span>{t('newCustomers')}:</span>
                     <span className="font-medium text-green-600 text-lg">{formatNumber(stats.newCustomers)}{t('cases')}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span>{t('retargetingCount')}:</span>
+                    <span className="font-medium text-purple-600 text-lg">{formatNumber(stats.retargetingAcquired || 0)}{t('cases')}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
