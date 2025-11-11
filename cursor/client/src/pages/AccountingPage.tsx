@@ -107,6 +107,15 @@ interface Account {
   lastUpdated: string
 }
 
+const CATEGORY_OPTIONS = [
+  { value: '셀마플 매출', labelJa: 'セルマプ売上', labelKo: '셀마플 매출' },
+  { value: '코코마케 매출', labelJa: 'ココマケ売上', labelKo: '코코마케 매출' },
+  { value: '운영비', labelJa: '運営費', labelKo: '운영비' },
+  { value: '급여', labelJa: '給与', labelKo: '급여' },
+  { value: '월세', labelJa: '家賃', labelKo: '월세' },
+  { value: '기타', labelJa: 'その他', labelKo: '기타' },
+]
+
 export default function AccountingPage() {
   const { language } = useI18nStore()
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'employees' | 'payroll' | 'recurring' | 'capital'>('dashboard')
@@ -121,6 +130,7 @@ export default function AccountingPage() {
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [nameOptions, setNameOptions] = useState<SimpleUser[]>([])
+  const [updatingTransactionId, setUpdatingTransactionId] = useState<string | null>(null)
 
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
@@ -335,6 +345,58 @@ useEffect(() => {
       fetchDashboard()
     } catch (error) {
       console.error('Transaction delete error:', error)
+    }
+  }
+
+  const handleQuickUpdateTransaction = async (
+    id: string,
+    updates: { category?: string; assignedUserId?: string | null }
+  ) => {
+    const target = transactions.find((tx) => tx.id === id)
+    if (!target) return
+
+    const nextCategory = updates.category ?? target.category
+    const nextAssignedUserId =
+      updates.assignedUserId !== undefined ? updates.assignedUserId : target.assignedUserId ?? null
+
+    const payload = {
+      transactionDate: target.transactionDate,
+      transactionTime: target.transactionTime || '',
+      transactionType: target.transactionType,
+      category: nextCategory,
+      paymentMethod: target.paymentMethod,
+      itemName: target.itemName,
+      amount: target.amount,
+      memo: target.memo ?? null,
+      assignedUserId: nextAssignedUserId,
+    }
+
+    setUpdatingTransactionId(id)
+    try {
+      await api.put(`/accounting/transactions/${id}`, payload)
+      setTransactions((prev) =>
+        prev.map((tx) => {
+          if (tx.id !== id) return tx
+          const assignedName =
+            nextAssignedUserId != null
+              ? nameOptions.length > 0
+                ? nameOptions.find((opt) => opt.id === nextAssignedUserId)?.name ?? tx.assignedUserName ?? null
+                : tx.assignedUserName ?? null
+              : null
+          return {
+            ...tx,
+            category: nextCategory,
+            assignedUserId: nextAssignedUserId,
+            assignedUserName: assignedName,
+          }
+        })
+      )
+    } catch (error) {
+      console.error('Transaction inline update error:', error)
+      alert(language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다')
+      fetchTransactions()
+    } finally {
+      setUpdatingTransactionId(null)
     }
   }
 
@@ -931,32 +993,55 @@ useEffect(() => {
                         <td className="px-3 py-2 text-sm" style={{ maxWidth: '280px' }}>
                           <div className="truncate">{tx.itemName}</div>
                         </td>
-                        <td className="px-3 py-2 text-sm">{tx.category}</td>
-                        <td className="px-3 py-2 text-sm">{tx.assignedUserName || '-'}</td>
+                        <td className="px-3 py-2">
+                          <select
+                            value={tx.category}
+                            onChange={(e) => handleQuickUpdateTransaction(tx.id, { category: e.target.value })}
+                            disabled={updatingTransactionId === tx.id}
+                            className={`w-full border rounded px-2 py-1 text-sm ${updatingTransactionId === tx.id ? 'opacity-60 cursor-wait' : ''}`}
+                          >
+                            {CATEGORY_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {language === 'ja' ? option.labelJa : option.labelKo}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <select
+                            value={tx.assignedUserId ?? ''}
+                            onChange={(e) =>
+                              handleQuickUpdateTransaction(tx.id, {
+                                assignedUserId: e.target.value ? e.target.value : null,
+                              })
+                            }
+                            disabled={updatingTransactionId === tx.id || nameOptions.length === 0}
+                            className={`w-full border rounded px-2 py-1 text-sm ${
+                              updatingTransactionId === tx.id ? 'opacity-60 cursor-wait' : ''
+                            }`}
+                          >
+                            <option value="">{language === 'ja' ? '未選択' : '선택 안 함'}</option>
+                            {nameOptions.map((user) => (
+                              <option key={user.id} value={user.id}>
+                                {user.name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
                         <td className="px-3 py-2 text-right font-semibold text-sm">{formatCurrency(tx.amount)}</td>
                         <td className="px-3 py-2 text-sm">{tx.paymentMethod}</td>
                         <td className="px-3 py-2 text-gray-600 text-xs" style={{ maxWidth: '150px' }}>
                           <div className="truncate">{tx.memo || '-'}</div>
                         </td>
                         <td className="px-3 py-2 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => openTransactionForm(tx)}
-                              aria-label={language === 'ja' ? '修正' : '수정'}
-                            >
-                              <Pencil className="h-4 w-4 text-emerald-600" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleDeleteTransaction(tx.id)}
-                              aria-label={language === 'ja' ? '削除' : '삭제'}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
-                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleDeleteTransaction(tx.id)}
+                            aria-label={language === 'ja' ? '削除' : '삭제'}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
                         </td>
                       </tr>
                     ))}
