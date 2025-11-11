@@ -653,8 +653,8 @@ export default function CustomersPage() {
   
   const normalizeStatus = (s?: string) => {
     const v = (s || '').trim()
-    if (v === '契約中' || v === '購入') return '契約中'
-    if (v === '解約' || v === '契約解除') return '契約解除'
+    if (v === '契約中' || v === '購入' || v === '계약중') return '契約中'
+    if (v === '解約' || v === '契約解除' || v === '계약해제') return '契約解除'
     return v
   }
 
