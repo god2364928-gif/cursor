@@ -1131,11 +1131,11 @@ export default function AccountingPage() {
                             </div>
                           ) : (
                             <div 
-                              className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+                              className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded min-h-[28px]"
                               onClick={() => isAdmin && handleMemoEdit(tx.id, tx.memo ?? null)}
                             >
-                              <span className="text-xs flex-1 truncate">
-                                {tx.memo || (isAdmin ? (language === 'ja' ? 'クリックして編集' : '클릭하여 편집') : '')}
+                              <span className="text-xs flex-1 truncate text-gray-600">
+                                {tx.memo || ''}
                               </span>
                               {isAdmin && (
                                 <Pencil className="w-3 h-3 text-gray-400" />
