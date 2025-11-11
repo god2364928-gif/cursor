@@ -1096,7 +1096,8 @@ export default function AccountingPage() {
                               handleMemoBlur(tx.id, e.target.value)
                             }}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
+                              // 한글 조합 중일 때는 Enter 처리하지 않음
+                              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                                 e.preventDefault()
                                 e.currentTarget.blur()
                               }
