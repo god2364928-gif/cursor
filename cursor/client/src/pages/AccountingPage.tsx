@@ -593,30 +593,32 @@ export default function AccountingPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left">{language === 'ja' ? '日付' : '날짜'}</th>
-                      <th className="px-4 py-3 text-left">{language === 'ja' ? '区分' : '구분'}</th>
-                      <th className="px-4 py-3 text-left">{language === 'ja' ? 'カテゴリ' : '카테고리'}</th>
-                      <th className="px-4 py-3 text-left">{language === 'ja' ? '項目' : '항목'}</th>
-                      <th className="px-4 py-3 text-right">{language === 'ja' ? '金額' : '금액'}</th>
-                      <th className="px-4 py-3 text-left">{language === 'ja' ? '決済' : '결제'}</th>
-                      <th className="px-4 py-3 text-center">{language === 'ja' ? '操作' : '조작'}</th>
+                      <th className="px-4 py-3 text-left w-28">{language === 'ja' ? '日付' : '날짜'}</th>
+                      <th className="px-4 py-3 text-center w-16">{language === 'ja' ? '区分' : '구분'}</th>
+                      <th className="px-4 py-3 text-left w-48">{language === 'ja' ? '項目' : '항목'}</th>
+                      <th className="px-4 py-3 text-left w-24">{language === 'ja' ? 'カテゴリ' : '카테고리'}</th>
+                      <th className="px-4 py-3 text-right w-32">{language === 'ja' ? '金額' : '금액'}</th>
+                      <th className="px-4 py-3 text-left w-24">{language === 'ja' ? '決済' : '결제'}</th>
+                      <th className="px-4 py-3 text-left">{language === 'ja' ? 'メモ' : '메모'}</th>
+                      <th className="px-4 py-3 text-center w-16">{language === 'ja' ? '操作' : '조작'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {transactions.map((tx) => (
                       <tr key={tx.id} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-3">{tx.transactionDate}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">{tx.transactionDate}</td>
+                        <td className="px-4 py-3 text-center">
                           <span className={`px-2 py-1 rounded text-xs font-medium ${
                             tx.transactionType === '입금' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
                           }`}>
-                            {tx.transactionType}
+                            {tx.transactionType === '입금' ? (language === 'ja' ? '入' : '입') : (language === 'ja' ? '出' : '출')}
                           </span>
                         </td>
+                        <td className="px-4 py-3 truncate max-w-xs" title={tx.itemName}>{tx.itemName}</td>
                         <td className="px-4 py-3">{tx.category}</td>
-                        <td className="px-4 py-3">{tx.itemName}</td>
                         <td className="px-4 py-3 text-right font-medium">{formatCurrency(tx.amount)}</td>
                         <td className="px-4 py-3">{tx.paymentMethod}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs">{tx.memo || '-'}</td>
                         <td className="px-4 py-3 text-center">
                           <Button size="sm" variant="ghost" onClick={() => handleDeleteTransaction(tx.id)}>
                             <Trash2 className="h-4 w-4 text-red-600" />
