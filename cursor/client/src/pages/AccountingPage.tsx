@@ -44,6 +44,7 @@ interface DashboardData {
 interface Transaction {
   id: string
   transactionDate: string
+  transactionTime?: string
   fiscalYear: number
   transactionType: string
   category: string
@@ -593,33 +594,42 @@ export default function AccountingPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left w-28">{language === 'ja' ? '日付' : '날짜'}</th>
-                      <th className="px-4 py-3 text-center w-16">{language === 'ja' ? '区分' : '구분'}</th>
-                      <th className="px-4 py-3 text-left w-48">{language === 'ja' ? '項目' : '항목'}</th>
-                      <th className="px-4 py-3 text-left w-24">{language === 'ja' ? 'カテゴリ' : '카테고리'}</th>
-                      <th className="px-4 py-3 text-right w-32">{language === 'ja' ? '金額' : '금액'}</th>
-                      <th className="px-4 py-3 text-left w-24">{language === 'ja' ? '決済' : '결제'}</th>
-                      <th className="px-4 py-3 text-left">{language === 'ja' ? 'メモ' : '메모'}</th>
-                      <th className="px-4 py-3 text-center w-16">{language === 'ja' ? '操作' : '조작'}</th>
+                      <th className="px-3 py-3 text-left" style={{ width: '140px' }}>{language === 'ja' ? '日時' : '날짜/시간'}</th>
+                      <th className="px-3 py-3 text-center" style={{ width: '60px' }}>{language === 'ja' ? '区分' : '구분'}</th>
+                      <th className="px-3 py-3 text-left" style={{ width: '280px' }}>{language === 'ja' ? '項目' : '항목'}</th>
+                      <th className="px-3 py-3 text-left" style={{ width: '80px' }}>{language === 'ja' ? 'カテゴリ' : '카테고리'}</th>
+                      <th className="px-3 py-3 text-right" style={{ width: '120px' }}>{language === 'ja' ? '金額' : '금액'}</th>
+                      <th className="px-3 py-3 text-left" style={{ width: '80px' }}>{language === 'ja' ? '決済' : '결제'}</th>
+                      <th className="px-3 py-3 text-left" style={{ width: '150px' }}>{language === 'ja' ? 'メモ' : '메모'}</th>
+                      <th className="px-3 py-3 text-center" style={{ width: '60px' }}>{language === 'ja' ? '操作' : '조작'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {transactions.map((tx) => (
                       <tr key={tx.id} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap">{tx.transactionDate}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        <td className="px-3 py-2 text-sm">
+                          <div>{tx.transactionDate}</div>
+                          {tx.transactionTime && (
+                            <div className="text-xs text-gray-500">{tx.transactionTime.slice(0, 5)}</div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${
                             tx.transactionType === '입금' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
                           }`}>
                             {tx.transactionType === '입금' ? (language === 'ja' ? '入' : '입') : (language === 'ja' ? '出' : '출')}
                           </span>
                         </td>
-                        <td className="px-4 py-3 truncate max-w-xs" title={tx.itemName}>{tx.itemName}</td>
-                        <td className="px-4 py-3">{tx.category}</td>
-                        <td className="px-4 py-3 text-right font-medium">{formatCurrency(tx.amount)}</td>
-                        <td className="px-4 py-3">{tx.paymentMethod}</td>
-                        <td className="px-4 py-3 text-gray-600 text-xs">{tx.memo || '-'}</td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-3 py-2 text-sm" style={{ maxWidth: '280px' }}>
+                          <div className="truncate" title={tx.itemName}>{tx.itemName}</div>
+                        </td>
+                        <td className="px-3 py-2 text-sm">{tx.category}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-sm">{formatCurrency(tx.amount)}</td>
+                        <td className="px-3 py-2 text-sm">{tx.paymentMethod}</td>
+                        <td className="px-3 py-2 text-gray-600 text-xs" style={{ maxWidth: '150px' }}>
+                          <div className="truncate" title={tx.memo || ''}>{tx.memo || '-'}</div>
+                        </td>
+                        <td className="px-3 py-2 text-center">
                           <Button size="sm" variant="ghost" onClick={() => handleDeleteTransaction(tx.id)}>
                             <Trash2 className="h-4 w-4 text-red-600" />
                           </Button>

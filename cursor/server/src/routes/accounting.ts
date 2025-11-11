@@ -108,7 +108,7 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
 
     let query = `
       SELECT 
-        t.id, t.transaction_date, t.fiscal_year, t.transaction_type, t.category,
+        t.id, t.transaction_date, t.transaction_time, t.fiscal_year, t.transaction_type, t.category,
         t.payment_method, t.item_name, t.amount, t.memo, t.attachment_url,
         t.created_at,
         e.name as employee_name,
@@ -132,6 +132,7 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
     res.json(result.rows.map((r: any) => ({
       id: r.id,
       transactionDate: r.transaction_date,
+      transactionTime: r.transaction_time,
       fiscalYear: r.fiscal_year,
       transactionType: r.transaction_type,
       category: r.category,
@@ -289,13 +290,17 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         const year = cols[0]
         const month = cols[1]
         const day = cols[2]
+        const hour = cols[3]
+        const minute = cols[4]
+        const second = cols[5]
         const description = cols[7]
         const paymentAmount = cols[8] // お支払金額 (출금)
         const depositAmount = cols[9] // お預り金額 (입금)
         const memo = cols[11] || ''
 
-        // 날짜 생성
+        // 날짜 및 시간 생성
         const transactionDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+        const transactionTime = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(2, '0')}`
         
         // 입금 vs 출금 판단
         const isDeposit = depositAmount && depositAmount !== '' && Number(depositAmount) > 0
@@ -330,10 +335,10 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         // DB 삽입
         const result = await pool.query(
           `INSERT INTO accounting_transactions 
-           (transaction_date, transaction_type, category, payment_method, item_name, amount, memo)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, memo)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING *`,
-          [transactionDate, transactionType, category, paymentMethod, itemName, amount, memo || null]
+          [transactionDate, transactionTime, transactionType, category, paymentMethod, itemName, amount, memo || null]
         )
 
         imported.push(result.rows[0])
