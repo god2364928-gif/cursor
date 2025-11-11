@@ -1127,14 +1127,14 @@ export default function SalesTrackingPage() {
                         )}
                       </td>
                       <td className="px-2 py-1 border-r whitespace-nowrap overflow-hidden">{formatDateTime(record.date, record.occurred_at)}</td>
-                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2">{record.manager_name}</td>
-                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2" title={!record.moved_to_retargeting ? (record.company_name || '-') : undefined}>{record.company_name || '-'}</td>
-                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2">{translateIndustryLabel(record.industry as any)}</td>
-                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2">{record.phone || '-'}</td>
-                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2" title={!record.moved_to_retargeting ? (record.account_id || '-') : undefined}>{record.account_id || '-'}</td>
-                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2">{translateContactMethodLabel(record.contact_method as any)}</td>
-                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2">{translateStatusLabel(record.status as any)}</td>
-                      <td className="px-2 py-1 border-r overflow-hidden line-clamp-2 w-24 max-w-[6rem]" title={!record.moved_to_retargeting ? (record.memo || '') : undefined}>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden">{record.manager_name}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden" title={!record.moved_to_retargeting ? (record.company_name || '-') : undefined}>{record.company_name || '-'}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden">{translateIndustryLabel(record.industry as any)}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden">{record.phone || '-'}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden" title={!record.moved_to_retargeting ? (record.account_id || '-') : undefined}>{record.account_id || '-'}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden">{translateContactMethodLabel(record.contact_method as any)}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden">{translateStatusLabel(record.status as any)}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden w-24 max-w-[6rem]" title={!record.moved_to_retargeting ? (record.memo || '') : undefined}>
                         {record.memo || '-'}
                       </td>
                       <td className="px-2 py-1 text-center overflow-hidden">
