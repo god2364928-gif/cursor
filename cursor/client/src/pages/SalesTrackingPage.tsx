@@ -788,9 +788,9 @@ export default function SalesTrackingPage() {
         </select>
       </div>
 
-      {/* Local Search - 영업이력 페이지 내 검색 */}
-      <div className="mb-4">
-        <div className="relative max-w-md">
+      {/* 검색 및 페이지네이션 */}
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="relative max-w-md flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             type="text"
@@ -800,6 +800,50 @@ export default function SalesTrackingPage() {
             className="pl-10"
           />
         </div>
+        {filteredRecords.length > 0 && totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              {t('previous')}
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = currentPage - 2 + i
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </Button>
+                )
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              {t('next')}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* 일괄 메모 수정 */}
@@ -974,52 +1018,6 @@ export default function SalesTrackingPage() {
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* 상단 페이지네이션 */}
-      {filteredRecords.length > 0 && totalPages > 1 && (
-        <div className="mb-4 flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-          >
-            {t('previous')}
-          </Button>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum
-              if (totalPages <= 5) {
-                pageNum = i + 1
-              } else if (currentPage <= 3) {
-                pageNum = i + 1
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i
-              } else {
-                pageNum = currentPage - 2 + i
-              }
-              return (
-                <Button
-                  key={pageNum}
-                  variant={currentPage === pageNum ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setCurrentPage(pageNum)}
-                >
-                  {pageNum}
-                </Button>
-              )
-            })}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
-          >
-            {t('next')}
-          </Button>
-        </div>
       )}
 
       {/* Records Table - CSV Style */}

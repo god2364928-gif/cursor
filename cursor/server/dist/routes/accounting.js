@@ -293,14 +293,34 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
         if (!req.file) {
             return res.status(400).json({ error: 'CSV 파일을 업로드해 주세요' });
         }
-        // CP932(Shift-JIS) → UTF-8 변환 (확실하게)
-        const utf8Content = iconv_lite_1.default.decode(req.file.buffer, 'CP932');
+        // 다양한 인코딩 시도
+        let utf8Content = null;
+        const encodings = ['CP932', 'SHIFT_JIS', 'EUC-JP', 'UTF-8'];
+        for (const encoding of encodings) {
+            try {
+                const decoded = iconv_lite_1.default.decode(req.file.buffer, encoding);
+                // 일본어 문자가 제대로 보이는지 확인
+                if (decoded.includes('お') || decoded.includes('ご') || /[\u3040-\u309F\u30A0-\u30FF]/.test(decoded)) {
+                    utf8Content = decoded;
+                    console.log(`Successfully decoded with ${encoding}`);
+                    break;
+                }
+            }
+            catch (e) {
+                console.log(`Failed to decode with ${encoding}`);
+                continue;
+            }
+        }
+        // 모든 인코딩 실패 시 UTF-8로 시도
+        if (!utf8Content) {
+            utf8Content = iconv_lite_1.default.decode(req.file.buffer, 'UTF-8');
+        }
         // CSV 파싱
         const records = (0, sync_1.parse)(utf8Content, {
             skip_empty_lines: true,
             relax_column_count: true,
-            trim: false, // 공백 유지
-            bom: true // BOM 처리
+            trim: false,
+            bom: true
         });
         if (!Array.isArray(records) || records.length < 2) {
             return res.status(400).json({ error: 'CSV 파일이 비어 있습니다' });
@@ -321,8 +341,8 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
                 const second = (cols[5] || '').trim();
                 const description = (cols[7] || '').trim();
                 const sanitizeAmount = (value) => (value || '').replace(/[^\d.-]/g, '').replace(/\r/g, '');
-                const paymentAmount = sanitizeAmount(cols[8]); // お支払金額 (출금)
-                const depositAmount = sanitizeAmount(cols[9]); // お預り金額 (입금)
+                const paymentAmount = sanitizeAmount(cols[8]);
+                const depositAmount = sanitizeAmount(cols[9]);
                 const memo = cols[11]?.replace(/\r/g, '') || '';
                 // 날짜 및 시간 생성
                 const transactionDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
@@ -366,7 +386,6 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
                         category = '운영비';
                     }
                 }
-                // 항목명은 원본 그대로 사용 (이미 UTF-8로 디코딩됨)
                 const itemName = description || '(설명 없음)';
                 const memoClean = memo || null;
                 // DB 삽입

@@ -372,15 +372,36 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
       return res.status(400).json({ error: 'CSV 파일을 업로드해 주세요' })
     }
 
-    // CP932(Shift-JIS) → UTF-8 변환 (확실하게)
-    const utf8Content = iconv.decode(req.file.buffer, 'CP932')
+    // 다양한 인코딩 시도
+    let utf8Content: string | null = null
+    const encodings = ['CP932', 'SHIFT_JIS', 'EUC-JP', 'UTF-8']
+    
+    for (const encoding of encodings) {
+      try {
+        const decoded = iconv.decode(req.file.buffer, encoding)
+        // 일본어 문자가 제대로 보이는지 확인
+        if (decoded.includes('お') || decoded.includes('ご') || /[\u3040-\u309F\u30A0-\u30FF]/.test(decoded)) {
+          utf8Content = decoded
+          console.log(`Successfully decoded with ${encoding}`)
+          break
+        }
+      } catch (e) {
+        console.log(`Failed to decode with ${encoding}`)
+        continue
+      }
+    }
+    
+    // 모든 인코딩 실패 시 UTF-8로 시도
+    if (!utf8Content) {
+      utf8Content = iconv.decode(req.file.buffer, 'UTF-8')
+    }
     
     // CSV 파싱
     const records = parse(utf8Content, {
       skip_empty_lines: true,
       relax_column_count: true,
-      trim: false,  // 공백 유지
-      bom: true     // BOM 처리
+      trim: false,
+      bom: true
     }) as string[][]
 
     if (!Array.isArray(records) || records.length < 2) {
@@ -406,8 +427,8 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         const sanitizeAmount = (value?: string) =>
           (value || '').replace(/[^\d.-]/g, '').replace(/\r/g, '')
         
-        const paymentAmount = sanitizeAmount(cols[8]) // お支払金額 (출금)
-        const depositAmount = sanitizeAmount(cols[9]) // お預り金額 (입금)
+        const paymentAmount = sanitizeAmount(cols[8])
+        const depositAmount = sanitizeAmount(cols[9])
         const memo = cols[11]?.replace(/\r/g, '') || ''
 
         // 날짜 및 시간 생성
@@ -451,7 +472,6 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
           }
         }
 
-        // 항목명은 원본 그대로 사용 (이미 UTF-8로 디코딩됨)
         const itemName = description || '(설명 없음)'
         const memoClean = memo || null
 
