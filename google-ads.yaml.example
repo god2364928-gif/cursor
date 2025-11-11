@@ -1,0 +1,13 @@
+# Google Ads API credentials example. Copy to google-ads.yaml and fill values.
+# DO NOT commit the real file to version control.
+
+developer_token: "INSERT_DEVELOPER_TOKEN"
+client_id: "INSERT_OAUTH_CLIENT_ID"
+client_secret: "INSERT_OAUTH_CLIENT_SECRET"
+refresh_token: "INSERT_REFRESH_TOKEN"
+# Optional: specify if accessing a manager account (without dashes).
+# login_customer_id: "1234567890"
+# If using a specific Google Ads account (without dashes), uncomment below.
+# client_customer_id: "0987654321"
+use_proto_plus: True
+

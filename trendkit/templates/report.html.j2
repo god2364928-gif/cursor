@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ labels.report_title }} - {{ keyword }}</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      padding: 32px;
+      background: #101016;
+      color: #f2f4f8;
+      font-family: "Hiragino Sans", "Yu Gothic", "Apple SD Gothic Neo", "Noto Sans CJK JP", "Noto Sans CJK KR", sans-serif;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      background: #1f1f2a;
+      object-fit: contain;
+      padding: 8px;
+    }
+    .title-block h1 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: 0.02em;
+    }
+    .meta {
+      display: flex;
+      gap: 16px;
+      font-size: 14px;
+      color: #cfd3dc;
+    }
+    .badge {
+      background: linear-gradient(135deg, #2c2c40, #1d1d2e);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #9fa5b6;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+    .card {
+      background: #161621;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card h2 {
+      margin: 0;
+      font-size: 18px;
+      color: #f8f9fd;
+    }
+    .insights ul {
+      margin: 0;
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      color: #e0e4ef;
+      font-size: 14px;
+    }
+    .peaks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 14px;
+    }
+    .peaks-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1d1d2e;
+      padding: 12px 16px;
+      border-radius: 12px;
+    }
+    .medal {
+      font-size: 18px;
+      margin-right: 8px;
+    }
+    .fig-wrapper img {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .two-column {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+    .banner {
+      background: rgba(255, 119, 67, 0.12);
+      border: 1px solid rgba(255, 119, 67, 0.4);
+      color: #ffb997;
+      padding: 16px 20px;
+      border-radius: 16px;
+      font-size: 14px;
+    }
+    .ads-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 14px;
+      color: #d6d9e7;
+    }
+    .footer {
+      font-size: 12px;
+      color: #747b8d;
+      text-align: right;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    {% if logo_path %}
+    <img src="{{ logo_path }}" alt="Logo" class="logo" />
+    {% endif %}
+    <div class="title-block">
+      <div class="badge">{{ labels.report_badge }}</div>
+      <h1>{{ keyword }}</h1>
+      <div class="meta">
+        <span>{{ labels.meta_geo }}: {{ geo }}</span>
+        <span>{{ labels.meta_timeframe }}: {{ timeframe }}</span>
+        <span>{{ labels.generated_label }}: {{ generated_at }}</span>
+      </div>
+    </div>
+  </header>
+
+  {% if ads_warning %}
+  <div class="banner">
+    {{ labels.ads_warning }}
+  </div>
+  {% endif %}
+
+  <section class="grid">
+    <article class="card insights">
+      <h2>{{ labels.insights_title }}</h2>
+      <ul>
+        <li>{{ insights.seasonal_peak }}</li>
+        <li>{{ insights.weekday_pattern }}</li>
+        <li>{{ insights.lowest_month }}</li>
+        {% if insights.top_week %}
+        <li>{{ insights.top_week }}</li>
+        {% endif %}
+      </ul>
+    </article>
+
+    <article class="card">
+      <h2>{{ labels.weekly_peaks_title }}</h2>
+      <div class="fig-wrapper">
+        <img src="{{ figures.weekly }}" alt="{{ labels.weekly_peaks_title }}" />
+      </div>
+    </article>
+  </section>
+
+  <section class="two-column">
+    <article class="card">
+      <h2>{{ labels.monthly_rank_title }}</h2>
+      <div class="fig-wrapper">
+        <img src="{{ figures.monthly }}" alt="{{ labels.monthly_rank_title }}" />
+      </div>
+    </article>
+    <article class="card">
+      <h2>{{ labels.weekday_rank_title }}</h2>
+      <div class="fig-wrapper">
+        <img src="{{ figures.weekday }}" alt="{{ labels.weekday_rank_title }}" />
+      </div>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2>{{ labels.peaks_table_title }}</h2>
+    <div class="peaks-list">
+      {% for peak in weekly_peaks %}
+      <div class="peaks-item">
+        <div>
+          <span class="medal">
+            {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}•{% endif %}
+          </span>
+          <span>{{ peak.week_start.strftime("%Y-%m-%d") }}</span>
+        </div>
+        <div>{{ peak.value }}</div>
+      </div>
+      {% else %}
+      <div class="peaks-item">
+        <span>{{ labels.no_data }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>{{ labels.ads_title }}</h2>
+    <div class="ads-summary">
+      <div>{{ labels.avg_searches }}: {{ ads_summary.avg_monthly_searches }}</div>
+      <div>{{ labels.competition }}: {{ ads_summary.competition_index }}</div>
+      <div>{{ labels.cpc_range }}: {{ ads_summary.low_cpc }} - {{ ads_summary.high_cpc }}</div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    {{ labels.footer_note }}
+  </footer>
+</body>
+</html>
+

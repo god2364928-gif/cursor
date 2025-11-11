@@ -8,6 +8,7 @@ const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
 const multer_1 = __importDefault(require("multer"));
 const iconv_lite_1 = __importDefault(require("iconv-lite"));
+const sync_1 = require("csv-parse/sync");
 const router = (0, express_1.Router)();
 const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 // Admin 권한 체크 미들웨어
@@ -294,52 +295,26 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
         }
         // SHIFT-JIS -> UTF-8 변환
         const utf8Content = iconv_lite_1.default.decode(req.file.buffer, 'CP932');
-        const lines = utf8Content
-            .split(/\r?\n/)
-            .map((line) => line.replace(/\r$/, ''))
-            .filter((line) => line.trim().length > 0);
-        if (lines.length < 2) {
+        const records = (0, sync_1.parse)(utf8Content, {
+            skip_empty_lines: true,
+        });
+        if (!Array.isArray(records) || records.length < 2) {
             return res.status(400).json({ error: 'CSV 파일이 비어 있습니다' });
         }
         // 헤더 제거
-        const dataLines = lines.slice(1);
+        const dataLines = records.slice(1);
         const imported = [];
         const errors = [];
-        for (const line of dataLines) {
+        for (const cols of dataLines) {
             try {
-                // CSV 파싱 - 빈 문자열("")도 정확히 캡처
-                const cols = [];
-                let current = '';
-                let inQuotes = false;
-                for (let i = 0; i < line.length; i++) {
-                    const char = line[i];
-                    if (char === '"') {
-                        const next = line[i + 1];
-                        if (inQuotes && next === '"') {
-                            current += '"';
-                            i += 1;
-                        }
-                        else {
-                            inQuotes = !inQuotes;
-                        }
-                    }
-                    else if (char === ',' && !inQuotes) {
-                        cols.push(current.replace(/\r/g, ''));
-                        current = '';
-                    }
-                    else {
-                        current += char;
-                    }
-                }
-                cols.push(current.replace(/\r/g, '')); // 마지막 컬럼
                 if (cols.length < 11)
                     continue;
-                const year = cols[0];
-                const month = cols[1];
-                const day = cols[2];
-                const hour = cols[3];
-                const minute = cols[4];
-                const second = cols[5];
+                const year = (cols[0] || '').trim();
+                const month = (cols[1] || '').trim();
+                const day = (cols[2] || '').trim();
+                const hour = (cols[3] || '').trim();
+                const minute = (cols[4] || '').trim();
+                const second = (cols[5] || '').trim();
                 const description = (cols[7] || '').trim();
                 const sanitizeAmount = (value) => (value || '').replace(/[^\d.-]/g, '').replace(/\r/g, '');
                 const paymentAmount = sanitizeAmount(cols[8]); // お支払金額 (출금)
@@ -397,7 +372,7 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
             }
             catch (lineError) {
                 console.error('CSV line parse error:', lineError);
-                errors.push({ line, error: String(lineError) });
+                errors.push({ row: cols, error: String(lineError) });
             }
         }
         res.json({
@@ -410,6 +385,16 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
     catch (error) {
         console.error('CSV upload error:', error);
         res.status(500).json({ error: 'CSV 업로드에 실패했습니다' });
+    }
+});
+router.delete('/transactions/all', auth_1.authMiddleware, adminOnly, async (_req, res) => {
+    try {
+        await db_1.pool.query('TRUNCATE accounting_sales, accounting_transactions RESTART IDENTITY');
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Transaction bulk delete error:', error);
+        res.status(500).json({ error: '거래내역 초기화에 실패했습니다' });
     }
 });
 // ========== 직원 (Employees) ==========

@@ -8,6 +8,7 @@ const pg_1 = require("pg");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 // Ensure we use the correct database connection
+process.env.PGCLIENTENCODING = 'utf8';
 const databaseUrl = process.env.DATABASE_URL || 'postgresql://postgres:xodrn123@localhost:5432/crm_db';
 console.log('Database URL:', databaseUrl.replace(/password=[^@]+/, 'password=***'));
 // Determine if SSL should be used based on hostname
@@ -26,7 +27,12 @@ if (!isLocalhost) {
 }
 exports.pool = new pg_1.Pool(poolConfig);
 // Ensure UTF-8 encoding for all connections
-exports.pool.on('connect', (client) => {
-    client.query('SET client_encoding TO UTF8');
+exports.pool.on('connect', async (client) => {
+    try {
+        await client.query(`SET client_encoding TO 'UTF8'`);
+    }
+    catch (error) {
+        console.error('Failed to set client encoding', error);
+    }
 });
 //# sourceMappingURL=db.js.map
