@@ -293,10 +293,25 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
         if (!req.file) {
             return res.status(400).json({ error: 'CSV 파일을 업로드해 주세요' });
         }
-        // SHIFT-JIS -> UTF-8 변환
-        const utf8Content = iconv_lite_1.default.decode(req.file.buffer, 'CP932');
+        // CP932(Shift-JIS) → UTF-8 변환
+        let utf8Content;
+        try {
+            // CP932로 먼저 시도
+            utf8Content = iconv_lite_1.default.decode(req.file.buffer, 'CP932');
+        }
+        catch (e) {
+            // 실패하면 UTF-8로 시도
+            try {
+                utf8Content = iconv_lite_1.default.decode(req.file.buffer, 'UTF-8');
+            }
+            catch (e2) {
+                // 마지막으로 SHIFT_JIS 시도
+                utf8Content = iconv_lite_1.default.decode(req.file.buffer, 'SHIFT_JIS');
+            }
+        }
         const records = (0, sync_1.parse)(utf8Content, {
             skip_empty_lines: true,
+            relax_column_count: true,
         });
         if (!Array.isArray(records) || records.length < 2) {
             return res.status(400).json({ error: 'CSV 파일이 비어 있습니다' });
@@ -362,12 +377,14 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
                         category = '운영비';
                     }
                 }
-                const itemName = (description || '(설명 없음)').replace(/\r/g, '');
+                // 항목명을 UTF-8로 명시적 처리
+                const itemName = Buffer.from((description || '(설명 없음)').replace(/\r/g, ''), 'utf8').toString('utf8');
+                const memoClean = memo ? Buffer.from(memo, 'utf8').toString('utf8') : null;
                 // DB 삽입
                 const result = await db_1.pool.query(`INSERT INTO accounting_transactions 
            (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, assigned_user_id, memo)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           RETURNING *`, [transactionDate, transactionTime, transactionType, category, paymentMethod, itemName, amount, null, memo || null]);
+           RETURNING *`, [transactionDate, transactionTime, transactionType, category, paymentMethod, itemName, amount, null, memoClean]);
                 imported.push(result.rows[0]);
             }
             catch (lineError) {
