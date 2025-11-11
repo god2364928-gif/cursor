@@ -432,10 +432,17 @@ export default function AccountingPage() {
     if (!isAdmin) return
     const original = memoDraftOriginalRef.current[id] ?? transactions.find((tx) => tx.id === id)?.memo ?? null
     delete memoDraftOriginalRef.current[id]
-    if ((original ?? '') === value) {
+    
+    // 값이 변경되지 않았으면 업데이트하지 않음
+    const originalValue = original ?? ''
+    const newValue = value.trim()
+    
+    if (originalValue === newValue) {
       return
     }
-    handleQuickUpdateTransaction(id, { memo: value.length > 0 ? value : null })
+    
+    console.log('Memo changed:', { id, from: originalValue, to: newValue })
+    handleQuickUpdateTransaction(id, { memo: newValue.length > 0 ? newValue : null })
   }
 
 
