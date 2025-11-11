@@ -15,6 +15,7 @@ import globalSearchRoutes from './routes/globalSearch'
 import integrationsRoutes from './routes/integrations'
 import accountOptimizationRoutes from './routes/accountOptimization'
 import keywordAnalysisRoutes from './routes/keywordAnalysis'
+import accountingRoutes from './routes/accounting'
 import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking } from './migrations/autoMigrate'
 
@@ -91,6 +92,7 @@ app.use('/api/global-search', globalSearchRoutes)
 app.use('/api/integrations', integrationsRoutes)
 app.use('/api/account-optimization', accountOptimizationRoutes)
 app.use('/api/keyword-analysis', keywordAnalysisRoutes)
+app.use('/api/accounting', accountingRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {

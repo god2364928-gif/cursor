@@ -1,0 +1,456 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const db_1 = require("../db");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+// Admin 권한 체크 미들웨어
+const adminOnly = (req, res, next) => {
+    if (req.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin 권한이 필요합니다' });
+    }
+    next();
+};
+// 비밀번호 검증 (Hot1012!)
+router.post('/verify-password', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    const { password } = req.body;
+    if (password === 'Hot1012!') {
+        return res.json({ success: true });
+    }
+    return res.status(401).json({ success: false, error: '비밀번호가 일치하지 않습니다' });
+});
+// ========== 대시보드 요약 ==========
+router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { fiscalYear } = req.query;
+        const year = fiscalYear ? Number(fiscalYear) : new Date().getMonth() >= 9 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+        // 매출 합계
+        const salesResult = await db_1.pool.query(`SELECT 
+        COALESCE(SUM(amount), 0) as total_sales
+       FROM accounting_transactions
+       WHERE fiscal_year = $1 AND category = '매출'`, [year]);
+        // 지출 합계
+        const expensesResult = await db_1.pool.query(`SELECT 
+        category,
+        COALESCE(SUM(amount), 0) as total
+       FROM accounting_transactions
+       WHERE fiscal_year = $1 AND transaction_type = '출금'
+       GROUP BY category`, [year]);
+        // 계좌 잔액
+        const accountsResult = await db_1.pool.query(`SELECT account_name, account_type, current_balance
+       FROM accounting_capital
+       ORDER BY account_type, account_name`);
+        // 월별 매출 추이
+        const monthlySalesResult = await db_1.pool.query(`SELECT 
+        TO_CHAR(transaction_date, 'YYYY-MM') as month,
+        COALESCE(SUM(amount), 0) as total
+       FROM accounting_transactions
+       WHERE fiscal_year = $1 AND category = '매출'
+       GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
+       ORDER BY month`, [year]);
+        const totalSales = Number(salesResult.rows[0]?.total_sales || 0);
+        const expensesByCategory = expensesResult.rows.reduce((acc, row) => {
+            acc[row.category] = Number(row.total);
+            return acc;
+        }, {});
+        const totalExpenses = Object.values(expensesByCategory).reduce((sum, val) => sum + val, 0);
+        res.json({
+            fiscalYear: year,
+            totalSales,
+            totalExpenses,
+            netProfit: totalSales - totalExpenses,
+            expensesByCategory,
+            accounts: accountsResult.rows.map((r) => ({
+                accountName: r.account_name,
+                accountType: r.account_type,
+                balance: Number(r.current_balance),
+            })),
+            monthlySales: monthlySalesResult.rows.map((r) => ({
+                month: r.month,
+                amount: Number(r.total),
+            })),
+        });
+    }
+    catch (error) {
+        console.error('Dashboard summary error:', error);
+        res.status(500).json({ error: '대시보드 데이터를 불러오지 못했습니다' });
+    }
+});
+// ========== 거래내역 (Transactions) ==========
+router.get('/transactions', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { fiscalYear, limit = 100, offset = 0 } = req.query;
+        const year = fiscalYear ? Number(fiscalYear) : null;
+        let query = `
+      SELECT 
+        t.id, t.transaction_date, t.fiscal_year, t.transaction_type, t.category,
+        t.payment_method, t.item_name, t.amount, t.memo, t.attachment_url,
+        t.created_at,
+        e.name as employee_name,
+        c.account_name
+      FROM accounting_transactions t
+      LEFT JOIN accounting_employees e ON t.employee_id = e.id
+      LEFT JOIN accounting_capital c ON t.account_id = c.id
+    `;
+        const params = [];
+        if (year) {
+            query += ` WHERE t.fiscal_year = $1`;
+            params.push(year);
+        }
+        query += ` ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(Number(limit), Number(offset));
+        const result = await db_1.pool.query(query, params);
+        res.json(result.rows.map((r) => ({
+            id: r.id,
+            transactionDate: r.transaction_date,
+            fiscalYear: r.fiscal_year,
+            transactionType: r.transaction_type,
+            category: r.category,
+            paymentMethod: r.payment_method,
+            itemName: r.item_name,
+            amount: Number(r.amount),
+            employeeName: r.employee_name,
+            accountName: r.account_name,
+            memo: r.memo,
+            attachmentUrl: r.attachment_url,
+            createdAt: r.created_at,
+        })));
+    }
+    catch (error) {
+        console.error('Transactions fetch error:', error);
+        res.status(500).json({ error: '거래내역을 불러오지 못했습니다' });
+    }
+});
+router.post('/transactions', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { transactionDate, transactionType, category, paymentMethod, itemName, amount, employeeId, accountId, memo, attachmentUrl, } = req.body;
+        const result = await db_1.pool.query(`INSERT INTO accounting_transactions 
+       (transaction_date, transaction_type, category, payment_method, item_name, amount, employee_id, account_id, memo, attachment_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`, [transactionDate, transactionType, category, paymentMethod, itemName, amount, employeeId || null, accountId || null, memo || null, attachmentUrl || null]);
+        const transaction = result.rows[0];
+        // 자동화: 매출 카테고리면 accounting_sales에 반영
+        if (category === '매출' && transactionType === '입금') {
+            const fiscalYear = transaction.fiscal_year;
+            const month = new Date(transactionDate).toISOString().slice(0, 7) + '-01';
+            await db_1.pool.query(`INSERT INTO accounting_sales (fiscal_year, transaction_month, channel, sales_category, total_amount)
+         VALUES ($1, $2, $3, '서비스', $4)
+         ON CONFLICT DO NOTHING`, [fiscalYear, month, paymentMethod, amount]);
+        }
+        // 자동화: 계좌 잔액 갱신
+        if (accountId) {
+            const balanceChange = transactionType === '입금' ? amount : -amount;
+            await db_1.pool.query(`UPDATE accounting_capital
+         SET current_balance = current_balance + $1, last_updated = NOW()
+         WHERE id = $2`, [balanceChange, accountId]);
+        }
+        res.json({ success: true, transaction });
+    }
+    catch (error) {
+        console.error('Transaction create error:', error);
+        res.status(500).json({ error: '거래내역 추가에 실패했습니다' });
+    }
+});
+router.delete('/transactions/:id', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // 삭제 전 거래 정보 조회 (잔액 복구용)
+        const transactionResult = await db_1.pool.query(`SELECT transaction_type, amount, account_id FROM accounting_transactions WHERE id = $1`, [id]);
+        if (transactionResult.rows.length === 0) {
+            return res.status(404).json({ error: '거래내역을 찾을 수 없습니다' });
+        }
+        const { transaction_type, amount, account_id } = transactionResult.rows[0];
+        // 삭제
+        await db_1.pool.query(`DELETE FROM accounting_transactions WHERE id = $1`, [id]);
+        // 잔액 복구
+        if (account_id) {
+            const balanceChange = transaction_type === '입금' ? -amount : amount;
+            await db_1.pool.query(`UPDATE accounting_capital
+         SET current_balance = current_balance + $1, last_updated = NOW()
+         WHERE id = $2`, [balanceChange, account_id]);
+        }
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Transaction delete error:', error);
+        res.status(500).json({ error: '거래내역 삭제에 실패했습니다' });
+    }
+});
+// ========== 직원 (Employees) ==========
+router.get('/employees', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const result = await db_1.pool.query(`SELECT * FROM accounting_employees ORDER BY employment_status, hire_date`);
+        res.json(result.rows.map((r) => ({
+            id: r.id,
+            name: r.name,
+            position: r.position,
+            hireDate: r.hire_date,
+            baseSalary: Number(r.base_salary),
+            incentiveRate: Number(r.incentive_rate),
+            employmentStatus: r.employment_status,
+            createdAt: r.created_at,
+        })));
+    }
+    catch (error) {
+        console.error('Employees fetch error:', error);
+        res.status(500).json({ error: '직원 목록을 불러오지 못했습니다' });
+    }
+});
+router.post('/employees', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { name, position, hireDate, baseSalary, incentiveRate } = req.body;
+        const result = await db_1.pool.query(`INSERT INTO accounting_employees (name, position, hire_date, base_salary, incentive_rate)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`, [name, position, hireDate, baseSalary || 0, incentiveRate || 0]);
+        res.json({ success: true, employee: result.rows[0] });
+    }
+    catch (error) {
+        console.error('Employee create error:', error);
+        res.status(500).json({ error: '직원 추가에 실패했습니다' });
+    }
+});
+router.put('/employees/:id', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, position, hireDate, baseSalary, incentiveRate, employmentStatus } = req.body;
+        const result = await db_1.pool.query(`UPDATE accounting_employees
+       SET name = $1, position = $2, hire_date = $3, base_salary = $4, incentive_rate = $5, employment_status = $6, updated_at = NOW()
+       WHERE id = $7
+       RETURNING *`, [name, position, hireDate, baseSalary, incentiveRate, employmentStatus, id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: '직원을 찾을 수 없습니다' });
+        }
+        res.json({ success: true, employee: result.rows[0] });
+    }
+    catch (error) {
+        console.error('Employee update error:', error);
+        res.status(500).json({ error: '직원 정보 수정에 실패했습니다' });
+    }
+});
+router.delete('/employees/:id', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db_1.pool.query(`DELETE FROM accounting_employees WHERE id = $1`, [id]);
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Employee delete error:', error);
+        res.status(500).json({ error: '직원 삭제에 실패했습니다' });
+    }
+});
+// ========== 급여 (Payroll) ==========
+router.get('/payroll', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { paymentMonth } = req.query;
+        let query = `
+      SELECT 
+        p.id, p.payment_month, p.base_salary, p.incentive, p.other_payments, p.total_amount, p.payment_status,
+        e.id as employee_id, e.name as employee_name, e.position, e.incentive_rate
+      FROM accounting_payroll p
+      JOIN accounting_employees e ON p.employee_id = e.id
+    `;
+        const params = [];
+        if (paymentMonth) {
+            query += ` WHERE p.payment_month = $1`;
+            params.push(paymentMonth);
+        }
+        query += ` ORDER BY p.payment_month DESC, e.name`;
+        const result = await db_1.pool.query(query, params);
+        res.json(result.rows.map((r) => ({
+            id: r.id,
+            paymentMonth: r.payment_month,
+            employeeId: r.employee_id,
+            employeeName: r.employee_name,
+            position: r.position,
+            baseSalary: Number(r.base_salary),
+            incentive: Number(r.incentive),
+            otherPayments: Number(r.other_payments),
+            totalAmount: Number(r.total_amount),
+            paymentStatus: r.payment_status,
+            incentiveRate: Number(r.incentive_rate),
+        })));
+    }
+    catch (error) {
+        console.error('Payroll fetch error:', error);
+        res.status(500).json({ error: '급여 목록을 불러오지 못했습니다' });
+    }
+});
+// 급여 자동 생성 (특정 월의 모든 재직 직원)
+router.post('/payroll/generate', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { paymentMonth } = req.body; // YYYY-MM-01 형식
+        if (!paymentMonth) {
+            return res.status(400).json({ error: '지급월을 입력해 주세요' });
+        }
+        // 재직 중인 직원 목록
+        const employeesResult = await db_1.pool.query(`SELECT id, name, base_salary, incentive_rate FROM accounting_employees WHERE employment_status = '재직'`);
+        // 해당 월 매출 합계
+        const salesResult = await db_1.pool.query(`SELECT COALESCE(SUM(amount), 0) as total_sales
+       FROM accounting_transactions
+       WHERE TO_CHAR(transaction_date, 'YYYY-MM') = $1 AND category = '매출'`, [paymentMonth.slice(0, 7)]);
+        const totalSales = Number(salesResult.rows[0]?.total_sales || 0);
+        const created = [];
+        for (const emp of employeesResult.rows) {
+            const baseSalary = Number(emp.base_salary);
+            const incentive = Math.round(totalSales * (Number(emp.incentive_rate) / 100));
+            // 중복 방지
+            const existing = await db_1.pool.query(`SELECT id FROM accounting_payroll WHERE employee_id = $1 AND payment_month = $2`, [emp.id, paymentMonth]);
+            if (existing.rows.length === 0) {
+                const insertResult = await db_1.pool.query(`INSERT INTO accounting_payroll (employee_id, payment_month, base_salary, incentive, other_payments, payment_status)
+           VALUES ($1, $2, $3, $4, 0, '미지급')
+           RETURNING *`, [emp.id, paymentMonth, baseSalary, incentive]);
+                created.push(insertResult.rows[0]);
+            }
+        }
+        res.json({ success: true, count: created.length, payrolls: created });
+    }
+    catch (error) {
+        console.error('Payroll generate error:', error);
+        res.status(500).json({ error: '급여 자동 생성에 실패했습니다' });
+    }
+});
+router.put('/payroll/:id', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { baseSalary, incentive, otherPayments, paymentStatus } = req.body;
+        const result = await db_1.pool.query(`UPDATE accounting_payroll
+       SET base_salary = $1, incentive = $2, other_payments = $3, payment_status = $4, updated_at = NOW()
+       WHERE id = $5
+       RETURNING *`, [baseSalary, incentive, otherPayments, paymentStatus, id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: '급여 내역을 찾을 수 없습니다' });
+        }
+        res.json({ success: true, payroll: result.rows[0] });
+    }
+    catch (error) {
+        console.error('Payroll update error:', error);
+        res.status(500).json({ error: '급여 수정에 실패했습니다' });
+    }
+});
+router.delete('/payroll/:id', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db_1.pool.query(`DELETE FROM accounting_payroll WHERE id = $1`, [id]);
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Payroll delete error:', error);
+        res.status(500).json({ error: '급여 삭제에 실패했습니다' });
+    }
+});
+// ========== 정기지출 (Recurring Expenses) ==========
+router.get('/recurring-expenses', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const result = await db_1.pool.query(`SELECT * FROM accounting_recurring_expenses WHERE is_active = true ORDER BY payment_day`);
+        res.json(result.rows.map((r) => ({
+            id: r.id,
+            itemName: r.item_name,
+            monthlyAmount: Number(r.monthly_amount),
+            paymentDay: r.payment_day,
+            paymentMethod: r.payment_method,
+            isActive: r.is_active,
+            createdAt: r.created_at,
+        })));
+    }
+    catch (error) {
+        console.error('Recurring expenses fetch error:', error);
+        res.status(500).json({ error: '정기지출 목록을 불러오지 못했습니다' });
+    }
+});
+router.post('/recurring-expenses', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { itemName, monthlyAmount, paymentDay, paymentMethod } = req.body;
+        const result = await db_1.pool.query(`INSERT INTO accounting_recurring_expenses (item_name, monthly_amount, payment_day, payment_method)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`, [itemName, monthlyAmount, paymentDay, paymentMethod]);
+        res.json({ success: true, expense: result.rows[0] });
+    }
+    catch (error) {
+        console.error('Recurring expense create error:', error);
+        res.status(500).json({ error: '정기지출 추가에 실패했습니다' });
+    }
+});
+router.put('/recurring-expenses/:id', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { itemName, monthlyAmount, paymentDay, paymentMethod, isActive } = req.body;
+        const result = await db_1.pool.query(`UPDATE accounting_recurring_expenses
+       SET item_name = $1, monthly_amount = $2, payment_day = $3, payment_method = $4, is_active = $5, updated_at = NOW()
+       WHERE id = $6
+       RETURNING *`, [itemName, monthlyAmount, paymentDay, paymentMethod, isActive, id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: '정기지출을 찾을 수 없습니다' });
+        }
+        res.json({ success: true, expense: result.rows[0] });
+    }
+    catch (error) {
+        console.error('Recurring expense update error:', error);
+        res.status(500).json({ error: '정기지출 수정에 실패했습니다' });
+    }
+});
+router.delete('/recurring-expenses/:id', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db_1.pool.query(`UPDATE accounting_recurring_expenses SET is_active = false WHERE id = $1`, [id]);
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Recurring expense delete error:', error);
+        res.status(500).json({ error: '정기지출 삭제에 실패했습니다' });
+    }
+});
+// ========== 계좌 (Capital) ==========
+router.get('/capital', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const result = await db_1.pool.query(`SELECT * FROM accounting_capital ORDER BY account_type, account_name`);
+        res.json(result.rows.map((r) => ({
+            id: r.id,
+            accountName: r.account_name,
+            accountType: r.account_type,
+            initialBalance: Number(r.initial_balance),
+            currentBalance: Number(r.current_balance),
+            lastUpdated: r.last_updated,
+            createdAt: r.created_at,
+        })));
+    }
+    catch (error) {
+        console.error('Capital fetch error:', error);
+        res.status(500).json({ error: '계좌 목록을 불러오지 못했습니다' });
+    }
+});
+router.post('/capital', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { accountName, accountType, initialBalance } = req.body;
+        const result = await db_1.pool.query(`INSERT INTO accounting_capital (account_name, account_type, initial_balance, current_balance)
+       VALUES ($1, $2, $3, $3)
+       RETURNING *`, [accountName, accountType, initialBalance || 0]);
+        res.json({ success: true, account: result.rows[0] });
+    }
+    catch (error) {
+        console.error('Capital create error:', error);
+        if (error.code === '23505') {
+            return res.status(400).json({ error: '이미 존재하는 계좌명입니다' });
+        }
+        res.status(500).json({ error: '계좌 추가에 실패했습니다' });
+    }
+});
+router.put('/capital/:id', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { accountName, accountType, initialBalance } = req.body;
+        const result = await db_1.pool.query(`UPDATE accounting_capital
+       SET account_name = $1, account_type = $2, initial_balance = $3
+       WHERE id = $4
+       RETURNING *`, [accountName, accountType, initialBalance, id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: '계좌를 찾을 수 없습니다' });
+        }
+        res.json({ success: true, account: result.rows[0] });
+    }
+    catch (error) {
+        console.error('Capital update error:', error);
+        res.status(500).json({ error: '계좌 수정에 실패했습니다' });
+    }
+});
+exports.default = router;
+//# sourceMappingURL=accounting.js.map
