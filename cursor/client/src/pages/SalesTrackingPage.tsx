@@ -1110,9 +1110,9 @@ export default function SalesTrackingPage() {
                           : 'hover:bg-gray-50'
                       }`}
                     >
-                      <td className="px-2 py-1 border-r text-center relative">
+                      <td className="px-2 py-1 border-r text-center relative overflow-hidden">
                         {record.moved_to_retargeting && (
-                          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none z-10">
+                          <div className="fixed left-1/2 -translate-x-1/2 mt-8 px-3 py-2 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none z-50 shadow-lg">
                             {t('movedToRetargeting') || '리타겟팅으로 이동했습니다'}
                           </div>
                         )}
@@ -1125,18 +1125,18 @@ export default function SalesTrackingPage() {
                           />
                         )}
                       </td>
-                      <td className="px-2 py-1 border-r whitespace-nowrap">{formatDateTime(record.date, record.occurred_at)}</td>
-                      <td className="px-2 py-1 border-r">{record.manager_name}</td>
-                      <td className="px-2 py-1 border-r">{record.company_name || '-'}</td>
-                      <td className="px-2 py-1 border-r">{translateIndustryLabel(record.industry as any)}</td>
-                      <td className="px-2 py-1 border-r">{record.phone || '-'}</td>
-                      <td className="px-2 py-1 border-r">{record.account_id || '-'}</td>
-                      <td className="px-2 py-1 border-r">{translateContactMethodLabel(record.contact_method as any)}</td>
-                      <td className="px-2 py-1 border-r">{translateStatusLabel(record.status as any)}</td>
-                      <td className="px-2 py-1 border-r truncate w-24 max-w-[6rem]" title={record.memo || ''}>
+                      <td className="px-2 py-1 border-r whitespace-nowrap overflow-hidden">{formatDateTime(record.date, record.occurred_at)}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden">{record.manager_name}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden" title={record.company_name || '-'}>{record.company_name || '-'}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden">{translateIndustryLabel(record.industry as any)}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden">{record.phone || '-'}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden" title={record.account_id || '-'}>{record.account_id || '-'}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden">{translateContactMethodLabel(record.contact_method as any)}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden">{translateStatusLabel(record.status as any)}</td>
+                      <td className="px-2 py-1 border-r truncate overflow-hidden w-24 max-w-[6rem]" title={record.memo || ''}>
                         {record.memo || '-'}
                       </td>
-                      <td className="px-2 py-1 text-center">
+                      <td className="px-2 py-1 text-center overflow-hidden">
                         {canEdit(record) && !record.moved_to_retargeting && (
                           <div className="flex gap-1 justify-center">
                             <Button
