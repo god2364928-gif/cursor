@@ -418,11 +418,16 @@ export default function AccountingPage() {
   }
 
   const handleMemoFocus = (id: string) => {
+    console.log('[handleMemoFocus] Called with:', { id, isAdmin })
     if (!isAdmin) return
     // focus 시점에 원본 값 저장 (한 번만)
     if (!(id in memoDraftOriginalRef.current)) {
       const current = transactions.find((tx) => tx.id === id)
-      memoDraftOriginalRef.current[id] = current?.memo ?? null
+      const originalMemo = current?.memo ?? null
+      memoDraftOriginalRef.current[id] = originalMemo
+      console.log('[handleMemoFocus] Saved original value:', { id, originalMemo })
+    } else {
+      console.log('[handleMemoFocus] Already has original value:', { id, original: memoDraftOriginalRef.current[id] })
     }
   }
 
