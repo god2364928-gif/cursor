@@ -25,4 +25,8 @@ if (!isLocalhost) {
     };
 }
 exports.pool = new pg_1.Pool(poolConfig);
+// Ensure UTF-8 encoding for all connections
+exports.pool.on('connect', (client) => {
+    client.query('SET client_encoding TO UTF8');
+});
 //# sourceMappingURL=db.js.map
