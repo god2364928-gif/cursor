@@ -14,4 +14,4 @@ cmds = [
 ]
 
 [start]
-cmd = 'node dist/index.js'
+cmd = 'echo "=== VERIFYING BUILD ===" && grep -c "Best encoding" dist/routes/accounting.js && echo "✅ New code verified" && node dist/index.js'
