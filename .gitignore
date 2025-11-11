@@ -23,8 +23,8 @@ node_modules/
 # package-lock.json  # Vercel needs this file
 
 # Build outputs
-dist/
-!cursor/server/dist/
+# dist/
+# !cursor/server/dist/
 build/
 
 # IDE
