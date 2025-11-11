@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useI18nStore } from '../i18n'
 import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
@@ -134,7 +134,9 @@ export default function AccountingPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [nameOptions, setNameOptions] = useState<SimpleUser[]>([])
   const [updatingTransactionId, setUpdatingTransactionId] = useState<string | null>(null)
-  const memoDraftOriginalRef = useRef<Record<string, string | null>>({})
+  const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
+  const [memoDrafts, setMemoDrafts] = useState<Record<string, string>>({})
+  const [showSaveToast, setShowSaveToast] = useState(false)
 
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
@@ -417,51 +419,42 @@ export default function AccountingPage() {
     }
   }
 
-  const handleMemoFocus = (id: string) => {
-    console.log('[handleMemoFocus] Called with:', { id, isAdmin })
-    if (!isAdmin) return
-    // focus 시점에 원본 값 저장 (한 번만)
-    if (!(id in memoDraftOriginalRef.current)) {
-      const current = transactions.find((tx) => tx.id === id)
-      const originalMemo = current?.memo ?? null
-      memoDraftOriginalRef.current[id] = originalMemo
-      console.log('[handleMemoFocus] Saved original value:', { id, originalMemo })
-    } else {
-      console.log('[handleMemoFocus] Already has original value:', { id, original: memoDraftOriginalRef.current[id] })
-    }
+  const handleMemoEdit = (id: string, currentMemo: string | null) => {
+    setEditingMemoId(id)
+    setMemoDrafts({ ...memoDrafts, [id]: currentMemo || '' })
   }
 
   const handleMemoChange = (id: string, value: string) => {
-    if (!isAdmin) return
-    setTransactions((prev) =>
-      prev.map((tx) => (tx.id === id ? { ...tx, memo: value } : tx))
-    )
+    setMemoDrafts({ ...memoDrafts, [id]: value })
   }
 
-  const handleMemoBlur = (id: string, value: string) => {
-    console.log('[handleMemoBlur] Called with:', { id, value, isAdmin })
-    if (!isAdmin) {
-      console.log('[handleMemoBlur] User is not admin, returning')
-      return
+  const handleMemoSave = async (id: string) => {
+    if (!isAdmin) return
+    const memoValue = memoDrafts[id]?.trim() || null
+    
+    setUpdatingTransactionId(id)
+    try {
+      await handleQuickUpdateTransaction(id, { memo: memoValue })
+      setEditingMemoId(null)
+      const newDrafts = { ...memoDrafts }
+      delete newDrafts[id]
+      setMemoDrafts(newDrafts)
+      
+      // 저장 완료 토스트 표시
+      setShowSaveToast(true)
+      setTimeout(() => setShowSaveToast(false), 2000)
+    } catch (error) {
+      console.error('Memo save error:', error)
+    } finally {
+      setUpdatingTransactionId(null)
     }
-    
-    const target = transactions.find((tx) => tx.id === id)
-    const original = memoDraftOriginalRef.current[id] ?? target?.memo ?? null
-    delete memoDraftOriginalRef.current[id]
-    
-    // 값이 변경되지 않았으면 업데이트하지 않음
-    const originalValue = original ?? ''
-    const newValue = value.trim()
-    
-    console.log('[handleMemoBlur] Comparing values:', { originalValue, newValue, changed: originalValue !== newValue })
-    
-    if (originalValue === newValue) {
-      console.log('[handleMemoBlur] No change detected, skipping update')
-      return
-    }
-    
-    console.log('[handleMemoBlur] Memo changed, calling handleQuickUpdateTransaction')
-    handleQuickUpdateTransaction(id, { memo: newValue.length > 0 ? newValue : null })
+  }
+
+  const handleMemoCancel = (id: string) => {
+    setEditingMemoId(null)
+    const newDrafts = { ...memoDrafts }
+    delete newDrafts[id]
+    setMemoDrafts(newDrafts)
   }
 
 
@@ -685,6 +678,18 @@ export default function AccountingPage() {
 
   return (
     <div className="space-y-6">
+      {/* 저장 완료 토스트 */}
+      {showSaveToast && (
+        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in-down">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="font-medium">{language === 'ja' ? '保存しました' : '저장되었습니다'}</span>
+          </div>
+        </div>
+      )}
+
       <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl p-6 text-white shadow-md">
         <h1 className="text-3xl font-bold mb-2">
           {language === 'ja' ? '会計ソフト' : '회계 소프트'}
@@ -1095,27 +1100,48 @@ export default function AccountingPage() {
                         </td>
                         <td className="px-3 py-2 text-right font-semibold text-sm">{formatCurrency(tx.amount)}</td>
                         <td className="px-3 py-2 text-sm">{tx.paymentMethod}</td>
-                        <td className="px-3 py-2" style={{ maxWidth: '200px' }}>
-                          <Input
-                            value={tx.memo ?? ''}
-                            placeholder={language === 'ja' ? 'メモを入力' : '메모 입력'}
-                            onFocus={() => handleMemoFocus(tx.id)}
-                            onChange={(e) => handleMemoChange(tx.id, e.target.value)}
-                            onBlur={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              handleMemoBlur(tx.id, e.target.value)
-                            }}
-                            onKeyDown={(e) => {
-                              // 한글 조합 중일 때는 Enter 처리하지 않음
-                              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                                e.preventDefault()
-                                e.currentTarget.blur()
-                              }
-                            }}
-                            disabled={!isAdmin || updatingTransactionId === tx.id}
-                            className="text-xs"
-                          />
+                        <td className="px-3 py-2" style={{ maxWidth: '250px' }}>
+                          {editingMemoId === tx.id ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={memoDrafts[tx.id] ?? ''}
+                                placeholder={language === 'ja' ? 'メモを入力' : '메모 입력'}
+                                onChange={(e) => handleMemoChange(tx.id, e.target.value)}
+                                disabled={updatingTransactionId === tx.id}
+                                className="text-xs flex-1"
+                                autoFocus
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => handleMemoSave(tx.id)}
+                                disabled={updatingTransactionId === tx.id}
+                                className="h-8 px-3 text-xs"
+                              >
+                                {language === 'ja' ? '保存' : '저장'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleMemoCancel(tx.id)}
+                                disabled={updatingTransactionId === tx.id}
+                                className="h-8 px-3 text-xs"
+                              >
+                                {language === 'ja' ? 'キャンセル' : '취소'}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div 
+                              className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+                              onClick={() => isAdmin && handleMemoEdit(tx.id, tx.memo ?? null)}
+                            >
+                              <span className="text-xs flex-1 truncate">
+                                {tx.memo || (isAdmin ? (language === 'ja' ? 'クリックして編集' : '클릭하여 편집') : '')}
+                              </span>
+                              {isAdmin && (
+                                <Pencil className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <Button
