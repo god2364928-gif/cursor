@@ -268,9 +268,15 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         // CSV 파싱 (쉼표 구분, 따옴표 처리)
         const cols = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map((col) => col.replace(/^"|"$/g, '').trim()) || []
         
-        if (cols.length < 10) continue
+        if (cols.length < 11) continue
 
-        const [year, month, day, hour, minute, second, txNum, description, paymentAmount, depositAmount, balance, memo] = cols
+        const year = cols[0]
+        const month = cols[1]
+        const day = cols[2]
+        const description = cols[7]
+        const paymentAmount = cols[8] // お支払金額 (출금)
+        const depositAmount = cols[9] // お預り金額 (입금)
+        const memo = cols[11] || ''
 
         // 날짜 생성
         const transactionDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
