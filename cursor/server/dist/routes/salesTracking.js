@@ -212,8 +212,8 @@ router.post('/bulk-move-to-retargeting', auth_1.authMiddleware, async (req, res)
                     '', // instagram
                     req.user?.id
                 ]);
-                // 영업이력에서 삭제
-                await db_1.pool.query(`DELETE FROM sales_tracking WHERE id = $1`, [record.id]);
+                // 영업이력에서 플래그 설정 (삭제하지 않음)
+                await db_1.pool.query(`UPDATE sales_tracking SET moved_to_retargeting = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [record.id]);
                 successCount++;
             }
             catch (error) {
@@ -504,7 +504,9 @@ router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) 
             await client.query('COMMIT');
             const retargetingCustomer = retargetingResult.rows[0];
             console.log(`[MOVE-TO-RETARGETING] Successfully created retargeting customer: ${retargetingCustomer.id}`);
-            // Sales tracking record remains unchanged (not deleted)
+            // Sales tracking record에 moved_to_retargeting 플래그 설정
+            await db_1.pool.query(`UPDATE sales_tracking SET moved_to_retargeting = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+            console.log(`[MOVE-TO-RETARGETING] Set moved_to_retargeting flag for sales_tracking record: ${id}`);
             res.json({
                 success: true,
                 retargetingId: retargetingCustomer.id,

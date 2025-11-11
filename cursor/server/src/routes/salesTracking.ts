@@ -273,9 +273,9 @@ router.post('/bulk-move-to-retargeting', authMiddleware, async (req: AuthRequest
           ]
         )
         
-        // 영업이력에서 삭제
+        // 영업이력에서 플래그 설정 (삭제하지 않음)
         await pool.query(
-          `DELETE FROM sales_tracking WHERE id = $1`,
+          `UPDATE sales_tracking SET moved_to_retargeting = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
           [record.id]
         )
         
@@ -645,7 +645,12 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       const retargetingCustomer = retargetingResult.rows[0]
       console.log(`[MOVE-TO-RETARGETING] Successfully created retargeting customer: ${retargetingCustomer.id}`)
       
-      // Sales tracking record remains unchanged (not deleted)
+      // Sales tracking record에 moved_to_retargeting 플래그 설정
+      await pool.query(
+        `UPDATE sales_tracking SET moved_to_retargeting = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [id]
+      )
+      console.log(`[MOVE-TO-RETARGETING] Set moved_to_retargeting flag for sales_tracking record: ${id}`)
       
       res.json({ 
         success: true, 

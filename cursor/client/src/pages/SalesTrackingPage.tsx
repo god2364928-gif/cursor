@@ -1082,7 +1082,7 @@ export default function SalesTrackingPage() {
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('accountId')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('contactMethod')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('status')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r w-16">{t('memo')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-8">{t('memo')}</th>
                   <th className="px-2 py-2 text-center font-medium w-20">{t('actions')}</th>
                 </tr>
               </thead>
