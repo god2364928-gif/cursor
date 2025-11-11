@@ -12,6 +12,7 @@ import {
   Calendar,
   Plus,
   Trash2,
+  Upload,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -115,6 +116,7 @@ export default function AccountingPage() {
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
   const [showRecurringForm, setShowRecurringForm] = useState(false)
   const [showAccountForm, setShowAccountForm] = useState(false)
+  const [uploadingCsv, setUploadingCsv] = useState(false)
 
   useEffect(() => {
     fetchDashboard()
@@ -215,6 +217,39 @@ export default function AccountingPage() {
       fetchDashboard()
     } catch (error) {
       console.error('Transaction delete error:', error)
+    }
+  }
+
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingCsv(true)
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await api.post('/accounting/transactions/upload-csv', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      
+      alert(
+        language === 'ja'
+          ? `${response.data.imported}件のデータをインポートしました`
+          : `${response.data.imported}건의 데이터를 가져왔습니다`
+      )
+      
+      fetchTransactions()
+      fetchDashboard()
+    } catch (error: any) {
+      console.error('CSV upload error:', error)
+      alert(
+        error.response?.data?.error ||
+          (language === 'ja' ? 'アップロードに失敗しました' : '업로드에 실패했습니다')
+      )
+    } finally {
+      setUploadingCsv(false)
+      e.target.value = ''
     }
   }
 
@@ -473,10 +508,25 @@ export default function AccountingPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{language === 'ja' ? '取引履歴' : '거래내역'}</h2>
-            <Button onClick={() => setShowTransactionForm(!showTransactionForm)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {language === 'ja' ? '追加' : '추가'}
-            </Button>
+            <div className="flex gap-2">
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCsvUpload}
+                  className="hidden"
+                  disabled={uploadingCsv}
+                />
+                <div className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 ${uploadingCsv ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {uploadingCsv ? (language === 'ja' ? 'アップロード中...' : '업로드 중...') : (language === 'ja' ? 'CSV アップロード' : 'CSV 업로드')}
+                </div>
+              </label>
+              <Button onClick={() => setShowTransactionForm(!showTransactionForm)}>
+                <Plus className="h-4 w-4 mr-2" />
+                {language === 'ja' ? '追加' : '추가'}
+              </Button>
+            </div>
           </div>
 
           {showTransactionForm && (
