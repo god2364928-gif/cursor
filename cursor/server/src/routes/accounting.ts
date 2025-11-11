@@ -372,8 +372,9 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
       return res.status(400).json({ error: 'CSV 파일을 업로드해 주세요' })
     }
 
-    console.log('=== CSV Upload Started ===')
-    console.log('File size:', req.file.buffer.length)
+      console.log('=== CSV Upload Started ===')
+      console.log('File size:', req.file.buffer.length)
+      console.log('Timestamp:', new Date().toISOString())
     
     // 인코딩 감지: 가장 많은 일본어 문자를 올바르게 디코딩하는 인코딩 선택
     let utf8Content: string = ''
