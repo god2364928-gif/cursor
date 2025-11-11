@@ -14,6 +14,7 @@ import {
   Plus,
   Trash2,
   Upload,
+  Pencil,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -56,7 +57,7 @@ interface Transaction {
   accountName?: string
   assignedUserId?: string | null
   assignedUserName?: string | null
-  memo?: string
+  memo?: string | null
   createdAt: string
 }
 
