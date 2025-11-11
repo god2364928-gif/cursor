@@ -611,7 +611,7 @@ export default function AccountingPage() {
                           {tx.transactionTime ? (
                             <>
                               <div>{tx.transactionDate}</div>
-                              <div className="text-xs text-gray-500">{tx.transactionTime.slice(0, 5)}</div>
+                              <div className="text-xs text-gray-500">{tx.transactionTime}</div>
                             </>
                           ) : (
                             <div>{tx.transactionDate}</div>

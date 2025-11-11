@@ -129,10 +129,27 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
 
     const result = await pool.query(query, params)
     
+    const formatDate = (value: any) => {
+      if (!value) return null
+      if (value instanceof Date) {
+        return value.toISOString().slice(0, 10)
+      }
+      const str = String(value)
+      const tIndex = str.indexOf('T')
+      return tIndex >= 0 ? str.slice(0, tIndex) : str
+    }
+
+    const formatTime = (value: any) => {
+      if (!value) return null
+      const str = String(value).trim()
+      if (!str) return null
+      return str.slice(0, 5)
+    }
+
     res.json(result.rows.map((r: any) => ({
       id: r.id,
-      transactionDate: r.transaction_date,
-      transactionTime: r.transaction_time,
+      transactionDate: formatDate(r.transaction_date),
+      transactionTime: formatTime(r.transaction_time),
       fiscalYear: r.fiscal_year,
       transactionType: r.transaction_type,
       category: r.category,
@@ -252,8 +269,11 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
     }
 
     // SHIFT-JIS -> UTF-8 변환
-    const utf8Content = iconv.decode(req.file.buffer, 'SHIFT-JIS')
-    const lines = utf8Content.split('\n').filter((line) => line.trim())
+    const utf8Content = iconv.decode(req.file.buffer, 'CP932')
+    const lines = utf8Content
+      .split(/\r?\n/)
+      .map((line) => line.replace(/\r$/, ''))
+      .filter((line) => line.trim().length > 0)
     
     if (lines.length < 2) {
       return res.status(400).json({ error: 'CSV 파일이 비어 있습니다' })
@@ -275,15 +295,21 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
           const char = line[i]
           
           if (char === '"') {
-            inQuotes = !inQuotes
+            const next = line[i + 1]
+            if (inQuotes && next === '"') {
+              current += '"'
+              i += 1
+            } else {
+              inQuotes = !inQuotes
+            }
           } else if (char === ',' && !inQuotes) {
-            cols.push(current.trim())
+            cols.push(current.replace(/\r/g, ''))
             current = ''
           } else {
             current += char
           }
         }
-        cols.push(current.trim()) // 마지막 컬럼
+        cols.push(current.replace(/\r/g, '')) // 마지막 컬럼
         
         if (cols.length < 11) continue
 
@@ -294,9 +320,12 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         const minute = cols[4]
         const second = cols[5]
         const description = cols[7]
-        const paymentAmount = cols[8] // お支払金額 (출금)
-        const depositAmount = cols[9] // お預り金額 (입금)
-        const memo = cols[11] || ''
+        const sanitizeAmount = (value?: string) =>
+          (value || '').replace(/[^\d.-]/g, '').replace(/\r/g, '')
+        
+        const paymentAmount = sanitizeAmount(cols[8]) // お支払金額 (출금)
+        const depositAmount = sanitizeAmount(cols[9]) // お預り金額 (입금)
+        const memo = cols[11]?.replace(/\r/g, '') || ''
 
         // 날짜 및 시간 생성
         const transactionDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
@@ -330,7 +359,7 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
           category = '기타'
         }
 
-        const itemName = description || '(설명 없음)'
+        const itemName = (description || '(설명 없음)').replace(/\r/g, '')
 
         // DB 삽입
         const result = await pool.query(
