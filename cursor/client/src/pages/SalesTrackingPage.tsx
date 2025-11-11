@@ -1133,7 +1133,7 @@ export default function SalesTrackingPage() {
                       <td className="px-2 py-1 border-r">{record.account_id || '-'}</td>
                       <td className="px-2 py-1 border-r">{translateContactMethodLabel(record.contact_method as any)}</td>
                       <td className="px-2 py-1 border-r">{translateStatusLabel(record.status as any)}</td>
-                      <td className="px-2 py-1 border-r truncate max-w-xs" title={record.memo || ''}>
+                      <td className="px-2 py-1 border-r truncate w-8" title={record.memo || ''}>
                         {record.memo || '-'}
                       </td>
                       <td className="px-2 py-1 text-center">
