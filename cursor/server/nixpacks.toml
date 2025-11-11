@@ -4,10 +4,11 @@ nixPkgs = ['nodejs-18_x']
 [phases.build]
 cmds = [
   'npm ci',
-  'echo "✅ Using pre-built dist folder from Git"',
-  'ls -la dist/routes/accounting.js',
-  'grep -c "Best encoding" dist/routes/accounting.js && echo "✅ New code verified"'
+  'npm run build',
+  'echo "✅ Fresh build completed"',
+  'ls -la dist/routes/salesTracking.js',
+  'grep -c "moved_to_retargeting" dist/routes/salesTracking.js && echo "✅ moved_to_retargeting field verified"'
 ]
 
 [start]
-cmd = 'echo "=== VERIFYING BUILD ===" && grep -c "Best encoding" dist/routes/accounting.js && echo "✅ New code verified" && node dist/index.js'
+cmd = 'echo "=== STARTING SERVER ===" && grep -c "moved_to_retargeting" dist/routes/salesTracking.js && echo "✅ Code verified" && node dist/index.js'
