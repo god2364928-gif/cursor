@@ -372,24 +372,15 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
       return res.status(400).json({ error: 'CSV 파일을 업로드해 주세요' })
     }
 
-    // CP932(Shift-JIS) → UTF-8 변환
-    let utf8Content: string
-    try {
-      // CP932로 먼저 시도
-      utf8Content = iconv.decode(req.file.buffer, 'CP932')
-    } catch (e) {
-      // 실패하면 UTF-8로 시도
-      try {
-        utf8Content = iconv.decode(req.file.buffer, 'UTF-8')
-      } catch (e2) {
-        // 마지막으로 SHIFT_JIS 시도
-        utf8Content = iconv.decode(req.file.buffer, 'SHIFT_JIS')
-      }
-    }
+    // CP932(Shift-JIS) → UTF-8 변환 (확실하게)
+    const utf8Content = iconv.decode(req.file.buffer, 'CP932')
     
+    // CSV 파싱
     const records = parse(utf8Content, {
       skip_empty_lines: true,
       relax_column_count: true,
+      trim: false,  // 공백 유지
+      bom: true     // BOM 처리
     }) as string[][]
 
     if (!Array.isArray(records) || records.length < 2) {
@@ -460,9 +451,9 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
           }
         }
 
-        // 항목명을 UTF-8로 명시적 처리
-        const itemName = Buffer.from((description || '(설명 없음)').replace(/\r/g, ''), 'utf8').toString('utf8')
-        const memoClean = memo ? Buffer.from(memo, 'utf8').toString('utf8') : null
+        // 항목명은 원본 그대로 사용 (이미 UTF-8로 디코딩됨)
+        const itemName = description || '(설명 없음)'
+        const memoClean = memo || null
 
         // DB 삽입
         const result = await pool.query(
