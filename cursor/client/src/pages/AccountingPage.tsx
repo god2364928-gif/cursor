@@ -1090,7 +1090,17 @@ export default function AccountingPage() {
                             value={tx.memo ?? ''}
                             placeholder={language === 'ja' ? 'メモを入力' : '메모 입력'}
                             onChange={(e) => handleMemoChange(tx.id, e.target.value)}
-                            onBlur={(e) => handleMemoBlur(tx.id, e.target.value)}
+                            onBlur={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleMemoBlur(tx.id, e.target.value)
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                e.currentTarget.blur()
+                              }
+                            }}
                             disabled={!isAdmin || updatingTransactionId === tx.id}
                             className="text-xs"
                           />
