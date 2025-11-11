@@ -1,9 +1,15 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
+const multer_1 = __importDefault(require("multer"));
+const iconv_lite_1 = __importDefault(require("iconv-lite"));
 const router = (0, express_1.Router)();
+const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 // Admin 권한 체크 미들웨어
 const adminOnly = (req, res, next) => {
     if (req.user?.role !== 'admin') {
@@ -174,6 +180,82 @@ router.delete('/transactions/:id', auth_1.authMiddleware, adminOnly, async (req,
     catch (error) {
         console.error('Transaction delete error:', error);
         res.status(500).json({ error: '거래내역 삭제에 실패했습니다' });
+    }
+});
+// ========== CSV 업로드 (은행 거래내역) ==========
+router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'CSV 파일을 업로드해 주세요' });
+        }
+        // SHIFT-JIS -> UTF-8 변환
+        const utf8Content = iconv_lite_1.default.decode(req.file.buffer, 'SHIFT-JIS');
+        const lines = utf8Content.split('\n').filter((line) => line.trim());
+        if (lines.length < 2) {
+            return res.status(400).json({ error: 'CSV 파일이 비어 있습니다' });
+        }
+        // 헤더 제거
+        const dataLines = lines.slice(1);
+        const imported = [];
+        const errors = [];
+        for (const line of dataLines) {
+            try {
+                // CSV 파싱 (쉼표 구분, 따옴표 처리)
+                const cols = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map((col) => col.replace(/^"|"$/g, '').trim()) || [];
+                if (cols.length < 10)
+                    continue;
+                const [year, month, day, hour, minute, second, txNum, description, paymentAmount, depositAmount, balance, memo] = cols;
+                // 날짜 생성
+                const transactionDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                // 입금 vs 출금 판단
+                const isDeposit = depositAmount && depositAmount !== '' && Number(depositAmount) > 0;
+                const isPayment = paymentAmount && paymentAmount !== '' && Number(paymentAmount) > 0;
+                if (!isDeposit && !isPayment)
+                    continue;
+                const transactionType = isDeposit ? '입금' : '출금';
+                const amount = isDeposit ? Number(depositAmount) : Number(paymentAmount);
+                // 카테고리 자동 추론
+                let category = '기타';
+                let paymentMethod = '은행';
+                if (description.includes('Vデビット')) {
+                    paymentMethod = 'カード';
+                }
+                if (description.includes('振込') && isDeposit) {
+                    category = '매출';
+                }
+                else if (description.includes('決算お利息')) {
+                    category = '기타';
+                    paymentMethod = '은행';
+                }
+                else if (description.includes('手数料')) {
+                    category = '기타';
+                }
+                else if (isPayment) {
+                    category = '기타';
+                }
+                const itemName = description || '(설명 없음)';
+                // DB 삽입
+                const result = await db_1.pool.query(`INSERT INTO accounting_transactions 
+           (transaction_date, transaction_type, category, payment_method, item_name, amount, memo)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING *`, [transactionDate, transactionType, category, paymentMethod, itemName, amount, memo || null]);
+                imported.push(result.rows[0]);
+            }
+            catch (lineError) {
+                console.error('CSV line parse error:', lineError);
+                errors.push({ line, error: String(lineError) });
+            }
+        }
+        res.json({
+            success: true,
+            imported: imported.length,
+            errors: errors.length,
+            details: errors.length > 0 ? errors.slice(0, 5) : undefined,
+        });
+    }
+    catch (error) {
+        console.error('CSV upload error:', error);
+        res.status(500).json({ error: 'CSV 업로드에 실패했습니다' });
     }
 });
 // ========== 직원 (Employees) ==========
