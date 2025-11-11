@@ -293,26 +293,33 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
         if (!req.file) {
             return res.status(400).json({ error: 'CSV 파일을 업로드해 주세요' });
         }
-        // 다양한 인코딩 시도
-        let utf8Content = null;
-        const encodings = ['CP932', 'SHIFT_JIS', 'EUC-JP', 'UTF-8'];
+        console.log('=== CSV Upload Started ===');
+        console.log('File size:', req.file.buffer.length);
+        // 인코딩 감지: 가장 많은 일본어 문자를 올바르게 디코딩하는 인코딩 선택
+        let utf8Content = '';
+        let bestEncoding = 'UTF-8';
+        let maxJapaneseChars = 0;
+        const encodings = ['SHIFT_JIS', 'CP932', 'EUC-JP', 'UTF-8'];
         for (const encoding of encodings) {
             try {
                 const decoded = iconv_lite_1.default.decode(req.file.buffer, encoding);
-                // 일본어 문자가 제대로 보이는지 확인
-                if (decoded.includes('お') || decoded.includes('ご') || /[\u3040-\u309F\u30A0-\u30FF]/.test(decoded)) {
+                // 히라가나, 가타카나, 한자 개수 세기
+                const japaneseCount = (decoded.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g) || []).length;
+                console.log(`${encoding}: ${japaneseCount} Japanese characters`);
+                if (japaneseCount > maxJapaneseChars) {
+                    maxJapaneseChars = japaneseCount;
                     utf8Content = decoded;
-                    console.log(`Successfully decoded with ${encoding}`);
-                    break;
+                    bestEncoding = encoding;
                 }
             }
             catch (e) {
-                console.log(`Failed to decode with ${encoding}`);
-                continue;
+                console.log(`${encoding}: decode failed`);
             }
         }
-        // 모든 인코딩 실패 시 UTF-8로 시도
-        if (!utf8Content) {
+        console.log(`Best encoding: ${bestEncoding} with ${maxJapaneseChars} Japanese characters`);
+        // 최소 일본어 문자가 없으면 UTF-8로 재시도
+        if (maxJapaneseChars === 0) {
+            console.log('No Japanese characters detected, using UTF-8');
             utf8Content = iconv_lite_1.default.decode(req.file.buffer, 'UTF-8');
         }
         // CSV 파싱
@@ -322,6 +329,7 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
             trim: false,
             bom: true
         });
+        console.log(`Parsed ${records.length} rows`);
         if (!Array.isArray(records) || records.length < 2) {
             return res.status(400).json({ error: 'CSV 파일이 비어 있습니다' });
         }
@@ -388,6 +396,7 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
                 }
                 const itemName = description || '(설명 없음)';
                 const memoClean = memo || null;
+                console.log(`Importing: ${itemName.substring(0, 30)}...`);
                 // DB 삽입
                 const result = await db_1.pool.query(`INSERT INTO accounting_transactions 
            (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, assigned_user_id, memo)
@@ -400,6 +409,7 @@ router.post('/transactions/upload-csv', auth_1.authMiddleware, adminOnly, upload
                 errors.push({ row: cols, error: String(lineError) });
             }
         }
+        console.log(`Import completed: ${imported.length} imported, ${errors.length} errors`);
         res.json({
             success: true,
             imported: imported.length,
