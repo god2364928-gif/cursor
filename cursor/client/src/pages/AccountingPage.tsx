@@ -134,7 +134,6 @@ export default function AccountingPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [nameOptions, setNameOptions] = useState<SimpleUser[]>([])
   const [updatingTransactionId, setUpdatingTransactionId] = useState<string | null>(null)
-  const [resettingTransactions, setResettingTransactions] = useState(false)
   const memoDraftOriginalRef = useRef<Record<string, string | null>>({})
 
   const [showTransactionForm, setShowTransactionForm] = useState(false)
@@ -439,31 +438,6 @@ export default function AccountingPage() {
     handleQuickUpdateTransaction(id, { memo: value.length > 0 ? value : null })
   }
 
-  const handleResetTransactions = async () => {
-    if (!isAdmin) return
-    if (
-      !confirm(
-        language === 'ja'
-          ? 'すべての取引データを削除しますか？'
-          : '모든 거래 데이터를 삭제하시겠습니까?'
-      )
-    ) {
-      return
-    }
-    setResettingTransactions(true)
-    try {
-      await api.delete('/accounting/transactions/all')
-      memoDraftOriginalRef.current = {}
-      await fetchTransactions()
-      await fetchDashboard()
-      alert(language === 'ja' ? '取引データを削除しました' : '거래 데이터를 모두 삭제했습니다')
-    } catch (error) {
-      console.error('Transaction reset error:', error)
-      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
-    } finally {
-      setResettingTransactions(false)
-    }
-  }
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -852,23 +826,6 @@ export default function AccountingPage() {
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{language === 'ja' ? '取引履歴' : '거래내역'}</h2>
             <div className="flex gap-2">
-              {isAdmin && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleResetTransactions}
-                  disabled={resettingTransactions || uploadingCsv || updatingTransactionId !== null}
-                  className="border-red-500 text-red-600 hover:bg-red-50"
-                >
-                  {resettingTransactions
-                    ? language === 'ja'
-                      ? '削除中...'
-                      : '삭제 중...'
-                    : language === 'ja'
-                    ? '全件削除'
-                    : '모두 삭제'}
-                </Button>
-              )}
               <label className="cursor-pointer">
                 <input
                   type="file"
