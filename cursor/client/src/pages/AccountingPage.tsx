@@ -54,8 +54,15 @@ interface Transaction {
   amount: number
   employeeName?: string
   accountName?: string
+  assignedUserId?: string | null
+  assignedUserName?: string | null
   memo?: string
   createdAt: string
+}
+
+interface SimpleUser {
+  id: string
+  name: string
 }
 
 interface Employee {
@@ -113,6 +120,7 @@ export default function AccountingPage() {
   const [payrolls, setPayrolls] = useState<Payroll[]>([])
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [nameOptions, setNameOptions] = useState<SimpleUser[]>([])
 
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
@@ -130,8 +138,11 @@ export default function AccountingPage() {
     fetchDashboard()
   }, [fiscalYear])
 
-  useEffect(() => {
-    if (activeTab === 'transactions') fetchTransactions()
+useEffect(() => {
+    if (activeTab === 'transactions') {
+      fetchTransactions()
+      fetchNameOptions()
+    }
     if (activeTab === 'employees') fetchEmployees()
     if (activeTab === 'payroll') fetchPayrolls()
     if (activeTab === 'recurring') fetchRecurringExpenses()
@@ -153,6 +164,20 @@ export default function AccountingPage() {
       setTransactions(response.data)
     } catch (error) {
       console.error('Transactions fetch error:', error)
+    }
+  }
+
+  const fetchNameOptions = async () => {
+    try {
+      const response = await api.get('/auth/users')
+      setNameOptions(
+        response.data.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+        }))
+      )
+    } catch (error) {
+      console.error('Name options fetch error:', error)
     }
   }
 
@@ -270,6 +295,7 @@ export default function AccountingPage() {
     }
 
     try {
+      const assignedUserIdValue = formData.get('assignedUserId')
       const payload = {
         transactionDate: formData.get('transactionDate'),
         transactionTime: formatTimeValue(formData.get('transactionTime')),
@@ -278,6 +304,7 @@ export default function AccountingPage() {
         paymentMethod: formData.get('paymentMethod'),
         itemName: formData.get('itemName'),
         amount: Number(formData.get('amount')),
+        assignedUserId: assignedUserIdValue ? String(assignedUserIdValue) : null,
         memo: formData.get('memo'),
       }
 
@@ -778,13 +805,29 @@ export default function AccountingPage() {
                       name="category"
                       className="w-full border rounded px-3 py-2"
                       required
-                      defaultValue={editingTransaction?.category || '매출'}
+                      defaultValue={editingTransaction?.category || '셀마플 매출'}
                     >
-                      <option value="매출">{language === 'ja' ? '売上' : '매출'}</option>
+                      <option value="셀마플 매출">{language === 'ja' ? 'セルマプ売上' : '셀마플 매출'}</option>
+                      <option value="코코마케 매출">{language === 'ja' ? 'ココマケ売上' : '코코마케 매출'}</option>
+                      <option value="운영비">{language === 'ja' ? '運営費' : '운영비'}</option>
                       <option value="급여">{language === 'ja' ? '給与' : '급여'}</option>
-                      <option value="정기지출">{language === 'ja' ? '定期支出' : '정기지출'}</option>
-                      <option value="자본금">{language === 'ja' ? '資本金' : '자본금'}</option>
+                      <option value="월세">{language === 'ja' ? '家賃' : '월세'}</option>
                       <option value="기타">{language === 'ja' ? 'その他' : '기타'}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '名前' : '이름'}</label>
+                    <select
+                      name="assignedUserId"
+                      className="w-full border rounded px-3 py-2"
+                      defaultValue={editingTransaction?.assignedUserId || ''}
+                    >
+                      <option value="">{language === 'ja' ? '未選択' : '선택 안 함'}</option>
+                      {nameOptions.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -793,12 +836,17 @@ export default function AccountingPage() {
                       name="paymentMethod"
                       className="w-full border rounded px-3 py-2"
                       required
-                      defaultValue={editingTransaction?.paymentMethod || 'PayPay'}
+                      defaultValue={
+                        editingTransaction?.paymentMethod
+                          ? (editingTransaction.paymentMethod === '현금' || editingTransaction.paymentMethod === '은행'
+                              ? '현금/은행'
+                              : editingTransaction.paymentMethod)
+                          : '현금/은행'
+                      }
                     >
+                      <option value="현금/은행">{language === 'ja' ? '現金・銀行' : '현금/은행'}</option>
                       <option value="PayPay">PayPay</option>
                       <option value="Stripe">Stripe</option>
-                      <option value="현금">{language === 'ja' ? '現金' : '현금'}</option>
-                      <option value="은행">{language === 'ja' ? '銀行' : '은행'}</option>
                       <option value="카드">{language === 'ja' ? 'カード' : '카드'}</option>
                     </select>
                   </div>
@@ -852,7 +900,8 @@ export default function AccountingPage() {
                       <th className="px-3 py-3 text-left" style={{ width: '140px' }}>{language === 'ja' ? '日時' : '날짜/시간'}</th>
                       <th className="px-3 py-3 text-center" style={{ width: '60px' }}>{language === 'ja' ? '区分' : '구분'}</th>
                       <th className="px-3 py-3 text-left" style={{ width: '280px' }}>{language === 'ja' ? '項目' : '항목'}</th>
-                      <th className="px-3 py-3 text-left" style={{ width: '80px' }}>{language === 'ja' ? 'カテゴリ' : '카테고리'}</th>
+                      <th className="px-3 py-3 text-left" style={{ width: '100px' }}>{language === 'ja' ? 'カテゴリ' : '카테고리'}</th>
+                      <th className="px-3 py-3 text-left" style={{ width: '120px' }}>{language === 'ja' ? '名前' : '이름'}</th>
                       <th className="px-3 py-3 text-right" style={{ width: '120px' }}>{language === 'ja' ? '金額' : '금액'}</th>
                       <th className="px-3 py-3 text-left" style={{ width: '80px' }}>{language === 'ja' ? '決済' : '결제'}</th>
                       <th className="px-3 py-3 text-left" style={{ width: '150px' }}>{language === 'ja' ? 'メモ' : '메모'}</th>
@@ -883,6 +932,7 @@ export default function AccountingPage() {
                           <div className="truncate">{tx.itemName}</div>
                         </td>
                         <td className="px-3 py-2 text-sm">{tx.category}</td>
+                        <td className="px-3 py-2 text-sm">{tx.assignedUserName || '-'}</td>
                         <td className="px-3 py-2 text-right font-semibold text-sm">{formatCurrency(tx.amount)}</td>
                         <td className="px-3 py-2 text-sm">{tx.paymentMethod}</td>
                         <td className="px-3 py-2 text-gray-600 text-xs" style={{ maxWidth: '150px' }}>

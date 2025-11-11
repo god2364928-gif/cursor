@@ -51,12 +51,13 @@ CREATE TABLE IF NOT EXISTS accounting_transactions (
     END
   ) STORED,
   transaction_type VARCHAR(10) NOT NULL, -- '입금' or '출금'
-  category VARCHAR(50) NOT NULL, -- '매출', '급여', '정기지출', '자본금', '기타'
-  payment_method VARCHAR(50) NOT NULL, -- 'PayPay', 'Stripe', '현금', '은행', '카드'
+  category VARCHAR(50) NOT NULL, -- '셀마플 매출', '코코마케 매출', '운영비', '급여', '월세', '기타'
+  payment_method VARCHAR(50) NOT NULL, -- '현금/은행', 'PayPay', 'Stripe', '카드'
   item_name VARCHAR(255) NOT NULL,
   amount DECIMAL(12, 2) NOT NULL,
   employee_id UUID REFERENCES accounting_employees(id),
   account_id UUID REFERENCES accounting_capital(id),
+  assigned_user_id UUID REFERENCES users(id),
   memo TEXT,
   attachment_url TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -106,6 +107,7 @@ CREATE INDEX IF NOT EXISTS idx_accounting_transactions_date ON accounting_transa
 CREATE INDEX IF NOT EXISTS idx_accounting_transactions_fiscal_year ON accounting_transactions(fiscal_year);
 CREATE INDEX IF NOT EXISTS idx_accounting_transactions_category ON accounting_transactions(category);
 CREATE INDEX IF NOT EXISTS idx_accounting_transactions_employee ON accounting_transactions(employee_id);
+CREATE INDEX IF NOT EXISTS idx_accounting_transactions_assigned_user ON accounting_transactions(assigned_user_id);
 CREATE INDEX IF NOT EXISTS idx_accounting_sales_fiscal_year ON accounting_sales(fiscal_year);
 CREATE INDEX IF NOT EXISTS idx_accounting_sales_month ON accounting_sales(transaction_month);
 CREATE INDEX IF NOT EXISTS idx_accounting_payroll_employee ON accounting_payroll(employee_id);

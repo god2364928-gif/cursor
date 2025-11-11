@@ -37,7 +37,7 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
       `SELECT 
         COALESCE(SUM(amount), 0) as total_sales
        FROM accounting_transactions
-       WHERE fiscal_year = $1 AND category = '매출'`,
+       WHERE fiscal_year = $1 AND category IN ('셀마플 매출', '코코마케 매출')`,
       [year]
     )
 
@@ -112,10 +112,13 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
         t.payment_method, t.item_name, t.amount, t.memo, t.attachment_url,
         t.created_at,
         e.name as employee_name,
-        c.account_name
+        c.account_name,
+        t.assigned_user_id,
+        u.name as assigned_user_name
       FROM accounting_transactions t
       LEFT JOIN accounting_employees e ON t.employee_id = e.id
       LEFT JOIN accounting_capital c ON t.account_id = c.id
+      LEFT JOIN users u ON t.assigned_user_id = u.id
     `
     const params: any[] = []
     
@@ -145,6 +148,12 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
       if (!str) return null
       return str.slice(0, 5)
     }
+    const normalizePaymentMethodValue = (value: any) => {
+      if (!value) return null
+      const str = String(value)
+      if (str === '현금' || str === '은행') return '현금/은행'
+      return str
+    }
 
     res.json(result.rows.map((r: any) => ({
       id: r.id,
@@ -153,11 +162,13 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
       fiscalYear: r.fiscal_year,
       transactionType: r.transaction_type,
       category: r.category,
-      paymentMethod: r.payment_method,
+      paymentMethod: normalizePaymentMethodValue(r.payment_method),
       itemName: r.item_name,
       amount: Number(r.amount),
       employeeName: r.employee_name,
       accountName: r.account_name,
+      assignedUserId: r.assigned_user_id,
+      assignedUserName: r.assigned_user_name,
       memo: r.memo,
       attachmentUrl: r.attachment_url,
       createdAt: r.created_at,
@@ -180,6 +191,7 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
       amount,
       employeeId,
       accountId,
+      assignedUserId,
       memo,
       attachmentUrl,
     } = req.body
@@ -192,22 +204,25 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
     }
 
     const normalizedTime = normalizeTime(transactionTime)
+    const normalizedPaymentMethod =
+      paymentMethod === '현금' || paymentMethod === '은행' ? '현금/은행' : paymentMethod
 
     const result = await pool.query(
       `INSERT INTO accounting_transactions 
-       (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, employee_id, account_id, memo, attachment_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, employee_id, account_id, assigned_user_id, memo, attachment_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         transactionDate,
         normalizedTime,
         transactionType,
         category,
-        paymentMethod,
+        normalizedPaymentMethod,
         itemName,
         amount,
         employeeId || null,
         accountId || null,
+        assignedUserId || null,
         memo || null,
         attachmentUrl || null,
       ]
@@ -216,15 +231,16 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
     const transaction = result.rows[0]
 
     // 자동화: 매출 카테고리면 accounting_sales에 반영
-    if (category === '매출' && transactionType === '입금') {
+    const salesCategories = ['셀마플 매출', '코코마케 매출']
+    if (transactionType === '입금' && salesCategories.includes(category)) {
       const fiscalYear = transaction.fiscal_year
       const month = new Date(transactionDate).toISOString().slice(0, 7) + '-01'
       
       await pool.query(
         `INSERT INTO accounting_sales (fiscal_year, transaction_month, channel, sales_category, total_amount)
-         VALUES ($1, $2, $3, '서비스', $4)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT DO NOTHING`,
-        [fiscalYear, month, paymentMethod, amount]
+        [fiscalYear, month, normalizedPaymentMethod, category, amount]
       )
     }
 
@@ -258,6 +274,7 @@ router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthReque
       itemName,
       amount,
       memo,
+      assignedUserId,
     } = req.body
 
     const normalizeTime = (value?: string | null) => {
@@ -268,6 +285,8 @@ router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthReque
     }
 
     const normalizedTime = normalizeTime(transactionTime)
+    const normalizedPaymentMethod =
+      paymentMethod === '현금' || paymentMethod === '은행' ? '현금/은행' : paymentMethod
 
     const result = await pool.query(
       `UPDATE accounting_transactions
@@ -279,18 +298,20 @@ router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthReque
            item_name = $6,
            amount = $7,
            memo = $8,
+           assigned_user_id = $9,
            updated_at = NOW()
-       WHERE id = $9
+       WHERE id = $10
        RETURNING *`,
       [
         transactionDate,
         normalizedTime,
         transactionType,
         category,
-        paymentMethod,
+        normalizedPaymentMethod,
         itemName,
         amount,
         memo || null,
+        assignedUserId || null,
         id,
       ]
     )
@@ -401,7 +422,7 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         const hour = cols[3]
         const minute = cols[4]
         const second = cols[5]
-        const description = cols[7]
+        const description = (cols[7] || '').trim()
         const sanitizeAmount = (value?: string) =>
           (value || '').replace(/[^\d.-]/g, '').replace(/\r/g, '')
         
@@ -423,22 +444,31 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         const amount = isDeposit ? Number(depositAmount) : Number(paymentAmount)
 
         // 카테고리 자동 추론
-        let category = '기타'
-        let paymentMethod = '은행'
-        
-        if (description.includes('Vデビット')) {
-          paymentMethod = 'カード'
+        let paymentMethod = '현금/은행'
+        if (description.includes('PayPay') || description.includes('ﾍﾟｲﾍﾟｲ') || description.includes('ペイペイ')) {
+          paymentMethod = 'PayPay'
+        } else if (description.includes('Stripe') || description.includes('ｽﾄﾗｲﾌﾟ')) {
+          paymentMethod = 'Stripe'
+        } else if (description.includes('Vデビット') || description.includes('Vﾃﾞﾋﾞｯﾄ') || description.toUpperCase().includes('CARD')) {
+          paymentMethod = '카드'
         }
-        
-        if (description.includes('振込') && isDeposit) {
-          category = '매출'
-        } else if (description.includes('決算お利息')) {
-          category = '기타'
-          paymentMethod = '은행'
-        } else if (description.includes('手数料')) {
-          category = '기타'
+
+        let category = '기타'
+        const descUpper = description.toUpperCase()
+        if (isDeposit) {
+          if (descUpper.includes('COCO') || description.includes('ココ') || description.includes('ｺｺ')) {
+            category = '코코마케 매출'
+          } else {
+            category = '셀마플 매출'
+          }
         } else if (isPayment) {
-          category = '기타'
+          if (description.includes('家賃') || description.includes('賃料') || description.toUpperCase().includes('RENT')) {
+            category = '월세'
+          } else if (description.includes('給与') || description.includes('給料') || description.includes('給與')) {
+            category = '급여'
+          } else {
+            category = '운영비'
+          }
         }
 
         const itemName = (description || '(설명 없음)').replace(/\r/g, '')
@@ -446,10 +476,10 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         // DB 삽입
         const result = await pool.query(
           `INSERT INTO accounting_transactions 
-           (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, memo)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, assigned_user_id, memo)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING *`,
-          [transactionDate, transactionTime, transactionType, category, paymentMethod, itemName, amount, memo || null]
+          [transactionDate, transactionTime, transactionType, category, paymentMethod, itemName, amount, null, memo || null]
         )
 
         imported.push(result.rows[0])
@@ -607,7 +637,7 @@ router.post('/payroll/generate', authMiddleware, adminOnly, async (req: AuthRequ
     const salesResult = await pool.query(
       `SELECT COALESCE(SUM(amount), 0) as total_sales
        FROM accounting_transactions
-       WHERE TO_CHAR(transaction_date, 'YYYY-MM') = $1 AND category = '매출'`,
+       WHERE TO_CHAR(transaction_date, 'YYYY-MM') = $1 AND category IN ('셀마플 매출', '코코마케 매출')`,
       [paymentMonth.slice(0, 7)]
     )
     const totalSales = Number(salesResult.rows[0]?.total_sales || 0)
