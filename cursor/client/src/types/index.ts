@@ -112,6 +112,7 @@ export interface DashboardStats {
   totalSales: number
   contractCustomers: number
   newCustomers: number
+  retargetingAcquired: number
   dbStatus: {
     salesStart: number
     awareness: number

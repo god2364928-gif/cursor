@@ -1109,6 +1109,7 @@ export default function SalesTrackingPage() {
                           ? 'bg-gray-200 text-gray-500 opacity-60' 
                           : 'hover:bg-gray-50'
                       }`}
+                      title={record.moved_to_retargeting ? t('movedToRetargeting') || 'リタゲ티팅으로 이동 완료' : ''}
                     >
                       <td className="px-2 py-1 border-r text-center">
                         {record.user_id === user?.id && !record.moved_to_retargeting && (
