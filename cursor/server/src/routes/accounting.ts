@@ -38,7 +38,7 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
       `SELECT 
         COALESCE(SUM(amount), 0) as total_sales
        FROM accounting_transactions
-       WHERE fiscal_year = $1 AND category IN ('셀마플 매출', '코코마케 매출')`,
+       WHERE fiscal_year = $1 AND category IN ('셀마플', '코코마케')`,
       [year]
     )
 
@@ -152,7 +152,8 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
     const normalizePaymentMethodValue = (value: any) => {
       if (!value) return null
       const str = String(value)
-      if (str === '현금' || str === '은행') return '현금/은행'
+      if (str === '현금' || str === '은행' || str === '현금/은행') return '계좌이체'
+      if (str === 'Stripe') return '페이팔'
       return str
     }
 
@@ -206,7 +207,11 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
 
     const normalizedTime = normalizeTime(transactionTime)
     const normalizedPaymentMethod =
-      paymentMethod === '현금' || paymentMethod === '은행' ? '현금/은행' : paymentMethod
+      paymentMethod === '현금' || paymentMethod === '은행' || paymentMethod === '현금/은행'
+        ? '계좌이체'
+        : paymentMethod === 'Stripe'
+        ? '페이팔'
+        : paymentMethod
 
     const result = await pool.query(
       `INSERT INTO accounting_transactions 
@@ -232,7 +237,7 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
     const transaction = result.rows[0]
 
     // 자동화: 매출 카테고리면 accounting_sales에 반영
-    const salesCategories = ['셀마플 매출', '코코마케 매출']
+    const salesCategories = ['셀마플', '코코마케']
     if (transactionType === '입금' && salesCategories.includes(category)) {
       const fiscalYear = transaction.fiscal_year
       const month = new Date(transactionDate).toISOString().slice(0, 7) + '-01'
@@ -287,7 +292,11 @@ router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthReque
 
     const normalizedTime = normalizeTime(transactionTime)
     const normalizedPaymentMethod =
-      paymentMethod === '현금' || paymentMethod === '은행' ? '현금/은행' : paymentMethod
+      paymentMethod === '현금' || paymentMethod === '은행' || paymentMethod === '현금/은행'
+        ? '계좌이체'
+        : paymentMethod === 'Stripe'
+        ? '페이팔'
+        : paymentMethod
 
     const result = await pool.query(
       `UPDATE accounting_transactions
@@ -372,9 +381,35 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
       return res.status(400).json({ error: 'CSV 파일을 업로드해 주세요' })
     }
 
-      console.log('=== CSV Upload Started ===')
-      console.log('File size:', req.file.buffer.length)
-      console.log('Timestamp:', new Date().toISOString())
+    console.log('=== CSV Upload Started ===')
+    console.log('File size:', req.file.buffer.length)
+    console.log('Timestamp:', new Date().toISOString())
+
+    // 자동 매칭 규칙 로드
+    const matchRulesResult = await pool.query(
+      `SELECT keyword, category, assigned_user_id, payment_method, priority
+       FROM accounting_auto_match_rules
+       WHERE is_active = true
+       ORDER BY priority DESC, keyword ASC`
+    )
+    const matchRules = matchRulesResult.rows
+    console.log(`Loaded ${matchRules.length} auto-match rules`)
+
+    // 자동 매칭 함수
+    const applyAutoMatch = (itemName: string) => {
+      const lowerItemName = itemName.toLowerCase()
+      for (const rule of matchRules) {
+        if (lowerItemName.includes(rule.keyword.toLowerCase())) {
+          console.log(`Auto-match: "${itemName}" matched with keyword "${rule.keyword}"`)
+          return {
+            category: rule.category || undefined,
+            assignedUserId: rule.assigned_user_id || undefined,
+            paymentMethod: rule.payment_method || undefined
+          }
+        }
+      }
+      return {}
+    }
     
     // 인코딩 감지: 가장 많은 일본어 문자를 올바르게 디코딩하는 인코딩 선택
     let utf8Content: string = ''
@@ -459,11 +494,11 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         const amount = isDeposit ? Number(depositAmount) : Number(paymentAmount)
 
         // 카테고리 자동 추론
-        let paymentMethod = '현금/은행'
+        let paymentMethod = '계좌이체'
         if (description.includes('PayPay') || description.includes('ﾍﾟｲﾍﾟｲ') || description.includes('ペイペイ')) {
           paymentMethod = 'PayPay'
-        } else if (description.includes('Stripe') || description.includes('ｽﾄﾗｲﾌﾟ')) {
-          paymentMethod = 'Stripe'
+        } else if (description.includes('Stripe') || description.includes('ｽﾄﾗｲﾌﾟ') || description.includes('PayPal')) {
+          paymentMethod = '페이팔'
         } else if (description.includes('Vデビット') || description.includes('Vﾃﾞﾋﾞｯﾄ') || description.toUpperCase().includes('CARD')) {
           paymentMethod = '카드'
         }
@@ -472,9 +507,9 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         const descUpper = description.toUpperCase()
         if (isDeposit) {
           if (descUpper.includes('COCO') || description.includes('ココ') || description.includes('ｺｺ')) {
-            category = '코코마케 매출'
+            category = '코코마케'
           } else {
-            category = '셀마플 매출'
+            category = '셀마플'
           }
         } else if (isPayment) {
           if (description.includes('家賃') || description.includes('賃料') || description.toUpperCase().includes('RENT')) {
@@ -489,7 +524,13 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
         const itemName = description || '(설명 없음)'
         const memoClean = memo || null
 
-        console.log(`Importing: ${itemName.substring(0, 30)}...`)
+        // 자동 매칭 규칙 적용
+        const autoMatch = applyAutoMatch(itemName)
+        if (autoMatch.category) category = autoMatch.category
+        if (autoMatch.paymentMethod) paymentMethod = autoMatch.paymentMethod
+        const assignedUserId = autoMatch.assignedUserId || null
+
+        console.log(`Importing: ${itemName.substring(0, 30)}... | Category: ${category} | AssignedUser: ${assignedUserId || 'none'}`)
 
         // DB 삽입
         const result = await pool.query(
@@ -497,7 +538,7 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
            (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, assigned_user_id, memo)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING *`,
-          [transactionDate, transactionTime, transactionType, category, paymentMethod, itemName, amount, null, memoClean]
+          [transactionDate, transactionTime, transactionType, category, paymentMethod, itemName, amount, assignedUserId, memoClean]
         )
 
         imported.push(result.rows[0])
@@ -667,7 +708,7 @@ router.post('/payroll/generate', authMiddleware, adminOnly, async (req: AuthRequ
     const salesResult = await pool.query(
       `SELECT COALESCE(SUM(amount), 0) as total_sales
        FROM accounting_transactions
-       WHERE TO_CHAR(transaction_date, 'YYYY-MM') = $1 AND category IN ('셀마플 매출', '코코마케 매출')`,
+       WHERE TO_CHAR(transaction_date, 'YYYY-MM') = $1 AND category IN ('셀마플', '코코마케')`,
       [paymentMonth.slice(0, 7)]
     )
     const totalSales = Number(salesResult.rows[0]?.total_sales || 0)
@@ -886,6 +927,105 @@ router.delete('/capital/:id', authMiddleware, adminOnly, async (req: AuthRequest
   } catch (error) {
     console.error('Capital delete error:', error)
     res.status(500).json({ error: '계좌 삭제에 실패했습니다' })
+  }
+})
+
+// ========== 자동 매칭 규칙 (Auto Match Rules) ==========
+router.get('/auto-match-rules', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        amr.id,
+        amr.keyword,
+        amr.category,
+        amr.assigned_user_id,
+        au.name as assigned_user_name,
+        amr.payment_method,
+        amr.priority,
+        amr.is_active,
+        amr.created_at
+       FROM accounting_auto_match_rules amr
+       LEFT JOIN auth_users au ON amr.assigned_user_id = au.id
+       ORDER BY amr.priority DESC, amr.keyword ASC`
+    )
+    res.json(result.rows)
+  } catch (error) {
+    console.error('Auto match rules fetch error:', error)
+    res.status(500).json({ error: '자동 매칭 규칙을 불러오지 못했습니다' })
+  }
+})
+
+router.post('/auto-match-rules', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { keyword, category, assignedUserId, paymentMethod, priority, isActive } = req.body
+    
+    if (!keyword || keyword.trim() === '') {
+      return res.status(400).json({ error: '키워드는 필수입니다' })
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO accounting_auto_match_rules 
+       (keyword, category, assigned_user_id, payment_method, priority, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [keyword.trim(), category || null, assignedUserId || null, paymentMethod || null, priority || 0, isActive !== false]
+    )
+    
+    res.json({ success: true, rule: result.rows[0] })
+  } catch (error: any) {
+    console.error('Auto match rule creation error:', error)
+    if (error.code === '23505') { // unique violation
+      return res.status(409).json({ error: '이미 존재하는 키워드입니다' })
+    }
+    res.status(500).json({ error: '자동 매칭 규칙 생성에 실패했습니다' })
+  }
+})
+
+router.put('/auto-match-rules/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const { keyword, category, assignedUserId, paymentMethod, priority, isActive } = req.body
+    
+    if (!keyword || keyword.trim() === '') {
+      return res.status(400).json({ error: '키워드는 필수입니다' })
+    }
+    
+    const result = await pool.query(
+      `UPDATE accounting_auto_match_rules
+       SET keyword = $1,
+           category = $2,
+           assigned_user_id = $3,
+           payment_method = $4,
+           priority = $5,
+           is_active = $6,
+           updated_at = NOW()
+       WHERE id = $7
+       RETURNING *`,
+      [keyword.trim(), category || null, assignedUserId || null, paymentMethod || null, priority || 0, isActive !== false, id]
+    )
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '규칙을 찾을 수 없습니다' })
+    }
+    
+    res.json({ success: true, rule: result.rows[0] })
+  } catch (error: any) {
+    console.error('Auto match rule update error:', error)
+    if (error.code === '23505') { // unique violation
+      return res.status(409).json({ error: '이미 존재하는 키워드입니다' })
+    }
+    res.status(500).json({ error: '자동 매칭 규칙 수정에 실패했습니다' })
+  }
+})
+
+router.delete('/auto-match-rules/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    await pool.query(`DELETE FROM accounting_auto_match_rules WHERE id = $1`, [id])
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Auto match rule delete error:', error)
+    res.status(500).json({ error: '자동 매칭 규칙 삭제에 실패했습니다' })
   }
 })
 
