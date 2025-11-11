@@ -125,7 +125,8 @@ export default function AccountingPage() {
   const [fiscalYear, setFiscalYear] = useState<number>(
     new Date().getMonth() >= 9 ? new Date().getFullYear() + 1 : new Date().getFullYear()
   )
-  const [monthFilter, setMonthFilter] = useState<string>('') // 월별 필터 (YYYY-MM 형식, 빈 문자열 = 전체 연도)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -157,6 +158,19 @@ export default function AccountingPage() {
   useEffect(() => {
     fetchDashboard()
   }, [fiscalYear])
+
+  // 초기 날짜 설정 (당월 1일 ~ 오늘)
+  useEffect(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    
+    const firstDayString = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const todayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    
+    setStartDate(firstDayString)
+    setEndDate(todayString)
+  }, [])
 
   useEffect(() => {
     if (activeTab === 'transactions') {
@@ -201,6 +215,41 @@ export default function AccountingPage() {
     } catch (error) {
       console.error('Name options fetch error:', error)
     }
+  }
+
+  // 날짜 변경 핸들러
+  const handlePreviousMonth = () => {
+    const now = new Date()
+    now.setMonth(now.getMonth() - 1)
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month + 1, 0)
+    const lastDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
+    setStartDate(firstDay)
+    setEndDate(lastDayString)
+  }
+
+  const handleCurrentMonth = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const today = `${year}-${String(month + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    setStartDate(firstDay)
+    setEndDate(today)
+  }
+
+  const handleNextMonth = () => {
+    const now = new Date()
+    now.setMonth(now.getMonth() + 1)
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month + 1, 0)
+    const lastDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
+    setStartDate(firstDay)
+    setEndDate(lastDayString)
   }
 
   const fetchEmployees = async () => {
@@ -786,47 +835,46 @@ export default function AccountingPage() {
       {/* Dashboard Tab */}
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
+          {/* 날짜 필터 */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex gap-4 items-center flex-wrap">
+                <div className="flex gap-2 items-center">
+                  <label className="text-sm font-medium">
+                    {language === 'ja' ? '開始日' : '시작일'}:
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    className="border rounded px-3 py-2"
+                  />
+                </div>
+                <div className="flex gap-2 items-center">
+                  <label className="text-sm font-medium">
+                    {language === 'ja' ? '終了日' : '종료일'}:
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                    className="border rounded px-3 py-2"
+                  />
+                </div>
+                <Button onClick={handlePreviousMonth} variant="outline">
+                  {language === 'ja' ? '前月' : '전월'}
+                </Button>
+                <Button onClick={handleCurrentMonth}>
+                  {language === 'ja' ? '今月' : '당월'}
+                </Button>
+                <Button onClick={handleNextMonth} variant="outline">
+                  {language === 'ja' ? '来月' : '내월'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex items-center justify-between gap-4">
-            {/* 월별 필터 (왼쪽) */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant={monthFilter === '' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setMonthFilter('')}
-              >
-                {language === 'ja' ? '年度全体' : '연도 전체'}
-              </Button>
-              <Button
-                variant={monthFilter === new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  const prevMonth = new Date()
-                  prevMonth.setMonth(prevMonth.getMonth() - 1)
-                  setMonthFilter(prevMonth.toISOString().slice(0, 7))
-                }}
-              >
-                {language === 'ja' ? '前月' : '전월'}
-              </Button>
-              <Button
-                variant={monthFilter === new Date().toISOString().slice(0, 7) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setMonthFilter(new Date().toISOString().slice(0, 7))}
-              >
-                {language === 'ja' ? '今月' : '당월'}
-              </Button>
-              <Button
-                variant={monthFilter === new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 7) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  const nextMonth = new Date()
-                  nextMonth.setMonth(nextMonth.getMonth() + 1)
-                  setMonthFilter(nextMonth.toISOString().slice(0, 7))
-                }}
-              >
-                {language === 'ja' ? '来月' : '내월'}
-              </Button>
-            </div>
-            
             {/* 회계연도 선택 (오른쪽) */}
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium">
@@ -962,48 +1010,48 @@ export default function AccountingPage() {
       {/* Transactions Tab */}
       {activeTab === 'transactions' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <h2 className="text-2xl font-bold">{language === 'ja' ? '取引履歴' : '거래내역'}</h2>
-              {/* 월별 필터 */}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={monthFilter === '' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setMonthFilter('')}
-                >
-                  {language === 'ja' ? '年度全体' : '연도 전체'}
-                </Button>
-                <Button
-                  variant={monthFilter === new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7) ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    const prevMonth = new Date()
-                    prevMonth.setMonth(prevMonth.getMonth() - 1)
-                    setMonthFilter(prevMonth.toISOString().slice(0, 7))
-                  }}
-                >
+          {/* 날짜 필터 */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex gap-4 items-center flex-wrap">
+                <div className="flex gap-2 items-center">
+                  <label className="text-sm font-medium">
+                    {language === 'ja' ? '開始日' : '시작일'}:
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    className="border rounded px-3 py-2"
+                  />
+                </div>
+                <div className="flex gap-2 items-center">
+                  <label className="text-sm font-medium">
+                    {language === 'ja' ? '終了日' : '종료일'}:
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                    className="border rounded px-3 py-2"
+                  />
+                </div>
+                <Button onClick={handlePreviousMonth} variant="outline">
                   {language === 'ja' ? '前月' : '전월'}
                 </Button>
-                <Button
-                  variant={monthFilter === new Date().toISOString().slice(0, 7) ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setMonthFilter(new Date().toISOString().slice(0, 7))}
-                >
+                <Button onClick={handleCurrentMonth}>
                   {language === 'ja' ? '今月' : '당월'}
                 </Button>
-                <Button
-                  variant={monthFilter === new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 7) ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    const nextMonth = new Date()
-                    nextMonth.setMonth(nextMonth.getMonth() + 1)
-                    setMonthFilter(nextMonth.toISOString().slice(0, 7))
-                  }}
-                >
+                <Button onClick={handleNextMonth} variant="outline">
                   {language === 'ja' ? '来月' : '내월'}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold">{language === 'ja' ? '取引履歴' : '거래내역'}</h2>
             </div>
             <div className="flex gap-2">
               <Button
@@ -1203,8 +1251,11 @@ export default function AccountingPage() {
                   <tbody>
                     {transactions
                       .filter(tx => {
-                        if (monthFilter === '') return true
-                        return tx.transactionDate.startsWith(monthFilter)
+                        if (!startDate && !endDate) return true
+                        const txDate = tx.transactionDate
+                        if (startDate && txDate < startDate) return false
+                        if (endDate && txDate > endDate) return false
+                        return true
                       })
                       .map((tx) => (
                       <tr key={tx.id} className="border-t hover:bg-gray-50">
