@@ -44,7 +44,8 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         memo_note,
         user_id,
         created_at,
-        updated_at`;
+        updated_at,
+        moved_to_retargeting`;
         let orderClause = '';
         if (search) {
             query += `,

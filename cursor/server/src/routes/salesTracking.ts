@@ -54,7 +54,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         memo_note,
         user_id,
         created_at,
-        updated_at`
+        updated_at,
+        moved_to_retargeting`
 
     let orderClause = ''
 
