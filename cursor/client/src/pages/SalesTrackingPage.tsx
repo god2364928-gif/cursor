@@ -1060,7 +1060,7 @@ export default function SalesTrackingPage() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-2 py-2 text-center font-medium border-r w-10">
@@ -1082,7 +1082,7 @@ export default function SalesTrackingPage() {
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('accountId')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('contactMethod')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('status')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r w-8">{t('memo')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-24 max-w-[6rem]">{t('memo')}</th>
                   <th className="px-2 py-2 text-center font-medium w-20">{t('actions')}</th>
                 </tr>
               </thead>
@@ -1133,7 +1133,7 @@ export default function SalesTrackingPage() {
                       <td className="px-2 py-1 border-r">{record.account_id || '-'}</td>
                       <td className="px-2 py-1 border-r">{translateContactMethodLabel(record.contact_method as any)}</td>
                       <td className="px-2 py-1 border-r">{translateStatusLabel(record.status as any)}</td>
-                      <td className="px-2 py-1 border-r truncate w-8" title={record.memo || ''}>
+                      <td className="px-2 py-1 border-r truncate w-24 max-w-[6rem]" title={record.memo || ''}>
                         {record.memo || '-'}
                       </td>
                       <td className="px-2 py-1 text-center">
