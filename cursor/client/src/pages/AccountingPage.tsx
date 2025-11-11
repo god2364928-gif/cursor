@@ -13,6 +13,7 @@ import {
   Plus,
   Trash2,
   Upload,
+  Pencil,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -117,7 +118,13 @@ export default function AccountingPage() {
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
   const [showRecurringForm, setShowRecurringForm] = useState(false)
   const [showAccountForm, setShowAccountForm] = useState(false)
+  const [showPayrollForm, setShowPayrollForm] = useState(false)
   const [uploadingCsv, setUploadingCsv] = useState(false)
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
+  const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null)
+  const [editingRecurring, setEditingRecurring] = useState<RecurringExpense | null>(null)
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null)
 
   useEffect(() => {
     fetchDashboard()
@@ -185,22 +192,102 @@ export default function AccountingPage() {
     }
   }
 
-  const handleAddTransaction = async (e: React.FormEvent<HTMLFormElement>) => {
+  const openTransactionForm = (tx?: Transaction) => {
+    if (tx) {
+      setEditingTransaction(tx)
+    } else {
+      setEditingTransaction(null)
+    }
+    setShowTransactionForm(true)
+  }
+
+  const closeTransactionForm = () => {
+    setShowTransactionForm(false)
+    setEditingTransaction(null)
+  }
+
+  const openEmployeeForm = (emp?: Employee) => {
+    if (emp) {
+      setEditingEmployee(emp)
+    } else {
+      setEditingEmployee(null)
+    }
+    setShowEmployeeForm(true)
+  }
+
+  const closeEmployeeForm = () => {
+    setShowEmployeeForm(false)
+    setEditingEmployee(null)
+  }
+
+  const openRecurringForm = (exp?: RecurringExpense) => {
+    if (exp) {
+      setEditingRecurring(exp)
+    } else {
+      setEditingRecurring(null)
+    }
+    setShowRecurringForm(true)
+  }
+
+  const closeRecurringForm = () => {
+    setShowRecurringForm(false)
+    setEditingRecurring(null)
+  }
+
+  const openAccountForm = (acc?: Account) => {
+    if (acc) {
+      setEditingAccount(acc)
+    } else {
+      setEditingAccount(null)
+    }
+    setShowAccountForm(true)
+  }
+
+  const closeAccountForm = () => {
+    setShowAccountForm(false)
+    setEditingAccount(null)
+  }
+
+  const openPayrollForm = (pay: Payroll) => {
+    setEditingPayroll(pay)
+    setShowPayrollForm(true)
+  }
+
+  const closePayrollForm = () => {
+    setEditingPayroll(null)
+    setShowPayrollForm(false)
+  }
+
+  const handleSubmitTransaction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    
+
+    const formatTimeValue = (value: FormDataEntryValue | null) => {
+      if (!value) return ''
+      const str = String(value).trim()
+      if (!str) return ''
+      return str.length === 5 ? `${str}` : str
+    }
+
     try {
-      await api.post('/accounting/transactions', {
+      const payload = {
         transactionDate: formData.get('transactionDate'),
+        transactionTime: formatTimeValue(formData.get('transactionTime')),
         transactionType: formData.get('transactionType'),
         category: formData.get('category'),
         paymentMethod: formData.get('paymentMethod'),
         itemName: formData.get('itemName'),
         amount: Number(formData.get('amount')),
         memo: formData.get('memo'),
-      })
-      
-      setShowTransactionForm(false)
+      }
+
+      if (editingTransaction) {
+        await api.put(`/accounting/transactions/${editingTransaction.id}`, payload)
+      } else {
+        await api.post('/accounting/transactions', payload)
+      }
+
+      closeTransactionForm()
       fetchTransactions()
       fetchDashboard()
     } catch (error) {
@@ -214,6 +301,9 @@ export default function AccountingPage() {
     
     try {
       await api.delete(`/accounting/transactions/${id}`)
+      if (editingTransaction?.id === id) {
+        closeTransactionForm()
+      }
       fetchTransactions()
       fetchDashboard()
     } catch (error) {
@@ -254,24 +344,45 @@ export default function AccountingPage() {
     }
   }
 
-  const handleAddEmployee = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmitEmployee = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    
+
     try {
-      await api.post('/accounting/employees', {
+      const payload = {
         name: formData.get('name'),
         position: formData.get('position'),
         hireDate: formData.get('hireDate'),
         baseSalary: Number(formData.get('baseSalary')),
         incentiveRate: Number(formData.get('incentiveRate')),
-      })
-      
-      setShowEmployeeForm(false)
+        employmentStatus: formData.get('employmentStatus') || '재직',
+      }
+
+      if (editingEmployee) {
+        await api.put(`/accounting/employees/${editingEmployee.id}`, payload)
+      } else {
+        await api.post('/accounting/employees', payload)
+      }
+
+      closeEmployeeForm()
       fetchEmployees()
     } catch (error) {
       console.error('Employee create error:', error)
       alert(language === 'ja' ? '追加に失敗しました' : '추가에 실패했습니다')
+    }
+  }
+
+  const handleDeleteEmployee = async (id: string) => {
+    if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
+    try {
+      await api.delete(`/accounting/employees/${id}`)
+      if (editingEmployee?.id === id) {
+        closeEmployeeForm()
+      }
+      fetchEmployees()
+    } catch (error) {
+      console.error('Employee delete error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
     }
   }
 
@@ -289,19 +400,62 @@ export default function AccountingPage() {
     }
   }
 
-  const handleAddRecurring = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmitPayroll = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!editingPayroll) return
+
+    const formData = new FormData(e.currentTarget)
+
+    try {
+      await api.put(`/accounting/payroll/${editingPayroll.id}`, {
+        baseSalary: Number(formData.get('baseSalary')),
+        incentive: Number(formData.get('incentive')),
+        otherPayments: Number(formData.get('otherPayments')),
+        paymentStatus: formData.get('paymentStatus'),
+      })
+
+      closePayrollForm()
+      fetchPayrolls()
+    } catch (error) {
+      console.error('Payroll update error:', error)
+      alert(language === 'ja' ? '修正に失敗しました' : '수정에 실패했습니다')
+    }
+  }
+
+  const handleDeletePayroll = async (id: string) => {
+    if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
+    try {
+      await api.delete(`/accounting/payroll/${id}`)
+      if (editingPayroll?.id === id) {
+        closePayrollForm()
+      }
+      fetchPayrolls()
+    } catch (error) {
+      console.error('Payroll delete error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
+    }
+  }
+
+  const handleSubmitRecurring = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    
+
     try {
-      await api.post('/accounting/recurring-expenses', {
+      const payload = {
         itemName: formData.get('itemName'),
         monthlyAmount: Number(formData.get('monthlyAmount')),
         paymentDay: Number(formData.get('paymentDay')),
         paymentMethod: formData.get('paymentMethod'),
-      })
-      
-      setShowRecurringForm(false)
+        isActive: true,
+      }
+
+      if (editingRecurring) {
+        await api.put(`/accounting/recurring-expenses/${editingRecurring.id}`, payload)
+      } else {
+        await api.post('/accounting/recurring-expenses', payload)
+      }
+
+      closeRecurringForm()
       fetchRecurringExpenses()
     } catch (error) {
       console.error('Recurring create error:', error)
@@ -309,22 +463,56 @@ export default function AccountingPage() {
     }
   }
 
-  const handleAddAccount = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleDeleteRecurring = async (id: string) => {
+    if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
+    try {
+      await api.delete(`/accounting/recurring-expenses/${id}`)
+      if (editingRecurring?.id === id) {
+        closeRecurringForm()
+      }
+      fetchRecurringExpenses()
+    } catch (error) {
+      console.error('Recurring delete error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
+    }
+  }
+
+  const handleSubmitAccount = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    
+
     try {
-      await api.post('/accounting/capital', {
+      const payload = {
         accountName: formData.get('accountName'),
         accountType: formData.get('accountType'),
         initialBalance: Number(formData.get('initialBalance')),
-      })
-      
-      setShowAccountForm(false)
+      }
+
+      if (editingAccount) {
+        await api.put(`/accounting/capital/${editingAccount.id}`, payload)
+      } else {
+        await api.post('/accounting/capital', payload)
+      }
+
+      closeAccountForm()
       fetchAccounts()
     } catch (error: any) {
       console.error('Account create error:', error)
-      alert(error.response?.data?.error || (language === 'ja' ? '追加に失敗しました' : '추가에 실패했습니다'))
+      alert(error.response?.data?.error || (language === 'ja' ? '処理に失敗しました' : '처리에 실패했습니다'))
+    }
+  }
+
+  const handleDeleteAccount = async (id: string) => {
+    if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
+    try {
+      await api.delete(`/accounting/capital/${id}`)
+      if (editingAccount?.id === id) {
+        closeAccountForm()
+      }
+      fetchAccounts()
+    } catch (error) {
+      console.error('Account delete error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
     }
   }
 
@@ -523,7 +711,15 @@ export default function AccountingPage() {
                   {uploadingCsv ? (language === 'ja' ? 'アップロード中...' : '업로드 중...') : (language === 'ja' ? 'CSV アップロード' : 'CSV 업로드')}
                 </div>
               </label>
-              <Button onClick={() => setShowTransactionForm(!showTransactionForm)}>
+              <Button
+                onClick={() => {
+                  if (showTransactionForm && !editingTransaction) {
+                    closeTransactionForm()
+                  } else {
+                    openTransactionForm()
+                  }
+                }}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 {language === 'ja' ? '追加' : '추가'}
               </Button>
@@ -533,21 +729,57 @@ export default function AccountingPage() {
           {showTransactionForm && (
             <Card>
               <CardContent className="p-6">
-                <form onSubmit={handleAddTransaction} className="grid grid-cols-2 gap-4">
+                <h3 className="text-lg font-semibold mb-4">
+                  {editingTransaction
+                    ? language === 'ja'
+                      ? '取引を修正する'
+                      : '거래 수정'
+                    : language === 'ja'
+                    ? '取引を追加する'
+                    : '거래 추가'}
+                </h3>
+                <form
+                  key={editingTransaction?.id || 'new'}
+                  onSubmit={handleSubmitTransaction}
+                  className="grid grid-cols-2 gap-4"
+                >
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '日付' : '날짜'}</label>
-                    <Input type="date" name="transactionDate" required />
+                    <Input
+                      type="date"
+                      name="transactionDate"
+                      required
+                      defaultValue={editingTransaction?.transactionDate || ''}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '時間' : '시간'}</label>
+                    <Input
+                      type="time"
+                      name="transactionTime"
+                      defaultValue={editingTransaction?.transactionTime || ''}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '区分' : '구분'}</label>
-                    <select name="transactionType" className="w-full border rounded px-3 py-2" required>
+                    <select
+                      name="transactionType"
+                      className="w-full border rounded px-3 py-2"
+                      required
+                      defaultValue={editingTransaction?.transactionType || '입금'}
+                    >
                       <option value="입금">{language === 'ja' ? '入金' : '입금'}</option>
                       <option value="출금">{language === 'ja' ? '出金' : '출금'}</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'カテゴリ' : '카테고리'}</label>
-                    <select name="category" className="w-full border rounded px-3 py-2" required>
+                    <select
+                      name="category"
+                      className="w-full border rounded px-3 py-2"
+                      required
+                      defaultValue={editingTransaction?.category || '매출'}
+                    >
                       <option value="매출">{language === 'ja' ? '売上' : '매출'}</option>
                       <option value="급여">{language === 'ja' ? '給与' : '급여'}</option>
                       <option value="정기지출">{language === 'ja' ? '定期支出' : '정기지출'}</option>
@@ -557,7 +789,12 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '決済手段' : '결제수단'}</label>
-                    <select name="paymentMethod" className="w-full border rounded px-3 py-2" required>
+                    <select
+                      name="paymentMethod"
+                      className="w-full border rounded px-3 py-2"
+                      required
+                      defaultValue={editingTransaction?.paymentMethod || 'PayPay'}
+                    >
                       <option value="PayPay">PayPay</option>
                       <option value="Stripe">Stripe</option>
                       <option value="현금">{language === 'ja' ? '現金' : '현금'}</option>
@@ -567,19 +804,37 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '項目名' : '항목명'}</label>
-                    <Input type="text" name="itemName" required />
+                    <Input
+                      type="text"
+                      name="itemName"
+                      required
+                      defaultValue={editingTransaction?.itemName || ''}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '金額' : '금액'}</label>
-                    <Input type="number" name="amount" required />
+                    <Input
+                      type="number"
+                      name="amount"
+                      required
+                      defaultValue={editingTransaction ? String(editingTransaction.amount) : ''}
+                    />
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'メモ' : '메모'}</label>
-                    <Input type="text" name="memo" />
+                    <Input type="text" name="memo" defaultValue={editingTransaction?.memo || ''} />
                   </div>
                   <div className="col-span-2 flex gap-2">
-                    <Button type="submit">{language === 'ja' ? '保存' : '저장'}</Button>
-                    <Button type="button" variant="ghost" onClick={() => setShowTransactionForm(false)}>
+                    <Button type="submit">
+                      {editingTransaction
+                        ? language === 'ja'
+                          ? '修正を保存'
+                          : '수정 저장'
+                        : language === 'ja'
+                        ? '保存'
+                        : '저장'}
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={closeTransactionForm}>
                       {language === 'ja' ? 'キャンセル' : '취소'}
                     </Button>
                   </div>
@@ -624,27 +879,34 @@ export default function AccountingPage() {
                             {tx.transactionType === '입금' ? (language === 'ja' ? '入' : '입') : (language === 'ja' ? '出' : '출')}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-sm group relative" style={{ maxWidth: '280px' }}>
-                          <div className="truncate cursor-help">{tx.itemName}</div>
-                          <div className="hidden group-hover:block absolute z-50 bg-gray-900 text-white text-xs rounded px-2 py-1 left-0 top-full mt-1 shadow-lg max-w-md whitespace-normal">
-                            {tx.itemName}
-                          </div>
+                        <td className="px-3 py-2 text-sm" style={{ maxWidth: '280px' }}>
+                          <div className="truncate">{tx.itemName}</div>
                         </td>
                         <td className="px-3 py-2 text-sm">{tx.category}</td>
                         <td className="px-3 py-2 text-right font-semibold text-sm">{formatCurrency(tx.amount)}</td>
                         <td className="px-3 py-2 text-sm">{tx.paymentMethod}</td>
-                        <td className="px-3 py-2 text-gray-600 text-xs group relative" style={{ maxWidth: '150px' }}>
-                          <div className="truncate cursor-help">{tx.memo || '-'}</div>
-                          {tx.memo && (
-                            <div className="hidden group-hover:block absolute z-50 bg-gray-900 text-white text-xs rounded px-2 py-1 left-0 top-full mt-1 shadow-lg max-w-md whitespace-normal">
-                              {tx.memo}
-                            </div>
-                          )}
+                        <td className="px-3 py-2 text-gray-600 text-xs" style={{ maxWidth: '150px' }}>
+                          <div className="truncate">{tx.memo || '-'}</div>
                         </td>
                         <td className="px-3 py-2 text-center">
-                          <Button size="sm" variant="ghost" onClick={() => handleDeleteTransaction(tx.id)}>
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </Button>
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => openTransactionForm(tx)}
+                              aria-label={language === 'ja' ? '修正' : '수정'}
+                            >
+                              <Pencil className="h-4 w-4 text-emerald-600" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleDeleteTransaction(tx.id)}
+                              aria-label={language === 'ja' ? '削除' : '삭제'}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -661,7 +923,15 @@ export default function AccountingPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{language === 'ja' ? '従業員管理' : '직원 관리'}</h2>
-            <Button onClick={() => setShowEmployeeForm(!showEmployeeForm)}>
+            <Button
+              onClick={() => {
+                if (showEmployeeForm && !editingEmployee) {
+                  closeEmployeeForm()
+                } else {
+                  openEmployeeForm()
+                }
+              }}
+            >
               <Plus className="h-4 w-4 mr-2" />
               {language === 'ja' ? '追加' : '추가'}
             </Button>
@@ -670,14 +940,32 @@ export default function AccountingPage() {
           {showEmployeeForm && (
             <Card>
               <CardContent className="p-6">
-                <form onSubmit={handleAddEmployee} className="grid grid-cols-2 gap-4">
+                <h3 className="text-lg font-semibold mb-4">
+                  {editingEmployee
+                    ? language === 'ja'
+                      ? '従業員情報を修正'
+                      : '직원 정보 수정'
+                    : language === 'ja'
+                    ? '従業員を追加'
+                    : '직원 추가'}
+                </h3>
+                <form
+                  key={editingEmployee?.id || 'new-employee'}
+                  onSubmit={handleSubmitEmployee}
+                  className="grid grid-cols-2 gap-4"
+                >
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '名前' : '이름'}</label>
-                    <Input type="text" name="name" required />
+                    <Input type="text" name="name" required defaultValue={editingEmployee?.name || ''} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '職級' : '직급'}</label>
-                    <select name="position" className="w-full border rounded px-3 py-2" required>
+                    <select
+                      name="position"
+                      className="w-full border rounded px-3 py-2"
+                      required
+                      defaultValue={editingEmployee?.position || '매니저'}
+                    >
                       <option value="매니저">{language === 'ja' ? 'マネージャー' : '매니저'}</option>
                       <option value="스태프">{language === 'ja' ? 'スタッフ' : '스태프'}</option>
                       <option value="알바">{language === 'ja' ? 'アルバイト' : '알바'}</option>
@@ -685,19 +973,51 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '入社日' : '입사일'}</label>
-                    <Input type="date" name="hireDate" required />
+                    <Input type="date" name="hireDate" required defaultValue={editingEmployee?.hireDate || ''} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '基本給' : '기본급'}</label>
-                    <Input type="number" name="baseSalary" required />
+                    <Input
+                      type="number"
+                      name="baseSalary"
+                      required
+                      defaultValue={editingEmployee ? String(editingEmployee.baseSalary) : ''}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'インセンティブ率(%)' : '인센티브율(%)'}</label>
-                    <Input type="number" step="0.01" name="incentiveRate" defaultValue="0" />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      name="incentiveRate"
+                      defaultValue={
+                        editingEmployee ? String(editingEmployee.incentiveRate) : '0'
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '在籍状態' : '재직 상태'}</label>
+                    <select
+                      name="employmentStatus"
+                      className="w-full border rounded px-3 py-2"
+                      defaultValue={editingEmployee?.employmentStatus || '재직'}
+                    >
+                      <option value="재직">{language === 'ja' ? '在籍' : '재직'}</option>
+                      <option value="휴직">{language === 'ja' ? '休職' : '휴직'}</option>
+                      <option value="퇴사">{language === 'ja' ? '退職' : '퇴사'}</option>
+                    </select>
                   </div>
                   <div className="col-span-2 flex gap-2">
-                    <Button type="submit">{language === 'ja' ? '保存' : '저장'}</Button>
-                    <Button type="button" variant="ghost" onClick={() => setShowEmployeeForm(false)}>
+                    <Button type="submit">
+                      {editingEmployee
+                        ? language === 'ja'
+                          ? '修正を保存'
+                          : '수정 저장'
+                        : language === 'ja'
+                        ? '保存'
+                        : '저장'}
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={closeEmployeeForm}>
                       {language === 'ja' ? 'キャンセル' : '취소'}
                     </Button>
                   </div>
@@ -718,11 +1038,31 @@ export default function AccountingPage() {
                         {language === 'ja' ? '入社' : '입사'}: {emp.hireDate}
                       </p>
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      emp.employmentStatus === '재직' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {emp.employmentStatus}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          emp.employmentStatus === '재직' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        {emp.employmentStatus}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openEmployeeForm(emp)}
+                        aria-label={language === 'ja' ? '修正' : '수정'}
+                      >
+                        <Pencil className="h-4 w-4 text-emerald-600" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDeleteEmployee(emp.id)}
+                        aria-label={language === 'ja' ? '削除' : '삭제'}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-sm">
                     <div>
@@ -752,6 +1092,62 @@ export default function AccountingPage() {
             </Button>
           </div>
 
+          {showPayrollForm && editingPayroll && (
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4">
+                  {language === 'ja' ? '給与情報を修正' : '급여 정보 수정'}
+                </h3>
+                <form key={editingPayroll.id} onSubmit={handleSubmitPayroll} className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '基本給' : '기본급'}</label>
+                    <Input
+                      type="number"
+                      name="baseSalary"
+                      defaultValue={String(editingPayroll.baseSalary)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'インセンティブ' : '인센티브'}</label>
+                    <Input
+                      type="number"
+                      name="incentive"
+                      defaultValue={String(editingPayroll.incentive)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'その他支給' : '기타 지급'}</label>
+                    <Input
+                      type="number"
+                      name="otherPayments"
+                      defaultValue={String(editingPayroll.otherPayments || 0)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '状態' : '지급 상태'}</label>
+                    <select
+                      name="paymentStatus"
+                      className="w-full border rounded px-3 py-2"
+                      defaultValue={editingPayroll.paymentStatus}
+                    >
+                      <option value="미지급">{language === 'ja' ? '未支給' : '미지급'}</option>
+                      <option value="지급완료">{language === 'ja' ? '支給完了' : '지급완료'}</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2 flex gap-2">
+                    <Button type="submit">{language === 'ja' ? '保存' : '저장'}</Button>
+                    <Button type="button" variant="ghost" onClick={closePayrollForm}>
+                      {language === 'ja' ? 'キャンセル' : '취소'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -764,6 +1160,9 @@ export default function AccountingPage() {
                       <th className="px-4 py-3 text-right">{language === 'ja' ? 'インセンティブ' : '인센티브'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? '合計' : '합계'}</th>
                       <th className="px-4 py-3 text-center">{language === 'ja' ? '状態' : '상태'}</th>
+                      <th className="px-4 py-3 text-center" style={{ width: '80px' }}>
+                        {language === 'ja' ? '操作' : '조작'}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -780,11 +1179,37 @@ export default function AccountingPage() {
                         <td className="px-4 py-3 text-right text-emerald-600 font-medium">{formatCurrency(pay.incentive)}</td>
                         <td className="px-4 py-3 text-right font-bold">{formatCurrency(pay.totalAmount)}</td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            pay.paymentStatus === '지급완료' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              pay.paymentStatus === '지급완료'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                          >
                             {pay.paymentStatus}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                openPayrollForm(pay)
+                              }}
+                              aria-label={language === 'ja' ? '修正' : '수정'}
+                            >
+                              <Pencil className="h-4 w-4 text-emerald-600" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleDeletePayroll(pay.id)}
+                              aria-label={language === 'ja' ? '削除' : '삭제'}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -801,7 +1226,15 @@ export default function AccountingPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{language === 'ja' ? '定期支出' : '정기지출'}</h2>
-            <Button onClick={() => setShowRecurringForm(!showRecurringForm)}>
+            <Button
+              onClick={() => {
+                if (showRecurringForm && !editingRecurring) {
+                  closeRecurringForm()
+                } else {
+                  openRecurringForm()
+                }
+              }}
+            >
               <Plus className="h-4 w-4 mr-2" />
               {language === 'ja' ? '追加' : '추가'}
             </Button>
@@ -810,30 +1243,68 @@ export default function AccountingPage() {
           {showRecurringForm && (
             <Card>
               <CardContent className="p-6">
-                <form onSubmit={handleAddRecurring} className="grid grid-cols-2 gap-4">
+                <h3 className="text-lg font-semibold mb-4">
+                  {editingRecurring
+                    ? language === 'ja'
+                      ? '定期支出を修正'
+                      : '정기지출 수정'
+                    : language === 'ja'
+                    ? '定期支出を追加'
+                    : '정기지출 추가'}
+                </h3>
+                <form
+                  key={editingRecurring?.id || 'new-recurring'}
+                  onSubmit={handleSubmitRecurring}
+                  className="grid grid-cols-2 gap-4"
+                >
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '項目名' : '항목명'}</label>
-                    <Input type="text" name="itemName" required />
+                    <Input type="text" name="itemName" required defaultValue={editingRecurring?.itemName || ''} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '月額' : '월액'}</label>
-                    <Input type="number" name="monthlyAmount" required />
+                    <Input
+                      type="number"
+                      name="monthlyAmount"
+                      required
+                      defaultValue={editingRecurring ? String(editingRecurring.monthlyAmount) : ''}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '支払日' : '지급일'}</label>
-                    <Input type="number" name="paymentDay" min="1" max="31" required />
+                    <Input
+                      type="number"
+                      name="paymentDay"
+                      min="1"
+                      max="31"
+                      required
+                      defaultValue={editingRecurring ? String(editingRecurring.paymentDay) : ''}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '決済手段' : '결제수단'}</label>
-                    <select name="paymentMethod" className="w-full border rounded px-3 py-2" required>
+                    <select
+                      name="paymentMethod"
+                      className="w-full border rounded px-3 py-2"
+                      required
+                      defaultValue={editingRecurring?.paymentMethod || '계좌'}
+                    >
                       <option value="계좌">{language === 'ja' ? '口座' : '계좌'}</option>
                       <option value="PayPay">PayPay</option>
                       <option value="카드">{language === 'ja' ? 'カード' : '카드'}</option>
                     </select>
                   </div>
                   <div className="col-span-2 flex gap-2">
-                    <Button type="submit">{language === 'ja' ? '保存' : '저장'}</Button>
-                    <Button type="button" variant="ghost" onClick={() => setShowRecurringForm(false)}>
+                    <Button type="submit">
+                      {editingRecurring
+                        ? language === 'ja'
+                          ? '修正を保存'
+                          : '수정 저장'
+                        : language === 'ja'
+                        ? '保存'
+                        : '저장'}
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={closeRecurringForm}>
                       {language === 'ja' ? 'キャンセル' : '취소'}
                     </Button>
                   </div>
@@ -853,7 +1324,25 @@ export default function AccountingPage() {
                         {language === 'ja' ? '毎月' : '매월'} {exp.paymentDay}{language === 'ja' ? '日' : '일'} / {exp.paymentMethod}
                       </p>
                     </div>
-                    <p className="text-lg font-bold text-gray-900">{formatCurrency(exp.monthlyAmount)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg font-bold text-gray-900">{formatCurrency(exp.monthlyAmount)}</p>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openRecurringForm(exp)}
+                        aria-label={language === 'ja' ? '修正' : '수정'}
+                      >
+                        <Pencil className="h-4 w-4 text-emerald-600" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDeleteRecurring(exp.id)}
+                        aria-label={language === 'ja' ? '削除' : '삭제'}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -867,7 +1356,15 @@ export default function AccountingPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{language === 'ja' ? '口座管理' : '계좌 관리'}</h2>
-            <Button onClick={() => setShowAccountForm(!showAccountForm)}>
+            <Button
+              onClick={() => {
+                if (showAccountForm && !editingAccount) {
+                  closeAccountForm()
+                } else {
+                  openAccountForm()
+                }
+              }}
+            >
               <Plus className="h-4 w-4 mr-2" />
               {language === 'ja' ? '追加' : '추가'}
             </Button>
@@ -876,14 +1373,32 @@ export default function AccountingPage() {
           {showAccountForm && (
             <Card>
               <CardContent className="p-6">
-                <form onSubmit={handleAddAccount} className="grid grid-cols-2 gap-4">
+                <h3 className="text-lg font-semibold mb-4">
+                  {editingAccount
+                    ? language === 'ja'
+                      ? '口座情報を修正'
+                      : '계좌 정보 수정'
+                    : language === 'ja'
+                    ? '口座を追加'
+                    : '계좌 추가'}
+                </h3>
+                <form
+                  key={editingAccount?.id || 'new-account'}
+                  onSubmit={handleSubmitAccount}
+                  className="grid grid-cols-2 gap-4"
+                >
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '口座名' : '계좌명'}</label>
-                    <Input type="text" name="accountName" required />
+                    <Input type="text" name="accountName" required defaultValue={editingAccount?.accountName || ''} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '種類' : '종류'}</label>
-                    <select name="accountType" className="w-full border rounded px-3 py-2" required>
+                    <select
+                      name="accountType"
+                      className="w-full border rounded px-3 py-2"
+                      required
+                      defaultValue={editingAccount?.accountType || '자본금'}
+                    >
                       <option value="자본금">{language === 'ja' ? '資本金' : '자본금'}</option>
                       <option value="예금">{language === 'ja' ? '預金' : '예금'}</option>
                       <option value="고정자산">{language === 'ja' ? '固定資産' : '고정자산'}</option>
@@ -891,11 +1406,24 @@ export default function AccountingPage() {
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '初期残高' : '초기 잔액'}</label>
-                    <Input type="number" name="initialBalance" required />
+                    <Input
+                      type="number"
+                      name="initialBalance"
+                      required
+                      defaultValue={editingAccount ? String(editingAccount.initialBalance) : ''}
+                    />
                   </div>
                   <div className="col-span-2 flex gap-2">
-                    <Button type="submit">{language === 'ja' ? '保存' : '저장'}</Button>
-                    <Button type="button" variant="ghost" onClick={() => setShowAccountForm(false)}>
+                    <Button type="submit">
+                      {editingAccount
+                        ? language === 'ja'
+                          ? '修正を保存'
+                          : '수정 저장'
+                        : language === 'ja'
+                        ? '保存'
+                        : '저장'}
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={closeAccountForm}>
                       {language === 'ja' ? 'キャンセル' : '취소'}
                     </Button>
                   </div>
@@ -913,7 +1441,25 @@ export default function AccountingPage() {
                       <h3 className="font-bold text-lg">{acc.accountName}</h3>
                       <p className="text-xs text-gray-500">{acc.accountType}</p>
                     </div>
-                    <Wallet className="h-6 w-6 text-emerald-500" />
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-6 w-6 text-emerald-500" />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openAccountForm(acc)}
+                        aria-label={language === 'ja' ? '修正' : '수정'}
+                      >
+                        <Pencil className="h-4 w-4 text-emerald-600" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDeleteAccount(acc.id)}
+                        aria-label={language === 'ja' ? '削除' : '삭제'}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-3 pt-3 border-t">
                     <div className="grid grid-cols-2 gap-2 text-sm">
