@@ -429,19 +429,28 @@ export default function AccountingPage() {
   }
 
   const handleMemoBlur = (id: string, value: string) => {
-    if (!isAdmin) return
-    const original = memoDraftOriginalRef.current[id] ?? transactions.find((tx) => tx.id === id)?.memo ?? null
+    console.log('[handleMemoBlur] Called with:', { id, value, isAdmin })
+    if (!isAdmin) {
+      console.log('[handleMemoBlur] User is not admin, returning')
+      return
+    }
+    
+    const target = transactions.find((tx) => tx.id === id)
+    const original = memoDraftOriginalRef.current[id] ?? target?.memo ?? null
     delete memoDraftOriginalRef.current[id]
     
     // 값이 변경되지 않았으면 업데이트하지 않음
     const originalValue = original ?? ''
     const newValue = value.trim()
     
+    console.log('[handleMemoBlur] Comparing values:', { originalValue, newValue, changed: originalValue !== newValue })
+    
     if (originalValue === newValue) {
+      console.log('[handleMemoBlur] No change detected, skipping update')
       return
     }
     
-    console.log('Memo changed:', { id, from: originalValue, to: newValue })
+    console.log('[handleMemoBlur] Memo changed, calling handleQuickUpdateTransaction')
     handleQuickUpdateTransaction(id, { memo: newValue.length > 0 ? newValue : null })
   }
 
