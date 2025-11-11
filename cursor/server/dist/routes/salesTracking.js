@@ -198,10 +198,10 @@ router.post('/bulk-move-to-retargeting', auth_1.authMiddleware, async (req, res)
             try {
                 // 리타겟팅 고객으로 추가
                 await db_1.pool.query(`INSERT INTO retargeting_customers 
-           (name, company_name, phone, account_id, memo, main_keywords, homepage, instagram, user_id, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+           (name, company_name, phone, account_id, memo, main_keywords, homepage, instagram, user_id, created_at, updated_at, last_contact_date)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
            ON CONFLICT (phone) DO UPDATE 
-           SET memo = EXCLUDED.memo, updated_at = CURRENT_TIMESTAMP`, [
+           SET memo = EXCLUDED.memo, updated_at = CURRENT_TIMESTAMP, last_contact_date = CURRENT_TIMESTAMP`, [
                     record.customer_name || record.company_name || '이름 없음',
                     record.company_name || '',
                     record.phone || '',
@@ -448,6 +448,7 @@ router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) 
         try {
             await client.query('BEGIN');
             const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+            const lastContactDate = new Date().toISOString(); // 이동한 날짜를 마지막 연락일로 설정
             // memo: 빈 값 허용
             const memoFinal = record.memo ? record.memo.trim() : null;
             const memoFinalValue = (memoFinal && memoFinal !== '') ? memoFinal : null;
@@ -467,7 +468,8 @@ router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) 
                 null, // homepage
                 instagramFinal, // instagram (account_id에서 가져옴, null 허용)
                 null, // main_keywords
-                id // sales_tracking_id
+                id, // sales_tracking_id
+                lastContactDate // last_contact_date (이동한 날짜)
             ];
             // NOT NULL 필드 강제 검증 (인덱스: 6=manager만 필수)
             // company_name, customer_name, phone은 빈값 허용
@@ -496,8 +498,8 @@ router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) 
             // INSERT 실행
             const retargetingResult = await client.query(`INSERT INTO retargeting_customers (
           company_name, industry, customer_name, phone, region, inflow_path,
-          manager, manager_team, status, registered_at, memo, homepage, instagram, main_keywords, sales_tracking_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          manager, manager_team, status, registered_at, memo, homepage, instagram, main_keywords, sales_tracking_id, last_contact_date
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         RETURNING *`, insertValues);
             await client.query('COMMIT');
             const retargetingCustomer = retargetingResult.rows[0];

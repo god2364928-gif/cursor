@@ -27,6 +27,7 @@ interface SalesTrackingRecord {
   user_id: string
   created_at: string
   updated_at: string
+  moved_to_retargeting?: boolean
 }
 
 const PAGE_SIZE = 500
@@ -1081,7 +1082,7 @@ export default function SalesTrackingPage() {
                   <th className="px-2 py-2 text-left font-medium border-r w-32">{t('accountId')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('contactMethod')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('status')}</th>
-                  <th className="px-2 py-2 text-left font-medium border-r w-32">{t('memo')}</th>
+                  <th className="px-2 py-2 text-left font-medium border-r w-16">{t('memo')}</th>
                   <th className="px-2 py-2 text-center font-medium w-20">{t('actions')}</th>
                 </tr>
               </thead>
@@ -1100,9 +1101,17 @@ export default function SalesTrackingPage() {
                   </tr>
                 ) : (
                   paginatedRecords.map((record) => (
-                    <tr key={record.id} id={`sales-tracking-record-${record.id}`} className="border-b hover:bg-gray-50">
+                    <tr 
+                      key={record.id} 
+                      id={`sales-tracking-record-${record.id}`} 
+                      className={`border-b ${
+                        record.moved_to_retargeting 
+                          ? 'bg-gray-200 text-gray-500 opacity-60' 
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
                       <td className="px-2 py-1 border-r text-center">
-                        {record.user_id === user?.id && (
+                        {record.user_id === user?.id && !record.moved_to_retargeting && (
                           <input
                             type="checkbox"
                             checked={selectedIds.has(record.id)}
@@ -1123,7 +1132,7 @@ export default function SalesTrackingPage() {
                         {record.memo || '-'}
                       </td>
                       <td className="px-2 py-1 text-center">
-                        {canEdit(record) && (
+                        {canEdit(record) && !record.moved_to_retargeting && (
                           <div className="flex gap-1 justify-center">
                             <Button
                               variant="ghost"
