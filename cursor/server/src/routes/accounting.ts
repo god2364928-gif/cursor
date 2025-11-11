@@ -265,8 +265,24 @@ router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single
 
     for (const line of dataLines) {
       try {
-        // CSV 파싱 (쉼표 구분, 따옴표 처리)
-        const cols = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map((col) => col.replace(/^"|"$/g, '').trim()) || []
+        // CSV 파싱 - 빈 문자열("")도 정확히 캡처
+        const cols: string[] = []
+        let current = ''
+        let inQuotes = false
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i]
+          
+          if (char === '"') {
+            inQuotes = !inQuotes
+          } else if (char === ',' && !inQuotes) {
+            cols.push(current.trim())
+            current = ''
+          } else {
+            current += char
+          }
+        }
+        cols.push(current.trim()) // 마지막 컬럼
         
         if (cols.length < 11) continue
 
