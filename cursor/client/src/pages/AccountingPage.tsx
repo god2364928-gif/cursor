@@ -764,11 +764,9 @@ export default function AccountingPage() {
         </CardContent>
       </Card>
 
-      <Card className="bg-white">
-        <CardContent className="p-6">
-          {/* Tab Navigation */}
-          <div className="border-b border-gray-200">
-            <nav className="flex gap-4">
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200 bg-white rounded-lg px-6 py-3">
+        <nav className="flex gap-4">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -2040,8 +2038,6 @@ export default function AccountingPage() {
           </div>
         </div>
       )}
-        </CardContent>
-      </Card>
     </div>
   )
 }

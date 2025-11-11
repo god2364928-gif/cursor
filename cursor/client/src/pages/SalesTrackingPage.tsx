@@ -732,12 +732,14 @@ export default function SalesTrackingPage() {
   }, [managerFilter])
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 pt-8">
+    <div className="min-h-screen bg-gray-100 p-6 pt-8 space-y-6">
       {/* Global Search - 통합 검색 */}
-      <div className="mb-4 -mt-8">
-        <h2 className="text-lg font-semibold mb-2">{t('globalSearch')}</h2>
-        <GlobalSearch />
-      </div>
+      <Card className="bg-white -mt-2">
+        <CardContent className="p-4">
+          <h2 className="text-lg font-semibold mb-2">{t('globalSearch')}</h2>
+          <GlobalSearch />
+        </CardContent>
+      </Card>
 
       <Card className="bg-white">
         <CardContent className="p-6">
