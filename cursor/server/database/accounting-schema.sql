@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS accounting_employees (
 CREATE TABLE IF NOT EXISTS accounting_transactions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   transaction_date DATE NOT NULL,
+  transaction_time TIME,
   fiscal_year INTEGER GENERATED ALWAYS AS (
     CASE 
       WHEN EXTRACT(MONTH FROM transaction_date) >= 10 
