@@ -109,8 +109,8 @@ interface Account {
 }
 
 const CATEGORY_OPTIONS = [
-  { value: '셀마플 매출', labelJa: 'セルマプ売上', labelKo: '셀마플 매출' },
-  { value: '코코마케 매출', labelJa: 'ココマケ売上', labelKo: '코코마케 매출' },
+  { value: '셀마플', labelJa: 'セルマプ', labelKo: '셀마플' },
+  { value: '코코마케', labelJa: 'ココマケ', labelKo: '코코마케' },
   { value: '운영비', labelJa: '運営費', labelKo: '운영비' },
   { value: '급여', labelJa: '給与', labelKo: '급여' },
   { value: '월세', labelJa: '家賃', labelKo: '월세' },
@@ -125,6 +125,7 @@ export default function AccountingPage() {
   const [fiscalYear, setFiscalYear] = useState<number>(
     new Date().getMonth() >= 9 ? new Date().getFullYear() + 1 : new Date().getFullYear()
   )
+  const [monthFilter, setMonthFilter] = useState<string>('') // 월별 필터 (YYYY-MM 형식, 빈 문자열 = 전체 연도)
   
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -149,6 +150,9 @@ export default function AccountingPage() {
   const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null)
   const [editingRecurring, setEditingRecurring] = useState<RecurringExpense | null>(null)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
+  const [showAutoMatchDialog, setShowAutoMatchDialog] = useState(false)
+  const [autoMatchRules, setAutoMatchRules] = useState<any[]>([])
+  const [editingRule, setEditingRule] = useState<any | null>(null)
 
   useEffect(() => {
     fetchDashboard()
@@ -457,6 +461,65 @@ export default function AccountingPage() {
     setMemoDrafts(newDrafts)
   }
 
+  // 자동 매칭 규칙 관련 함수
+  const fetchAutoMatchRules = async () => {
+    try {
+      const response = await api.get('/accounting/auto-match-rules')
+      setAutoMatchRules(response.data)
+    } catch (error) {
+      console.error('Auto match rules fetch error:', error)
+    }
+  }
+
+  const handleSaveAutoMatchRule = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const keyword = formData.get('keyword') as string
+    const category = formData.get('category') as string
+    const assignedUserId = formData.get('assignedUserId') as string
+    const paymentMethod = formData.get('paymentMethod') as string
+    const priority = Number(formData.get('priority') || 0)
+
+    try {
+      if (editingRule) {
+        await api.put(`/accounting/auto-match-rules/${editingRule.id}`, {
+          keyword,
+          category: category || null,
+          assignedUserId: assignedUserId || null,
+          paymentMethod: paymentMethod || null,
+          priority,
+          isActive: true
+        })
+      } else {
+        await api.post('/accounting/auto-match-rules', {
+          keyword,
+          category: category || null,
+          assignedUserId: assignedUserId || null,
+          paymentMethod: paymentMethod || null,
+          priority,
+          isActive: true
+        })
+      }
+      fetchAutoMatchRules()
+      setEditingRule(null)
+      e.currentTarget.reset()
+      alert(language === 'ja' ? '保存しました' : '저장되었습니다')
+    } catch (error: any) {
+      console.error('Auto match rule save error:', error)
+      alert(error.response?.data?.error || (language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다'))
+    }
+  }
+
+  const handleDeleteAutoMatchRule = async (id: string) => {
+    if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
+    try {
+      await api.delete(`/accounting/auto-match-rules/${id}`)
+      fetchAutoMatchRules()
+    } catch (error) {
+      console.error('Auto match rule delete error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
+    }
+  }
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -725,21 +788,64 @@ export default function AccountingPage() {
       {/* Dashboard Tab */}
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium">
-              {language === 'ja' ? '会計年度' : '회계연도'}:
-            </label>
-            <select
-              value={fiscalYear}
-              onChange={(e) => setFiscalYear(Number(e.target.value))}
-              className="border rounded px-3 py-2"
-            >
-              {[2024, 2025, 2026, 2027].map((year) => (
-                <option key={year} value={year}>
-                  {year} ({year - 1}.10 ~ {year}.09)
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center justify-between gap-4">
+            {/* 월별 필터 (왼쪽) */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant={monthFilter === '' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setMonthFilter('')}
+              >
+                {language === 'ja' ? '年度全体' : '연도 전체'}
+              </Button>
+              <Button
+                variant={monthFilter === new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7) ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  const prevMonth = new Date()
+                  prevMonth.setMonth(prevMonth.getMonth() - 1)
+                  setMonthFilter(prevMonth.toISOString().slice(0, 7))
+                }}
+              >
+                {language === 'ja' ? '前月' : '전월'}
+              </Button>
+              <Button
+                variant={monthFilter === new Date().toISOString().slice(0, 7) ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setMonthFilter(new Date().toISOString().slice(0, 7))}
+              >
+                {language === 'ja' ? '今月' : '당월'}
+              </Button>
+              <Button
+                variant={monthFilter === new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 7) ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  const nextMonth = new Date()
+                  nextMonth.setMonth(nextMonth.getMonth() + 1)
+                  setMonthFilter(nextMonth.toISOString().slice(0, 7))
+                }}
+              >
+                {language === 'ja' ? '来月' : '내월'}
+              </Button>
+            </div>
+            
+            {/* 회계연도 선택 (오른쪽) */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">
+                {language === 'ja' ? '会計年度' : '회계연도'}:
+              </label>
+              <select
+                value={fiscalYear}
+                onChange={(e) => setFiscalYear(Number(e.target.value))}
+                className="border rounded px-3 py-2"
+              >
+                {[2024, 2025, 2026, 2027].map((year) => (
+                  <option key={year} value={year}>
+                    {year} ({year - 1}.10 ~ {year}.09)
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {dashboard && (
@@ -859,8 +965,58 @@ export default function AccountingPage() {
       {activeTab === 'transactions' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">{language === 'ja' ? '取引履歴' : '거래내역'}</h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold">{language === 'ja' ? '取引履歴' : '거래내역'}</h2>
+              {/* 월별 필터 */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={monthFilter === '' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setMonthFilter('')}
+                >
+                  {language === 'ja' ? '年度全体' : '연도 전체'}
+                </Button>
+                <Button
+                  variant={monthFilter === new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7) ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    const prevMonth = new Date()
+                    prevMonth.setMonth(prevMonth.getMonth() - 1)
+                    setMonthFilter(prevMonth.toISOString().slice(0, 7))
+                  }}
+                >
+                  {language === 'ja' ? '前月' : '전월'}
+                </Button>
+                <Button
+                  variant={monthFilter === new Date().toISOString().slice(0, 7) ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setMonthFilter(new Date().toISOString().slice(0, 7))}
+                >
+                  {language === 'ja' ? '今月' : '당월'}
+                </Button>
+                <Button
+                  variant={monthFilter === new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 7) ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    const nextMonth = new Date()
+                    nextMonth.setMonth(nextMonth.getMonth() + 1)
+                    setMonthFilter(nextMonth.toISOString().slice(0, 7))
+                  }}
+                >
+                  {language === 'ja' ? '来月' : '내월'}
+                </Button>
+              </div>
+            </div>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAutoMatchDialog(true)
+                  fetchAutoMatchRules()
+                }}
+              >
+                {language === 'ja' ? '自動マッチング設定' : '자동 매칭 설정'}
+              </Button>
               <label className="cursor-pointer">
                 <input
                   type="file"
@@ -974,15 +1130,17 @@ export default function AccountingPage() {
                       required
                       defaultValue={
                         editingTransaction?.paymentMethod
-                          ? (editingTransaction.paymentMethod === '현금' || editingTransaction.paymentMethod === '은행'
-                              ? '현금/은행'
+                          ? (editingTransaction.paymentMethod === '현금' || editingTransaction.paymentMethod === '은행' || editingTransaction.paymentMethod === '현금/은행'
+                              ? '계좌이체'
+                              : editingTransaction.paymentMethod === 'Stripe'
+                              ? '페이팔'
                               : editingTransaction.paymentMethod)
-                          : '현금/은행'
+                          : '계좌이체'
                       }
                     >
-                      <option value="현금/은행">{language === 'ja' ? '現金・銀行' : '현금/은행'}</option>
+                      <option value="계좌이체">{language === 'ja' ? '口座振替' : '계좌이체'}</option>
                       <option value="PayPay">PayPay</option>
-                      <option value="Stripe">Stripe</option>
+                      <option value="페이팔">{language === 'ja' ? 'ペイパル' : '페이팔'}</option>
                       <option value="카드">{language === 'ja' ? 'カード' : '카드'}</option>
                     </select>
                   </div>
@@ -1045,7 +1203,12 @@ export default function AccountingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.map((tx) => (
+                    {transactions
+                      .filter(tx => {
+                        if (monthFilter === '') return true
+                        return tx.transactionDate.startsWith(monthFilter)
+                      })
+                      .map((tx) => (
                       <tr key={tx.id} className="border-t hover:bg-gray-50">
                         <td className="px-3 py-2 text-sm">
                           {tx.transactionTime ? (
@@ -1164,6 +1327,155 @@ export default function AccountingPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* 자동 매칭 설정 팝업 */}
+          {showAutoMatchDialog && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <Card className="w-full max-w-4xl max-h-[90vh] overflow-auto">
+                <CardHeader>
+                  <CardTitle>{language === 'ja' ? '自動マッチング設定' : '자동 매칭 설정'}</CardTitle>
+                  <p className="text-sm text-gray-600 mt-2">
+                    {language === 'ja' 
+                      ? 'CSV アップロード時に、項目名にキーワードが含まれていれば自動的にカテゴリと担当者を設定します。'
+                      : 'CSV 업로드 시 항목명에 키워드가 포함되어 있으면 자동으로 카테고리와 담당자를 설정합니다.'}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* 규칙 추가/수정 폼 */}
+                  <form onSubmit={handleSaveAutoMatchRule} className="border rounded p-4 space-y-3 bg-gray-50">
+                    <h3 className="font-semibold">{editingRule ? (language === 'ja' ? '規則を修正' : '규칙 수정') : (language === 'ja' ? '新規規則追加' : '신규 규칙 추가')}</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {language === 'ja' ? 'キーワード' : '키워드'} <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                          name="keyword"
+                          required
+                          placeholder={language === 'ja' ? '例: face, PayPay' : '예: face, PayPay'}
+                          defaultValue={editingRule?.keyword || ''}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {language === 'ja' ? 'カテゴリ' : '카테고리'}
+                        </label>
+                        <select name="category" className="w-full border rounded px-3 py-2" defaultValue={editingRule?.category || ''}>
+                          <option value="">{language === 'ja' ? '指定なし' : '지정 없음'}</option>
+                          {CATEGORY_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>
+                              {language === 'ja' ? opt.labelJa : opt.labelKo}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {language === 'ja' ? '担当者' : '담당자'}
+                        </label>
+                        <select name="assignedUserId" className="w-full border rounded px-3 py-2" defaultValue={editingRule?.assigned_user_id || ''}>
+                          <option value="">{language === 'ja' ? '指定なし' : '지정 없음'}</option>
+                          {nameOptions.map(user => (
+                            <option key={user.id} value={user.id}>{user.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {language === 'ja' ? '決済手段' : '결제수단'}
+                        </label>
+                        <select name="paymentMethod" className="w-full border rounded px-3 py-2" defaultValue={editingRule?.payment_method || ''}>
+                          <option value="">{language === 'ja' ? '指定なし' : '지정 없음'}</option>
+                          <option value="계좌이체">{language === 'ja' ? '口座振替' : '계좌이체'}</option>
+                          <option value="PayPay">PayPay</option>
+                          <option value="페이팔">{language === 'ja' ? 'ペイパル' : '페이팔'}</option>
+                          <option value="카드">{language === 'ja' ? 'カード' : '카드'}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {language === 'ja' ? '優先順位' : '우선순위'}
+                        </label>
+                        <Input
+                          type="number"
+                          name="priority"
+                          defaultValue={editingRule?.priority || 0}
+                          placeholder="0"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">{language === 'ja' ? '数字が大きいほど優先' : '숫자가 클수록 우선'}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      {editingRule && (
+                        <Button type="button" variant="outline" onClick={() => setEditingRule(null)}>
+                          {language === 'ja' ? 'キャンセル' : '취소'}
+                        </Button>
+                      )}
+                      <Button type="submit">
+                        {editingRule ? (language === 'ja' ? '修正を保存' : '수정 저장') : (language === 'ja' ? '追加' : '추가')}
+                      </Button>
+                    </div>
+                  </form>
+
+                  {/* 규칙 목록 */}
+                  <div>
+                    <h3 className="font-semibold mb-2">{language === 'ja' ? '登録されている規則' : '등록된 규칙'}</h3>
+                    <div className="border rounded overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-3 py-2 text-left">{language === 'ja' ? 'キーワード' : '키워드'}</th>
+                            <th className="px-3 py-2 text-left">{language === 'ja' ? 'カテゴリ' : '카테고리'}</th>
+                            <th className="px-3 py-2 text-left">{language === 'ja' ? '担当者' : '담당자'}</th>
+                            <th className="px-3 py-2 text-left">{language === 'ja' ? '決済' : '결제'}</th>
+                            <th className="px-3 py-2 text-center">{language === 'ja' ? '優先' : '우선'}</th>
+                            <th className="px-3 py-2 text-center">{language === 'ja' ? '操作' : '조작'}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {autoMatchRules.map(rule => (
+                            <tr key={rule.id} className="border-t">
+                              <td className="px-3 py-2 font-mono text-blue-600">{rule.keyword}</td>
+                              <td className="px-3 py-2">{rule.category || '-'}</td>
+                              <td className="px-3 py-2">{rule.assigned_user_name || '-'}</td>
+                              <td className="px-3 py-2">{rule.payment_method || '-'}</td>
+                              <td className="px-3 py-2 text-center">{rule.priority}</td>
+                              <td className="px-3 py-2 text-center">
+                                <div className="flex gap-1 justify-center">
+                                  <Button size="sm" variant="outline" onClick={() => setEditingRule(rule)}>
+                                    {language === 'ja' ? '修正' : '수정'}
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => handleDeleteAutoMatchRule(rule.id)}>
+                                    <Trash2 className="h-3 w-3 text-red-600" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {autoMatchRules.length === 0 && (
+                            <tr>
+                              <td colSpan={6} className="px-3 py-4 text-center text-gray-500">
+                                {language === 'ja' ? '登録されている規則がありません' : '등록된 규칙이 없습니다'}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button variant="outline" onClick={() => {
+                      setShowAutoMatchDialog(false)
+                      setEditingRule(null)
+                    }}>
+                      {language === 'ja' ? '閉じる' : '닫기'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       )}
 
