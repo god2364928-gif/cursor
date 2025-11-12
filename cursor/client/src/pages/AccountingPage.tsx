@@ -2002,8 +2002,7 @@ export default function AccountingPage() {
       {/* Recurring Expenses Tab */}
       {activeTab === 'recurring' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">{language === 'ja' ? '定期支出' : '정기지출'}</h2>
+          <div className="flex justify-end items-center">
             <Button
               onClick={() => {
                 if (showRecurringForm && !editingRecurring) {
@@ -2161,21 +2160,14 @@ export default function AccountingPage() {
       {/* Capital Tab */}
       {activeTab === 'capital' && (
         <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-1">{language === 'ja' ? '資本金' : '자본금'}</h2>
-            <p className="text-sm text-gray-600">
-              {language === 'ja' ? '資本金と保証金を管理します' : '자본금과 보증금을 관리합니다'}
-            </p>
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 자본금 (계좌 잔액) 섹션 */}
             <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>{language === 'ja' ? '資本金（口座残高）' : '자본금 (계좌 잔액)'}</CardTitle>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => openCapitalForm()}>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>{language === 'ja' ? '資本金（口座残高）' : '자본금 (계좌 잔액)'}</CardTitle>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => openCapitalForm()}>
                     <Plus className="h-4 w-4 mr-1" />
                     {language === 'ja' ? '追加' : '추가'}
                   </Button>
