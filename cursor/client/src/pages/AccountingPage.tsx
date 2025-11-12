@@ -167,8 +167,21 @@ export default function AccountingPage() {
   const [fiscalYear, setFiscalYear] = useState<number>(
     new Date().getMonth() >= 9 ? new Date().getFullYear() + 1 : new Date().getFullYear()
   )
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  
+  // 전월 첫날과 마지막날 계산
+  const getPreviousMonthDates = () => {
+    const now = new Date()
+    const firstDayPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lastDayPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    return {
+      start: firstDayPrevMonth.toISOString().slice(0, 10),
+      end: lastDayPrevMonth.toISOString().slice(0, 10)
+    }
+  }
+  
+  const prevMonthDates = getPreviousMonthDates()
+  const [startDate, setStartDate] = useState(prevMonthDates.start)
+  const [endDate, setEndDate] = useState(prevMonthDates.end)
   
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -262,10 +275,12 @@ export default function AccountingPage() {
   const [paypaySummary, setPaypaySummary] = useState<{ totalSales: number; totalExpenses: number; balance: number }>({ totalSales: 0, totalExpenses: 0, balance: 0 })
   const [paypaySales, setPaypaySales] = useState<any[]>([])
   const [paypayExpenses, setPaypayExpenses] = useState<any[]>([])
-  const [paypayStartDate, setPaypayStartDate] = useState(new Date().toISOString().slice(0, 10))
-  const [paypayEndDate, setPaypayEndDate] = useState(new Date().toISOString().slice(0, 10))
+  const paypayPrevMonthDates = getPreviousMonthDates()
+  const [paypayStartDate, setPaypayStartDate] = useState(paypayPrevMonthDates.start)
+  const [paypayEndDate, setPaypayEndDate] = useState(paypayPrevMonthDates.end)
   const [paypayCategoryFilter, setPaypayCategoryFilter] = useState('all') // 'all', '셀마플', 'staff'
   const [paypayNameFilter, setPaypayNameFilter] = useState('')
+  const [paypayActiveTab, setPaypayActiveTab] = useState<'sales' | 'expenses'>('sales') // 매출/지출 탭
   const [showPaypayExpenseForm, setShowPaypayExpenseForm] = useState(false)
   const [editingPaypayExpense, setEditingPaypayExpense] = useState<any>(null)
   const [showPaypayUploadDialog, setShowPaypayUploadDialog] = useState(false)
@@ -3020,30 +3035,76 @@ export default function AccountingPage() {
             </CardContent>
           </Card>
 
-          {/* 매출 목록 */}
+          {/* 매출/지출 목록 */}
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>{language === 'ja' ? '売上リスト' : '매출 목록'}</CardTitle>
-                <div>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handlePaypayCSVUpload}
-                    className="hidden"
-                    id="paypay-csv-upload"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => document.getElementById('paypay-csv-upload')?.click()}
+                <div className="flex gap-4">
+                  <button
+                    className={`px-4 py-2 font-semibold transition-colors ${
+                      paypayActiveTab === 'sales'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setPaypayActiveTab('sales')}
                   >
-                    <Plus className="h-4 w-4 mr-1" />
-                    CSV {language === 'ja' ? 'アップロード' : '업로드'}
-                  </Button>
+                    {language === 'ja' ? '売上' : '매출'}
+                  </button>
+                  <button
+                    className={`px-4 py-2 font-semibold transition-colors ${
+                      paypayActiveTab === 'expenses'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setPaypayActiveTab('expenses')}
+                  >
+                    {language === 'ja' ? '支出' : '지출'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-4">
+                  {paypayActiveTab === 'sales' && (
+                    <>
+                      <div className="text-sm font-semibold text-gray-700">
+                        {language === 'ja' ? '合計' : '총합'}: {formatCurrency(paypaySales.reduce((sum, sale) => sum + parseFloat(sale.amount || 0), 0))}
+                      </div>
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={handlePaypayCSVUpload}
+                        className="hidden"
+                        id="paypay-csv-upload"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => document.getElementById('paypay-csv-upload')?.click()}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        CSV {language === 'ja' ? 'アップロード' : '업로드'}
+                      </Button>
+                    </>
+                  )}
+                  {paypayActiveTab === 'expenses' && (
+                    <>
+                      <div className="text-sm font-semibold text-gray-700">
+                        {language === 'ja' ? '合計' : '총합'}: {formatCurrency(paypayExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0))}
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setShowPaypayExpenseForm(true)
+                          setEditingPaypayExpense(null)
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        {language === 'ja' ? '追加' : '추가'}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </CardHeader>
             <CardContent>
+              {paypayActiveTab === 'sales' ? (
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-gray-50">
@@ -3127,28 +3188,9 @@ export default function AccountingPage() {
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* 지출 목록 */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>{language === 'ja' ? '支出リスト' : '지출 목록'}</CardTitle>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setShowPaypayExpenseForm(true)
-                    setEditingPaypayExpense(null)
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {language === 'ja' ? '追加' : '추가'}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {showPaypayExpenseForm && (
+              ) : (
+                <>
+                  {showPaypayExpenseForm && (
                 <Card className="mb-4 border-blue-200 bg-blue-50">
                   <CardContent className="p-4">
                     <h3 className="text-lg font-semibold mb-4">
@@ -3292,6 +3334,8 @@ export default function AccountingPage() {
                   </tbody>
                 </table>
               </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
