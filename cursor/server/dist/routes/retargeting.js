@@ -262,7 +262,7 @@ router.delete('/:id', auth_1.authMiddleware, async (req, res) => {
 router.get('/:id/history', auth_1.authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await db_1.pool.query('SELECT * FROM retargeting_history WHERE retargeting_customer_id = $1 ORDER BY created_at DESC', [id]);
+        const result = await db_1.pool.query('SELECT * FROM retargeting_history WHERE retargeting_customer_id = $1 ORDER BY is_pinned DESC, created_at DESC', [id]);
         const history = result.rows.map(row => ({
             id: row.id,
             retargetingCustomerId: row.retargeting_customer_id,
@@ -271,7 +271,7 @@ router.get('/:id/history', auth_1.authMiddleware, async (req, res) => {
             type: row.type,
             content: row.content,
             createdAt: row.created_at,
-            isPinned: false
+            isPinned: row.is_pinned || false
         }));
         res.json(history);
     }
