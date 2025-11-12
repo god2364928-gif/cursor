@@ -151,6 +151,18 @@ export default function AccountingPage() {
   const user = useAuthStore((state) => state.user)
   const isAdmin = user?.role === 'admin'
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'employees' | 'payroll' | 'recurring' | 'capital'>('dashboard')
+  
+  // Layout의 탭 클릭 이벤트 수신
+  useEffect(() => {
+    const handleTabChange = (event: CustomEvent) => {
+      setActiveTab(event.detail)
+    }
+    window.addEventListener('accounting-tab-change', handleTabChange as EventListener)
+    return () => {
+      window.removeEventListener('accounting-tab-change', handleTabChange as EventListener)
+    }
+  }, [])
+  
   const [fiscalYear, setFiscalYear] = useState<number>(
     new Date().getMonth() >= 9 ? new Date().getFullYear() + 1 : new Date().getFullYear()
   )
@@ -1023,17 +1035,8 @@ export default function AccountingPage() {
   }
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(value)
-  }
-
-  const tabs = [
-    { key: 'dashboard', label: language === 'ja' ? 'ダッシュボード' : '대시보드' },
-    { key: 'transactions', label: language === 'ja' ? '取引履歴' : '거래내역' },
-    { key: 'employees', label: language === 'ja' ? '従業員' : '직원' },
-    { key: 'payroll', label: language === 'ja' ? '給与' : '급여' },
-    { key: 'recurring', label: language === 'ja' ? '定期支出' : '정기지출' },
-    { key: 'capital', label: language === 'ja' ? '資本金' : '자본금' },
-  ]
+      return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(value)
+    }
 
   return (
     <div className="min-h-screen bg-gray-100 space-y-6 p-6">
@@ -1048,25 +1051,6 @@ export default function AccountingPage() {
           </div>
         </div>
       )}
-
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200 bg-white rounded-lg px-6 py-3">
-        <nav className="flex gap-4">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-                activeTab === tab.key
-                  ? 'border-emerald-600 text-emerald-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
 
       {/* Dashboard Tab */}
       {activeTab === 'dashboard' && (

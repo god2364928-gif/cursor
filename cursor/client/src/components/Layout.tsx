@@ -38,6 +38,9 @@ export default function Layout() {
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
+  
+  // 회계 페이지 확인
+  const isAccountingPage = location.pathname === '/accounting'
 
   // 언어 변경 시 HTML lang 속성 업데이트
   useEffect(() => {
@@ -73,30 +76,64 @@ export default function Layout() {
     }
   }
 
+  // 회계 탭 목록
+  const accountingTabs = [
+    { key: 'dashboard', label: language === 'ja' ? 'ダッシュボード' : '대시보드' },
+    { key: 'transactions', label: language === 'ja' ? '取引履歴' : '거래내역' },
+    { key: 'employees', label: language === 'ja' ? '従業員' : '직원' },
+    { key: 'payroll', label: language === 'ja' ? '給与' : '급여' },
+    { key: 'recurring', label: language === 'ja' ? '定期支出' : '정기지출' },
+    { key: 'capital', label: language === 'ja' ? '資本金' : '자본금' },
+  ]
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar with accounting button and language switcher */}
-      <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-end px-6 z-10 gap-3">
-        {user?.role === 'admin' && (
+      {/* Top bar with accounting tabs, accounting button and language switcher */}
+      <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-10">
+        {/* 회계 페이지일 때만 탭 표시 */}
+        {isAccountingPage && (
+          <nav className="flex gap-2">
+            {accountingTabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => {
+                  const event = new CustomEvent('accounting-tab-change', { detail: tab.key })
+                  window.dispatchEvent(event)
+                }}
+                className="px-4 py-2 text-sm font-medium transition-colors border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        )}
+        
+        {/* 회계 페이지가 아닐 때는 빈 공간 */}
+        {!isAccountingPage && <div />}
+        
+        {/* 오른쪽 버튼들 */}
+        <div className="flex items-center gap-3">
+          {user?.role === 'admin' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAccountingClick}
+              className="flex items-center gap-2"
+            >
+              <Calculator className="h-4 w-4" />
+              {language === 'ja' ? '会計' : '회계'}
+            </Button>
+          )}
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            onClick={handleAccountingClick}
+            onClick={toggleLanguage}
             className="flex items-center gap-2"
           >
-            <Calculator className="h-4 w-4" />
-            {language === 'ja' ? '会計' : '회계'}
+            <Languages className="h-4 w-4" />
+            {language === 'ja' ? t('korean') : t('japanese')}
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleLanguage}
-          className="flex items-center gap-2"
-        >
-          <Languages className="h-4 w-4" />
-          {language === 'ja' ? t('korean') : t('japanese')}
-        </Button>
+        </div>
       </div>
 
       {/* Password Modal */}
