@@ -1029,5 +1029,199 @@ router.delete('/auto-match-rules/:id', authMiddleware, adminOnly, async (req: Au
   }
 })
 
+// ========== 자본금 (Capital Balance) ==========
+// GET /capital-balance?limit=12&offset=0
+router.get('/capital-balance', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const limit = req.query.limit ? Number(req.query.limit) : 12
+    const offset = req.query.offset ? Number(req.query.offset) : 0
+    
+    const result = await pool.query(
+      `SELECT id, balance_date, amount, note, created_at, updated_at
+       FROM capital_balance
+       ORDER BY balance_date DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    )
+    
+    const countResult = await pool.query(`SELECT COUNT(*) as total FROM capital_balance`)
+    
+    res.json({
+      data: result.rows,
+      total: parseInt(countResult.rows[0].total)
+    })
+  } catch (error) {
+    console.error('Capital balance fetch error:', error)
+    res.status(500).json({ error: '자본금 조회에 실패했습니다' })
+  }
+})
+
+// POST /capital-balance
+router.post('/capital-balance', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { balanceDate, amount, note } = req.body
+    
+    // Validate date is the 1st of the month
+    const date = new Date(balanceDate)
+    if (date.getDate() !== 1) {
+      return res.status(400).json({ error: '날짜는 반드시 매월 1일이어야 합니다' })
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO capital_balance (balance_date, amount, note)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [balanceDate, amount, note || null]
+    )
+    
+    res.json(result.rows[0])
+  } catch (error: any) {
+    console.error('Capital balance create error:', error)
+    if (error.code === '23505') { // unique violation
+      return res.status(409).json({ error: '해당 날짜의 데이터가 이미 존재합니다' })
+    }
+    res.status(500).json({ error: '자본금 생성에 실패했습니다' })
+  }
+})
+
+// PUT /capital-balance/:id
+router.put('/capital-balance/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const { balanceDate, amount, note } = req.body
+    
+    // Validate date is the 1st of the month
+    const date = new Date(balanceDate)
+    if (date.getDate() !== 1) {
+      return res.status(400).json({ error: '날짜는 반드시 매월 1일이어야 합니다' })
+    }
+    
+    const result = await pool.query(
+      `UPDATE capital_balance
+       SET balance_date = $1,
+           amount = $2,
+           note = $3,
+           updated_at = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [balanceDate, amount, note || null, id]
+    )
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '데이터를 찾을 수 없습니다' })
+    }
+    
+    res.json(result.rows[0])
+  } catch (error: any) {
+    console.error('Capital balance update error:', error)
+    if (error.code === '23505') { // unique violation
+      return res.status(409).json({ error: '해당 날짜의 데이터가 이미 존재합니다' })
+    }
+    res.status(500).json({ error: '자본금 수정에 실패했습니다' })
+  }
+})
+
+// DELETE /capital-balance/:id
+router.delete('/capital-balance/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    await pool.query(`DELETE FROM capital_balance WHERE id = $1`, [id])
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Capital balance delete error:', error)
+    res.status(500).json({ error: '자본금 삭제에 실패했습니다' })
+  }
+})
+
+// ========== 보증금 (Deposits) ==========
+// GET /deposits
+router.get('/deposits', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, item_name, amount, note, created_at, updated_at
+       FROM deposits
+       ORDER BY amount DESC`
+    )
+    
+    res.json(result.rows)
+  } catch (error) {
+    console.error('Deposits fetch error:', error)
+    res.status(500).json({ error: '보증금 조회에 실패했습니다' })
+  }
+})
+
+// POST /deposits
+router.post('/deposits', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { itemName, amount, note } = req.body
+    
+    if (!itemName || itemName.trim() === '') {
+      return res.status(400).json({ error: '항목명은 필수입니다' })
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO deposits (item_name, amount, note)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [itemName.trim(), amount, note || null]
+    )
+    
+    res.json(result.rows[0])
+  } catch (error: any) {
+    console.error('Deposit create error:', error)
+    if (error.code === '23505') { // unique violation
+      return res.status(409).json({ error: '이미 존재하는 항목입니다' })
+    }
+    res.status(500).json({ error: '보증금 생성에 실패했습니다' })
+  }
+})
+
+// PUT /deposits/:id
+router.put('/deposits/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const { itemName, amount, note } = req.body
+    
+    if (!itemName || itemName.trim() === '') {
+      return res.status(400).json({ error: '항목명은 필수입니다' })
+    }
+    
+    const result = await pool.query(
+      `UPDATE deposits
+       SET item_name = $1,
+           amount = $2,
+           note = $3,
+           updated_at = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [itemName.trim(), amount, note || null, id]
+    )
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '데이터를 찾을 수 없습니다' })
+    }
+    
+    res.json(result.rows[0])
+  } catch (error: any) {
+    console.error('Deposit update error:', error)
+    if (error.code === '23505') { // unique violation
+      return res.status(409).json({ error: '이미 존재하는 항목입니다' })
+    }
+    res.status(500).json({ error: '보증금 수정에 실패했습니다' })
+  }
+})
+
+// DELETE /deposits/:id
+router.delete('/deposits/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    await pool.query(`DELETE FROM deposits WHERE id = $1`, [id])
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Deposit delete error:', error)
+    res.status(500).json({ error: '보증금 삭제에 실패했습니다' })
+  }
+})
+
 export default router
 
