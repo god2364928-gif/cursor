@@ -1979,7 +1979,10 @@ export default function AccountingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {employees
-              .filter(emp => emp.employmentStatus === employeeStatusFilter)
+              .filter(emp => {
+                const status = emp.employmentStatus || '입사중' // NULL이나 빈 값은 입사중으로 간주
+                return status === employeeStatusFilter
+              })
               .map((emp) => (
               <Card key={emp.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEmployeeDetail(emp)}>
                 <CardContent className="p-4">
