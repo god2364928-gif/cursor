@@ -231,7 +231,7 @@ router.post('/transactions/bulk', auth_1.authMiddleware, adminOnly, async (req, 
         let failed = 0;
         for (const tx of transactions) {
             try {
-                const { transactionDate, transactionType, category, paymentMethod, itemName, amount, memo } = tx;
+                const { transactionDate, transactionType, category, paymentMethod, itemName, amount, memo, assignedUserId } = tx;
                 // Normalize payment method
                 const normalizedPaymentMethod = paymentMethod === '현금' || paymentMethod === '은행' || paymentMethod === '현금/은행'
                     ? '계좌이체'
@@ -239,8 +239,8 @@ router.post('/transactions/bulk', auth_1.authMiddleware, adminOnly, async (req, 
                         ? '페이팔'
                         : paymentMethod;
                 const result = await db_1.pool.query(`INSERT INTO accounting_transactions 
-           (transaction_date, transaction_type, category, payment_method, item_name, amount, memo)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           (transaction_date, transaction_type, category, payment_method, item_name, amount, memo, assigned_user_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING *`, [
                     transactionDate,
                     transactionType,
@@ -248,7 +248,8 @@ router.post('/transactions/bulk', auth_1.authMiddleware, adminOnly, async (req, 
                     normalizedPaymentMethod,
                     itemName,
                     amount,
-                    memo || null
+                    memo || null,
+                    assignedUserId || null
                 ]);
                 const transaction = result.rows[0];
                 // 자동화: 매출 카테고리면 accounting_sales에 반영

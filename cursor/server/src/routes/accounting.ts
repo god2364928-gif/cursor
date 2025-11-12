@@ -289,7 +289,8 @@ router.post('/transactions/bulk', authMiddleware, adminOnly, async (req: AuthReq
           paymentMethod,
           itemName,
           amount,
-          memo
+          memo,
+          assignedUserId
         } = tx
         
         // Normalize payment method
@@ -302,8 +303,8 @@ router.post('/transactions/bulk', authMiddleware, adminOnly, async (req: AuthReq
         
         const result = await pool.query(
           `INSERT INTO accounting_transactions 
-           (transaction_date, transaction_type, category, payment_method, item_name, amount, memo)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           (transaction_date, transaction_type, category, payment_method, item_name, amount, memo, assigned_user_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING *`,
           [
             transactionDate,
@@ -312,7 +313,8 @@ router.post('/transactions/bulk', authMiddleware, adminOnly, async (req: AuthReq
             normalizedPaymentMethod,
             itemName,
             amount,
-            memo || null
+            memo || null,
+            assignedUserId || null
           ]
         )
         

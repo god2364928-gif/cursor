@@ -746,9 +746,18 @@ export default function AccountingPage() {
     }
   }
 
-  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    // 자동매칭 규칙 가져오기
+    let autoMatchRules: any[] = []
+    try {
+      const rulesResponse = await api.get('/accounting/auto-match-rules')
+      autoMatchRules = rulesResponse.data
+    } catch (error) {
+      console.error('Failed to fetch auto-match rules:', error)
+    }
 
     const reader = new FileReader()
     reader.onload = (event) => {
@@ -762,17 +771,45 @@ export default function AccountingPage() {
         // CSV 파싱 (쉼표로 구분하되, 따옴표 안의 쉼표는 무시)
         const values = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, '').trim()) || []
         
-        if (values.length < 7) return null
+        if (values.length < 12) return null
         
-        // CSV 형식: 날짜, 구분(입금/출금), 카테고리, 결제수단, 항목명, 금액, 메모
+        // 은행 거래내역 CSV 형식:
+        // 0: 年, 1: 月, 2: 日, 3: 時, 4: 分, 5: 秒, 6: 取引番号, 7: 摘要(항목명), 8: 지출, 9: 입금, 10: 잔액, 11: 메모
+        const year = values[0]
+        const month = values[1].padStart(2, '0')
+        const day = values[2].padStart(2, '0')
+        const transactionDate = `${year}-${month}-${day}`
+        
+        const itemName = values[7] || ''
+        const expense = values[8] ? parseFloat(values[8].replace(/,/g, '')) : 0
+        const income = values[9] ? parseFloat(values[9].replace(/,/g, '')) : 0
+        const memo = values[11] || ''
+        
+        // 입금/출금 판단
+        const transactionType = income > 0 ? '입금' : '출금'
+        const amount = income > 0 ? income : expense
+        
+        // 자동매칭 규칙 적용
+        let category = '지정없음'
+        let assignedUserId = null
+        
+        for (const rule of autoMatchRules) {
+          if (itemName.toLowerCase().includes(rule.keyword.toLowerCase())) {
+            if (rule.category) category = rule.category
+            if (rule.assigned_user_id) assignedUserId = rule.assigned_user_id
+            break
+          }
+        }
+        
         return {
-          transactionDate: values[0] || '',
-          transactionType: values[1] || '입금',
-          category: values[2] || '지정없음',
-          paymentMethod: values[3] || '계좌이체',
-          itemName: values[4] || '',
-          amount: parseFloat(values[5]?.replace(/,/g, '') || '0'),
-          memo: values[6] || ''
+          transactionDate,
+          transactionType,
+          category,
+          paymentMethod: '계좌이체',
+          itemName,
+          amount,
+          memo,
+          assignedUserId
         }
       }).filter(Boolean)
       
@@ -780,7 +817,7 @@ export default function AccountingPage() {
       setShowTransactionUploadDialog(true)
     }
     
-    reader.readAsText(file, 'UTF-8')
+    reader.readAsText(file, 'Shift-JIS')  // 은행 CSV는 Shift-JIS 인코딩
     e.target.value = ''
   }
 
@@ -3459,22 +3496,29 @@ export default function AccountingPage() {
                         {language === 'ja' ? '金額' : '금액'}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '担当者' : '담당자'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         {language === 'ja' ? 'メモ' : '메모'}
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {transactionUploadPreview.slice(0, 50).map((tx, idx) => (
-                      <tr key={idx} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm">{tx.transactionDate}</td>
-                        <td className="px-4 py-3 text-sm">{tx.transactionType}</td>
-                        <td className="px-4 py-3 text-sm font-medium">{tx.category}</td>
-                        <td className="px-4 py-3 text-sm">{tx.paymentMethod}</td>
-                        <td className="px-4 py-3 text-sm">{tx.itemName}</td>
-                        <td className="px-4 py-3 text-sm text-right">{formatCurrency(tx.amount)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">{tx.memo || '-'}</td>
-                      </tr>
-                    ))}
+                    {transactionUploadPreview.slice(0, 50).map((tx, idx) => {
+                      const assignedUser = nameOptions.find(u => u.id === tx.assignedUserId)
+                      return (
+                        <tr key={idx} className="border-t hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm">{tx.transactionDate}</td>
+                          <td className="px-4 py-3 text-sm">{tx.transactionType}</td>
+                          <td className="px-4 py-3 text-sm font-medium">{tx.category}</td>
+                          <td className="px-4 py-3 text-sm">{tx.paymentMethod}</td>
+                          <td className="px-4 py-3 text-sm">{tx.itemName}</td>
+                          <td className="px-4 py-3 text-sm text-right">{formatCurrency(tx.amount)}</td>
+                          <td className="px-4 py-3 text-sm">{assignedUser?.name || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">{tx.memo || '-'}</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
