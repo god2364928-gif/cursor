@@ -166,6 +166,16 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
       return res.status(400).json({ message: 'Name and email are required' })
     }
 
+    // Helper function to convert empty strings to null
+    const toNullIfEmpty = (value: any): any => {
+      if (value === null || value === undefined) return null
+      if (typeof value === 'string') {
+        const trimmed = value.trim()
+        return trimmed || null
+      }
+      return value
+    }
+
     // If password is provided, hash it
     let hashedPassword = null
     if (password) {
@@ -184,11 +194,11 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
           transportation_start_date = $16, transportation_details = $17
          WHERE id = $18 RETURNING *`,
         [
-          name, email, hashedPassword, team || null, role || 'user',
-          department || null, position || null, employmentStatus || null, baseSalary || null,
-          hireDate || null, contractStartDate || null, contractEndDate || null, martId || null,
-          transportationRoute || null, monthlyTransportationCost || null,
-          transportationStartDate || null, transportationDetails || null,
+          name, email, hashedPassword, toNullIfEmpty(team), role || 'user',
+          toNullIfEmpty(department), toNullIfEmpty(position), toNullIfEmpty(employmentStatus), toNullIfEmpty(baseSalary),
+          toNullIfEmpty(hireDate), toNullIfEmpty(contractStartDate), toNullIfEmpty(contractEndDate), toNullIfEmpty(martId),
+          toNullIfEmpty(transportationRoute), toNullIfEmpty(monthlyTransportationCost),
+          toNullIfEmpty(transportationStartDate), toNullIfEmpty(transportationDetails),
           id
         ]
       )
@@ -202,11 +212,11 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
           transportation_start_date = $15, transportation_details = $16
          WHERE id = $17 RETURNING *`,
         [
-          name, email, team || null, role || 'user',
-          department || null, position || null, employmentStatus || null, baseSalary || null,
-          hireDate || null, contractStartDate || null, contractEndDate || null, martId || null,
-          transportationRoute || null, monthlyTransportationCost || null,
-          transportationStartDate || null, transportationDetails || null,
+          name, email, toNullIfEmpty(team), role || 'user',
+          toNullIfEmpty(department), toNullIfEmpty(position), toNullIfEmpty(employmentStatus), toNullIfEmpty(baseSalary),
+          toNullIfEmpty(hireDate), toNullIfEmpty(contractStartDate), toNullIfEmpty(contractEndDate), toNullIfEmpty(martId),
+          toNullIfEmpty(transportationRoute), toNullIfEmpty(monthlyTransportationCost),
+          toNullIfEmpty(transportationStartDate), toNullIfEmpty(transportationDetails),
           id
         ]
       )

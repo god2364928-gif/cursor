@@ -9,6 +9,7 @@ import {
   Globe,
   CalendarDays,
   MapPin,
+  Download,
 } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
@@ -121,7 +122,7 @@ export default function KeywordAnalysisPage() {
   const [result, setResult] = useState<KeywordAnalysisSummary | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const resultRef = useRef<HTMLDivElement>(null)
-  const { copyFeedback, copyToClipboard } = useClipboardCapture(language)
+  const { copyFeedback, copyToClipboard, downloadAsImage } = useClipboardCapture(language)
 
   useEffect(() => {
     setGeo(language === 'ko' ? 'KR' : 'JP')
@@ -378,7 +379,7 @@ export default function KeywordAnalysisPage() {
 
         {result && (
           <div className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2 flex-wrap">
               <Button
                 onClick={() => copyToClipboard(resultRef.current)}
                 variant="outline"
@@ -387,6 +388,24 @@ export default function KeywordAnalysisPage() {
               >
                 <Copy className="h-4 w-4" />
                 {t('keywordAnalysisCopy')}
+              </Button>
+              <Button
+                onClick={() =>
+                  downloadAsImage(resultRef.current, {
+                    fileName: `${(result.keyword || 'keyword')
+                      .replace(/[^\p{L}\p{N}_-]+/gu, '-')
+                      .replace(/^-+|-+$/g, '') || 'keyword'}_${new Date()
+                      .toISOString()
+                      .split('T')[0]}`,
+                    errorMessage: t('keywordAnalysisDownloadFailed'),
+                  })
+                }
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                {t('keywordAnalysisDownload')}
               </Button>
             </div>
             <div

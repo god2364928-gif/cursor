@@ -311,6 +311,8 @@ export default function AccountingPage() {
   const [editingPaypayExpense, setEditingPaypayExpense] = useState<any>(null)
   const [showPaypayUploadDialog, setShowPaypayUploadDialog] = useState(false)
   const [paypayUploadPreview, setPaypayUploadPreview] = useState<any[]>([])
+  const [showTransactionUploadDialog, setShowTransactionUploadDialog] = useState(false)
+  const [transactionUploadPreview, setTransactionUploadPreview] = useState<any[]>([])
 
   const fetchDashboard = async () => {
     try {
@@ -744,36 +746,65 @@ export default function AccountingPage() {
     }
   }
 
-  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setUploadingCsv(true)
-    const formData = new FormData()
-    formData.append('file', file)
-
-    try {
-      const response = await api.post('/accounting/transactions/upload-csv', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = event.target?.result as string
+      const lines = text.split('\n').filter(line => line.trim())
       
+      // 헤더 제거 (첫 번째 줄)
+      const dataLines = lines.slice(1)
+      
+      const parsedData = dataLines.map(line => {
+        // CSV 파싱 (쉼표로 구분하되, 따옴표 안의 쉼표는 무시)
+        const values = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, '').trim()) || []
+        
+        if (values.length < 7) return null
+        
+        // CSV 형식: 날짜, 구분(입금/출금), 카테고리, 결제수단, 항목명, 금액, 메모
+        return {
+          transactionDate: values[0] || '',
+          transactionType: values[1] || '입금',
+          category: values[2] || '지정없음',
+          paymentMethod: values[3] || '계좌이체',
+          itemName: values[4] || '',
+          amount: parseFloat(values[5]?.replace(/,/g, '') || '0'),
+          memo: values[6] || ''
+        }
+      }).filter(Boolean)
+      
+      setTransactionUploadPreview(parsedData)
+      setShowTransactionUploadDialog(true)
+    }
+    
+    reader.readAsText(file, 'UTF-8')
+    e.target.value = ''
+  }
+
+  const handleTransactionSaveUpload = async () => {
+    setUploadingCsv(true)
+    try {
+      const response = await api.post('/accounting/transactions/bulk', { transactions: transactionUploadPreview })
       alert(
         language === 'ja'
           ? `${response.data.imported}件のデータをインポートしました`
           : `${response.data.imported}건의 데이터를 가져왔습니다`
       )
-      
+      setShowTransactionUploadDialog(false)
+      setTransactionUploadPreview([])
       fetchTransactions()
       fetchDashboard()
     } catch (error: any) {
-      console.error('CSV upload error:', error)
+      console.error('Transaction upload error:', error)
       alert(
         error.response?.data?.error ||
           (language === 'ja' ? 'アップロードに失敗しました' : '업로드에 실패했습니다')
       )
     } finally {
       setUploadingCsv(false)
-      e.target.value = ''
     }
   }
 
@@ -781,23 +812,38 @@ export default function AccountingPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
 
+    // Helper function to convert empty strings to null
+    const getFormValue = (key: string): string | null => {
+      const value = formData.get(key)
+      if (!value) return null
+      const trimmed = String(value).trim()
+      return trimmed || null
+    }
+
+    const getFormNumberValue = (key: string): number | null => {
+      const value = getFormValue(key)
+      if (!value) return null
+      const num = Number(value)
+      return isNaN(num) ? null : num
+    }
+
     try {
       const payload = {
-        name: formData.get('name'),
-        email: formData.get('email'),
-        password: formData.get('password') || undefined,
-        hireDate: formData.get('hireDate') || null,
-        department: formData.get('department'),
-        position: formData.get('position'),
-        employmentStatus: formData.get('employmentStatus') || '입사중',
-        baseSalary: formData.get('baseSalary') ? Number(formData.get('baseSalary')) : null,
-        contractStartDate: formData.get('contractStartDate') || null,
-        contractEndDate: formData.get('contractEndDate') || null,
-        martId: formData.get('martId') || null,
-        transportationRoute: formData.get('transportationRoute') || null,
-        monthlyTransportationCost: formData.get('monthlyTransportationCost') ? Number(formData.get('monthlyTransportationCost')) : null,
-        transportationStartDate: formData.get('transportationStartDate') || null,
-        transportationDetails: formData.get('transportationDetails') || null,
+        name: getFormValue('name'),
+        email: getFormValue('email'),
+        password: getFormValue('password') || undefined,
+        hireDate: getFormValue('hireDate'),
+        department: getFormValue('department'),
+        position: getFormValue('position'),
+        employmentStatus: getFormValue('employmentStatus') || '입사중',
+        baseSalary: getFormNumberValue('baseSalary'),
+        contractStartDate: getFormValue('contractStartDate'),
+        contractEndDate: getFormValue('contractEndDate'),
+        martId: getFormValue('martId'),
+        transportationRoute: getFormValue('transportationRoute'),
+        monthlyTransportationCost: getFormNumberValue('monthlyTransportationCost'),
+        transportationStartDate: getFormValue('transportationStartDate'),
+        transportationDetails: getFormValue('transportationDetails'),
       }
 
       if (editingEmployee) {
@@ -1718,14 +1764,13 @@ export default function AccountingPage() {
                       name="category"
                       className="w-full border rounded px-3 py-2"
                       required
-                      defaultValue={editingTransaction?.category || '셀마플 매출'}
+                      defaultValue={editingTransaction?.category || '지정없음'}
                     >
-                      <option value="셀마플 매출">{language === 'ja' ? 'セルマプ売上' : '셀마플 매출'}</option>
-                      <option value="코코마케 매출">{language === 'ja' ? 'ココマケ売上' : '코코마케 매출'}</option>
-                      <option value="운영비">{language === 'ja' ? '運営費' : '운영비'}</option>
-                      <option value="급여">{language === 'ja' ? '給与' : '급여'}</option>
-                      <option value="월세">{language === 'ja' ? '家賃' : '월세'}</option>
-                      <option value="기타">{language === 'ja' ? 'その他' : '기타'}</option>
+                      {CATEGORY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {language === 'ja' ? option.labelJa : option.labelKo}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -3367,6 +3412,93 @@ export default function AccountingPage() {
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* 거래내역 CSV 업로드 미리보기 다이얼로그 */}
+      {showTransactionUploadDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
+            <div className="p-6 border-b sticky top-0 bg-white z-10">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">
+                  {language === 'ja' ? 'CSV プレビュー' : 'CSV 미리보기'}
+                </h2>
+                <Button variant="ghost" onClick={() => setShowTransactionUploadDialog(false)}>
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                {language === 'ja' 
+                  ? `${transactionUploadPreview.length} 件のデータが見つかりました。確認して保存してください。`
+                  : `${transactionUploadPreview.length}건의 데이터가 확인되었습니다. 확인 후 저장하세요.`}
+              </p>
+            </div>
+            
+            <div className="p-6">
+              <div className="border rounded-lg overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '日付' : '날짜'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '区分' : '구분'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? 'カテゴリ' : '카테고리'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '決済手段' : '결제수단'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '項目名' : '항목명'}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '金額' : '금액'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? 'メモ' : '메모'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactionUploadPreview.slice(0, 50).map((tx, idx) => (
+                      <tr key={idx} className="border-t hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm">{tx.transactionDate}</td>
+                        <td className="px-4 py-3 text-sm">{tx.transactionType}</td>
+                        <td className="px-4 py-3 text-sm font-medium">{tx.category}</td>
+                        <td className="px-4 py-3 text-sm">{tx.paymentMethod}</td>
+                        <td className="px-4 py-3 text-sm">{tx.itemName}</td>
+                        <td className="px-4 py-3 text-sm text-right">{formatCurrency(tx.amount)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">{tx.memo || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {transactionUploadPreview.length > 50 && (
+                <p className="text-sm text-gray-600 text-center mt-4">
+                  {language === 'ja'
+                    ? `最初の 50 件のみ表示しています（全 ${transactionUploadPreview.length} 件）`
+                    : `최초 50건만 표시 중 (전체 ${transactionUploadPreview.length}건)`}
+                </p>
+              )}
+              
+              <div className="flex gap-4 justify-end mt-6">
+                <Button variant="ghost" onClick={() => setShowTransactionUploadDialog(false)}>
+                  {language === 'ja' ? 'キャンセル' : '취소'}
+                </Button>
+                <Button onClick={handleTransactionSaveUpload} disabled={uploadingCsv}>
+                  {uploadingCsv 
+                    ? (language === 'ja' ? 'アップロード中...' : '업로드 중...') 
+                    : (language === 'ja' ? '保存' : '저장')}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

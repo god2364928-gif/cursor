@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Loader2, Sparkle, AlertCircle, Hash, Copy } from 'lucide-react'
+import { Loader2, Sparkle, AlertCircle, Hash, Copy, Download } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -117,7 +117,7 @@ export default function AccountOptimizationPage() {
   const [searchedId, setSearchedId] = useState<string | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const resultRef = useRef<HTMLDivElement>(null)
-  const { copyFeedback, copyToClipboard } = useClipboardCapture(language)
+  const { copyFeedback, copyToClipboard, downloadAsImage } = useClipboardCapture(language)
 
   const sectionOptions: Array<{ key: SectionKey; labelKo: string; labelJa: string }> = [
     { key: 'profile', labelKo: '프로필', labelJa: 'プロフィール' },
@@ -346,15 +346,35 @@ export default function AccountOptimizationPage() {
                 )
               })}
             </div>
-            <Button
-              onClick={() => copyToClipboard(resultRef.current)}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2 self-start md:self-auto"
-            >
-              <Copy className="h-4 w-4" />
-              {t('accountOptimizationCopyToClipboard')}
-            </Button>
+            <div className="flex flex-wrap gap-2 self-start md:self-auto">
+              <Button
+                onClick={() => copyToClipboard(resultRef.current)}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Copy className="h-4 w-4" />
+                {t('accountOptimizationCopyToClipboard')}
+              </Button>
+              <Button
+                onClick={() =>
+                  downloadAsImage(resultRef.current, {
+                    fileName: `${(searchedId || result?.username || 'account')
+                      .replace(/[^\p{L}\p{N}_-]+/gu, '-')
+                      .replace(/^-+|-+$/g, '') || 'account'}_analysis_${new Date()
+                      .toISOString()
+                      .split('T')[0]}`,
+                    errorMessage: t('accountOptimizationDownloadFailed'),
+                  })
+                }
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                {t('accountOptimizationDownload')}
+              </Button>
+            </div>
           </div>
           <div
             ref={resultRef}
