@@ -961,12 +961,17 @@ export default function SalesTrackingPage() {
               </div>
               <div>
                 <label className="text-sm font-medium">{t('managerName')}</label>
-                <Input
+                <select
                   value={formData.managerName}
-                  readOnly
-                  disabled
-                  className="bg-gray-100 cursor-not-allowed"
-                />
+                  onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
+                  className="w-full px-3 py-2 border rounded"
+                  disabled={user?.role !== 'admin'}
+                >
+                  <option value="">{t('selectManager')}</option>
+                  {managerOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="text-sm font-medium">{t('companyName')}</label>
