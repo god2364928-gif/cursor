@@ -137,7 +137,24 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
     }
 
     const { id } = req.params
-    const { name, email, password, team, role } = req.body
+    const {
+      name,
+      email,
+      password,
+      team,
+      role,
+      department,
+      position,
+      employmentStatus,
+      baseSalary,
+      contractStartDate,
+      contractEndDate,
+      martId,
+      transportationRoute,
+      monthlyTransportationCost,
+      transportationStartDate,
+      transportationDetails
+    } = req.body
 
     if (!name || !email) {
       return res.status(400).json({ message: 'Name and email are required' })
@@ -153,13 +170,39 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
     let result
     if (hashedPassword) {
       result = await pool.query(
-        'UPDATE users SET name = $1, email = $2, password = $3, team = $4, role = $5 WHERE id = $6 RETURNING id, name, email, team, role, created_at',
-        [name, email, hashedPassword, team || null, role || 'user', id]
+        `UPDATE users SET 
+          name = $1, email = $2, password = $3, team = $4, role = $5,
+          department = $6, position = $7, employment_status = $8, base_salary = $9,
+          contract_start_date = $10, contract_end_date = $11, mart_id = $12,
+          transportation_route = $13, monthly_transportation_cost = $14,
+          transportation_start_date = $15, transportation_details = $16
+         WHERE id = $17 RETURNING *`,
+        [
+          name, email, hashedPassword, team || null, role || 'user',
+          department || null, position || null, employmentStatus || null, baseSalary || null,
+          contractStartDate || null, contractEndDate || null, martId || null,
+          transportationRoute || null, monthlyTransportationCost || null,
+          transportationStartDate || null, transportationDetails || null,
+          id
+        ]
       )
     } else {
       result = await pool.query(
-        'UPDATE users SET name = $1, email = $2, team = $3, role = $4 WHERE id = $5 RETURNING id, name, email, team, role, created_at',
-        [name, email, team || null, role || 'user', id]
+        `UPDATE users SET 
+          name = $1, email = $2, team = $3, role = $4,
+          department = $5, position = $6, employment_status = $7, base_salary = $8,
+          contract_start_date = $9, contract_end_date = $10, mart_id = $11,
+          transportation_route = $12, monthly_transportation_cost = $13,
+          transportation_start_date = $14, transportation_details = $15
+         WHERE id = $16 RETURNING *`,
+        [
+          name, email, team || null, role || 'user',
+          department || null, position || null, employmentStatus || null, baseSalary || null,
+          contractStartDate || null, contractEndDate || null, martId || null,
+          transportationRoute || null, monthlyTransportationCost || null,
+          transportationStartDate || null, transportationDetails || null,
+          id
+        ]
       )
     }
 
