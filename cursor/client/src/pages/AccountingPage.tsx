@@ -602,7 +602,7 @@ export default function AccountingPage() {
 
     try {
       if (editingRule) {
-        await api.put(`/accounting/auto-match-rules/${editingRule.id}`, {
+        const response = await api.put(`/accounting/auto-match-rules/${editingRule.id}`, {
           keyword,
           category: category || null,
           assignedUserId: assignedUserId || null,
@@ -610,8 +610,9 @@ export default function AccountingPage() {
           priority,
           isActive: true
         })
+        console.log('Update response:', response.data)
       } else {
-        await api.post('/accounting/auto-match-rules', {
+        const response = await api.post('/accounting/auto-match-rules', {
           keyword,
           category: category || null,
           assignedUserId: assignedUserId || null,
@@ -619,13 +620,17 @@ export default function AccountingPage() {
           priority,
           isActive: true
         })
+        console.log('Create response:', response.data)
       }
-      fetchAutoMatchRules()
+      
+      // 저장 성공 후 목록 새로고침
+      await fetchAutoMatchRules()
       setEditingRule(null)
       e.currentTarget.reset()
       alert(language === 'ja' ? '保存しました' : '저장되었습니다')
     } catch (error: any) {
       console.error('Auto match rule save error:', error)
+      console.error('Error response:', error.response)
       alert(error.response?.data?.error || (language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다'))
     }
   }
