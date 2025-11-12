@@ -1071,11 +1071,8 @@ export default function AccountingPage() {
   const fetchPaypaySales = async () => {
     try {
       let categoryParam = undefined
-      if (paypayCategoryFilter === '셀마플') {
-        categoryParam = '셀마플'
-      } else if (paypayCategoryFilter === 'staff') {
-        // 담당자: 4명의 담당자만
-        categoryParam = 'STAFF'
+      if (paypayCategoryFilter !== 'all') {
+        categoryParam = paypayCategoryFilter
       }
       
       const response = await api.get('/paypay/sales', {
@@ -2999,7 +2996,10 @@ export default function AccountingPage() {
                     >
                       <option value="all">{language === 'ja' ? '全て' : '전체'}</option>
                       <option value="셀마플">{language === 'ja' ? 'セルマプル' : '셀마플'}</option>
-                      <option value="staff">{language === 'ja' ? '担当者' : '담당자'}</option>
+                      <option value="JEYI">JEYI</option>
+                      <option value="石井ひとみ">石井ひとみ</option>
+                      <option value="山下南">山下南</option>
+                      <option value="山﨑水優">山﨑水優</option>
                     </select>
                   </div>
                   <div>
