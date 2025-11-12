@@ -405,6 +405,7 @@ const translations: Record<Language, Translation> = {
     bulkMemoChange: '選択項目メモ変更',
     deselectAll: '選択解除',
     selected: '選択済み',
+    enterNewMemo: '新しいメモ内容を入力',
 
     // Daily stats (new)
     dailyStats: '日別統計',
@@ -835,6 +836,7 @@ const translations: Record<Language, Translation> = {
     bulkMemoChange: '선택 항목 메모 변경',
     deselectAll: '선택 해제',
     selected: '선택됨',
+    enterNewMemo: '새 메모 내용 입력',
 
     // Daily stats (new)
     dailyStats: '일별 통계',
