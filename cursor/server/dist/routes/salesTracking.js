@@ -185,7 +185,7 @@ router.post('/bulk-move-to-retargeting', auth_1.authMiddleware, async (req, res)
             return res.status(400).json({ message: '선택된 항목이 없습니다' });
         }
         // 본인이 작성한 레코드만 조회
-        const recordsResult = await db_1.pool.query(`SELECT id, company_name, customer_name, phone, account_id, memo, industry
+        const recordsResult = await db_1.pool.query(`SELECT id, company_name, customer_name, phone, account_id, memo, industry, manager_name, date
        FROM sales_tracking 
        WHERE id = ANY($1) AND user_id = $2`, [ids, req.user?.id]);
         if (recordsResult.rows.length === 0) {
@@ -197,21 +197,29 @@ router.post('/bulk-move-to-retargeting', auth_1.authMiddleware, async (req, res)
         // 각 레코드를 리타겟팅으로 이동
         for (const record of recordsResult.rows) {
             try {
+                const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
                 // 리타겟팅 고객으로 추가
                 await db_1.pool.query(`INSERT INTO retargeting_customers 
-           (name, company_name, phone, account_id, memo, main_keywords, homepage, instagram, user_id, created_at, updated_at, last_contact_date)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+           (company_name, industry, customer_name, phone, region, inflow_path, manager, manager_team, status, registered_at, memo, homepage, instagram, main_keywords, sales_tracking_id, last_contact_date)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
            ON CONFLICT (phone) DO UPDATE 
            SET memo = EXCLUDED.memo, updated_at = CURRENT_TIMESTAMP, last_contact_date = CURRENT_TIMESTAMP`, [
-                    record.customer_name || record.company_name || '이름 없음',
                     record.company_name || '',
+                    record.industry || null,
+                    record.customer_name || record.company_name || '이름 없음',
                     record.phone || '',
-                    record.account_id || '',
-                    record.memo || '',
-                    record.industry || '',
+                    null, // region
+                    null, // inflow_path
+                    record.manager_name || '',
+                    null, // manager_team
+                    '시작', // status
+                    registeredAtDate, // registered_at
+                    record.memo || null,
                     '', // homepage
-                    '', // instagram
-                    req.user?.id
+                    record.account_id || '', // instagram (account_id를 instagram 필드에 저장)
+                    null, // main_keywords
+                    record.id, // sales_tracking_id
+                    new Date().toISOString() // last_contact_date
                 ]);
                 // 영업이력에서 플래그 설정 (삭제하지 않음)
                 await db_1.pool.query(`UPDATE sales_tracking SET moved_to_retargeting = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [record.id]);
