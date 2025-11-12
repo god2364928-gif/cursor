@@ -649,10 +649,6 @@ export default function AccountingPage() {
 
     // 저장이 성공한 경우에만 아래 실행
     if (saveSuccess) {
-      // 폼 초기화
-      setEditingRule(null)
-      e.currentTarget.reset()
-      
       // 목록 새로고침 (await로 완료 대기)
       try {
         await fetchAutoMatchRules()
@@ -663,6 +659,10 @@ export default function AccountingPage() {
         // 새로고침 실패해도 성공 메시지는 표시
         alert(language === 'ja' ? '保存しました' : '저장되었습니다')
       }
+      
+      // 폼 초기화 (fetch 후에 실행)
+      setEditingRule(null)
+      e.currentTarget.reset()
     }
   }
 
