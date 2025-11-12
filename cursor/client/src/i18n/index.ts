@@ -410,6 +410,12 @@ const translations: Record<Language, Translation> = {
     deselectAll: '選択解除',
     selected: '選択済み',
     enterNewMemo: '新しいメモ内容を入力',
+    enterMemo: 'メモを入力してください',
+    confirmBulkMoveToRetargeting: '件をリターゲティングへ移動しますか？',
+    bulkMemoUpdated: '件のメモを修正しました',
+    bulkMemoUpdateFailed: '一括修正に失敗しました',
+    bulkMovedToRetargeting: '件をリターゲティングへ移動しました',
+    bulkMoveToRetargetingFailed: 'リターゲティング移動に失敗しました',
 
     // Daily stats (new)
     dailyStats: '日別統計',
@@ -845,6 +851,12 @@ const translations: Record<Language, Translation> = {
     deselectAll: '선택 해제',
     selected: '선택됨',
     enterNewMemo: '새 메모 내용 입력',
+    enterMemo: '메모를 입력해 주세요',
+    confirmBulkMoveToRetargeting: '건을 리타겟팅으로 이동하시겠습니까?',
+    bulkMemoUpdated: '건의 메모를 수정했습니다',
+    bulkMemoUpdateFailed: '일괄 수정에 실패했습니다',
+    bulkMovedToRetargeting: '건을 리타겟팅으로 이동했습니다',
+    bulkMoveToRetargetingFailed: '리타겟팅 이동에 실패했습니다',
 
     // Daily stats (new)
     dailyStats: '일별 통계',

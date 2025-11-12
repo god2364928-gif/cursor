@@ -361,7 +361,7 @@ export default function SalesTrackingPage() {
   const handleBulkMemoUpdate = async () => {
     if (selectedIds.size === 0) return
     if (!bulkMemo.trim()) {
-      alert('메모를 입력해 주세요')
+      alert(t('enterMemo'))
       return
     }
 
@@ -372,13 +372,13 @@ export default function SalesTrackingPage() {
         memo: bulkMemo.trim()
       })
       
-      showToast(`${selectedIds.size}건의 메모를 수정했습니다`, 'success')
+      showToast(`${selectedIds.size}${t('bulkMemoUpdated')}`, 'success')
       setSelectedIds(new Set())
       setBulkMemo('')
       setShowBulkMemoForm(false)
       fetchRecords(false, 0)
     } catch (error: any) {
-      showToast(error.response?.data?.message || '일괄 수정에 실패했습니다', 'error')
+      showToast(error.response?.data?.message || t('bulkMemoUpdateFailed'), 'error')
     } finally {
       setUpdatingBulkMemo(false)
     }
@@ -388,7 +388,7 @@ export default function SalesTrackingPage() {
   const handleBulkMoveToRetargeting = async () => {
     if (selectedIds.size === 0) return
     
-    if (!confirm(`선택한 ${selectedIds.size}건을 리타겟팅으로 이동하시겠습니까?`)) {
+    if (!confirm(`${t('selected')} ${selectedIds.size}${t('confirmBulkMoveToRetargeting')}`)) {
       return
     }
 
@@ -397,11 +397,11 @@ export default function SalesTrackingPage() {
         ids: Array.from(selectedIds)
       })
       
-      showToast(`${selectedIds.size}건을 리타겟팅으로 이동했습니다`, 'success')
+      showToast(`${selectedIds.size}${t('bulkMovedToRetargeting')}`, 'success')
       setSelectedIds(new Set())
       fetchRecords(false, 0)
     } catch (error: any) {
-      showToast(error.response?.data?.message || '리타겟팅 이동에 실패했습니다', 'error')
+      showToast(error.response?.data?.message || t('bulkMoveToRetargetingFailed'), 'error')
     }
   }
 
