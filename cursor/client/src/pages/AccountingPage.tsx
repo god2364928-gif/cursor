@@ -139,6 +139,7 @@ interface Deposit {
 }
 
 const CATEGORY_OPTIONS = [
+  { value: '지정없음', labelJa: '指定なし', labelKo: '지정없음' },
   { value: '셀마플', labelJa: 'セルマプ', labelKo: '셀마플' },
   { value: '코코마케', labelJa: 'ココマケ', labelKo: '코코마케' },
   { value: '운영비', labelJa: '運営費', labelKo: '운영비' },

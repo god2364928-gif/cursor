@@ -125,9 +125,11 @@ export default function SalesTrackingPage() {
         console.log('Filtered marketers:', marketerNames)
         setManagerOptions(marketerNames)
         
-        // 디폴트는 본인
-        if (user?.name) {
+        // 디폴트: 마케터는 본인, 그 외는 'all'
+        if (user?.role === 'marketer' && user?.name) {
           setManagerFilter(user.name)
+        } else {
+          setManagerFilter('all')
         }
       } catch (e) {
         console.error('Failed to load users for manager filter', e)
