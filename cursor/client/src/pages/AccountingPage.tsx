@@ -1074,8 +1074,8 @@ export default function AccountingPage() {
       if (paypayCategoryFilter === '셀마플') {
         categoryParam = '셀마플'
       } else if (paypayCategoryFilter === 'staff') {
-        // 담당자: 셀마플이 아닌 모든 카테고리
-        categoryParam = 'NOT_셀마플'
+        // 담당자: 4명의 담당자만
+        categoryParam = 'STAFF'
       }
       
       const response = await api.get('/paypay/sales', {

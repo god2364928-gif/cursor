@@ -34,10 +34,9 @@ router.get('/sales', async (req, res) => {
     }
 
     if (category) {
-      if (category === 'NOT_셀마플') {
-        query += ` AND category != $${paramCount}`
-        params.push('셀마플')
-        paramCount++
+      if (category === 'STAFF') {
+        // 담당자: 4명만
+        query += ` AND category IN ('山﨑水優', '石井瞳', '山下南', 'JEYI')`
       } else {
         query += ` AND category = $${paramCount}`
         params.push(category)
@@ -71,17 +70,16 @@ router.post('/sales/bulk', async (req, res) => {
     await client.query('BEGIN')
 
     for (const sale of sales) {
-      // 카테고리는 '셀마플'로 고정
-      // 이름(name)은 입금자명 사용, 담당자명 매핑 적용
-      let name = sale.name
-      if (STAFF_MAPPING[name]) {
-        name = STAFF_MAPPING[name]
+      // 카테고리명 매핑 적용
+      let category = sale.category
+      if (STAFF_MAPPING[category]) {
+        category = STAFF_MAPPING[category]
       }
 
       await client.query(
         `INSERT INTO paypay_sales (date, category, user_id, name, receipt_number, amount)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [sale.date, '셀마플', sale.user_id, name, sale.receipt_number, sale.amount]
+        [sale.date, category, sale.user_id, sale.name, sale.receipt_number, sale.amount]
       )
     }
 
