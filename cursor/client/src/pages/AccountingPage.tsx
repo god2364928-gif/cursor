@@ -270,6 +270,13 @@ export default function AccountingPage() {
     }
   }
 
+  // 날짜 포맷팅 함수 (타임존 제거)
+  const formatDateOnly = (dateString: string | null | undefined): string => {
+    if (!dateString) return ''
+    // ISO 8601 형식에서 날짜 부분만 추출 (YYYY-MM-DD)
+    return dateString.split('T')[0]
+  }
+
   // 날짜 변경 핸들러
   const handlePreviousMonth = () => {
     const now = new Date()
@@ -1925,7 +1932,7 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '入社日' : '입사일'}</label>
-                    <Input type="date" name="hireDate" defaultValue={editingEmployee?.hireDate || editingEmployee?.hire_date || ''} />
+                    <Input type="date" name="hireDate" defaultValue={formatDateOnly(editingEmployee?.hireDate || editingEmployee?.hire_date)} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '基本給' : '기본급'}</label>
@@ -1937,11 +1944,11 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '契約開始日' : '계약 시작일'}</label>
-                    <Input type="date" name="contractStartDate" defaultValue={editingEmployee?.contractStartDate || editingEmployee?.contract_start_date || ''} />
+                    <Input type="date" name="contractStartDate" defaultValue={formatDateOnly(editingEmployee?.contractStartDate || editingEmployee?.contract_start_date)} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '契約終了日' : '계약 종료일'}</label>
-                    <Input type="date" name="contractEndDate" defaultValue={editingEmployee?.contractEndDate || editingEmployee?.contract_end_date || ''} />
+                    <Input type="date" name="contractEndDate" defaultValue={formatDateOnly(editingEmployee?.contractEndDate || editingEmployee?.contract_end_date)} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'マートID' : '마트 아이디'}</label>
@@ -1961,7 +1968,7 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '交通費開始日' : '교통비 시작일'}</label>
-                    <Input type="date" name="transportationStartDate" defaultValue={editingEmployee?.transportationStartDate || editingEmployee?.transportation_start_date || ''} />
+                    <Input type="date" name="transportationStartDate" defaultValue={formatDateOnly(editingEmployee?.transportationStartDate || editingEmployee?.transportation_start_date)} />
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '交通費詳細' : '교통비 상세'}</label>
@@ -2059,7 +2066,7 @@ export default function AccountingPage() {
                     <div>
                       <p className="text-gray-600">{language === 'ja' ? '入社日' : '입사일'}</p>
                       <p className="font-bold text-sm">
-                        {emp.hireDate || emp.hire_date || '-'}
+                        {formatDateOnly(emp.hireDate || emp.hire_date) || '-'}
                       </p>
                     </div>
                   </div>
