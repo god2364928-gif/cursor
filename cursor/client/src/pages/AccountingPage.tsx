@@ -238,6 +238,13 @@ export default function AccountingPage() {
     }
   }, [activeTab, nameOptions.length, capitalOffset])
 
+  // 자동 매칭 다이얼로그가 열릴 때마다 목록 새로고침
+  useEffect(() => {
+    if (showAutoMatchDialog) {
+      fetchAutoMatchRules()
+    }
+  }, [showAutoMatchDialog])
+
   const fetchDashboard = async () => {
     try {
       const response = await api.get('/accounting/dashboard', { params: { fiscalYear } })
@@ -642,17 +649,20 @@ export default function AccountingPage() {
 
     // 저장이 성공한 경우에만 아래 실행
     if (saveSuccess) {
-      // 일단 성공 메시지 먼저 표시
-      alert(language === 'ja' ? '保存しました' : '저장되었습니다')
-      
       // 폼 초기화
       setEditingRule(null)
       e.currentTarget.reset()
       
-      // 목록 새로고침 (즉시 실행하되 오류는 무시)
-      fetchAutoMatchRules().catch(fetchError => {
+      // 목록 새로고침 (await로 완료 대기)
+      try {
+        await fetchAutoMatchRules()
+        // 성공 메시지는 목록 업데이트 후 표시
+        alert(language === 'ja' ? '保存しました' : '저장되었습니다')
+      } catch (fetchError) {
         console.error('목록 새로고침 실패 (저장은 성공):', fetchError)
-      })
+        // 새로고침 실패해도 성공 메시지는 표시
+        alert(language === 'ja' ? '保存しました' : '저장되었습니다')
+      }
     }
   }
 
@@ -1361,10 +1371,7 @@ export default function AccountingPage() {
               <div className="flex gap-2 justify-end">
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setShowAutoMatchDialog(true)
-                    fetchAutoMatchRules()
-                  }}
+                  onClick={() => setShowAutoMatchDialog(true)}
                 >
                   {language === 'ja' ? '自動マッチング設定' : '자동 매칭 설정'}
                 </Button>
