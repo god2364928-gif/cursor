@@ -119,7 +119,12 @@ router.post('/users', authMiddleware, async (req: AuthRequest, res: Response) =>
 router.get('/users', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, team, role, created_at, last_login_at FROM users ORDER BY created_at DESC'
+      `SELECT id, name, email, team, role, created_at, last_login_at,
+              department, position, employment_status, base_salary, hire_date,
+              contract_start_date, contract_end_date, mart_id,
+              transportation_route, monthly_transportation_cost,
+              transportation_start_date, transportation_details
+       FROM users ORDER BY created_at DESC`
     )
     res.json(result.rows)
   } catch (error) {
