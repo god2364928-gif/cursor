@@ -803,7 +803,7 @@ export default function AccountingPage() {
     setEditingValue('')
   }
 
-  const calculateMonthTotal = (month: number, paymentMethods: string[], includeFees: boolean = false): number => {
+  const calculateMonthTotal = (month: number, paymentMethods: string[], includeFees: boolean = true): number => {
     let total = 0
     for (const pm of paymentMethods) {
       total += getTotalSalesValue(month, pm, false)
@@ -4309,7 +4309,11 @@ export default function AccountingPage() {
                     <tr className="bg-blue-100 font-bold">
                       <td className="border px-2 py-1 text-xs">{language === 'ja' ? '売上高' : '매출액'}</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
-                        const total = calculateMonthTotal(month, ['口座振込', 'PayPay', 'PayPal', 'strip', 'strip1', 'ココナラ'], false)
+                        const revenue = calculateMonthTotal(month, ['口座振込', 'PayPay', 'PayPal', 'strip', 'strip1', 'ココナラ'], false)
+                        const fees = getTotalSalesValue(month, 'PayPal', true) + 
+                          getTotalSalesValue(month, 'strip', true) + 
+                          getTotalSalesValue(month, 'strip1', true)
+                        const total = revenue + fees
                         return (
                           <td key={month} className="border px-2 py-1 text-right text-xs">
                             {total.toLocaleString()}
@@ -4318,13 +4322,16 @@ export default function AccountingPage() {
                       })}
                       <td className="border px-2 py-1 text-right bg-yellow-100 text-xs">
                         {(() => {
-                          const yearTotal = calculateYearTotal('口座振込', false) + 
+                          const yearRevenue = calculateYearTotal('口座振込', false) + 
                             calculateYearTotal('PayPay', false) + 
                             calculateYearTotal('PayPal', false) + 
                             calculateYearTotal('strip', false) + 
                             calculateYearTotal('strip1', false) + 
                             calculateYearTotal('ココナラ', false)
-                          return yearTotal.toLocaleString()
+                          const yearFees = calculateYearTotal('PayPal', true) + 
+                            calculateYearTotal('strip', true) + 
+                            calculateYearTotal('strip1', true)
+                          return (yearRevenue + yearFees).toLocaleString()
                         })()}
                       </td>
                     </tr>
