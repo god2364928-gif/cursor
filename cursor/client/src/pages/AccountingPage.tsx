@@ -789,6 +789,9 @@ export default function AccountingPage() {
         const transactionType = income > 0 ? '입금' : '출금'
         const amount = income > 0 ? income : expense
         
+        // 결제수단 판단: Vデビット이 포함되어 있으면 카드, 나머지는 계좌이체
+        const paymentMethod = itemName.includes('Vデビット') ? '카드' : '계좌이체'
+        
         // 자동매칭 규칙 적용
         let category = '지정없음'
         let assignedUserId = null
@@ -805,7 +808,7 @@ export default function AccountingPage() {
           transactionDate,
           transactionType,
           category,
-          paymentMethod: '계좌이체',
+          paymentMethod,
           itemName,
           amount,
           memo,
