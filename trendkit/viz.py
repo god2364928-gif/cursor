@@ -185,3 +185,4 @@ def save_weekday_ranking_table(
     ordered = df_weekday.sort_values("rank")
     return _render_table(ordered, Path(out_png), lang, "weekday")
 
+

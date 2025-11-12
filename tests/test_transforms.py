@@ -88,3 +88,4 @@ def test_simple_insights_localized_messages():
     assert "2024年3月" in insights["ja"]["seasonal_peak"]
     assert "2024년 3월" in insights["ko"]["seasonal_peak"]
 
+
