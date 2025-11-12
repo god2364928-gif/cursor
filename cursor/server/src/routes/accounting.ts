@@ -939,13 +939,13 @@ router.get('/auto-match-rules', authMiddleware, adminOnly, async (req: AuthReque
         amr.keyword,
         amr.category,
         amr.assigned_user_id,
-        au.name as assigned_user_name,
+        u.name as assigned_user_name,
         amr.payment_method,
         amr.priority,
         amr.is_active,
         amr.created_at
        FROM accounting_auto_match_rules amr
-       LEFT JOIN auth_users au ON amr.assigned_user_id = au.id
+       LEFT JOIN users u ON amr.assigned_user_id = u.id
        ORDER BY amr.priority DESC, amr.keyword ASC`
     )
     res.json(result.rows)
