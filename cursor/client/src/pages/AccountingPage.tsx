@@ -71,17 +71,27 @@ interface Employee {
   name: string
   email: string
   hireDate?: string // 입사일
+  hire_date?: string // snake_case from API
   department?: string
   position?: string
   employmentStatus?: string
+  employment_status?: string // snake_case from API
   baseSalary?: number
+  base_salary?: number // snake_case from API
   contractStartDate?: string
+  contract_start_date?: string // snake_case from API
   contractEndDate?: string
+  contract_end_date?: string // snake_case from API
   martId?: string
+  mart_id?: string // snake_case from API
   transportationRoute?: string
+  transportation_route?: string // snake_case from API
   monthlyTransportationCost?: number
+  monthly_transportation_cost?: number // snake_case from API
   transportationStartDate?: string
+  transportation_start_date?: string // snake_case from API
   transportationDetails?: string
+  transportation_details?: string // snake_case from API
   // Legacy fields
   incentiveRate?: number
 }
@@ -1980,7 +1990,7 @@ export default function AccountingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {employees
               .filter(emp => {
-                const status = emp.employmentStatus || '입사중' // NULL이나 빈 값은 입사중으로 간주
+                const status = emp.employmentStatus || emp.employment_status || '입사중' // NULL이나 빈 값은 입사중으로 간주
                 return status === employeeStatusFilter
               })
               .map((emp) => (
@@ -1999,16 +2009,16 @@ export default function AccountingPage() {
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <span
                         className={`px-2 py-1 rounded text-xs font-medium ${
-                          emp.employmentStatus === '입사중' 
+                          (emp.employmentStatus || emp.employment_status) === '입사중' 
                             ? 'bg-green-100 text-green-800' 
-                            : emp.employmentStatus === '입사전'
+                            : (emp.employmentStatus || emp.employment_status) === '입사전'
                             ? 'bg-blue-100 text-blue-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {emp.employmentStatus === '입사중'
+                        {(emp.employmentStatus || emp.employment_status) === '입사중'
                           ? (language === 'ja' ? '入社中' : '입사중')
-                          : emp.employmentStatus === '입사전'
+                          : (emp.employmentStatus || emp.employment_status) === '입사전'
                           ? (language === 'ja' ? '入社前' : '입사전')
                           : (language === 'ja' ? '退職' : '퇴사')}
                       </span>
@@ -2039,12 +2049,12 @@ export default function AccountingPage() {
                   <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <p className="text-gray-600">{language === 'ja' ? '基本給' : '기본급'}</p>
-                      <p className="font-bold">{emp.baseSalary ? formatCurrency(emp.baseSalary) : '-'}</p>
+                      <p className="font-bold">{(emp.baseSalary || emp.base_salary) ? formatCurrency(emp.baseSalary || emp.base_salary || 0) : '-'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">{language === 'ja' ? '入社日' : '입사일'}</p>
                       <p className="font-bold text-sm">
-                        {emp.hireDate || '-'}
+                        {emp.hireDate || emp.hire_date || '-'}
                       </p>
                     </div>
                   </div>
