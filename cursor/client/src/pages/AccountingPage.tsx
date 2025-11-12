@@ -1916,7 +1916,7 @@ export default function AccountingPage() {
                     <select
                       name="employmentStatus"
                       className="w-full border rounded px-3 py-2"
-                      defaultValue={editingEmployee?.employmentStatus || '입사중'}
+                      defaultValue={editingEmployee?.employmentStatus || editingEmployee?.employment_status || '입사중'}
                     >
                       <option value="입사중">{language === 'ja' ? '入社中' : '입사중'}</option>
                       <option value="입사전">{language === 'ja' ? '入社前' : '입사전'}</option>
@@ -1925,43 +1925,43 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '入社日' : '입사일'}</label>
-                    <Input type="date" name="hireDate" defaultValue={editingEmployee?.hireDate || ''} />
+                    <Input type="date" name="hireDate" defaultValue={editingEmployee?.hireDate || editingEmployee?.hire_date || ''} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '基本給' : '기본급'}</label>
                     <Input
                       type="number"
                       name="baseSalary"
-                      defaultValue={editingEmployee?.baseSalary ? String(editingEmployee.baseSalary) : ''}
+                      defaultValue={editingEmployee?.baseSalary ? String(editingEmployee.baseSalary) : editingEmployee?.base_salary ? String(editingEmployee.base_salary) : ''}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '契約開始日' : '계약 시작일'}</label>
-                    <Input type="date" name="contractStartDate" defaultValue={editingEmployee?.contractStartDate || ''} />
+                    <Input type="date" name="contractStartDate" defaultValue={editingEmployee?.contractStartDate || editingEmployee?.contract_start_date || ''} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '契約終了日' : '계약 종료일'}</label>
-                    <Input type="date" name="contractEndDate" defaultValue={editingEmployee?.contractEndDate || ''} />
+                    <Input type="date" name="contractEndDate" defaultValue={editingEmployee?.contractEndDate || editingEmployee?.contract_end_date || ''} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'マートID' : '마트 아이디'}</label>
-                    <Input type="text" name="martId" defaultValue={editingEmployee?.martId || ''} />
+                    <Input type="text" name="martId" defaultValue={editingEmployee?.martId || editingEmployee?.mart_id || ''} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '交通費経路' : '교통비 경로'}</label>
-                    <Input type="text" name="transportationRoute" defaultValue={editingEmployee?.transportationRoute || ''} placeholder={language === 'ja' ? '西川口~浜松町' : '예: 西川口~浜松町'} />
+                    <Input type="text" name="transportationRoute" defaultValue={editingEmployee?.transportationRoute || editingEmployee?.transportation_route || ''} placeholder={language === 'ja' ? '西川口~浜松町' : '예: 西川口~浜松町'} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '月交通費' : '월 교통비'}</label>
                     <Input
                       type="number"
                       name="monthlyTransportationCost"
-                      defaultValue={editingEmployee?.monthlyTransportationCost ? String(editingEmployee.monthlyTransportationCost) : ''}
+                      defaultValue={editingEmployee?.monthlyTransportationCost ? String(editingEmployee.monthlyTransportationCost) : editingEmployee?.monthly_transportation_cost ? String(editingEmployee.monthly_transportation_cost) : ''}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '交通費開始日' : '교통비 시작일'}</label>
-                    <Input type="date" name="transportationStartDate" defaultValue={editingEmployee?.transportationStartDate || ''} />
+                    <Input type="date" name="transportationStartDate" defaultValue={editingEmployee?.transportationStartDate || editingEmployee?.transportation_start_date || ''} />
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '交通費詳細' : '교통비 상세'}</label>
@@ -1969,7 +1969,7 @@ export default function AccountingPage() {
                       name="transportationDetails"
                       className="w-full border rounded px-3 py-2"
                       rows={2}
-                      defaultValue={editingEmployee?.transportationDetails || ''}
+                      defaultValue={editingEmployee?.transportationDetails || editingEmployee?.transportation_details || ''}
                       placeholder={language === 'ja' ? '西川口~新橋 定期代: 9,620円...' : '예: 西川口~新橋 定期代: 9,620円...'}
                     />
                   </div>
