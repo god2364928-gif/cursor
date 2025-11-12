@@ -3504,7 +3504,7 @@ export default function AccountingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {transactionUploadPreview.slice(0, 50).map((tx, idx) => {
+                    {transactionUploadPreview.map((tx, idx) => {
                       const assignedUser = nameOptions.find(u => u.id === tx.assignedUserId)
                       return (
                         <tr key={idx} className="border-t hover:bg-gray-50">
@@ -3522,14 +3522,6 @@ export default function AccountingPage() {
                   </tbody>
                 </table>
               </div>
-              
-              {transactionUploadPreview.length > 50 && (
-                <p className="text-sm text-gray-600 text-center mt-4">
-                  {language === 'ja'
-                    ? `最初の 50 件のみ表示しています（全 ${transactionUploadPreview.length} 件）`
-                    : `최초 50건만 표시 중 (전체 ${transactionUploadPreview.length}건)`}
-                </p>
-              )}
               
               <div className="flex gap-4 justify-end mt-6">
                 <Button variant="ghost" onClick={() => setShowTransactionUploadDialog(false)}>
