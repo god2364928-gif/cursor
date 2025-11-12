@@ -15,6 +15,7 @@ import {
   Upload,
   Pencil,
   X,
+  FileText,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -263,7 +264,7 @@ export default function AccountingPage() {
   const [paypayExpenses, setPaypayExpenses] = useState<any[]>([])
   const [paypayStartDate, setPaypayStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [paypayEndDate, setPaypayEndDate] = useState(new Date().toISOString().slice(0, 10))
-  const [paypayCategoryFilter, setPaypayCategoryFilter] = useState('')
+  const [paypayCategoryFilter, setPaypayCategoryFilter] = useState('all') // 'all', '셀마플', 'staff'
   const [paypayNameFilter, setPaypayNameFilter] = useState('')
   const [showPaypayExpenseForm, setShowPaypayExpenseForm] = useState(false)
   const [editingPaypayExpense, setEditingPaypayExpense] = useState<any>(null)
@@ -1059,9 +1060,8 @@ export default function AccountingPage() {
   // PayPay 함수들
   const fetchPaypaySummary = async () => {
     try {
-      const response = await api.get('/paypay/summary', {
-        params: { startDate: paypayStartDate, endDate: paypayEndDate }
-      })
+      // 날짜 필터 없이 전체 기간 합계
+      const response = await api.get('/paypay/summary')
       setPaypaySummary(response.data)
     } catch (error) {
       console.error('PayPay summary fetch error:', error)
@@ -1070,11 +1070,19 @@ export default function AccountingPage() {
 
   const fetchPaypaySales = async () => {
     try {
+      let categoryParam = undefined
+      if (paypayCategoryFilter === '셀마플') {
+        categoryParam = '셀마플'
+      } else if (paypayCategoryFilter === 'staff') {
+        // 담당자: 셀마플이 아닌 모든 카테고리
+        categoryParam = 'NOT_셀마플'
+      }
+      
       const response = await api.get('/paypay/sales', {
         params: {
           startDate: paypayStartDate,
           endDate: paypayEndDate,
-          category: paypayCategoryFilter || undefined,
+          category: categoryParam,
           name: paypayNameFilter || undefined
         }
       })
@@ -1093,6 +1101,41 @@ export default function AccountingPage() {
     } catch (error) {
       console.error('PayPay expenses fetch error:', error)
     }
+  }
+
+  // PayPay 날짜 버튼 함수
+  const handlePaypayPreviousMonth = () => {
+    const now = new Date()
+    now.setMonth(now.getMonth() - 1)
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month + 1, 0)
+    const lastDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
+    setPaypayStartDate(firstDay)
+    setPaypayEndDate(lastDayString)
+  }
+
+  const handlePaypayCurrentMonth = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const today = `${year}-${String(month + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    setPaypayStartDate(firstDay)
+    setPaypayEndDate(today)
+  }
+
+  const handlePaypayNextMonth = () => {
+    const now = new Date()
+    now.setMonth(now.getMonth() + 1)
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month + 1, 0)
+    const lastDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
+    setPaypayStartDate(firstDay)
+    setPaypayEndDate(lastDayString)
   }
 
   useEffect(() => {
@@ -1171,7 +1214,8 @@ export default function AccountingPage() {
       const payload = {
         date: formData.get('date'),
         item: formData.get('item'),
-        amount: Number(formData.get('amount'))
+        amount: Number(formData.get('amount')),
+        memo: formData.get('memo') || ''
       }
       
       if (editingPaypayExpense) {
@@ -1199,6 +1243,33 @@ export default function AccountingPage() {
       fetchPaypayExpenses()
     } catch (error) {
       console.error('PayPay expense delete error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
+    }
+  }
+
+  const handlePaypaySaleMemo = async (sale: any) => {
+    const memo = prompt(language === 'ja' ? 'メモを入力してください' : '메모를 입력하세요', sale.memo || '')
+    if (memo === null) return // 취소
+    
+    try {
+      await api.put(`/paypay/sales/${sale.id}`, { memo })
+      fetchPaypaySales()
+      alert(language === 'ja' ? '保存しました' : '저장되었습니다')
+    } catch (error) {
+      console.error('PayPay sale memo update error:', error)
+      alert(language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다')
+    }
+  }
+
+  const handlePaypaySaleDelete = async (id: string) => {
+    if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
+    
+    try {
+      await api.delete(`/paypay/sales/${id}`)
+      fetchPaypaySummary()
+      fetchPaypaySales()
+    } catch (error) {
+      console.error('PayPay sale delete error:', error)
       alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
     }
   }
@@ -2870,46 +2941,77 @@ export default function AccountingPage() {
           {/* 필터 */}
           <Card>
             <CardContent className="pt-6">
-              <div className="grid grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    {language === 'ja' ? '開始日' : '시작일'}
-                  </label>
-                  <Input
-                    type="date"
-                    value={paypayStartDate}
-                    onChange={(e) => setPaypayStartDate(e.target.value)}
-                  />
+              <div className="space-y-4">
+                {/* 날짜 버튼 */}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handlePaypayPreviousMonth}
+                  >
+                    {language === 'ja' ? '前月' : '전월'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handlePaypayCurrentMonth}
+                  >
+                    {language === 'ja' ? '当月' : '당월'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handlePaypayNextMonth}
+                  >
+                    {language === 'ja' ? '来月' : '내월'}
+                  </Button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    {language === 'ja' ? '終了日' : '종료일'}
-                  </label>
-                  <Input
-                    type="date"
-                    value={paypayEndDate}
-                    onChange={(e) => setPaypayEndDate(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    {language === 'ja' ? 'カテゴリ' : '카테고리'}
-                  </label>
-                  <Input
-                    placeholder={language === 'ja' ? 'カテゴリで絞り込む' : '카테고리로 필터'}
-                    value={paypayCategoryFilter}
-                    onChange={(e) => setPaypayCategoryFilter(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    {language === 'ja' ? '名前' : '이름'}
-                  </label>
-                  <Input
-                    placeholder={language === 'ja' ? '名前で絞り込む' : '이름으로 필터'}
-                    value={paypayNameFilter}
-                    onChange={(e) => setPaypayNameFilter(e.target.value)}
-                  />
+                {/* 필터 입력 */}
+                <div className="grid grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {language === 'ja' ? '開始日' : '시작일'}
+                    </label>
+                    <Input
+                      type="date"
+                      value={paypayStartDate}
+                      onChange={(e) => setPaypayStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {language === 'ja' ? '終了日' : '종료일'}
+                    </label>
+                    <Input
+                      type="date"
+                      value={paypayEndDate}
+                      onChange={(e) => setPaypayEndDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {language === 'ja' ? 'カテゴリ' : '카테고리'}
+                    </label>
+                    <select
+                      className="w-full border rounded-md px-3 py-2 text-sm"
+                      value={paypayCategoryFilter}
+                      onChange={(e) => setPaypayCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">{language === 'ja' ? '全て' : '전체'}</option>
+                      <option value="셀마플">{language === 'ja' ? 'セルマプル' : '셀마플'}</option>
+                      <option value="staff">{language === 'ja' ? '担当者' : '담당자'}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {language === 'ja' ? '名前' : '이름'}
+                    </label>
+                    <Input
+                      placeholder={language === 'ja' ? '名前で検索' : '이름으로 검색'}
+                      value={paypayNameFilter}
+                      onChange={(e) => setPaypayNameFilter(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -2961,12 +3063,18 @@ export default function AccountingPage() {
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                         {language === 'ja' ? '金額' : '금액'}
                       </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? 'メモ' : '메모'}
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '操作' : '작업'}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {paypaySales.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                           {language === 'ja' ? 'データがありません' : '데이터가 없습니다'}
                         </td>
                       </tr>
@@ -2974,13 +3082,42 @@ export default function AccountingPage() {
                       paypaySales.map((sale, idx) => (
                         <tr key={idx} className="border-t hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm">
-                            {new Date(sale.date).toLocaleString(language === 'ja' ? 'ja-JP' : 'ko-KR')}
+                            {new Date(sale.date).toLocaleString(language === 'ja' ? 'ja-JP' : 'ko-KR', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
                           </td>
                           <td className="px-4 py-3 text-sm font-medium">{sale.category}</td>
                           <td className="px-4 py-3 text-sm">{sale.user_id || '-'}</td>
                           <td className="px-4 py-3 text-sm">{sale.name}</td>
                           <td className="px-4 py-3 text-sm">{sale.receipt_number || '-'}</td>
                           <td className="px-4 py-3 text-sm text-right">{formatCurrency(sale.amount)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
+                            {sale.memo || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handlePaypaySaleMemo(sale)}
+                                aria-label={language === 'ja' ? 'メモ' : '메모'}
+                              >
+                                <FileText className="h-4 w-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handlePaypaySaleDelete(sale.id)}
+                                aria-label={language === 'ja' ? '削除' : '삭제'}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -3016,16 +3153,16 @@ export default function AccountingPage() {
                         ? (language === 'ja' ? '支出を修正' : '지출 수정')
                         : (language === 'ja' ? '支出を追加' : '지출 추가')}
                     </h3>
-                    <form onSubmit={handlePaypayExpenseSubmit} className="grid grid-cols-3 gap-4">
+                    <form onSubmit={handlePaypayExpenseSubmit} className="grid grid-cols-4 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-1">
-                          {language === 'ja' ? '日時' : '일시'}
+                          {language === 'ja' ? '日付' : '날짜'}
                         </label>
                         <Input
-                          type="datetime-local"
+                          type="date"
                           name="date"
                           required
-                          defaultValue={editingPaypayExpense?.date?.slice(0, 16) || ''}
+                          defaultValue={editingPaypayExpense?.date?.slice(0, 10) || ''}
                         />
                       </div>
                       <div>
@@ -3050,7 +3187,17 @@ export default function AccountingPage() {
                           defaultValue={editingPaypayExpense?.amount || ''}
                         />
                       </div>
-                      <div className="col-span-3 flex gap-2">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {language === 'ja' ? 'メモ' : '메모'}
+                        </label>
+                        <Input
+                          type="text"
+                          name="memo"
+                          defaultValue={editingPaypayExpense?.memo || ''}
+                        />
+                      </div>
+                      <div className="col-span-4 flex gap-2">
                         <Button type="submit">
                           {language === 'ja' ? '保存' : '저장'}
                         </Button>
@@ -3075,13 +3222,16 @@ export default function AccountingPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        {language === 'ja' ? '日時' : '일시'}
+                        {language === 'ja' ? '日付' : '날짜'}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         {language === 'ja' ? '項目' : '항목'}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                         {language === 'ja' ? '金額' : '금액'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? 'メモ' : '메모'}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                         {language === 'ja' ? '作業' : '작업'}
@@ -3091,7 +3241,7 @@ export default function AccountingPage() {
                   <tbody>
                     {paypayExpenses.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                           {language === 'ja' ? 'データがありません' : '데이터가 없습니다'}
                         </td>
                       </tr>
@@ -3099,10 +3249,17 @@ export default function AccountingPage() {
                       paypayExpenses.map((expense) => (
                         <tr key={expense.id} className="border-t hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm">
-                            {new Date(expense.date).toLocaleString(language === 'ja' ? 'ja-JP' : 'ko-KR')}
+                            {new Date(expense.date).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'ko-KR', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit'
+                            })}
                           </td>
                           <td className="px-4 py-3 text-sm font-medium">{expense.item}</td>
                           <td className="px-4 py-3 text-sm text-right">{formatCurrency(expense.amount)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
+                            {expense.memo || '-'}
+                          </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex gap-1 justify-center">
                               <Button
