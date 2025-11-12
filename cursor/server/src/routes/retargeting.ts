@@ -267,7 +267,7 @@ router.get('/:id/history', authMiddleware, async (req: AuthRequest, res: Respons
   try {
     const { id } = req.params
     const result = await pool.query(
-      'SELECT * FROM retargeting_history WHERE retargeting_customer_id = $1 ORDER BY created_at DESC',
+      'SELECT * FROM retargeting_history WHERE retargeting_customer_id = $1 ORDER BY is_pinned DESC, created_at DESC',
       [id]
     )
     
@@ -279,7 +279,7 @@ router.get('/:id/history', authMiddleware, async (req: AuthRequest, res: Respons
       type: row.type,
       content: row.content,
       createdAt: row.created_at,
-      isPinned: false
+      isPinned: row.is_pinned || false
     }))
     
     res.json(history)
