@@ -3970,27 +3970,27 @@ export default function AccountingPage() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
+                <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr className="bg-gray-100">
-                      <th className="border px-3 py-2 text-left">{language === 'ja' ? '月' : '월'}</th>
+                      <th className="border px-2 py-1 text-left text-xs">{language === 'ja' ? '月' : '월'}</th>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => (
-                        <th key={month} className="border px-3 py-2 text-right">{month}</th>
+                        <th key={month} className="border px-2 py-1 text-right text-xs">{month}</th>
                       ))}
-                      <th className="border px-3 py-2 text-right bg-yellow-50">{language === 'ja' ? '合計' : '합계'}</th>
+                      <th className="border px-2 py-1 text-right bg-yellow-50 text-xs">{language === 'ja' ? '合計' : '합계'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {/* 口座振込 */}
                     <tr>
-                      <td className="border px-3 py-2 font-medium">{language === 'ja' ? '口座振込' : '계좌이체'}</td>
+                      <td className="border px-2 py-1 font-medium text-xs">{language === 'ja' ? '口座振込' : '계좌이체'}</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const value = getTotalSalesValue(month, '口座振込', false)
                         const isEditing = editingCell?.month === month && editingCell?.paymentMethod === '口座振込' && !editingCell?.isFee
                         return (
                           <td
                             key={month}
-                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            className="border px-2 py-1 text-right cursor-pointer hover:bg-blue-50 text-xs"
                             onClick={() => handleTotalSalesCellClick(month, '口座振込', false)}
                           >
                             {isEditing ? (
@@ -4004,7 +4004,7 @@ export default function AccountingPage() {
                                   if (e.key === 'Escape') handleTotalSalesCellCancel()
                                 }}
                                 autoFocus
-                                className="w-full text-right border rounded px-1"
+                                className="w-full text-right border rounded px-1 text-xs"
                               />
                             ) : (
                               value.toLocaleString()
@@ -4012,21 +4012,21 @@ export default function AccountingPage() {
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                      <td className="border px-2 py-1 text-right bg-yellow-50 font-semibold text-xs">
                         {calculateYearTotal('口座振込', false).toLocaleString()}
                       </td>
                     </tr>
 
                     {/* PayPay */}
                     <tr>
-                      <td className="border px-3 py-2 font-medium">PayPay</td>
+                      <td className="border px-2 py-1 font-medium text-xs">PayPay</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const value = getTotalSalesValue(month, 'PayPay', false)
                         const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'PayPay' && !editingCell?.isFee
                         return (
                           <td
                             key={month}
-                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            className="border px-2 py-1 text-right cursor-pointer hover:bg-blue-50 text-xs"
                             onClick={() => handleTotalSalesCellClick(month, 'PayPay', false)}
                           >
                             {isEditing ? (
@@ -4040,7 +4040,7 @@ export default function AccountingPage() {
                                   if (e.key === 'Escape') handleTotalSalesCellCancel()
                                 }}
                                 autoFocus
-                                className="w-full text-right border rounded px-1"
+                                className="w-full text-right border rounded px-1 text-xs"
                               />
                             ) : (
                               value.toLocaleString()
@@ -4048,21 +4048,21 @@ export default function AccountingPage() {
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                      <td className="border px-2 py-1 text-right bg-yellow-50 font-semibold text-xs">
                         {calculateYearTotal('PayPay', false).toLocaleString()}
                       </td>
                     </tr>
 
                     {/* PayPal */}
                     <tr>
-                      <td className="border px-3 py-2 font-medium">PayPal</td>
+                      <td className="border px-2 py-1 font-medium text-xs">PayPal</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const value = getTotalSalesValue(month, 'PayPal', false)
                         const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'PayPal' && !editingCell?.isFee
                         return (
                           <td
                             key={month}
-                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            className="border px-2 py-1 text-right cursor-pointer hover:bg-blue-50 text-xs"
                             onClick={() => handleTotalSalesCellClick(month, 'PayPal', false)}
                           >
                             {isEditing ? (
@@ -4076,7 +4076,7 @@ export default function AccountingPage() {
                                   if (e.key === 'Escape') handleTotalSalesCellCancel()
                                 }}
                                 autoFocus
-                                className="w-full text-right border rounded px-1"
+                                className="w-full text-right border rounded px-1 text-xs"
                               />
                             ) : (
                               value.toLocaleString()
@@ -4084,21 +4084,21 @@ export default function AccountingPage() {
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                      <td className="border px-2 py-1 text-right bg-yellow-50 font-semibold text-xs">
                         {calculateYearTotal('PayPal', false).toLocaleString()}
                       </td>
                     </tr>
 
                     {/* PayPal手数料 */}
                     <tr className="bg-gray-50">
-                      <td className="border px-3 py-2 font-medium">{language === 'ja' ? 'PayPal手数料' : 'PayPal 수수료'}</td>
+                      <td className="border px-2 py-1 font-medium text-xs">{language === 'ja' ? 'PayPal手数料' : 'PayPal 수수료'}</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const value = getTotalSalesValue(month, 'PayPal', true)
                         const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'PayPal' && editingCell?.isFee
                         return (
                           <td
                             key={month}
-                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            className="border px-2 py-1 text-right cursor-pointer hover:bg-blue-50 text-xs"
                             onClick={() => handleTotalSalesCellClick(month, 'PayPal', true)}
                           >
                             {isEditing ? (
@@ -4112,7 +4112,7 @@ export default function AccountingPage() {
                                   if (e.key === 'Escape') handleTotalSalesCellCancel()
                                 }}
                                 autoFocus
-                                className="w-full text-right border rounded px-1"
+                                className="w-full text-right border rounded px-1 text-xs"
                               />
                             ) : (
                               value.toLocaleString()
@@ -4120,21 +4120,21 @@ export default function AccountingPage() {
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                      <td className="border px-2 py-1 text-right bg-yellow-50 font-semibold text-xs">
                         {calculateYearTotal('PayPal', true).toLocaleString()}
                       </td>
                     </tr>
 
                     {/* strip */}
                     <tr>
-                      <td className="border px-3 py-2 font-medium">strip</td>
+                      <td className="border px-2 py-1 font-medium text-xs">strip</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const value = getTotalSalesValue(month, 'strip', false)
                         const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'strip' && !editingCell?.isFee
                         return (
                           <td
                             key={month}
-                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            className="border px-2 py-1 text-right cursor-pointer hover:bg-blue-50 text-xs"
                             onClick={() => handleTotalSalesCellClick(month, 'strip', false)}
                           >
                             {isEditing ? (
@@ -4148,7 +4148,7 @@ export default function AccountingPage() {
                                   if (e.key === 'Escape') handleTotalSalesCellCancel()
                                 }}
                                 autoFocus
-                                className="w-full text-right border rounded px-1"
+                                className="w-full text-right border rounded px-1 text-xs"
                               />
                             ) : (
                               value.toLocaleString()
@@ -4156,21 +4156,21 @@ export default function AccountingPage() {
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                      <td className="border px-2 py-1 text-right bg-yellow-50 font-semibold text-xs">
                         {calculateYearTotal('strip', false).toLocaleString()}
                       </td>
                     </tr>
 
                     {/* strip手数料 */}
                     <tr className="bg-gray-50">
-                      <td className="border px-3 py-2 font-medium">{language === 'ja' ? 'strip手数料' : 'strip 수수료'}</td>
+                      <td className="border px-2 py-1 font-medium text-xs">{language === 'ja' ? 'strip手数料' : 'strip 수수료'}</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const value = getTotalSalesValue(month, 'strip', true)
                         const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'strip' && editingCell?.isFee
                         return (
                           <td
                             key={month}
-                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            className="border px-2 py-1 text-right cursor-pointer hover:bg-blue-50 text-xs"
                             onClick={() => handleTotalSalesCellClick(month, 'strip', true)}
                           >
                             {isEditing ? (
@@ -4184,7 +4184,7 @@ export default function AccountingPage() {
                                   if (e.key === 'Escape') handleTotalSalesCellCancel()
                                 }}
                                 autoFocus
-                                className="w-full text-right border rounded px-1"
+                                className="w-full text-right border rounded px-1 text-xs"
                               />
                             ) : (
                               value.toLocaleString()
@@ -4192,21 +4192,21 @@ export default function AccountingPage() {
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                      <td className="border px-2 py-1 text-right bg-yellow-50 font-semibold text-xs">
                         {calculateYearTotal('strip', true).toLocaleString()}
                       </td>
                     </tr>
 
                     {/* strip1 */}
                     <tr>
-                      <td className="border px-3 py-2 font-medium">strip1</td>
+                      <td className="border px-2 py-1 font-medium text-xs">strip1</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const value = getTotalSalesValue(month, 'strip1', false)
                         const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'strip1' && !editingCell?.isFee
                         return (
                           <td
                             key={month}
-                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            className="border px-2 py-1 text-right cursor-pointer hover:bg-blue-50 text-xs"
                             onClick={() => handleTotalSalesCellClick(month, 'strip1', false)}
                           >
                             {isEditing ? (
@@ -4220,7 +4220,7 @@ export default function AccountingPage() {
                                   if (e.key === 'Escape') handleTotalSalesCellCancel()
                                 }}
                                 autoFocus
-                                className="w-full text-right border rounded px-1"
+                                className="w-full text-right border rounded px-1 text-xs"
                               />
                             ) : (
                               value.toLocaleString()
@@ -4228,21 +4228,21 @@ export default function AccountingPage() {
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                      <td className="border px-2 py-1 text-right bg-yellow-50 font-semibold text-xs">
                         {calculateYearTotal('strip1', false).toLocaleString()}
                       </td>
                     </tr>
 
                     {/* strip1手数料 */}
                     <tr className="bg-gray-50">
-                      <td className="border px-3 py-2 font-medium">{language === 'ja' ? 'strip1手数料' : 'strip1 수수료'}</td>
+                      <td className="border px-2 py-1 font-medium text-xs">{language === 'ja' ? 'strip1手数料' : 'strip1 수수료'}</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const value = getTotalSalesValue(month, 'strip1', true)
                         const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'strip1' && editingCell?.isFee
                         return (
                           <td
                             key={month}
-                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            className="border px-2 py-1 text-right cursor-pointer hover:bg-blue-50 text-xs"
                             onClick={() => handleTotalSalesCellClick(month, 'strip1', true)}
                           >
                             {isEditing ? (
@@ -4256,7 +4256,7 @@ export default function AccountingPage() {
                                   if (e.key === 'Escape') handleTotalSalesCellCancel()
                                 }}
                                 autoFocus
-                                className="w-full text-right border rounded px-1"
+                                className="w-full text-right border rounded px-1 text-xs"
                               />
                             ) : (
                               value.toLocaleString()
@@ -4264,21 +4264,21 @@ export default function AccountingPage() {
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                      <td className="border px-2 py-1 text-right bg-yellow-50 font-semibold text-xs">
                         {calculateYearTotal('strip1', true).toLocaleString()}
                       </td>
                     </tr>
 
                     {/* ココナラ */}
                     <tr>
-                      <td className="border px-3 py-2 font-medium">{language === 'ja' ? 'ココナラ' : '코코나라'}</td>
+                      <td className="border px-2 py-1 font-medium text-xs">{language === 'ja' ? 'ココナラ' : '코코나라'}</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const value = getTotalSalesValue(month, 'ココナラ', false)
                         const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'ココナラ' && !editingCell?.isFee
                         return (
                           <td
                             key={month}
-                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            className="border px-2 py-1 text-right cursor-pointer hover:bg-blue-50 text-xs"
                             onClick={() => handleTotalSalesCellClick(month, 'ココナラ', false)}
                           >
                             {isEditing ? (
@@ -4292,7 +4292,7 @@ export default function AccountingPage() {
                                   if (e.key === 'Escape') handleTotalSalesCellCancel()
                                 }}
                                 autoFocus
-                                className="w-full text-right border rounded px-1"
+                                className="w-full text-right border rounded px-1 text-xs"
                               />
                             ) : (
                               value.toLocaleString()
@@ -4300,23 +4300,23 @@ export default function AccountingPage() {
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                      <td className="border px-2 py-1 text-right bg-yellow-50 font-semibold text-xs">
                         {calculateYearTotal('ココナラ', false).toLocaleString()}
                       </td>
                     </tr>
 
                     {/* 売上高 (총 매출) */}
                     <tr className="bg-blue-100 font-bold">
-                      <td className="border px-3 py-2">{language === 'ja' ? '売上高' : '매출액'}</td>
+                      <td className="border px-2 py-1 text-xs">{language === 'ja' ? '売上高' : '매출액'}</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const total = calculateMonthTotal(month, ['口座振込', 'PayPay', 'PayPal', 'strip', 'strip1', 'ココナラ'], false)
                         return (
-                          <td key={month} className="border px-3 py-2 text-right">
+                          <td key={month} className="border px-2 py-1 text-right text-xs">
                             {total.toLocaleString()}
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-100">
+                      <td className="border px-2 py-1 text-right bg-yellow-100 text-xs">
                         {(() => {
                           const yearTotal = calculateYearTotal('口座振込', false) + 
                             calculateYearTotal('PayPay', false) + 
@@ -4331,18 +4331,18 @@ export default function AccountingPage() {
 
                     {/* 手数料 (총 수수료) */}
                     <tr className="bg-red-100 font-bold">
-                      <td className="border px-3 py-2">{language === 'ja' ? '手数料' : '수수료'}</td>
+                      <td className="border px-2 py-1 text-xs">{language === 'ja' ? '手数料' : '수수료'}</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const total = getTotalSalesValue(month, 'PayPal', true) + 
                           getTotalSalesValue(month, 'strip', true) + 
                           getTotalSalesValue(month, 'strip1', true)
                         return (
-                          <td key={month} className="border px-3 py-2 text-right">
+                          <td key={month} className="border px-2 py-1 text-right text-xs">
                             {total.toLocaleString()}
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-100">
+                      <td className="border px-2 py-1 text-right bg-yellow-100 text-xs">
                         {(() => {
                           const yearTotal = calculateYearTotal('PayPal', true) + 
                             calculateYearTotal('strip', true) + 
@@ -4354,7 +4354,7 @@ export default function AccountingPage() {
 
                     {/* 売上総利益 (매출총이익) */}
                     <tr className="bg-green-100 font-bold">
-                      <td className="border px-3 py-2">{language === 'ja' ? '売上総利益' : '매출총이익'}</td>
+                      <td className="border px-2 py-1 text-xs">{language === 'ja' ? '売上総利益' : '매출총이익'}</td>
                       {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
                         const revenue = calculateMonthTotal(month, ['口座振込', 'PayPay', 'PayPal', 'strip', 'strip1', 'ココナラ'], false)
                         const fees = getTotalSalesValue(month, 'PayPal', true) + 
@@ -4362,12 +4362,12 @@ export default function AccountingPage() {
                           getTotalSalesValue(month, 'strip1', true)
                         const profit = revenue - fees
                         return (
-                          <td key={month} className="border px-3 py-2 text-right">
+                          <td key={month} className="border px-2 py-1 text-right text-xs">
                             {profit.toLocaleString()}
                           </td>
                         )
                       })}
-                      <td className="border px-3 py-2 text-right bg-yellow-100">
+                      <td className="border px-2 py-1 text-right bg-yellow-100 text-xs">
                         {(() => {
                           const yearRevenue = calculateYearTotal('口座振込', false) + 
                             calculateYearTotal('PayPay', false) + 
