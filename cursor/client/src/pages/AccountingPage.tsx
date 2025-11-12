@@ -646,16 +646,17 @@ export default function AccountingPage() {
       setEditingRule(null)
       e.currentTarget.reset()
       
-      // 목록 새로고침 (완료될 때까지 대기)
-      try {
-        await fetchAutoMatchRules()
-      } catch (fetchError) {
-        console.error('목록 새로고침 실패 (저장은 성공):', fetchError)
-        // 새로고침 실패해도 계속 진행
-      }
-      
-      // 성공 메시지 표시 (목록 새로고침 후)
+      // 일단 성공 메시지 먼저 표시
       alert(language === 'ja' ? '保存しました' : '저장되었습니다')
+      
+      // 목록 새로고침 (타임아웃 추가)
+      setTimeout(async () => {
+        try {
+          await fetchAutoMatchRules()
+        } catch (fetchError) {
+          console.error('목록 새로고침 실패 (저장은 성공):', fetchError)
+        }
+      }, 100)
     }
   }
 
