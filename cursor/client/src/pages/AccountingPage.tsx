@@ -151,6 +151,13 @@ export default function AccountingPage() {
   const [memoDrafts, setMemoDrafts] = useState<Record<string, string>>({})
   const [showSaveToast, setShowSaveToast] = useState(false)
 
+  // 거래내역 필터
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [nameFilter, setNameFilter] = useState<string>('all')
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState<string>('')
+
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
   const [showRecurringForm, setShowRecurringForm] = useState(false)
@@ -1083,86 +1090,186 @@ export default function AccountingPage() {
       {/* Transactions Tab */}
       {activeTab === 'transactions' && (
         <div className="space-y-4">
-          {/* 날짜 필터 */}
+          {/* 날짜 필터 & 회계연도 */}
           <Card>
             <CardContent className="p-4">
-              <div className="flex gap-4 items-center flex-wrap">
-                <div className="flex gap-2 items-center">
-                  <label className="text-sm font-medium">
-                    {language === 'ja' ? '開始日' : '시작일'}:
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    className="border rounded px-3 py-2"
-                  />
+              <div className="flex gap-4 items-center flex-wrap justify-between">
+                <div className="flex gap-4 items-center flex-wrap">
+                  <div className="flex gap-2 items-center">
+                    <label className="text-sm font-medium">
+                      {language === 'ja' ? '開始日' : '시작일'}:
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={e => setStartDate(e.target.value)}
+                      className="border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <label className="text-sm font-medium">
+                      {language === 'ja' ? '終了日' : '종료일'}:
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                      className="border rounded px-3 py-2"
+                    />
+                  </div>
+                  <Button onClick={handlePreviousMonth} variant="outline">
+                    {language === 'ja' ? '前月' : '전월'}
+                  </Button>
+                  <Button onClick={handleCurrentMonth}>
+                    {language === 'ja' ? '今月' : '당월'}
+                  </Button>
+                  <Button onClick={handleNextMonth} variant="outline">
+                    {language === 'ja' ? '来月' : '내월'}
+                  </Button>
                 </div>
                 <div className="flex gap-2 items-center">
                   <label className="text-sm font-medium">
-                    {language === 'ja' ? '終了日' : '종료일'}:
+                    {language === 'ja' ? '会計年度' : '회계연도'}:
                   </label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
+                  <select
+                    value={fiscalYear}
+                    onChange={(e) => setFiscalYear(Number(e.target.value))}
                     className="border rounded px-3 py-2"
-                  />
+                  >
+                    {[2024, 2025, 2026, 2027, 2028].map((year) => (
+                      <option key={year} value={year}>
+                        {year} ({year - 1}.10 ~ {year}.09)
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <Button onClick={handlePreviousMonth} variant="outline">
-                  {language === 'ja' ? '前月' : '전월'}
-                </Button>
-                <Button onClick={handleCurrentMonth}>
-                  {language === 'ja' ? '今月' : '당월'}
-                </Button>
-                <Button onClick={handleNextMonth} variant="outline">
-                  {language === 'ja' ? '来月' : '내월'}
-                </Button>
               </div>
             </CardContent>
           </Card>
 
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <h2 className="text-2xl font-bold">{language === 'ja' ? '取引履歴' : '거래내역'}</h2>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAutoMatchDialog(true)
-                  fetchAutoMatchRules()
-                }}
-              >
-                {language === 'ja' ? '自動マッチング設定' : '자동 매칭 설정'}
-              </Button>
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleCsvUpload}
-                  className="hidden"
-                  disabled={uploadingCsv}
-                />
-                <div className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 ${uploadingCsv ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  {uploadingCsv ? (language === 'ja' ? 'アップロード中...' : '업로드 중...') : (language === 'ja' ? 'CSV アップロード' : 'CSV 업로드')}
+          {/* 필터 & 검색 & 작업 버튼 */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">{language === 'ja' ? '区分' : '구분'}</label>
+                  <select
+                    value={transactionTypeFilter}
+                    onChange={(e) => setTransactionTypeFilter(e.target.value)}
+                    className="w-full border rounded px-3 py-2"
+                  >
+                    <option value="all">{language === 'ja' ? '全て' : '전체'}</option>
+                    <option value="입금">{language === 'ja' ? '入金' : '입금'}</option>
+                    <option value="출금">{language === 'ja' ? '出金' : '출금'}</option>
+                  </select>
                 </div>
-              </label>
-              <Button
-                onClick={() => {
-                  if (showTransactionForm && !editingTransaction) {
-                    closeTransactionForm()
-                  } else {
-                    openTransactionForm()
-                  }
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {language === 'ja' ? '追加' : '추가'}
-              </Button>
-            </div>
-          </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'カテゴリ' : '카테고리'}</label>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="w-full border rounded px-3 py-2"
+                  >
+                    <option value="all">{language === 'ja' ? '全て' : '전체'}</option>
+                    {CATEGORY_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>
+                        {language === 'ja' ? opt.labelJa : opt.labelKo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">{language === 'ja' ? '名前' : '이름'}</label>
+                  <select
+                    value={nameFilter}
+                    onChange={(e) => setNameFilter(e.target.value)}
+                    className="w-full border rounded px-3 py-2"
+                  >
+                    <option value="all">{language === 'ja' ? '全て' : '전체'}</option>
+                    {nameOptions.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">{language === 'ja' ? '決済' : '결제'}</label>
+                  <select
+                    value={paymentMethodFilter}
+                    onChange={(e) => setPaymentMethodFilter(e.target.value)}
+                    className="w-full border rounded px-3 py-2"
+                  >
+                    <option value="all">{language === 'ja' ? '全て' : '전체'}</option>
+                    <option value="계좌이체">{language === 'ja' ? '口座振替' : '계좌이체'}</option>
+                    <option value="PayPay">PayPay</option>
+                    <option value="페이팔">{language === 'ja' ? 'ペイパル' : '페이팔'}</option>
+                    <option value="카드">{language === 'ja' ? 'カード' : '카드'}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">{language === 'ja' ? '検索' : '검색'}</label>
+                  <Input
+                    type="text"
+                    placeholder={language === 'ja' ? '項目名、メモで検索' : '항목명, 메모 검색'}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setTransactionTypeFilter('all')
+                      setCategoryFilter('all')
+                      setNameFilter('all')
+                      setPaymentMethodFilter('all')
+                      setSearchQuery('')
+                    }}
+                    className="h-10"
+                  >
+                    {language === 'ja' ? 'リセット' : '초기화'}
+                  </Button>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAutoMatchDialog(true)
+                    fetchAutoMatchRules()
+                  }}
+                >
+                  {language === 'ja' ? '自動マッチング設定' : '자동 매칭 설정'}
+                </Button>
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCsvUpload}
+                    className="hidden"
+                    disabled={uploadingCsv}
+                  />
+                  <div className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 ${uploadingCsv ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploadingCsv ? (language === 'ja' ? 'アップロード中...' : '업로드 중...') : (language === 'ja' ? 'CSV アップロード' : 'CSV 업로드')}
+                  </div>
+                </label>
+                <Button
+                  onClick={() => {
+                    if (showTransactionForm && !editingTransaction) {
+                      closeTransactionForm()
+                    } else {
+                      openTransactionForm()
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {language === 'ja' ? '追加' : '추가'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {showTransactionForm && (
             <Card>
@@ -1324,10 +1431,29 @@ export default function AccountingPage() {
                   <tbody>
                     {transactions
                       .filter(tx => {
+                        // 날짜 필터
                         if (!startDate && !endDate) return true
                         const txDate = tx.transactionDate
                         if (startDate && txDate < startDate) return false
                         if (endDate && txDate > endDate) return false
+                        return true
+                      })
+                      .filter(tx => {
+                        // 구분 필터
+                        if (transactionTypeFilter !== 'all' && tx.transactionType !== transactionTypeFilter) return false
+                        // 카테고리 필터
+                        if (categoryFilter !== 'all' && tx.category !== categoryFilter) return false
+                        // 이름 필터
+                        if (nameFilter !== 'all' && tx.assignedUserId !== nameFilter) return false
+                        // 결제 필터
+                        if (paymentMethodFilter !== 'all' && tx.paymentMethod !== paymentMethodFilter) return false
+                        // 검색 필터 (항목명, 메모)
+                        if (searchQuery) {
+                          const query = searchQuery.toLowerCase()
+                          const itemMatch = tx.itemName?.toLowerCase().includes(query)
+                          const memoMatch = tx.memo?.toLowerCase().includes(query)
+                          if (!itemMatch && !memoMatch) return false
+                        }
                         return true
                       })
                       .map((tx) => (
