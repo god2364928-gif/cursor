@@ -965,7 +965,6 @@ export default function SalesTrackingPage() {
                   value={formData.managerName}
                   onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
                   className="w-full px-3 py-2 border rounded"
-                  disabled={user?.role !== 'admin'}
                 >
                   <option value="">{t('selectManager')}</option>
                   {managerOptions.map((name) => (
