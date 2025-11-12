@@ -747,6 +747,15 @@ export default function AccountingPage() {
 
       if (editingEmployee) {
         await api.put(`/auth/users/${editingEmployee.id}`, payload)
+        
+        // 상세 모달이 열려있으면 해당 직원 정보도 업데이트
+        if (selectedEmployee?.id === editingEmployee.id) {
+          const response = await api.get(`/auth/users`)
+          const updatedEmployee = response.data.find((emp: any) => emp.id === editingEmployee.id)
+          if (updatedEmployee) {
+            setSelectedEmployee(updatedEmployee)
+          }
+        }
       } else {
         await api.post('/auth/users', {
           ...payload,
