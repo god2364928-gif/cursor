@@ -2938,7 +2938,7 @@ export default function AccountingPage() {
           {/* 필터 */}
           <Card>
             <CardContent className="pt-6">
-              <div className="space-y-4">
+              <div className="flex gap-3 items-end">
                 {/* 날짜 버튼 */}
                 <div className="flex gap-2">
                   <Button
@@ -2964,7 +2964,7 @@ export default function AccountingPage() {
                   </Button>
                 </div>
                 {/* 필터 입력 */}
-                <div className="grid grid-cols-4 gap-4">
+                <div className="flex-1 grid grid-cols-4 gap-3">
                   <div>
                     <label className="block text-sm font-medium mb-1">
                       {language === 'ja' ? '開始日' : '시작일'}
@@ -2973,6 +2973,7 @@ export default function AccountingPage() {
                       type="date"
                       value={paypayStartDate}
                       onChange={(e) => setPaypayStartDate(e.target.value)}
+                      className="h-9"
                     />
                   </div>
                   <div>
@@ -2983,6 +2984,7 @@ export default function AccountingPage() {
                       type="date"
                       value={paypayEndDate}
                       onChange={(e) => setPaypayEndDate(e.target.value)}
+                      className="h-9"
                     />
                   </div>
                   <div>
@@ -2990,7 +2992,7 @@ export default function AccountingPage() {
                       {language === 'ja' ? 'カテゴリ' : '카테고리'}
                     </label>
                     <select
-                      className="w-full border rounded-md px-3 py-2 text-sm"
+                      className="w-full border rounded-md px-2 py-1.5 text-sm h-9"
                       value={paypayCategoryFilter}
                       onChange={(e) => setPaypayCategoryFilter(e.target.value)}
                     >
@@ -3010,6 +3012,7 @@ export default function AccountingPage() {
                       placeholder={language === 'ja' ? '名前で検索' : '이름으로 검색'}
                       value={paypayNameFilter}
                       onChange={(e) => setPaypayNameFilter(e.target.value)}
+                      className="h-9"
                     />
                   </div>
                 </div>
