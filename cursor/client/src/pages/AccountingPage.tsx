@@ -4382,11 +4382,8 @@ export default function AccountingPage() {
                             calculateYearTotal('strip', false) + 
                             calculateYearTotal('strip1', false) + 
                             calculateYearTotal('ココナラ', false)
-                          const yearFees = calculateYearTotal('PayPal', true) + 
-                            calculateYearTotal('strip', true) + 
-                            calculateYearTotal('strip1', true)
-                          const yearProfit = yearRevenue - yearFees
-                          return yearProfit.toLocaleString()
+                          // yearRevenue는 이미 결제수단 합계(수수료 제외)이므로 그대로 반환
+                          return yearRevenue.toLocaleString()
                         })()}
                       </td>
                     </tr>
