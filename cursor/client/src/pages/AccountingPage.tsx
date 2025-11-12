@@ -642,21 +642,17 @@ export default function AccountingPage() {
 
     // 저장이 성공한 경우에만 아래 실행
     if (saveSuccess) {
+      // 일단 성공 메시지 먼저 표시
+      alert(language === 'ja' ? '保存しました' : '저장되었습니다')
+      
       // 폼 초기화
       setEditingRule(null)
       e.currentTarget.reset()
       
-      // 일단 성공 메시지 먼저 표시
-      alert(language === 'ja' ? '保存しました' : '저장되었습니다')
-      
-      // 목록 새로고침 (타임아웃 추가)
-      setTimeout(async () => {
-        try {
-          await fetchAutoMatchRules()
-        } catch (fetchError) {
-          console.error('목록 새로고침 실패 (저장은 성공):', fetchError)
-        }
-      }, 100)
+      // 목록 새로고침 (즉시 실행하되 오류는 무시)
+      fetchAutoMatchRules().catch(fetchError => {
+        console.error('목록 새로고침 실패 (저장은 성공):', fetchError)
+      })
     }
   }
 
