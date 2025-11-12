@@ -607,6 +607,8 @@ export default function AccountingPage() {
     const paymentMethod = formData.get('paymentMethod') as string
     const priority = Number(formData.get('priority') || 0)
 
+    let saveSuccess = false
+
     try {
       if (editingRule) {
         const response = await api.put(`/accounting/auto-match-rules/${editingRule.id}`, {
@@ -618,6 +620,7 @@ export default function AccountingPage() {
           isActive: true
         })
         console.log('Update response:', response.data)
+        saveSuccess = true
       } else {
         const response = await api.post('/accounting/auto-match-rules', {
           keyword,
@@ -628,26 +631,29 @@ export default function AccountingPage() {
           isActive: true
         })
         console.log('Create response:', response.data)
+        saveSuccess = true
       }
-      
-      // 저장 성공 메시지 먼저 표시
+    } catch (error: any) {
+      console.error('Auto match rule save error:', error)
+      console.error('Error response:', error.response)
+      alert(error.response?.data?.error || (language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다'))
+      return // 저장 실패 시 여기서 종료
+    }
+
+    // 저장이 성공한 경우에만 아래 실행
+    if (saveSuccess) {
+      // 성공 메시지 표시
       alert(language === 'ja' ? '保存しました' : '저장되었습니다')
       
       // 폼 초기화
       setEditingRule(null)
       e.currentTarget.reset()
       
-      // 목록 새로고침 (오류가 나도 저장은 성공했으므로 catch로 처리)
-      try {
-        await fetchAutoMatchRules()
-      } catch (fetchError) {
+      // 목록 새로고침 (백그라운드에서 조용히 실행)
+      fetchAutoMatchRules().catch(fetchError => {
         console.error('목록 새로고침 실패 (저장은 성공):', fetchError)
-        // 새로고침 실패해도 저장은 성공했으므로 무시
-      }
-    } catch (error: any) {
-      console.error('Auto match rule save error:', error)
-      console.error('Error response:', error.response)
-      alert(error.response?.data?.error || (language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다'))
+        // 사용자에게는 알리지 않음
+      })
     }
   }
 
