@@ -2344,7 +2344,7 @@ export default function AccountingPage() {
                     <tr className="border-t bg-gray-50 font-bold">
                       <td className="px-4 py-3 text-sm">{language === 'ja' ? '合計' : '합계'}</td>
                       <td className="px-4 py-3 text-sm text-right">
-                        {formatCurrency(deposits.reduce((sum, d) => sum + d.amount, 0))}
+                        {formatCurrency(deposits.reduce((sum, d) => sum + Number(d.amount || 0), 0))}
                       </td>
                       <td className="px-4 py-3" colSpan={2}></td>
                     </tr>
