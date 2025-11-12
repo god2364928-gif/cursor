@@ -17,6 +17,7 @@ import accountOptimizationRoutes from './routes/accountOptimization'
 import keywordAnalysisRoutes from './routes/keywordAnalysis'
 import accountingRoutes from './routes/accounting'
 import paypayRoutes from './routes/paypay'
+import totalSalesRoutes from './routes/totalSales'
 import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking } from './migrations/autoMigrate'
 
@@ -95,6 +96,7 @@ app.use('/api/account-optimization', accountOptimizationRoutes)
 app.use('/api/keyword-analysis', keywordAnalysisRoutes)
 app.use('/api/accounting', accountingRoutes)
 app.use('/api/paypay', paypayRoutes)
+app.use('/api/total-sales', totalSalesRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {

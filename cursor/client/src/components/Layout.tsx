@@ -81,6 +81,7 @@ export default function Layout() {
     { key: 'dashboard', label: language === 'ja' ? 'ダッシュボード' : '대시보드' },
     { key: 'transactions', label: language === 'ja' ? '取引履歴' : '거래내역' },
     { key: 'paypay', label: 'PayPay' },
+    { key: 'totalsales', label: language === 'ja' ? '全体売上' : '전체매출' },
     { key: 'employees', label: language === 'ja' ? '従業員' : '직원' },
     { key: 'payroll', label: language === 'ja' ? '給与' : '급여' },
     { key: 'recurring', label: language === 'ja' ? '定期支出' : '정기지출' },
