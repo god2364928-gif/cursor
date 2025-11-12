@@ -2073,8 +2073,9 @@ export default function AccountingPage() {
             </p>
           </div>
 
-          {/* 자본금 (계좌 잔액) 섹션 */}
-          <Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 자본금 (계좌 잔액) 섹션 */}
+            <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>{language === 'ja' ? '資本金（口座残高）' : '자본금 (계좌 잔액)'}</CardTitle>
@@ -2352,6 +2353,7 @@ export default function AccountingPage() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       )}
     </div>
