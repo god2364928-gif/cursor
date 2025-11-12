@@ -882,17 +882,6 @@ export default function AccountingPage() {
         </div>
       )}
 
-      <Card className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-md border-0">
-        <CardContent className="p-6">
-          <h1 className="text-3xl font-bold mb-2">
-            {language === 'ja' ? '会計ソフト' : '회계 소프트'}
-          </h1>
-          <p className="text-emerald-50">
-            {language === 'ja' ? '財務管理システム（決算: 10月基準）' : '재무 관리 시스템 (결산: 10월 기준)'}
-          </p>
-        </CardContent>
-      </Card>
-
       {/* Tab Navigation */}
       <div className="border-b border-gray-200 bg-white rounded-lg px-6 py-3">
         <nav className="flex gap-4">
@@ -915,64 +904,62 @@ export default function AccountingPage() {
       {/* Dashboard Tab */}
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
-          {/* 날짜 필터 */}
+          {/* 날짜 필터 & 회계연도 */}
           <Card>
             <CardContent className="p-4">
-              <div className="flex gap-4 items-center flex-wrap">
-                <div className="flex gap-2 items-center">
-                  <label className="text-sm font-medium">
-                    {language === 'ja' ? '開始日' : '시작일'}:
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    className="border rounded px-3 py-2"
-                  />
+              <div className="flex gap-4 items-center flex-wrap justify-between">
+                <div className="flex gap-4 items-center flex-wrap">
+                  <div className="flex gap-2 items-center">
+                    <label className="text-sm font-medium">
+                      {language === 'ja' ? '開始日' : '시작일'}:
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={e => setStartDate(e.target.value)}
+                      className="border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <label className="text-sm font-medium">
+                      {language === 'ja' ? '終了日' : '종료일'}:
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                      className="border rounded px-3 py-2"
+                    />
+                  </div>
+                  <Button onClick={handlePreviousMonth} variant="outline">
+                    {language === 'ja' ? '前月' : '전월'}
+                  </Button>
+                  <Button onClick={handleCurrentMonth}>
+                    {language === 'ja' ? '今月' : '당월'}
+                  </Button>
+                  <Button onClick={handleNextMonth} variant="outline">
+                    {language === 'ja' ? '来月' : '내월'}
+                  </Button>
                 </div>
                 <div className="flex gap-2 items-center">
                   <label className="text-sm font-medium">
-                    {language === 'ja' ? '終了日' : '종료일'}:
+                    {language === 'ja' ? '会計年度' : '회계연도'}:
                   </label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
+                  <select
+                    value={fiscalYear}
+                    onChange={(e) => setFiscalYear(Number(e.target.value))}
                     className="border rounded px-3 py-2"
-                  />
+                  >
+                    {[2024, 2025, 2026, 2027, 2028].map((year) => (
+                      <option key={year} value={year}>
+                        {year} ({year - 1}.10 ~ {year}.09)
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <Button onClick={handlePreviousMonth} variant="outline">
-                  {language === 'ja' ? '前月' : '전월'}
-                </Button>
-                <Button onClick={handleCurrentMonth}>
-                  {language === 'ja' ? '今月' : '당월'}
-                </Button>
-                <Button onClick={handleNextMonth} variant="outline">
-                  {language === 'ja' ? '来月' : '내월'}
-                </Button>
               </div>
             </CardContent>
           </Card>
-
-          <div className="flex items-center justify-between gap-4">
-            {/* 회계연도 선택 (오른쪽) */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">
-                {language === 'ja' ? '会計年度' : '회계연도'}:
-              </label>
-              <select
-                value={fiscalYear}
-                onChange={(e) => setFiscalYear(Number(e.target.value))}
-                className="border rounded px-3 py-2"
-              >
-                {[2024, 2025, 2026, 2027].map((year) => (
-                  <option key={year} value={year}>
-                    {year} ({year - 1}.10 ~ {year}.09)
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
 
           {dashboard && (
             <>
@@ -1090,59 +1077,41 @@ export default function AccountingPage() {
       {/* Transactions Tab */}
       {activeTab === 'transactions' && (
         <div className="space-y-4">
-          {/* 날짜 필터 & 회계연도 */}
+          {/* 날짜 필터 */}
           <Card>
             <CardContent className="p-4">
-              <div className="flex gap-4 items-center flex-wrap justify-between">
-                <div className="flex gap-4 items-center flex-wrap">
-                  <div className="flex gap-2 items-center">
-                    <label className="text-sm font-medium">
-                      {language === 'ja' ? '開始日' : '시작일'}:
-                    </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={e => setStartDate(e.target.value)}
-                      className="border rounded px-3 py-2"
-                    />
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <label className="text-sm font-medium">
-                      {language === 'ja' ? '終了日' : '종료일'}:
-                    </label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={e => setEndDate(e.target.value)}
-                      className="border rounded px-3 py-2"
-                    />
-                  </div>
-                  <Button onClick={handlePreviousMonth} variant="outline">
-                    {language === 'ja' ? '前月' : '전월'}
-                  </Button>
-                  <Button onClick={handleCurrentMonth}>
-                    {language === 'ja' ? '今月' : '당월'}
-                  </Button>
-                  <Button onClick={handleNextMonth} variant="outline">
-                    {language === 'ja' ? '来月' : '내월'}
-                  </Button>
+              <div className="flex gap-4 items-center flex-wrap">
+                <div className="flex gap-2 items-center">
+                  <label className="text-sm font-medium">
+                    {language === 'ja' ? '開始日' : '시작일'}:
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    className="border rounded px-3 py-2"
+                  />
                 </div>
                 <div className="flex gap-2 items-center">
                   <label className="text-sm font-medium">
-                    {language === 'ja' ? '会計年度' : '회계연도'}:
+                    {language === 'ja' ? '終了日' : '종료일'}:
                   </label>
-                  <select
-                    value={fiscalYear}
-                    onChange={(e) => setFiscalYear(Number(e.target.value))}
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
                     className="border rounded px-3 py-2"
-                  >
-                    {[2024, 2025, 2026, 2027, 2028].map((year) => (
-                      <option key={year} value={year}>
-                        {year} ({year - 1}.10 ~ {year}.09)
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
+                <Button onClick={handlePreviousMonth} variant="outline">
+                  {language === 'ja' ? '前月' : '전월'}
+                </Button>
+                <Button onClick={handleCurrentMonth}>
+                  {language === 'ja' ? '今月' : '당월'}
+                </Button>
+                <Button onClick={handleNextMonth} variant="outline">
+                  {language === 'ja' ? '来月' : '내월'}
+                </Button>
               </div>
             </CardContent>
           </Card>
