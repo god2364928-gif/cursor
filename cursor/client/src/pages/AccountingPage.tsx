@@ -171,11 +171,27 @@ export default function AccountingPage() {
   // 전월 첫날과 마지막날 계산
   const getPreviousMonthDates = () => {
     const now = new Date()
-    const firstDayPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const lastDayPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    const year = now.getFullYear()
+    const month = now.getMonth() // 0-11
+    
+    // 전월 계산
+    let prevYear = year
+    let prevMonth = month - 1
+    if (prevMonth < 0) {
+      prevYear = year - 1
+      prevMonth = 11
+    }
+    
+    // 전월 첫날
+    const firstDay = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-01`
+    
+    // 전월 마지막날
+    const lastDayNum = new Date(prevYear, prevMonth + 1, 0).getDate()
+    const lastDay = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`
+    
     return {
-      start: firstDayPrevMonth.toISOString().slice(0, 10),
-      end: lastDayPrevMonth.toISOString().slice(0, 10)
+      start: firstDay,
+      end: lastDay
     }
   }
   
