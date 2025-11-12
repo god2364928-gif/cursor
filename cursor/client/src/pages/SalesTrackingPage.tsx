@@ -62,7 +62,7 @@ export default function SalesTrackingPage() {
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [managerFilter, setManagerFilter] = useState<string>(user?.role === 'marketer' ? (user?.name || 'all') : 'all')
+  const [managerFilter, setManagerFilter] = useState<string>('all')
   const [managerOptions, setManagerOptions] = useState<string[]>([])
   const [, setUsers] = useState<any[]>([])
   // Daily stats state
@@ -102,7 +102,7 @@ export default function SalesTrackingPage() {
     memoNote: ''
   })
 
-  // 모든 직원 목록을 읽어 드롭다운에 표시 (마케터만)
+  // 모든 직원 목록을 읽어 드롭다운에 표시 (admin 제외)
   useEffect(() => {
     ;(async () => {
       try {
@@ -112,21 +112,21 @@ export default function SalesTrackingPage() {
         
         console.log('All users:', allUsers.map((u: any) => ({ name: u.name, role: u.role })))
         
-        // 마케터 역할의 사용자만 필터링 (명시적으로 'marketer'만)
-        const marketerNames = allUsers
+        // admin을 제외한 모든 사용자를 담당자 옵션에 포함
+        const managerNames = allUsers
           .filter((u: any) => {
-            const isMarketer = u.role === 'marketer'
-            console.log(`User ${u.name}: role=${u.role}, isMarketer=${isMarketer}`)
-            return isMarketer
+            const isNotAdmin = u.role !== 'admin'
+            console.log(`User ${u.name}: role=${u.role}, isNotAdmin=${isNotAdmin}`)
+            return isNotAdmin
           })
           .map((u: any) => u.name)
           .sort()
         
-        console.log('Filtered marketers:', marketerNames)
-        setManagerOptions(marketerNames)
+        console.log('Manager options:', managerNames)
+        setManagerOptions(managerNames)
         
-        // 디폴트는 본인 (마케터인 경우)
-        if (user?.role === 'marketer' && user?.name) {
+        // 디폴트는 본인
+        if (user?.name) {
           setManagerFilter(user.name)
         }
       } catch (e) {
