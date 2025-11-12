@@ -150,7 +150,7 @@ export default function AccountingPage() {
   const { language } = useI18nStore()
   const user = useAuthStore((state) => state.user)
   const isAdmin = user?.role === 'admin'
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'employees' | 'payroll' | 'recurring' | 'capital'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'paypay' | 'employees' | 'payroll' | 'recurring' | 'capital'>('dashboard')
   
   // Layout의 탭 클릭 이벤트 수신
   useEffect(() => {
@@ -256,6 +256,19 @@ export default function AccountingPage() {
       fetchAutoMatchRules()
     }
   }, [showAutoMatchDialog])
+
+  // PayPay 상태
+  const [paypaySummary, setPaypaySummary] = useState<{ totalSales: number; totalExpenses: number; balance: number }>({ totalSales: 0, totalExpenses: 0, balance: 0 })
+  const [paypaySales, setPaypaySales] = useState<any[]>([])
+  const [paypayExpenses, setPaypayExpenses] = useState<any[]>([])
+  const [paypayStartDate, setPaypayStartDate] = useState(new Date().toISOString().slice(0, 10))
+  const [paypayEndDate, setPaypayEndDate] = useState(new Date().toISOString().slice(0, 10))
+  const [paypayCategoryFilter, setPaypayCategoryFilter] = useState('')
+  const [paypayNameFilter, setPaypayNameFilter] = useState('')
+  const [showPaypayExpenseForm, setShowPaypayExpenseForm] = useState(false)
+  const [editingPaypayExpense, setEditingPaypayExpense] = useState<any>(null)
+  const [showPaypayUploadDialog, setShowPaypayUploadDialog] = useState(false)
+  const [paypayUploadPreview, setPaypayUploadPreview] = useState<any[]>([])
 
   const fetchDashboard = async () => {
     try {
@@ -1039,6 +1052,153 @@ export default function AccountingPage() {
       alert(language === 'ja' ? '削除しました' : '삭제되었습니다')
     } catch (error) {
       console.error('File delete error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
+    }
+  }
+
+  // PayPay 함수들
+  const fetchPaypaySummary = async () => {
+    try {
+      const response = await api.get('/paypay/summary', {
+        params: { startDate: paypayStartDate, endDate: paypayEndDate }
+      })
+      setPaypaySummary(response.data)
+    } catch (error) {
+      console.error('PayPay summary fetch error:', error)
+    }
+  }
+
+  const fetchPaypaySales = async () => {
+    try {
+      const response = await api.get('/paypay/sales', {
+        params: {
+          startDate: paypayStartDate,
+          endDate: paypayEndDate,
+          category: paypayCategoryFilter || undefined,
+          name: paypayNameFilter || undefined
+        }
+      })
+      setPaypaySales(response.data)
+    } catch (error) {
+      console.error('PayPay sales fetch error:', error)
+    }
+  }
+
+  const fetchPaypayExpenses = async () => {
+    try {
+      const response = await api.get('/paypay/expenses', {
+        params: { startDate: paypayStartDate, endDate: paypayEndDate }
+      })
+      setPaypayExpenses(response.data)
+    } catch (error) {
+      console.error('PayPay expenses fetch error:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'paypay') {
+      fetchPaypaySummary()
+      fetchPaypaySales()
+      fetchPaypayExpenses()
+    }
+  }, [activeTab, paypayStartDate, paypayEndDate, paypayCategoryFilter, paypayNameFilter])
+
+  const handlePaypayCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = event.target?.result as string
+      const lines = text.split('\n').filter(line => line.trim())
+      
+      // 헤더 제거 (첫 번째 줄)
+      const dataLines = lines.slice(1)
+      
+      const parsedData = dataLines.map(line => {
+        // CSV 파싱 (쉼표로 구분하되, 따옴표 안의 쉼표는 무시)
+        const values = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, '').trim()) || []
+        
+        if (values.length < 15) return null
+        
+        // 날짜 파싱 (입금일시 컬럼: 인덱스 12)
+        const dateStr = values[12] || ''
+        
+        // 카테고리 판단 (신청 입금자명: 인덱스 2)
+        const applicantName = values[2] || ''
+        
+        // 금액 파싱 (입금금액: 인덱스 11)
+        const amountStr = values[11]?.replace(/,/g, '') || '0'
+        const amount = parseFloat(amountStr)
+        
+        return {
+          date: dateStr,
+          category: applicantName,
+          user_id: values[1] || '', // 유저 아이디
+          name: values[6] || '', // 영수증 이름
+          receipt_number: '', // 영수증번호는 CSV에 없음
+          amount: amount
+        }
+      }).filter(Boolean)
+      
+      setPaypayUploadPreview(parsedData)
+      setShowPaypayUploadDialog(true)
+    }
+    
+    reader.readAsText(file, 'UTF-8')
+    e.target.value = ''
+  }
+
+  const handlePaypaySaveUpload = async () => {
+    try {
+      await api.post('/paypay/sales/bulk', { sales: paypayUploadPreview })
+      alert(language === 'ja' ? 'アップロードしました' : '업로드되었습니다')
+      setShowPaypayUploadDialog(false)
+      setPaypayUploadPreview([])
+      fetchPaypaySummary()
+      fetchPaypaySales()
+    } catch (error) {
+      console.error('PayPay upload error:', error)
+      alert(language === 'ja' ? 'アップロードに失敗しました' : '업로드에 실패했습니다')
+    }
+  }
+
+  const handlePaypayExpenseSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    
+    try {
+      const payload = {
+        date: formData.get('date'),
+        item: formData.get('item'),
+        amount: Number(formData.get('amount'))
+      }
+      
+      if (editingPaypayExpense) {
+        await api.put(`/paypay/expenses/${editingPaypayExpense.id}`, payload)
+      } else {
+        await api.post('/paypay/expenses', payload)
+      }
+      
+      setShowPaypayExpenseForm(false)
+      setEditingPaypayExpense(null)
+      fetchPaypaySummary()
+      fetchPaypayExpenses()
+    } catch (error) {
+      console.error('PayPay expense save error:', error)
+      alert(language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다')
+    }
+  }
+
+  const handlePaypayExpenseDelete = async (id: string) => {
+    if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
+    
+    try {
+      await api.delete(`/paypay/expenses/${id}`)
+      fetchPaypaySummary()
+      fetchPaypayExpenses()
+    } catch (error) {
+      console.error('PayPay expense delete error:', error)
       alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
     }
   }
@@ -2672,6 +2832,384 @@ export default function AccountingPage() {
               </div>
             </CardContent>
           </Card>
+          </div>
+        </div>
+      )}
+
+      {/* PayPay Tab */}
+      {activeTab === 'paypay' && (
+        <div className="space-y-6">
+          {/* 요약 카드 */}
+          <div className="grid grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-gray-600">{language === 'ja' ? '売上合計' : '매출 합계'}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(paypaySummary.totalSales)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-gray-600">{language === 'ja' ? '支出合計' : '지출 합계'}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(paypaySummary.totalExpenses)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-gray-600">{language === 'ja' ? '残高' : '잔액'}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(paypaySummary.balance)}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 필터 */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    {language === 'ja' ? '開始日' : '시작일'}
+                  </label>
+                  <Input
+                    type="date"
+                    value={paypayStartDate}
+                    onChange={(e) => setPaypayStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    {language === 'ja' ? '終了日' : '종료일'}
+                  </label>
+                  <Input
+                    type="date"
+                    value={paypayEndDate}
+                    onChange={(e) => setPaypayEndDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    {language === 'ja' ? 'カテゴリ' : '카테고리'}
+                  </label>
+                  <Input
+                    placeholder={language === 'ja' ? 'カテゴリで絞り込む' : '카테고리로 필터'}
+                    value={paypayCategoryFilter}
+                    onChange={(e) => setPaypayCategoryFilter(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    {language === 'ja' ? '名前' : '이름'}
+                  </label>
+                  <Input
+                    placeholder={language === 'ja' ? '名前で絞り込む' : '이름으로 필터'}
+                    value={paypayNameFilter}
+                    onChange={(e) => setPaypayNameFilter(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 매출 목록 */}
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>{language === 'ja' ? '売上リスト' : '매출 목록'}</CardTitle>
+                <div>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handlePaypayCSVUpload}
+                    className="hidden"
+                    id="paypay-csv-upload"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => document.getElementById('paypay-csv-upload')?.click()}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    CSV {language === 'ja' ? 'アップロード' : '업로드'}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '日時' : '일시'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? 'カテゴリ' : '카테고리'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? 'ユーザーID' : '아이디'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '名前' : '이름'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '領収書番号' : '영수증번호'}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '金額' : '금액'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paypaySales.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                          {language === 'ja' ? 'データがありません' : '데이터가 없습니다'}
+                        </td>
+                      </tr>
+                    ) : (
+                      paypaySales.map((sale, idx) => (
+                        <tr key={idx} className="border-t hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm">
+                            {new Date(sale.date).toLocaleString(language === 'ja' ? 'ja-JP' : 'ko-KR')}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium">{sale.category}</td>
+                          <td className="px-4 py-3 text-sm">{sale.user_id || '-'}</td>
+                          <td className="px-4 py-3 text-sm">{sale.name}</td>
+                          <td className="px-4 py-3 text-sm">{sale.receipt_number || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-right">{formatCurrency(sale.amount)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 지출 목록 */}
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>{language === 'ja' ? '支出リスト' : '지출 목록'}</CardTitle>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setShowPaypayExpenseForm(true)
+                    setEditingPaypayExpense(null)
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {language === 'ja' ? '追加' : '추가'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {showPaypayExpenseForm && (
+                <Card className="mb-4 border-blue-200 bg-blue-50">
+                  <CardContent className="p-4">
+                    <h3 className="text-lg font-semibold mb-4">
+                      {editingPaypayExpense
+                        ? (language === 'ja' ? '支出を修正' : '지출 수정')
+                        : (language === 'ja' ? '支出を追加' : '지출 추가')}
+                    </h3>
+                    <form onSubmit={handlePaypayExpenseSubmit} className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {language === 'ja' ? '日時' : '일시'}
+                        </label>
+                        <Input
+                          type="datetime-local"
+                          name="date"
+                          required
+                          defaultValue={editingPaypayExpense?.date?.slice(0, 16) || ''}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {language === 'ja' ? '項目' : '항목'}
+                        </label>
+                        <Input
+                          type="text"
+                          name="item"
+                          required
+                          defaultValue={editingPaypayExpense?.item || ''}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {language === 'ja' ? '金額' : '금액'}
+                        </label>
+                        <Input
+                          type="number"
+                          name="amount"
+                          required
+                          defaultValue={editingPaypayExpense?.amount || ''}
+                        />
+                      </div>
+                      <div className="col-span-3 flex gap-2">
+                        <Button type="submit">
+                          {language === 'ja' ? '保存' : '저장'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => {
+                            setShowPaypayExpenseForm(false)
+                            setEditingPaypayExpense(null)
+                          }}
+                        >
+                          {language === 'ja' ? 'キャンセル' : '취소'}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '日時' : '일시'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '項目' : '항목'}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '金額' : '금액'}
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '作業' : '작업'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paypayExpenses.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                          {language === 'ja' ? 'データがありません' : '데이터가 없습니다'}
+                        </td>
+                      </tr>
+                    ) : (
+                      paypayExpenses.map((expense) => (
+                        <tr key={expense.id} className="border-t hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm">
+                            {new Date(expense.date).toLocaleString(language === 'ja' ? 'ja-JP' : 'ko-KR')}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium">{expense.item}</td>
+                          <td className="px-4 py-3 text-sm text-right">{formatCurrency(expense.amount)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex gap-1 justify-center">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingPaypayExpense(expense)
+                                  setShowPaypayExpenseForm(true)
+                                }}
+                                aria-label={language === 'ja' ? '修正' : '수정'}
+                              >
+                                <Pencil className="h-4 w-4 text-emerald-600" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handlePaypayExpenseDelete(expense.id)}
+                                aria-label={language === 'ja' ? '削除' : '삭제'}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* PayPay CSV 업로드 미리보기 다이얼로그 */}
+      {showPaypayUploadDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
+            <div className="p-6 border-b sticky top-0 bg-white z-10">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">
+                  {language === 'ja' ? 'CSV プレビュー' : 'CSV 미리보기'}
+                </h2>
+                <Button variant="ghost" onClick={() => setShowPaypayUploadDialog(false)}>
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                {language === 'ja' 
+                  ? `${paypayUploadPreview.length} 件のデータが見つかりました。確認して保存してください。`
+                  : `${paypayUploadPreview.length}건의 데이터가 확인되었습니다. 확인 후 저장하세요.`}
+              </p>
+            </div>
+            
+            <div className="p-6">
+              <div className="border rounded-lg overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '日時' : '일시'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? 'カテゴリ' : '카테고리'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? 'ユーザーID' : '아이디'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '名前' : '이름'}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '金額' : '금액'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paypayUploadPreview.slice(0, 50).map((sale, idx) => (
+                      <tr key={idx} className="border-t hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm">{sale.date}</td>
+                        <td className="px-4 py-3 text-sm font-medium">{sale.category}</td>
+                        <td className="px-4 py-3 text-sm">{sale.user_id || '-'}</td>
+                        <td className="px-4 py-3 text-sm">{sale.name}</td>
+                        <td className="px-4 py-3 text-sm text-right">{formatCurrency(sale.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {paypayUploadPreview.length > 50 && (
+                <p className="text-sm text-gray-600 text-center mt-4">
+                  {language === 'ja'
+                    ? `最初の 50 件のみ表示しています（全 ${paypayUploadPreview.length} 件）`
+                    : `최초 50건만 표시 중 (전체 ${paypayUploadPreview.length}건)`}
+                </p>
+              )}
+              
+              <div className="flex gap-4 justify-end mt-6">
+                <Button variant="ghost" onClick={() => setShowPaypayUploadDialog(false)}>
+                  {language === 'ja' ? 'キャンセル' : '취소'}
+                </Button>
+                <Button onClick={handlePaypaySaveUpload}>
+                  {language === 'ja' ? '保存' : '저장'}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
