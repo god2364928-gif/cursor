@@ -102,7 +102,7 @@ export default function SalesTrackingPage() {
     memoNote: ''
   })
 
-  // 모든 직원 목록을 읽어 드롭다운에 표시 (admin 제외)
+  // 모든 직원 목록을 읽어 드롭다운에 표시 (마케터만)
   useEffect(() => {
     ;(async () => {
       try {
@@ -112,18 +112,18 @@ export default function SalesTrackingPage() {
         
         console.log('All users:', allUsers.map((u: any) => ({ name: u.name, role: u.role })))
         
-        // admin을 제외한 모든 사용자를 담당자 옵션에 포함
-        const managerNames = allUsers
+        // 마케터 역할의 사용자만 필터링
+        const marketerNames = allUsers
           .filter((u: any) => {
-            const isNotAdmin = u.role !== 'admin'
-            console.log(`User ${u.name}: role=${u.role}, isNotAdmin=${isNotAdmin}`)
-            return isNotAdmin
+            const isMarketer = u.role === 'marketer'
+            console.log(`User ${u.name}: role=${u.role}, isMarketer=${isMarketer}`)
+            return isMarketer
           })
           .map((u: any) => u.name)
           .sort()
         
-        console.log('Manager options:', managerNames)
-        setManagerOptions(managerNames)
+        console.log('Filtered marketers:', marketerNames)
+        setManagerOptions(marketerNames)
         
         // 디폴트는 본인
         if (user?.name) {
