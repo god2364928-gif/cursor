@@ -1971,13 +1971,13 @@ export default function AccountingPage() {
                     <Input type="date" name="transportationStartDate" defaultValue={formatDateOnly(editingEmployee?.transportationStartDate || editingEmployee?.transportation_start_date)} />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '交通費詳細' : '교통비 상세'}</label>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '履歴' : '히스토리'}</label>
                     <textarea
                       name="transportationDetails"
                       className="w-full border rounded px-3 py-2"
                       rows={2}
                       defaultValue={editingEmployee?.transportationDetails || editingEmployee?.transportation_details || ''}
-                      placeholder={language === 'ja' ? '西川口~新橋 定期代: 9,620円...' : '예: 西川口~新橋 定期代: 9,620円...'}
+                      placeholder=""
                     />
                   </div>
                   <div className="col-span-2 flex gap-2">
@@ -2729,8 +2729,8 @@ export default function AccountingPage() {
                     <p className="font-medium">{selectedEmployee.transportationStartDate || '-'}</p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-gray-600">{language === 'ja' ? '交通費詳細' : '교통비 상세'}</p>
-                    <p className="font-medium whitespace-pre-line">{selectedEmployee.transportationDetails || '-'}</p>
+                    <p className="text-gray-600">{language === 'ja' ? '履歴' : '히스토리'}</p>
+                    <p className="font-medium whitespace-pre-line">{selectedEmployee.transportationDetails || selectedEmployee.transportation_details || '-'}</p>
                   </div>
                 </CardContent>
               </Card>
