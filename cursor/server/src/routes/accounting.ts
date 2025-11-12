@@ -1223,5 +1223,172 @@ router.delete('/deposits/:id', authMiddleware, adminOnly, async (req: AuthReques
   }
 })
 
+// ========== 직원 파일 관리 (ADMIN 전용) ==========
+
+// Helper function to decode file name
+const decodeFileName = (fileName: string): string => {
+  try {
+    const utf8Decoded = Buffer.from(fileName, 'latin1').toString('utf8')
+    if (utf8Decoded !== fileName) {
+      return utf8Decoded
+    }
+    return decodeURIComponent(fileName)
+  } catch (e) {
+    return fileName
+  }
+}
+
+// POST /employees/:userId/files - 파일 업로드
+router.post('/employees/:userId/files', authMiddleware, adminOnly, upload.single('file'), 
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: '파일이 없습니다' })
+      }
+
+      const { userId } = req.params
+      const { fileCategory, fileSubcategory, yearMonth } = req.body
+
+      // 사용자 존재 확인
+      const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [userId])
+      if (userCheck.rows.length === 0) {
+        return res.status(404).json({ error: '사용자를 찾을 수 없습니다' })
+      }
+
+      // Convert file buffer to Base64
+      const fileDataBase64 = req.file.buffer.toString('base64')
+      const decodedFileName = decodeFileName(req.file.originalname)
+
+      // Insert file into database
+      const result = await pool.query(
+        `INSERT INTO user_files (
+          user_id, uploaded_by_user_id, file_category, file_subcategory, year_month,
+          file_name, original_name, file_type, file_size, file_data
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id, user_id, uploaded_by_user_id, file_category, file_subcategory, 
+                  year_month, file_name, original_name, file_type, file_size, created_at`,
+        [
+          userId,
+          req.user?.id,
+          fileCategory,
+          fileSubcategory || null,
+          yearMonth || null,
+          decodedFileName,
+          decodedFileName,
+          req.file.mimetype || 'application/octet-stream',
+          req.file.size,
+          fileDataBase64
+        ]
+      )
+
+      const file = result.rows[0]
+      res.json({
+        id: file.id,
+        userId: file.user_id,
+        uploadedByUserId: file.uploaded_by_user_id,
+        fileCategory: file.file_category,
+        fileSubcategory: file.file_subcategory,
+        yearMonth: file.year_month,
+        fileName: file.file_name,
+        originalName: file.original_name,
+        fileType: file.file_type,
+        fileSize: file.file_size,
+        createdAt: file.created_at
+      })
+    } catch (error) {
+      console.error('File upload error:', error)
+      res.status(500).json({ error: '파일 업로드에 실패했습니다' })
+    }
+  }
+)
+
+// GET /employees/:userId/files - 파일 목록 조회
+router.get('/employees/:userId/files', authMiddleware, adminOnly, 
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { userId } = req.params
+
+      const result = await pool.query(
+        `SELECT id, user_id, uploaded_by_user_id, file_category, file_subcategory, year_month,
+                file_name, original_name, file_type, file_size, created_at
+         FROM user_files
+         WHERE user_id = $1
+         ORDER BY created_at DESC`,
+        [userId]
+      )
+
+      const files = result.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        uploadedByUserId: row.uploaded_by_user_id,
+        fileCategory: row.file_category,
+        fileSubcategory: row.file_subcategory,
+        yearMonth: row.year_month,
+        fileName: row.file_name,
+        originalName: row.original_name,
+        fileType: row.file_type,
+        fileSize: row.file_size,
+        createdAt: row.created_at
+      }))
+
+      res.json(files)
+    } catch (error) {
+      console.error('Files fetch error:', error)
+      res.status(500).json({ error: '파일 목록 조회에 실패했습니다' })
+    }
+  }
+)
+
+// GET /employees/:userId/files/:fileId - 파일 다운로드
+router.get('/employees/:userId/files/:fileId', authMiddleware, adminOnly, 
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { userId, fileId } = req.params
+
+      const result = await pool.query(
+        'SELECT * FROM user_files WHERE id = $1 AND user_id = $2',
+        [fileId, userId]
+      )
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: '파일을 찾을 수 없습니다' })
+      }
+
+      const file = result.rows[0]
+      const fileBuffer = Buffer.from(file.file_data, 'base64')
+
+      res.setHeader('Content-Type', file.file_type)
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`)
+      res.send(fileBuffer)
+    } catch (error) {
+      console.error('File download error:', error)
+      res.status(500).json({ error: '파일 다운로드에 실패했습니다' })
+    }
+  }
+)
+
+// DELETE /employees/:userId/files/:fileId - 파일 삭제
+router.delete('/employees/:userId/files/:fileId', authMiddleware, adminOnly, 
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { userId, fileId } = req.params
+
+      const result = await pool.query(
+        'DELETE FROM user_files WHERE id = $1 AND user_id = $2 RETURNING id',
+        [fileId, userId]
+      )
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: '파일을 찾을 수 없습니다' })
+      }
+
+      res.json({ success: true })
+    } catch (error) {
+      console.error('File delete error:', error)
+      res.status(500).json({ error: '파일 삭제에 실패했습니다' })
+    }
+  }
+)
+
 export default router
 

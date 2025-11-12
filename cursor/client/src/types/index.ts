@@ -6,6 +6,19 @@ export interface User {
   role: 'admin' | 'manager' | 'user' | 'marketer'
   createdAt: string
   lastLoginAt?: string | null
+  
+  // 직원 관리 추가 필드
+  department?: string
+  position?: string  // 사원, 주임, 대리, 팀장, 대표
+  employmentStatus?: string  // 입사중, 입사전, 퇴사
+  baseSalary?: number
+  contractStartDate?: string
+  contractEndDate?: string
+  martId?: string
+  transportationRoute?: string
+  monthlyTransportationCost?: number
+  transportationStartDate?: string
+  transportationDetails?: string
 }
 
 export interface Customer {
@@ -162,6 +175,20 @@ export interface RetargetingFile {
   id: string
   retargetingCustomerId: string
   userId: string
+  fileName: string
+  originalName: string
+  fileType: string
+  fileSize: number
+  createdAt: string
+}
+
+export interface UserFile {
+  id: string
+  userId: string
+  uploadedByUserId: string
+  fileCategory: string  // 인사기록카드, 계약서, 이력서, 개인서류
+  fileSubcategory?: string  // 급여명세서, 교통비영수증, 진단서 등
+  yearMonth?: string  // YYYY-MM
   fileName: string
   originalName: string
   fileType: string
