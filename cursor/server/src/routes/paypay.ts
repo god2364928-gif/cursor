@@ -7,7 +7,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 // 직원명 매핑
 const STAFF_MAPPING: { [key: string]: string } = {
   '미유': '山﨑水優',
-  '히토미': '石井瞳',
+  '히토미': '石井ひとみ',
   '미나미': '山下南',
   '제이': 'JEYI'
 }
@@ -34,14 +34,9 @@ router.get('/sales', async (req, res) => {
     }
 
     if (category) {
-      if (category === 'STAFF') {
-        // 담당자: 4명만
-        query += ` AND category IN ('山﨑水優', '石井瞳', '山下南', 'JEYI')`
-      } else {
-        query += ` AND category = $${paramCount}`
-        params.push(category)
-        paramCount++
-      }
+      query += ` AND category = $${paramCount}`
+      params.push(category)
+      paramCount++
     }
 
     if (name) {
