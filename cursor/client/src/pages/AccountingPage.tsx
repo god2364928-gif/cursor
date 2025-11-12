@@ -2021,7 +2021,7 @@ export default function AccountingPage() {
                 {recurringExpenses.map((exp) => (
                   <tr key={exp.id} className="border-t hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm truncate overflow-hidden">
-                      {language === 'ja' ? '毎月' : '매월'} {exp.paymentDay}{language === 'ja' ? '日' : '일'}
+                      {exp.paymentDay}{language === 'ja' ? '日' : '일'}
                     </td>
                     <td className="px-4 py-3 text-sm truncate overflow-hidden">{exp.itemName}</td>
                     <td className="px-4 py-3 text-sm truncate overflow-hidden">{formatCurrency(exp.monthlyAmount)}</td>
