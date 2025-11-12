@@ -3654,7 +3654,7 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '入社日' : '입사일'}</p>
-                    <p className="font-medium">{selectedEmployee.hireDate || selectedEmployee.hire_date || '-'}</p>
+                    <p className="font-medium">{((selectedEmployee.hireDate || selectedEmployee.hire_date) || '').split('T')[0] || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '基本給' : '기본급'}</p>
@@ -3666,11 +3666,11 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '契約開始日' : '계약 시작일'}</p>
-                    <p className="font-medium">{selectedEmployee.contractStartDate || selectedEmployee.contract_start_date || '-'}</p>
+                    <p className="font-medium">{((selectedEmployee.contractStartDate || selectedEmployee.contract_start_date) || '').split('T')[0] || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '契約終了日' : '계약 종료일'}</p>
-                    <p className="font-medium">{selectedEmployee.contractEndDate || selectedEmployee.contract_end_date || '-'}</p>
+                    <p className="font-medium">{((selectedEmployee.contractEndDate || selectedEmployee.contract_end_date) || '').split('T')[0] || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '交通費経路' : '교통비 경로'}</p>
@@ -3682,7 +3682,7 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '交通費開始日' : '교통비 시작일'}</p>
-                    <p className="font-medium">{selectedEmployee.transportationStartDate || selectedEmployee.transportation_start_date || '-'}</p>
+                    <p className="font-medium">{((selectedEmployee.transportationStartDate || selectedEmployee.transportation_start_date) || '').split('T')[0] || '-'}</p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-gray-600">{language === 'ja' ? '履歴' : '히스토리'}</p>
