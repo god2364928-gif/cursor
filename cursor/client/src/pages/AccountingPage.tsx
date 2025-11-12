@@ -70,6 +70,7 @@ interface Employee {
   id: string
   name: string
   email: string
+  hireDate?: string // 입사일
   department?: string
   position?: string
   employmentStatus?: string
@@ -81,8 +82,7 @@ interface Employee {
   monthlyTransportationCost?: number
   transportationStartDate?: string
   transportationDetails?: string
-  // Legacy fields (keep for backward compatibility)
-  hireDate?: string
+  // Legacy fields
   incentiveRate?: number
 }
 
@@ -168,6 +168,9 @@ export default function AccountingPage() {
   const [nameFilter, setNameFilter] = useState<string>('all')
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
+
+  // 직원 필터
+  const [employeeStatusFilter, setEmployeeStatusFilter] = useState<string>('입사중')
 
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
@@ -670,6 +673,7 @@ export default function AccountingPage() {
         name: formData.get('name'),
         email: formData.get('email'),
         password: formData.get('password') || undefined,
+        hireDate: formData.get('hireDate') || null,
         department: formData.get('department'),
         position: formData.get('position'),
         employmentStatus: formData.get('employmentStatus') || '입사중',
@@ -1818,18 +1822,29 @@ export default function AccountingPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{language === 'ja' ? '従業員管理' : '직원 관리'}</h2>
-            <Button
-              onClick={() => {
-                if (showEmployeeForm && !editingEmployee) {
-                  closeEmployeeForm()
-                } else {
-                  openEmployeeForm()
-                }
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {language === 'ja' ? '追加' : '추가'}
-            </Button>
+            <div className="flex gap-2 items-center">
+              <select
+                value={employeeStatusFilter}
+                onChange={(e) => setEmployeeStatusFilter(e.target.value)}
+                className="border rounded px-3 py-2"
+              >
+                <option value="입사중">{language === 'ja' ? '入社中' : '입사중'}</option>
+                <option value="입사전">{language === 'ja' ? '入社前' : '입사전'}</option>
+                <option value="퇴사">{language === 'ja' ? '退職' : '퇴사'}</option>
+              </select>
+              <Button
+                onClick={() => {
+                  if (showEmployeeForm && !editingEmployee) {
+                    closeEmployeeForm()
+                  } else {
+                    openEmployeeForm()
+                  }
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {language === 'ja' ? '追加' : '추가'}
+              </Button>
+            </div>
           </div>
 
           {showEmployeeForm && (
@@ -1892,6 +1907,10 @@ export default function AccountingPage() {
                       <option value="입사전">{language === 'ja' ? '入社前' : '입사전'}</option>
                       <option value="퇴사">{language === 'ja' ? '退職' : '퇴사'}</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '入社日' : '입사일'}</label>
+                    <Input type="date" name="hireDate" defaultValue={editingEmployee?.hireDate || ''} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '基本給' : '기본급'}</label>
@@ -1959,7 +1978,9 @@ export default function AccountingPage() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {employees.map((emp) => (
+            {employees
+              .filter(emp => emp.employmentStatus === employeeStatusFilter)
+              .map((emp) => (
               <Card key={emp.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEmployeeDetail(emp)}>
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start">
@@ -2018,11 +2039,9 @@ export default function AccountingPage() {
                       <p className="font-bold">{emp.baseSalary ? formatCurrency(emp.baseSalary) : '-'}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">{language === 'ja' ? '契約期間' : '계약 기간'}</p>
-                      <p className="font-bold text-xs">
-                        {emp.contractStartDate && emp.contractEndDate
-                          ? `${emp.contractStartDate.slice(5)} ~ ${emp.contractEndDate.slice(5)}`
-                          : '-'}
+                      <p className="text-gray-600">{language === 'ja' ? '入社日' : '입사일'}</p>
+                      <p className="font-bold text-sm">
+                        {emp.hireDate || '-'}
                       </p>
                     </div>
                   </div>
@@ -2651,6 +2670,10 @@ export default function AccountingPage() {
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '入社現況' : '입사현황'}</p>
                     <p className="font-medium">{selectedEmployee.employmentStatus || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? '入社日' : '입사일'}</p>
+                    <p className="font-medium">{selectedEmployee.hireDate || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '基本給' : '기본급'}</p>
