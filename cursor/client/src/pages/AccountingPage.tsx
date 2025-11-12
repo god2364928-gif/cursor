@@ -630,11 +630,20 @@ export default function AccountingPage() {
         console.log('Create response:', response.data)
       }
       
-      // 저장 성공 후 목록 새로고침
-      await fetchAutoMatchRules()
+      // 저장 성공 메시지 먼저 표시
+      alert(language === 'ja' ? '保存しました' : '저장되었습니다')
+      
+      // 폼 초기화
       setEditingRule(null)
       e.currentTarget.reset()
-      alert(language === 'ja' ? '保存しました' : '저장되었습니다')
+      
+      // 목록 새로고침 (오류가 나도 저장은 성공했으므로 catch로 처리)
+      try {
+        await fetchAutoMatchRules()
+      } catch (fetchError) {
+        console.error('목록 새로고침 실패 (저장은 성공):', fetchError)
+        // 새로고침 실패해도 저장은 성공했으므로 무시
+      }
     } catch (error: any) {
       console.error('Auto match rule save error:', error)
       console.error('Error response:', error.response)
