@@ -201,9 +201,7 @@ router.post('/bulk-move-to-retargeting', auth_1.authMiddleware, async (req, res)
                 // 리타겟팅 고객으로 추가
                 await db_1.pool.query(`INSERT INTO retargeting_customers 
            (company_name, industry, customer_name, phone, region, inflow_path, manager, manager_team, status, registered_at, memo, homepage, instagram, main_keywords, sales_tracking_id, last_contact_date)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-           ON CONFLICT (phone) DO UPDATE 
-           SET memo = EXCLUDED.memo, updated_at = CURRENT_TIMESTAMP, last_contact_date = CURRENT_TIMESTAMP`, [
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`, [
                     record.company_name || '',
                     record.industry || null,
                     record.customer_name || record.company_name || '이름 없음',

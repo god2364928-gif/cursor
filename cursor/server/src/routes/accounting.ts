@@ -268,6 +268,89 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
   }
 })
 
+// Bulk transactions import
+router.post('/transactions/bulk', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { transactions } = req.body
+    
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+      return res.status(400).json({ error: '유효한 거래 데이터가 없습니다' })
+    }
+    
+    let imported = 0
+    let failed = 0
+    
+    for (const tx of transactions) {
+      try {
+        const {
+          transactionDate,
+          transactionType,
+          category,
+          paymentMethod,
+          itemName,
+          amount,
+          memo
+        } = tx
+        
+        // Normalize payment method
+        const normalizedPaymentMethod =
+          paymentMethod === '현금' || paymentMethod === '은행' || paymentMethod === '현금/은행'
+            ? '계좌이체'
+            : paymentMethod === 'Stripe'
+            ? '페이팔'
+            : paymentMethod
+        
+        const result = await pool.query(
+          `INSERT INTO accounting_transactions 
+           (transaction_date, transaction_type, category, payment_method, item_name, amount, memo)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING *`,
+          [
+            transactionDate,
+            transactionType,
+            category || '지정없음',
+            normalizedPaymentMethod,
+            itemName,
+            amount,
+            memo || null
+          ]
+        )
+        
+        const transaction = result.rows[0]
+        
+        // 자동화: 매출 카테고리면 accounting_sales에 반영
+        const salesCategories = ['셀마플', '코코마케']
+        if (transactionType === '입금' && salesCategories.includes(category)) {
+          const fiscalYear = transaction.fiscal_year
+          const month = new Date(transactionDate).toISOString().slice(0, 7) + '-01'
+          
+          await pool.query(
+            `INSERT INTO accounting_sales (fiscal_year, transaction_month, channel, sales_category, total_amount)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT DO NOTHING`,
+            [fiscalYear, month, normalizedPaymentMethod, category, amount]
+          )
+        }
+        
+        imported++
+      } catch (error) {
+        console.error('Transaction import error:', error)
+        failed++
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      imported, 
+      failed,
+      message: `${imported}건 가져오기 성공${failed > 0 ? `, ${failed}건 실패` : ''}`
+    })
+  } catch (error) {
+    console.error('Bulk transaction import error:', error)
+    res.status(500).json({ error: '일괄 가져오기에 실패했습니다' })
+  }
+})
+
 router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
