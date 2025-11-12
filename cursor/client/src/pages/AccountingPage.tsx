@@ -235,17 +235,26 @@ export default function AccountingPage() {
     fetchDashboard()
   }, [fiscalYear])
 
-  // 초기 날짜 설정 (당월 1일 ~ 오늘)
+  // 초기 날짜 설정 (전월 1일 ~ 전월 마지막일)
   useEffect(() => {
     const now = new Date()
     const year = now.getFullYear()
     const month = now.getMonth()
     
-    const firstDayString = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    const todayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    // 전월 계산
+    let prevYear = year
+    let prevMonth = month - 1
+    if (prevMonth < 0) {
+      prevYear = year - 1
+      prevMonth = 11
+    }
+    
+    const firstDayString = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-01`
+    const lastDay = new Date(prevYear, prevMonth + 1, 0).getDate()
+    const lastDayString = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
     
     setStartDate(firstDayString)
-    setEndDate(todayString)
+    setEndDate(lastDayString)
   }, [])
 
   useEffect(() => {
@@ -2954,32 +2963,8 @@ export default function AccountingPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="flex gap-3 items-end">
-                {/* 날짜 버튼 */}
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handlePaypayPreviousMonth}
-                  >
-                    {language === 'ja' ? '前月' : '전월'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handlePaypayCurrentMonth}
-                  >
-                    {language === 'ja' ? '当月' : '당월'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handlePaypayNextMonth}
-                  >
-                    {language === 'ja' ? '来月' : '내월'}
-                  </Button>
-                </div>
                 {/* 필터 입력 */}
-                <div className="flex-1 grid grid-cols-4 gap-3">
+                <div className="flex-1 grid grid-cols-5 gap-3">
                   <div>
                     <label className="block text-sm font-medium mb-1">
                       {language === 'ja' ? '開始日' : '시작일'}
@@ -3001,6 +2986,33 @@ export default function AccountingPage() {
                       onChange={(e) => setPaypayEndDate(e.target.value)}
                       className="h-9"
                     />
+                  </div>
+                  {/* 날짜 버튼 - 종료일 오른쪽에 배치 */}
+                  <div className="flex items-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handlePaypayPreviousMonth}
+                      className="h-9"
+                    >
+                      {language === 'ja' ? '前月' : '전월'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handlePaypayCurrentMonth}
+                      className="h-9"
+                    >
+                      {language === 'ja' ? '当月' : '당월'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handlePaypayNextMonth}
+                      className="h-9"
+                    >
+                      {language === 'ja' ? '来月' : '내월'}
+                    </Button>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">

@@ -119,3 +119,4 @@ class TrendsClient:
         result = self._with_retry(_call)
         return result or {}
 
+

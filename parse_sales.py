@@ -3,6 +3,7 @@
 import csv
 from datetime import datetime
 import re
+import sys
 
 # 매출 CSV 파싱
 with open('/Users/go/Desktop/new/일본 자본금 사용 내역 - 시트16.csv', 'r', encoding='utf-8') as f:

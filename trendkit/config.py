@@ -68,3 +68,4 @@ def get_settings() -> Settings:
     """싱글톤으로 설정을 제공합니다."""
     return Settings()
 
+

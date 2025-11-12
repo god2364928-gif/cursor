@@ -23,22 +23,31 @@ export default function DashboardPage() {
   const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
   const [users, setUsers] = useState<any[]>([])
 
-  // 초기 날짜 설정 (당월 1일 ~ 오늘)
+  // 초기 날짜 설정 (전월 1일 ~ 전월 마지막일)
   useEffect(() => {
     const now = new Date()
     const year = now.getFullYear()
     const month = now.getMonth() // 0-11 (0=Jan, 9=Oct)
     
-    // 현재 월의 첫째 날
-    const firstDayString = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    // 전월 계산
+    let prevYear = year
+    let prevMonth = month - 1
+    if (prevMonth < 0) {
+      prevYear = year - 1
+      prevMonth = 11
+    }
     
-    // 오늘 날짜
-    const todayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    // 전월의 첫째 날
+    const firstDayString = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-01`
     
-    console.log('Initial date setting:', { year, month, firstDayString, todayString })
+    // 전월의 마지막 날
+    const lastDay = new Date(prevYear, prevMonth + 1, 0).getDate()
+    const lastDayString = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    
+    console.log('Initial date setting (previous month):', { prevYear, prevMonth, firstDayString, lastDayString })
     setStartDate(firstDayString)
-    setEndDate(todayString)
-    setCurrentBaseMonth(month) // Initialize base month
+    setEndDate(lastDayString)
+    setCurrentBaseMonth(prevMonth) // Initialize base month to previous month
   }, [])
 
   const handlePreviousMonth = () => {

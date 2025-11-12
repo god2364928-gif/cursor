@@ -40,3 +40,4 @@ def export_pdf(out_html: Path, out_pdf: Path) -> Path:
     HTML(filename=str(out_html)).write_pdf(str(out_pdf))
     return out_pdf
 
+
