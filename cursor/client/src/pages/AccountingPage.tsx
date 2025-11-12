@@ -152,7 +152,7 @@ export default function AccountingPage() {
   const { language } = useI18nStore()
   const user = useAuthStore((state) => state.user)
   const isAdmin = user?.role === 'admin'
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'paypay' | 'employees' | 'payroll' | 'recurring' | 'capital'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'paypay' | 'totalsales' | 'employees' | 'payroll' | 'recurring' | 'capital'>('dashboard')
   
   // Layout의 탭 클릭 이벤트 수신
   useEffect(() => {
@@ -247,6 +247,12 @@ export default function AccountingPage() {
   const [showAutoMatchDialog, setShowAutoMatchDialog] = useState(false)
   const [autoMatchRules, setAutoMatchRules] = useState<any[]>([])
   const [editingRule, setEditingRule] = useState<any | null>(null)
+  
+  // 전체매출 관련 state
+  const [totalSalesData, setTotalSalesData] = useState<any[]>([])
+  const [totalSalesYear, setTotalSalesYear] = useState<number>(2025)
+  const [editingCell, setEditingCell] = useState<{year: number, month: number, paymentMethod: string, isFee: boolean} | null>(null)
+  const [editingValue, setEditingValue] = useState<string>('')
 
   useEffect(() => {
     fetchDashboard()
@@ -288,7 +294,8 @@ export default function AccountingPage() {
       fetchCapitalBalances()
       fetchDeposits()
     }
-  }, [activeTab, nameOptions.length, capitalOffset])
+    if (activeTab === 'totalsales') fetchTotalSales()
+  }, [activeTab, nameOptions.length, capitalOffset, totalSalesYear])
 
   // 자동 매칭 다이얼로그가 열릴 때마다 목록 새로고침
   useEffect(() => {
@@ -394,6 +401,15 @@ export default function AccountingPage() {
       setEmployees(response.data)
     } catch (error) {
       console.error('Employees fetch error:', error)
+    }
+  }
+
+  const fetchTotalSales = async () => {
+    try {
+      const response = await api.get(`/total-sales/${totalSalesYear}`)
+      setTotalSalesData(response.data)
+    } catch (error) {
+      console.error('Total sales fetch error:', error)
     }
   }
 
@@ -744,6 +760,67 @@ export default function AccountingPage() {
       console.error('Auto match rule delete error:', error)
       alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
     }
+  }
+
+  // 전체매출 관련 함수
+  const getTotalSalesValue = (month: number, paymentMethod: string, isFee: boolean): number => {
+    const record = totalSalesData.find(
+      (r) => r.month === month && r.payment_method === paymentMethod && r.is_fee === isFee
+    )
+    return record ? parseFloat(record.amount) : 0
+  }
+
+  const handleTotalSalesCellClick = (month: number, paymentMethod: string, isFee: boolean) => {
+    if (!isAdmin) return
+    const currentValue = getTotalSalesValue(month, paymentMethod, isFee)
+    setEditingCell({ year: totalSalesYear, month, paymentMethod, isFee })
+    setEditingValue(currentValue.toString())
+  }
+
+  const handleTotalSalesCellSave = async () => {
+    if (!editingCell) return
+    
+    try {
+      await api.put('/total-sales/update', {
+        fiscalYear: editingCell.year,
+        month: editingCell.month,
+        paymentMethod: editingCell.paymentMethod,
+        isFee: editingCell.isFee,
+        amount: parseFloat(editingValue) || 0
+      })
+      
+      await fetchTotalSales()
+      setEditingCell(null)
+      setEditingValue('')
+    } catch (error) {
+      console.error('Total sales update error:', error)
+      alert(language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다')
+    }
+  }
+
+  const handleTotalSalesCellCancel = () => {
+    setEditingCell(null)
+    setEditingValue('')
+  }
+
+  const calculateMonthTotal = (month: number, paymentMethods: string[], includeFees: boolean = false): number => {
+    let total = 0
+    for (const pm of paymentMethods) {
+      total += getTotalSalesValue(month, pm, false)
+      if (includeFees) {
+        total += getTotalSalesValue(month, pm, true)
+      }
+    }
+    return total
+  }
+
+  const calculateYearTotal = (paymentMethod: string, isFee: boolean): number => {
+    const months = [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    let total = 0
+    for (const month of months) {
+      total += getTotalSalesValue(month, paymentMethod, isFee)
+    }
+    return total
   }
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3869,6 +3946,448 @@ export default function AccountingPage() {
               </Card>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Total Sales Tab */}
+      {activeTab === 'totalsales' && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>{language === 'ja' ? '全体売上' : '전체매출'}</CardTitle>
+                <select
+                  className="border rounded px-3 py-2"
+                  value={totalSalesYear}
+                  onChange={(e) => setTotalSalesYear(parseInt(e.target.value))}
+                >
+                  <option value={2023}>2023{language === 'ja' ? '年度（令和5年）' : '년도 (令和5年)'}</option>
+                  <option value={2024}>2024{language === 'ja' ? '年度（令和6年）' : '년도 (令和6年)'}</option>
+                  <option value={2025}>2025{language === 'ja' ? '年度（令和7年）' : '년도 (令和7年)'}</option>
+                  <option value={2026}>2026{language === 'ja' ? '年度（令和8年）' : '년도 (令和8年)'}</option>
+                </select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border px-3 py-2 text-left">{language === 'ja' ? '月' : '월'}</th>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => (
+                        <th key={month} className="border px-3 py-2 text-right">{month}</th>
+                      ))}
+                      <th className="border px-3 py-2 text-right bg-yellow-50">{language === 'ja' ? '合計' : '합계'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* 口座振込 */}
+                    <tr>
+                      <td className="border px-3 py-2 font-medium">{language === 'ja' ? '口座振込' : '계좌이체'}</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const value = getTotalSalesValue(month, '口座振込', false)
+                        const isEditing = editingCell?.month === month && editingCell?.paymentMethod === '口座振込' && !editingCell?.isFee
+                        return (
+                          <td
+                            key={month}
+                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handleTotalSalesCellClick(month, '口座振込', false)}
+                          >
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleTotalSalesCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleTotalSalesCellSave()
+                                  if (e.key === 'Escape') handleTotalSalesCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              value.toLocaleString()
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                        {calculateYearTotal('口座振込', false).toLocaleString()}
+                      </td>
+                    </tr>
+
+                    {/* PayPay */}
+                    <tr>
+                      <td className="border px-3 py-2 font-medium">PayPay</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const value = getTotalSalesValue(month, 'PayPay', false)
+                        const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'PayPay' && !editingCell?.isFee
+                        return (
+                          <td
+                            key={month}
+                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handleTotalSalesCellClick(month, 'PayPay', false)}
+                          >
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleTotalSalesCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleTotalSalesCellSave()
+                                  if (e.key === 'Escape') handleTotalSalesCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              value.toLocaleString()
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                        {calculateYearTotal('PayPay', false).toLocaleString()}
+                      </td>
+                    </tr>
+
+                    {/* PayPal */}
+                    <tr>
+                      <td className="border px-3 py-2 font-medium">PayPal</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const value = getTotalSalesValue(month, 'PayPal', false)
+                        const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'PayPal' && !editingCell?.isFee
+                        return (
+                          <td
+                            key={month}
+                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handleTotalSalesCellClick(month, 'PayPal', false)}
+                          >
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleTotalSalesCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleTotalSalesCellSave()
+                                  if (e.key === 'Escape') handleTotalSalesCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              value.toLocaleString()
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                        {calculateYearTotal('PayPal', false).toLocaleString()}
+                      </td>
+                    </tr>
+
+                    {/* PayPal手数料 */}
+                    <tr className="bg-gray-50">
+                      <td className="border px-3 py-2 font-medium">{language === 'ja' ? 'PayPal手数料' : 'PayPal 수수료'}</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const value = getTotalSalesValue(month, 'PayPal', true)
+                        const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'PayPal' && editingCell?.isFee
+                        return (
+                          <td
+                            key={month}
+                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handleTotalSalesCellClick(month, 'PayPal', true)}
+                          >
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleTotalSalesCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleTotalSalesCellSave()
+                                  if (e.key === 'Escape') handleTotalSalesCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              value.toLocaleString()
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                        {calculateYearTotal('PayPal', true).toLocaleString()}
+                      </td>
+                    </tr>
+
+                    {/* strip */}
+                    <tr>
+                      <td className="border px-3 py-2 font-medium">strip</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const value = getTotalSalesValue(month, 'strip', false)
+                        const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'strip' && !editingCell?.isFee
+                        return (
+                          <td
+                            key={month}
+                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handleTotalSalesCellClick(month, 'strip', false)}
+                          >
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleTotalSalesCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleTotalSalesCellSave()
+                                  if (e.key === 'Escape') handleTotalSalesCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              value.toLocaleString()
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                        {calculateYearTotal('strip', false).toLocaleString()}
+                      </td>
+                    </tr>
+
+                    {/* strip手数料 */}
+                    <tr className="bg-gray-50">
+                      <td className="border px-3 py-2 font-medium">{language === 'ja' ? 'strip手数料' : 'strip 수수료'}</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const value = getTotalSalesValue(month, 'strip', true)
+                        const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'strip' && editingCell?.isFee
+                        return (
+                          <td
+                            key={month}
+                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handleTotalSalesCellClick(month, 'strip', true)}
+                          >
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleTotalSalesCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleTotalSalesCellSave()
+                                  if (e.key === 'Escape') handleTotalSalesCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              value.toLocaleString()
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                        {calculateYearTotal('strip', true).toLocaleString()}
+                      </td>
+                    </tr>
+
+                    {/* strip1 */}
+                    <tr>
+                      <td className="border px-3 py-2 font-medium">strip1</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const value = getTotalSalesValue(month, 'strip1', false)
+                        const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'strip1' && !editingCell?.isFee
+                        return (
+                          <td
+                            key={month}
+                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handleTotalSalesCellClick(month, 'strip1', false)}
+                          >
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleTotalSalesCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleTotalSalesCellSave()
+                                  if (e.key === 'Escape') handleTotalSalesCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              value.toLocaleString()
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                        {calculateYearTotal('strip1', false).toLocaleString()}
+                      </td>
+                    </tr>
+
+                    {/* strip1手数料 */}
+                    <tr className="bg-gray-50">
+                      <td className="border px-3 py-2 font-medium">{language === 'ja' ? 'strip1手数料' : 'strip1 수수료'}</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const value = getTotalSalesValue(month, 'strip1', true)
+                        const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'strip1' && editingCell?.isFee
+                        return (
+                          <td
+                            key={month}
+                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handleTotalSalesCellClick(month, 'strip1', true)}
+                          >
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleTotalSalesCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleTotalSalesCellSave()
+                                  if (e.key === 'Escape') handleTotalSalesCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              value.toLocaleString()
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                        {calculateYearTotal('strip1', true).toLocaleString()}
+                      </td>
+                    </tr>
+
+                    {/* ココナラ */}
+                    <tr>
+                      <td className="border px-3 py-2 font-medium">{language === 'ja' ? 'ココナラ' : '코코나라'}</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const value = getTotalSalesValue(month, 'ココナラ', false)
+                        const isEditing = editingCell?.month === month && editingCell?.paymentMethod === 'ココナラ' && !editingCell?.isFee
+                        return (
+                          <td
+                            key={month}
+                            className="border px-3 py-2 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handleTotalSalesCellClick(month, 'ココナラ', false)}
+                          >
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleTotalSalesCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleTotalSalesCellSave()
+                                  if (e.key === 'Escape') handleTotalSalesCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              value.toLocaleString()
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-50 font-semibold">
+                        {calculateYearTotal('ココナラ', false).toLocaleString()}
+                      </td>
+                    </tr>
+
+                    {/* 売上高 (총 매출) */}
+                    <tr className="bg-blue-100 font-bold">
+                      <td className="border px-3 py-2">{language === 'ja' ? '売上高' : '매출액'}</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const total = calculateMonthTotal(month, ['口座振込', 'PayPay', 'PayPal', 'strip', 'strip1', 'ココナラ'], false)
+                        return (
+                          <td key={month} className="border px-3 py-2 text-right">
+                            {total.toLocaleString()}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-100">
+                        {(() => {
+                          const yearTotal = calculateYearTotal('口座振込', false) + 
+                            calculateYearTotal('PayPay', false) + 
+                            calculateYearTotal('PayPal', false) + 
+                            calculateYearTotal('strip', false) + 
+                            calculateYearTotal('strip1', false) + 
+                            calculateYearTotal('ココナラ', false)
+                          return yearTotal.toLocaleString()
+                        })()}
+                      </td>
+                    </tr>
+
+                    {/* 手数料 (총 수수료) */}
+                    <tr className="bg-red-100 font-bold">
+                      <td className="border px-3 py-2">{language === 'ja' ? '手数料' : '수수료'}</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const total = getTotalSalesValue(month, 'PayPal', true) + 
+                          getTotalSalesValue(month, 'strip', true) + 
+                          getTotalSalesValue(month, 'strip1', true)
+                        return (
+                          <td key={month} className="border px-3 py-2 text-right">
+                            {total.toLocaleString()}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-100">
+                        {(() => {
+                          const yearTotal = calculateYearTotal('PayPal', true) + 
+                            calculateYearTotal('strip', true) + 
+                            calculateYearTotal('strip1', true)
+                          return yearTotal.toLocaleString()
+                        })()}
+                      </td>
+                    </tr>
+
+                    {/* 売上総利益 (매출총이익) */}
+                    <tr className="bg-green-100 font-bold">
+                      <td className="border px-3 py-2">{language === 'ja' ? '売上総利益' : '매출총이익'}</td>
+                      {[10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(month => {
+                        const revenue = calculateMonthTotal(month, ['口座振込', 'PayPay', 'PayPal', 'strip', 'strip1', 'ココナラ'], false)
+                        const fees = getTotalSalesValue(month, 'PayPal', true) + 
+                          getTotalSalesValue(month, 'strip', true) + 
+                          getTotalSalesValue(month, 'strip1', true)
+                        const profit = revenue - fees
+                        return (
+                          <td key={month} className="border px-3 py-2 text-right">
+                            {profit.toLocaleString()}
+                          </td>
+                        )
+                      })}
+                      <td className="border px-3 py-2 text-right bg-yellow-100">
+                        {(() => {
+                          const yearRevenue = calculateYearTotal('口座振込', false) + 
+                            calculateYearTotal('PayPay', false) + 
+                            calculateYearTotal('PayPal', false) + 
+                            calculateYearTotal('strip', false) + 
+                            calculateYearTotal('strip1', false) + 
+                            calculateYearTotal('ココナラ', false)
+                          const yearFees = calculateYearTotal('PayPal', true) + 
+                            calculateYearTotal('strip', true) + 
+                            calculateYearTotal('strip1', true)
+                          const yearProfit = yearRevenue - yearFees
+                          return yearProfit.toLocaleString()
+                        })()}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
