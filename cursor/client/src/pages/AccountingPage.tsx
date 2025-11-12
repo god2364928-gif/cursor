@@ -164,6 +164,12 @@ export default function AccountingPage() {
   const [showPayrollForm, setShowPayrollForm] = useState(false)
   const [showCapitalForm, setShowCapitalForm] = useState(false)
   const [showDepositForm, setShowDepositForm] = useState(false)
+  const [showEmployeeDetailModal, setShowEmployeeDetailModal] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [employeeFiles, setEmployeeFiles] = useState<any[]>([])
+  const [selectedYearMonth, setSelectedYearMonth] = useState('')
+  const [selectedFileSubcategory, setSelectedFileSubcategory] = useState('')
+  const [uploadingFile, setUploadingFile] = useState(false)
   const [uploadingCsv, setUploadingCsv] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
@@ -277,7 +283,7 @@ export default function AccountingPage() {
 
   const fetchEmployees = async () => {
     try {
-      const response = await api.get('/accounting/employees')
+      const response = await api.get('/auth/users')
       setEmployees(response.data)
     } catch (error) {
       console.error('Employees fetch error:', error)
@@ -651,31 +657,43 @@ export default function AccountingPage() {
     try {
       const payload = {
         name: formData.get('name'),
+        email: formData.get('email'),
+        password: formData.get('password') || undefined,
+        department: formData.get('department'),
         position: formData.get('position'),
-        hireDate: formData.get('hireDate'),
-        baseSalary: Number(formData.get('baseSalary')),
-        incentiveRate: Number(formData.get('incentiveRate')),
-        employmentStatus: formData.get('employmentStatus') || '재직',
+        employmentStatus: formData.get('employmentStatus') || '입사중',
+        baseSalary: formData.get('baseSalary') ? Number(formData.get('baseSalary')) : null,
+        contractStartDate: formData.get('contractStartDate') || null,
+        contractEndDate: formData.get('contractEndDate') || null,
+        martId: formData.get('martId') || null,
+        transportationRoute: formData.get('transportationRoute') || null,
+        monthlyTransportationCost: formData.get('monthlyTransportationCost') ? Number(formData.get('monthlyTransportationCost')) : null,
+        transportationStartDate: formData.get('transportationStartDate') || null,
+        transportationDetails: formData.get('transportationDetails') || null,
       }
 
       if (editingEmployee) {
-        await api.put(`/accounting/employees/${editingEmployee.id}`, payload)
+        await api.put(`/auth/users/${editingEmployee.id}`, payload)
       } else {
-        await api.post('/accounting/employees', payload)
+        await api.post('/auth/users', {
+          ...payload,
+          role: 'user',
+          team: formData.get('department') || '',
+        })
       }
 
       closeEmployeeForm()
       fetchEmployees()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Employee create error:', error)
-      alert(language === 'ja' ? '追加に失敗しました' : '추가에 실패했습니다')
+      alert(error.response?.data?.message || (language === 'ja' ? '追加に失敗しました' : '추가에 실패했습니다'))
     }
   }
 
   const handleDeleteEmployee = async (id: string) => {
     if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
     try {
-      await api.delete(`/accounting/employees/${id}`)
+      await api.delete(`/auth/users/${id}`)
       if (editingEmployee?.id === id) {
         closeEmployeeForm()
       }
