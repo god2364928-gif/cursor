@@ -9,7 +9,6 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  Wallet,
   Calendar,
   Plus,
   Trash2,
@@ -99,13 +98,22 @@ interface RecurringExpense {
   isActive: boolean
 }
 
-interface Account {
+interface CapitalBalance {
   id: string
-  accountName: string
-  accountType: string
-  initialBalance: number
-  currentBalance: number
-  lastUpdated: string
+  balance_date: string
+  amount: number
+  note?: string
+  created_at: string
+  updated_at: string
+}
+
+interface Deposit {
+  id: string
+  item_name: string
+  amount: number
+  note?: string
+  created_at: string
+  updated_at: string
 }
 
 const CATEGORY_OPTIONS = [
@@ -133,7 +141,10 @@ export default function AccountingPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [payrolls, setPayrolls] = useState<Payroll[]>([])
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([])
-  const [accounts, setAccounts] = useState<Account[]>([])
+  const [capitalBalances, setCapitalBalances] = useState<CapitalBalance[]>([])
+  const [deposits, setDeposits] = useState<Deposit[]>([])
+  const [capitalOffset, setCapitalOffset] = useState(0)
+  const [capitalTotal, setCapitalTotal] = useState(0)
   const [nameOptions, setNameOptions] = useState<SimpleUser[]>([])
   const [updatingTransactionId, setUpdatingTransactionId] = useState<string | null>(null)
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
@@ -143,14 +154,12 @@ export default function AccountingPage() {
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
   const [showRecurringForm, setShowRecurringForm] = useState(false)
-  const [showAccountForm, setShowAccountForm] = useState(false)
   const [showPayrollForm, setShowPayrollForm] = useState(false)
   const [uploadingCsv, setUploadingCsv] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
   const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null)
   const [editingRecurring, setEditingRecurring] = useState<RecurringExpense | null>(null)
-  const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [showAutoMatchDialog, setShowAutoMatchDialog] = useState(false)
   const [autoMatchRules, setAutoMatchRules] = useState<any[]>([])
   const [editingRule, setEditingRule] = useState<any | null>(null)
@@ -182,8 +191,11 @@ export default function AccountingPage() {
     if (activeTab === 'employees') fetchEmployees()
     if (activeTab === 'payroll') fetchPayrolls()
     if (activeTab === 'recurring') fetchRecurringExpenses()
-    if (activeTab === 'capital') fetchAccounts()
-  }, [activeTab, nameOptions.length])
+    if (activeTab === 'capital') {
+      fetchCapitalBalances()
+      fetchDeposits()
+    }
+  }, [activeTab, nameOptions.length, capitalOffset])
 
   const fetchDashboard = async () => {
     try {
@@ -279,12 +291,24 @@ export default function AccountingPage() {
     }
   }
 
-  const fetchAccounts = async () => {
+  const fetchCapitalBalances = async () => {
     try {
-      const response = await api.get('/accounting/capital')
-      setAccounts(response.data)
+      const response = await api.get('/accounting/capital-balance', {
+        params: { limit: 12, offset: capitalOffset }
+      })
+      setCapitalBalances(response.data.data)
+      setCapitalTotal(response.data.total)
     } catch (error) {
-      console.error('Accounts fetch error:', error)
+      console.error('Capital balances fetch error:', error)
+    }
+  }
+
+  const fetchDeposits = async () => {
+    try {
+      const response = await api.get('/accounting/deposits')
+      setDeposits(response.data)
+    } catch (error) {
+      console.error('Deposits fetch error:', error)
     }
   }
 
@@ -328,20 +352,6 @@ export default function AccountingPage() {
   const closeRecurringForm = () => {
     setShowRecurringForm(false)
     setEditingRecurring(null)
-  }
-
-  const openAccountForm = (acc?: Account) => {
-    if (acc) {
-      setEditingAccount(acc)
-    } else {
-      setEditingAccount(null)
-    }
-    setShowAccountForm(true)
-  }
-
-  const closeAccountForm = () => {
-    setShowAccountForm(false)
-    setEditingAccount(null)
   }
 
   const openPayrollForm = (pay: Payroll) => {
@@ -736,45 +746,6 @@ export default function AccountingPage() {
     }
   }
 
-  const handleSubmitAccount = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-
-    try {
-      const payload = {
-        accountName: formData.get('accountName'),
-        accountType: formData.get('accountType'),
-        initialBalance: Number(formData.get('initialBalance')),
-      }
-
-      if (editingAccount) {
-        await api.put(`/accounting/capital/${editingAccount.id}`, payload)
-      } else {
-        await api.post('/accounting/capital', payload)
-      }
-
-      closeAccountForm()
-      fetchAccounts()
-    } catch (error: any) {
-      console.error('Account create error:', error)
-      alert(error.response?.data?.error || (language === 'ja' ? '処理に失敗しました' : '처리에 실패했습니다'))
-    }
-  }
-
-  const handleDeleteAccount = async (id: string) => {
-    if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
-    try {
-      await api.delete(`/accounting/capital/${id}`)
-      if (editingAccount?.id === id) {
-        closeAccountForm()
-      }
-      fetchAccounts()
-    } catch (error) {
-      console.error('Account delete error:', error)
-      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
-    }
-  }
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(value)
   }
@@ -785,7 +756,7 @@ export default function AccountingPage() {
     { key: 'employees', label: language === 'ja' ? '従業員' : '직원' },
     { key: 'payroll', label: language === 'ja' ? '給与' : '급여' },
     { key: 'recurring', label: language === 'ja' ? '定期支出' : '정기지출' },
-    { key: 'capital', label: language === 'ja' ? '口座' : '계좌' },
+    { key: 'capital', label: language === 'ja' ? '資本金' : '자본금' },
   ]
 
   return (
@@ -1923,170 +1894,189 @@ export default function AccountingPage() {
             </Card>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recurringExpenses.map((exp) => (
-              <Card key={exp.id}>
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-bold">{exp.itemName}</h3>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {language === 'ja' ? '毎月' : '매월'} {exp.paymentDay}{language === 'ja' ? '日' : '일'} / {exp.paymentMethod}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-lg font-bold text-gray-900">{formatCurrency(exp.monthlyAmount)}</p>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => openRecurringForm(exp)}
-                        aria-label={language === 'ja' ? '修正' : '수정'}
-                      >
-                        <Pencil className="h-4 w-4 text-emerald-600" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDeleteRecurring(exp.id)}
-                        aria-label={language === 'ja' ? '削除' : '삭제'}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="border rounded-lg overflow-hidden bg-white">
+            <table className="w-full table-fixed">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-1/4">
+                    {language === 'ja' ? '項目名' : '항목명'}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-1/6">
+                    {language === 'ja' ? '月額' : '월액'}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-1/6">
+                    {language === 'ja' ? '支払日' : '지급일'}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-1/6">
+                    {language === 'ja' ? '決済手段' : '결제수단'}
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-1/6">
+                    {language === 'ja' ? '作業' : '작업'}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {recurringExpenses.map((exp) => (
+                  <tr key={exp.id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm truncate overflow-hidden">{exp.itemName}</td>
+                    <td className="px-4 py-3 text-sm truncate overflow-hidden">{formatCurrency(exp.monthlyAmount)}</td>
+                    <td className="px-4 py-3 text-sm truncate overflow-hidden">
+                      {language === 'ja' ? '毎月' : '매월'} {exp.paymentDay}{language === 'ja' ? '日' : '일'}
+                    </td>
+                    <td className="px-4 py-3 text-sm truncate overflow-hidden">{exp.paymentMethod}</td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex gap-1 justify-center">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => openRecurringForm(exp)}
+                          aria-label={language === 'ja' ? '修正' : '수정'}
+                        >
+                          <Pencil className="h-4 w-4 text-emerald-600" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleDeleteRecurring(exp.id)}
+                          aria-label={language === 'ja' ? '削除' : '삭제'}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
       {/* Capital Tab */}
       {activeTab === 'capital' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">{language === 'ja' ? '口座管理' : '계좌 관리'}</h2>
-            <Button
-              onClick={() => {
-                if (showAccountForm && !editingAccount) {
-                  closeAccountForm()
-                } else {
-                  openAccountForm()
-                }
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {language === 'ja' ? '追加' : '추가'}
-            </Button>
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-1">{language === 'ja' ? '資本金' : '자본금'}</h2>
+            <p className="text-sm text-gray-600">
+              {language === 'ja' ? '資本金と保証金を管理します' : '자본금과 보증금을 관리합니다'}
+            </p>
           </div>
 
-          {showAccountForm && (
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">
-                  {editingAccount
-                    ? language === 'ja'
-                      ? '口座情報を修正'
-                      : '계좌 정보 수정'
-                    : language === 'ja'
-                    ? '口座を追加'
-                    : '계좌 추가'}
-                </h3>
-                <form
-                  key={editingAccount?.id || 'new-account'}
-                  onSubmit={handleSubmitAccount}
-                  className="grid grid-cols-2 gap-4"
-                >
-                  <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '口座名' : '계좌명'}</label>
-                    <Input type="text" name="accountName" required defaultValue={editingAccount?.accountName || ''} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '種類' : '종류'}</label>
-                    <select
-                      name="accountType"
-                      className="w-full border rounded px-3 py-2"
-                      required
-                      defaultValue={editingAccount?.accountType || '자본금'}
+          {/* 자본금 (계좌 잔액) 섹션 */}
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>{language === 'ja' ? '資本金（口座残高）' : '자본금 (계좌 잔액)'}</CardTitle>
+                <div className="flex gap-2">
+                  {capitalOffset > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setCapitalOffset(Math.max(0, capitalOffset - 12))}
                     >
-                      <option value="자본금">{language === 'ja' ? '資本金' : '자본금'}</option>
-                      <option value="예금">{language === 'ja' ? '預金' : '예금'}</option>
-                      <option value="고정자산">{language === 'ja' ? '固定資産' : '고정자산'}</option>
-                    </select>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '初期残高' : '초기 잔액'}</label>
-                    <Input
-                      type="number"
-                      name="initialBalance"
-                      required
-                      defaultValue={editingAccount ? String(editingAccount.initialBalance) : ''}
-                    />
-                  </div>
-                  <div className="col-span-2 flex gap-2">
-                    <Button type="submit">
-                      {editingAccount
-                        ? language === 'ja'
-                          ? '修正を保存'
-                          : '수정 저장'
-                        : language === 'ja'
-                        ? '保存'
-                        : '저장'}
+                      {language === 'ja' ? '前の12ヶ月' : '이전 12개월'}
                     </Button>
-                    <Button type="button" variant="ghost" onClick={closeAccountForm}>
-                      {language === 'ja' ? 'キャンセル' : '취소'}
+                  )}
+                  {capitalOffset + 12 < capitalTotal && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setCapitalOffset(capitalOffset + 12)}
+                    >
+                      {language === 'ja' ? '次の12ヶ月' : '다음 12개월'}
                     </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '日付' : '날짜'}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '残高' : '잔액'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? 'メモ' : '메모'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {capitalBalances.map((balance) => (
+                      <tr key={balance.id} className="border-t hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm">
+                          {new Date(balance.balance_date).toLocaleDateString('ja-JP', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                          })}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right font-medium">
+                          {formatCurrency(balance.amount)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 truncate">
+                          {balance.note || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 text-sm text-gray-600 text-center">
+                {language === 'ja'
+                  ? `全 ${capitalTotal} 件のうち ${capitalOffset + 1} - ${Math.min(capitalOffset + 12, capitalTotal)} 件を表示中`
+                  : `전체 ${capitalTotal}건 중 ${capitalOffset + 1} - ${Math.min(capitalOffset + 12, capitalTotal)}건 표시 중`}
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {accounts.map((acc) => (
-              <Card key={acc.id}>
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-bold text-lg">{acc.accountName}</h3>
-                      <p className="text-xs text-gray-500">{acc.accountType}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Wallet className="h-6 w-6 text-emerald-500" />
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => openAccountForm(acc)}
-                        aria-label={language === 'ja' ? '修正' : '수정'}
-                      >
-                        <Pencil className="h-4 w-4 text-emerald-600" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDeleteAccount(acc.id)}
-                        aria-label={language === 'ja' ? '削除' : '삭제'}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="mt-3 pt-3 border-t">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-gray-600">{language === 'ja' ? '初期残高' : '초기 잔액'}</p>
-                        <p className="font-medium">{formatCurrency(acc.initialBalance)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">{language === 'ja' ? '現在残高' : '현재 잔액'}</p>
-                        <p className="font-bold text-emerald-600">{formatCurrency(acc.currentBalance)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* 보증금 섹션 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{language === 'ja' ? '保証金' : '보증금'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '項目' : '항목'}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? '金額' : '금액'}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        {language === 'ja' ? 'メモ' : '메모'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deposits.map((deposit) => (
+                      <tr key={deposit.id} className="border-t hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium">{deposit.item_name}</td>
+                        <td className="px-4 py-3 text-sm text-right">{formatCurrency(deposit.amount)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 truncate">
+                          {deposit.note || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t bg-gray-50 font-bold">
+                      <td className="px-4 py-3 text-sm">{language === 'ja' ? '合計' : '합계'}</td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        {formatCurrency(deposits.reduce((sum, d) => sum + d.amount, 0))}
+                      </td>
+                      <td className="px-4 py-3"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
