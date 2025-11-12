@@ -3647,39 +3647,39 @@ export default function AccountingPage() {
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '入社現況' : '입사현황'}</p>
-                    <p className="font-medium">{selectedEmployee.employmentStatus || '-'}</p>
+                    <p className="font-medium">{selectedEmployee.employmentStatus || selectedEmployee.employment_status || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '入社日' : '입사일'}</p>
-                    <p className="font-medium">{selectedEmployee.hireDate || '-'}</p>
+                    <p className="font-medium">{selectedEmployee.hireDate || selectedEmployee.hire_date || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '基本給' : '기본급'}</p>
-                    <p className="font-medium">{selectedEmployee.baseSalary ? formatCurrency(selectedEmployee.baseSalary) : '-'}</p>
+                    <p className="font-medium">{(selectedEmployee.baseSalary || selectedEmployee.base_salary) ? formatCurrency((selectedEmployee.baseSalary || selectedEmployee.base_salary) as number) : '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? 'マートID' : '마트 아이디'}</p>
-                    <p className="font-medium">{selectedEmployee.martId || '-'}</p>
+                    <p className="font-medium">{selectedEmployee.martId || selectedEmployee.mart_id || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '契約開始日' : '계약 시작일'}</p>
-                    <p className="font-medium">{selectedEmployee.contractStartDate || '-'}</p>
+                    <p className="font-medium">{selectedEmployee.contractStartDate || selectedEmployee.contract_start_date || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '契約終了日' : '계약 종료일'}</p>
-                    <p className="font-medium">{selectedEmployee.contractEndDate || '-'}</p>
+                    <p className="font-medium">{selectedEmployee.contractEndDate || selectedEmployee.contract_end_date || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '交通費経路' : '교통비 경로'}</p>
-                    <p className="font-medium">{selectedEmployee.transportationRoute || '-'}</p>
+                    <p className="font-medium">{selectedEmployee.transportationRoute || selectedEmployee.transportation_route || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '月交通費' : '월 교통비'}</p>
-                    <p className="font-medium">{selectedEmployee.monthlyTransportationCost ? formatCurrency(selectedEmployee.monthlyTransportationCost) : '-'}</p>
+                    <p className="font-medium">{(selectedEmployee.monthlyTransportationCost || selectedEmployee.monthly_transportation_cost) ? formatCurrency((selectedEmployee.monthlyTransportationCost || selectedEmployee.monthly_transportation_cost) as number) : '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '交通費開始日' : '교통비 시작일'}</p>
-                    <p className="font-medium">{selectedEmployee.transportationStartDate || '-'}</p>
+                    <p className="font-medium">{selectedEmployee.transportationStartDate || selectedEmployee.transportation_start_date || '-'}</p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-gray-600">{language === 'ja' ? '履歴' : '히스토리'}</p>
