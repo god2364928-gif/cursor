@@ -14,6 +14,7 @@ import {
   Trash2,
   Upload,
   Pencil,
+  X,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -68,11 +69,21 @@ interface SimpleUser {
 interface Employee {
   id: string
   name: string
-  position: string
-  hireDate: string
-  baseSalary: number
-  incentiveRate: number
-  employmentStatus: string
+  email: string
+  department?: string
+  position?: string
+  employmentStatus?: string
+  baseSalary?: number
+  contractStartDate?: string
+  contractEndDate?: string
+  martId?: string
+  transportationRoute?: string
+  monthlyTransportationCost?: number
+  transportationStartDate?: string
+  transportationDetails?: string
+  // Legacy fields (keep for backward compatibility)
+  hireDate?: string
+  incentiveRate?: number
 }
 
 interface Payroll {
@@ -869,6 +880,94 @@ export default function AccountingPage() {
       fetchDeposits()
     } catch (error) {
       console.error('Deposit delete error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
+    }
+  }
+
+  // 직원 상세 모달 관련 함수들
+  const openEmployeeDetail = async (employee: Employee) => {
+    setSelectedEmployee(employee)
+    setShowEmployeeDetailModal(true)
+    try {
+      const response = await api.get(`/accounting/employees/${employee.id}/files`)
+      setEmployeeFiles(response.data)
+    } catch (error) {
+      console.error('Employee files fetch error:', error)
+    }
+  }
+
+  const closeEmployeeDetail = () => {
+    setShowEmployeeDetailModal(false)
+    setSelectedEmployee(null)
+    setEmployeeFiles([])
+    setSelectedYearMonth('')
+    setSelectedFileSubcategory('')
+  }
+
+  const handleUploadEmployeeFile = async (fileCategory: string, file: File, subcategory?: string, yearMonth?: string) => {
+    if (!selectedEmployee) return
+    
+    setUploadingFile(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('fileCategory', fileCategory)
+      if (subcategory) formData.append('fileSubcategory', subcategory)
+      if (yearMonth) formData.append('yearMonth', yearMonth)
+
+      await api.post(`/accounting/employees/${selectedEmployee.id}/files`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      // 파일 목록 새로고침
+      const response = await api.get(`/accounting/employees/${selectedEmployee.id}/files`)
+      setEmployeeFiles(response.data)
+      
+      alert(language === 'ja' ? 'アップロードしました' : '업로드되었습니다')
+    } catch (error) {
+      console.error('File upload error:', error)
+      alert(language === 'ja' ? 'アップロードに失敗しました' : '업로드에 실패했습니다')
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  const handleDownloadEmployeeFile = async (fileId: string, fileName: string) => {
+    if (!selectedEmployee) return
+    
+    try {
+      const response = await api.get(`/accounting/employees/${selectedEmployee.id}/files/${fileId}`, {
+        responseType: 'blob'
+      })
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', fileName)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('File download error:', error)
+      alert(language === 'ja' ? 'ダウンロードに失敗しました' : '다운로드에 실패했습니다')
+    }
+  }
+
+  const handleDeleteEmployeeFile = async (fileId: string) => {
+    if (!selectedEmployee) return
+    if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
+    
+    try {
+      await api.delete(`/accounting/employees/${selectedEmployee.id}/files/${fileId}`)
+      
+      // 파일 목록 새로고침
+      const response = await api.get(`/accounting/employees/${selectedEmployee.id}/files`)
+      setEmployeeFiles(response.data)
+      
+      alert(language === 'ja' ? '削除しました' : '삭제되었습니다')
+    } catch (error) {
+      console.error('File delete error:', error)
       alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
     }
   }
@@ -1755,53 +1854,90 @@ export default function AccountingPage() {
                     <Input type="text" name="name" required defaultValue={editingEmployee?.name || ''} />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'メールアドレス' : '이메일'}</label>
+                    <Input type="email" name="email" required defaultValue={editingEmployee?.email || ''} />
+                  </div>
+                  {!editingEmployee && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'パスワード' : '비밀번호'}</label>
+                      <Input type="password" name="password" required />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '部署' : '부서'}</label>
+                    <Input type="text" name="department" defaultValue={editingEmployee?.department || ''} placeholder={language === 'ja' ? '経営支援チーム' : '경영지원팀'} />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '職級' : '직급'}</label>
                     <select
                       name="position"
                       className="w-full border rounded px-3 py-2"
-                      required
-                      defaultValue={editingEmployee?.position || '매니저'}
+                      defaultValue={editingEmployee?.position || '사원'}
                     >
-                      <option value="매니저">{language === 'ja' ? 'マネージャー' : '매니저'}</option>
-                      <option value="스태프">{language === 'ja' ? 'スタッフ' : '스태프'}</option>
-                      <option value="알바">{language === 'ja' ? 'アルバイト' : '알바'}</option>
+                      <option value="사원">{language === 'ja' ? '社員' : '사원'}</option>
+                      <option value="주임">{language === 'ja' ? '主任' : '주임'}</option>
+                      <option value="대리">{language === 'ja' ? '代理' : '대리'}</option>
+                      <option value="팀장">{language === 'ja' ? 'チーム長' : '팀장'}</option>
+                      <option value="대표">{language === 'ja' ? '代表' : '대표'}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '入社日' : '입사일'}</label>
-                    <Input type="date" name="hireDate" required defaultValue={editingEmployee?.hireDate || ''} />
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '入社現況' : '입사현황'}</label>
+                    <select
+                      name="employmentStatus"
+                      className="w-full border rounded px-3 py-2"
+                      defaultValue={editingEmployee?.employmentStatus || '입사중'}
+                    >
+                      <option value="입사중">{language === 'ja' ? '入社中' : '입사중'}</option>
+                      <option value="입사전">{language === 'ja' ? '入社前' : '입사전'}</option>
+                      <option value="퇴사">{language === 'ja' ? '退職' : '퇴사'}</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '基本給' : '기본급'}</label>
                     <Input
                       type="number"
                       name="baseSalary"
-                      required
-                      defaultValue={editingEmployee ? String(editingEmployee.baseSalary) : ''}
+                      defaultValue={editingEmployee?.baseSalary ? String(editingEmployee.baseSalary) : ''}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'インセンティブ率(%)' : '인센티브율(%)'}</label>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '契約開始日' : '계약 시작일'}</label>
+                    <Input type="date" name="contractStartDate" defaultValue={editingEmployee?.contractStartDate || ''} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '契約終了日' : '계약 종료일'}</label>
+                    <Input type="date" name="contractEndDate" defaultValue={editingEmployee?.contractEndDate || ''} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'マートID' : '마트 아이디'}</label>
+                    <Input type="text" name="martId" defaultValue={editingEmployee?.martId || ''} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '交通費経路' : '교통비 경로'}</label>
+                    <Input type="text" name="transportationRoute" defaultValue={editingEmployee?.transportationRoute || ''} placeholder={language === 'ja' ? '西川口~浜松町' : '예: 西川口~浜松町'} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '月交通費' : '월 교통비'}</label>
                     <Input
                       type="number"
-                      step="0.01"
-                      name="incentiveRate"
-                      defaultValue={
-                        editingEmployee ? String(editingEmployee.incentiveRate) : '0'
-                      }
+                      name="monthlyTransportationCost"
+                      defaultValue={editingEmployee?.monthlyTransportationCost ? String(editingEmployee.monthlyTransportationCost) : ''}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '在籍状態' : '재직 상태'}</label>
-                    <select
-                      name="employmentStatus"
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '交通費開始日' : '교통비 시작일'}</label>
+                    <Input type="date" name="transportationStartDate" defaultValue={editingEmployee?.transportationStartDate || ''} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '交通費詳細' : '교통비 상세'}</label>
+                    <textarea
+                      name="transportationDetails"
                       className="w-full border rounded px-3 py-2"
-                      defaultValue={editingEmployee?.employmentStatus || '재직'}
-                    >
-                      <option value="재직">{language === 'ja' ? '在籍' : '재직'}</option>
-                      <option value="휴직">{language === 'ja' ? '休職' : '휴직'}</option>
-                      <option value="퇴사">{language === 'ja' ? '退職' : '퇴사'}</option>
-                    </select>
+                      rows={2}
+                      defaultValue={editingEmployee?.transportationDetails || ''}
+                      placeholder={language === 'ja' ? '西川口~新橋 定期代: 9,620円...' : '예: 西川口~新橋 定期代: 9,620円...'}
+                    />
                   </div>
                   <div className="col-span-2 flex gap-2">
                     <Button type="submit">
@@ -1824,28 +1960,41 @@ export default function AccountingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {employees.map((emp) => (
-              <Card key={emp.id}>
+              <Card key={emp.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEmployeeDetail(emp)}>
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-bold text-lg">{emp.name}</h3>
-                      <p className="text-sm text-gray-600">{emp.position}</p>
+                      <p className="text-sm text-gray-600">
+                        {emp.department || '-'} • {emp.position || '-'}
+                      </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {language === 'ja' ? '入社' : '입사'}: {emp.hireDate}
+                        {emp.email}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <span
                         className={`px-2 py-1 rounded text-xs font-medium ${
-                          emp.employmentStatus === '재직' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          emp.employmentStatus === '입사중' 
+                            ? 'bg-green-100 text-green-800' 
+                            : emp.employmentStatus === '입사전'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {emp.employmentStatus}
+                        {emp.employmentStatus === '입사중'
+                          ? (language === 'ja' ? '入社中' : '입사중')
+                          : emp.employmentStatus === '입사전'
+                          ? (language === 'ja' ? '入社前' : '입사전')
+                          : (language === 'ja' ? '退職' : '퇴사')}
                       </span>
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => openEmployeeForm(emp)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openEmployeeForm(emp)
+                        }}
                         aria-label={language === 'ja' ? '修正' : '수정'}
                       >
                         <Pencil className="h-4 w-4 text-emerald-600" />
@@ -1853,7 +2002,10 @@ export default function AccountingPage() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => handleDeleteEmployee(emp.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteEmployee(emp.id)
+                        }}
                         aria-label={language === 'ja' ? '削除' : '삭제'}
                       >
                         <Trash2 className="h-4 w-4 text-red-600" />
@@ -1863,11 +2015,15 @@ export default function AccountingPage() {
                   <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <p className="text-gray-600">{language === 'ja' ? '基本給' : '기본급'}</p>
-                      <p className="font-bold">{formatCurrency(emp.baseSalary)}</p>
+                      <p className="font-bold">{emp.baseSalary ? formatCurrency(emp.baseSalary) : '-'}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">{language === 'ja' ? 'インセンティブ率' : '인센티브율'}</p>
-                      <p className="font-bold">{emp.incentiveRate}%</p>
+                      <p className="text-gray-600">{language === 'ja' ? '契約期間' : '계약 기간'}</p>
+                      <p className="font-bold text-xs">
+                        {emp.contractStartDate && emp.contractEndDate
+                          ? `${emp.contractStartDate.slice(5)} ~ ${emp.contractEndDate.slice(5)}`
+                          : '-'}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -2458,6 +2614,256 @@ export default function AccountingPage() {
               </div>
             </CardContent>
           </Card>
+          </div>
+        </div>
+      )}
+
+      {/* 직원 상세 모달 */}
+      {showEmployeeDetailModal && selectedEmployee && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeEmployeeDetail}>
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+              <h2 className="text-2xl font-bold">{selectedEmployee.name} {language === 'ja' ? 'の詳細' : ' 상세'}</h2>
+              <Button variant="ghost" onClick={closeEmployeeDetail}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* 기본 정보 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>{language === 'ja' ? '基本情報' : '기본 정보'}</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? 'メールアドレス' : '이메일'}</p>
+                    <p className="font-medium">{selectedEmployee.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? '部署' : '부서'}</p>
+                    <p className="font-medium">{selectedEmployee.department || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? '職級' : '직급'}</p>
+                    <p className="font-medium">{selectedEmployee.position || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? '入社現況' : '입사현황'}</p>
+                    <p className="font-medium">{selectedEmployee.employmentStatus || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? '基本給' : '기본급'}</p>
+                    <p className="font-medium">{selectedEmployee.baseSalary ? formatCurrency(selectedEmployee.baseSalary) : '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? 'マートID' : '마트 아이디'}</p>
+                    <p className="font-medium">{selectedEmployee.martId || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? '契約開始日' : '계약 시작일'}</p>
+                    <p className="font-medium">{selectedEmployee.contractStartDate || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? '契約終了日' : '계약 종료일'}</p>
+                    <p className="font-medium">{selectedEmployee.contractEndDate || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? '交通費経路' : '교통비 경로'}</p>
+                    <p className="font-medium">{selectedEmployee.transportationRoute || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? '月交通費' : '월 교통비'}</p>
+                    <p className="font-medium">{selectedEmployee.monthlyTransportationCost ? formatCurrency(selectedEmployee.monthlyTransportationCost) : '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">{language === 'ja' ? '交通費開始日' : '교통비 시작일'}</p>
+                    <p className="font-medium">{selectedEmployee.transportationStartDate || '-'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-gray-600">{language === 'ja' ? '交通費詳細' : '교통비 상세'}</p>
+                    <p className="font-medium whitespace-pre-line">{selectedEmployee.transportationDetails || '-'}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 문서 관리 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>{language === 'ja' ? '書類管理' : '문서 관리'}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* 인사기록카드 */}
+                  <div>
+                    <h4 className="font-semibold mb-2">{language === 'ja' ? '人事記録カード' : '인사기록카드'}</h4>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handleUploadEmployeeFile('인사기록카드', file)
+                            e.target.value = ''
+                          }
+                        }}
+                        disabled={uploadingFile}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      {employeeFiles.filter(f => f.fileCategory === '인사기록카드').map(file => (
+                        <div key={file.id} className="flex justify-between items-center p-2 border rounded text-sm">
+                          <span className="truncate">{file.originalName}</span>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => handleDownloadEmployeeFile(file.id, file.originalName)}>
+                              {language === 'ja' ? 'DL' : '다운로드'}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteEmployeeFile(file.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 계약서 */}
+                  <div>
+                    <h4 className="font-semibold mb-2">{language === 'ja' ? '契約書' : '계약서'}</h4>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handleUploadEmployeeFile('계약서', file)
+                            e.target.value = ''
+                          }
+                        }}
+                        disabled={uploadingFile}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      {employeeFiles.filter(f => f.fileCategory === '계약서').map(file => (
+                        <div key={file.id} className="flex justify-between items-center p-2 border rounded text-sm">
+                          <span className="truncate">{file.originalName}</span>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => handleDownloadEmployeeFile(file.id, file.originalName)}>
+                              {language === 'ja' ? 'DL' : '다운로드'}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteEmployeeFile(file.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 이력서 */}
+                  <div>
+                    <h4 className="font-semibold mb-2">{language === 'ja' ? '履歴書・自己紹介書' : '이력서/자기소개서'}</h4>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handleUploadEmployeeFile('이력서', file)
+                            e.target.value = ''
+                          }
+                        }}
+                        disabled={uploadingFile}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      {employeeFiles.filter(f => f.fileCategory === '이력서').map(file => (
+                        <div key={file.id} className="flex justify-between items-center p-2 border rounded text-sm">
+                          <span className="truncate">{file.originalName}</span>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => handleDownloadEmployeeFile(file.id, file.originalName)}>
+                              {language === 'ja' ? 'DL' : '다운로드'}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteEmployeeFile(file.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 개인서류 (월별) */}
+                  <div>
+                    <h4 className="font-semibold mb-2">{language === 'ja' ? '個人書類（月別）' : '개인서류 (월별)'}</h4>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Input
+                        type="month"
+                        value={selectedYearMonth}
+                        onChange={(e) => setSelectedYearMonth(e.target.value)}
+                        className="w-40"
+                      />
+                      <select
+                        value={selectedFileSubcategory}
+                        onChange={(e) => setSelectedFileSubcategory(e.target.value)}
+                        className="border rounded px-3 py-2"
+                      >
+                        <option value="">{language === 'ja' ? '種類選択' : '종류 선택'}</option>
+                        <option value="급여명세서">{language === 'ja' ? '給与明細書' : '급여명세서'}</option>
+                        <option value="교통비영수증">{language === 'ja' ? '交通費領収書' : '교통비영수증'}</option>
+                        <option value="진단서">{language === 'ja' ? '診断書' : '진단서'}</option>
+                        <option value="기타">{language === 'ja' ? 'その他' : '기타'}</option>
+                      </select>
+                      <Input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file && selectedYearMonth && selectedFileSubcategory) {
+                            handleUploadEmployeeFile('개인서류', file, selectedFileSubcategory, selectedYearMonth)
+                            e.target.value = ''
+                          } else {
+                            alert(language === 'ja' ? '年月と種類を選択してください' : '연월과 종류를 선택하세요')
+                          }
+                        }}
+                        disabled={uploadingFile}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      {(Object.entries(
+                        employeeFiles
+                          .filter(f => f.fileCategory === '개인서류')
+                          .reduce((acc, file) => {
+                            const key = file.yearMonth || 'No Date'
+                            if (!acc[key]) acc[key] = []
+                            acc[key].push(file)
+                            return acc
+                          }, {} as Record<string, any[]>)
+                      ) as [string, any[]][]).sort(([a], [b]) => b.localeCompare(a)).map(([month, files]) => (
+                        <div key={month} className="border rounded p-2">
+                          <h5 className="font-medium mb-1">{month}</h5>
+                          <div className="space-y-1">
+                            {files.map((file: any) => (
+                              <div key={file.id} className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
+                                <span className="truncate">
+                                  <span className="font-medium">[{file.fileSubcategory}]</span> {file.originalName}
+                                </span>
+                                <div className="flex gap-1">
+                                  <Button size="sm" variant="outline" onClick={() => handleDownloadEmployeeFile(file.id, file.originalName)}>
+                                    {language === 'ja' ? 'DL' : '다운로드'}
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => handleDeleteEmployeeFile(file.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       )}
