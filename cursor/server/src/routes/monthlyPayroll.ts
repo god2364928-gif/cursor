@@ -173,20 +173,14 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
     }
     
     // 입사중인 직원들의 기본급 가져오기
-    // users 테이블의 기본급을 우선적으로 사용 (직원관리에서 변경한 값 반영)
-    // users 테이블에 해당 직원이 있고 기본급이 있으면 users 테이블 값 사용, 없으면 accounting_employees 테이블 값 사용
+    // users 테이블의 기본급을 사용 (직원관리에서 변경한 값 반영)
     const employeesResult = await pool.query(
       `SELECT 
-         ae.name as name,
-         COALESCE(
-           NULLIF(u.base_salary, 0),
-           ae.base_salary,
-           0
-         ) as base_salary
-       FROM accounting_employees ae
-       LEFT JOIN users u ON u.name = ae.name AND u.employment_status IN ('입사중', '재직')
-       WHERE ae.employment_status = '입사중'
-       ORDER BY ae.name`
+         name,
+         COALESCE(base_salary, 0) as base_salary
+       FROM users
+       WHERE employment_status = '입사중'
+       ORDER BY name`
     )
     
     if (employeesResult.rows.length === 0) {
@@ -263,9 +257,11 @@ router.post('/fix-base-salary', authMiddleware, adminOnly, async (req: AuthReque
     
     // 입사중인 직원들의 기본급 가져오기
     const employeesResult = await pool.query(
-      `SELECT name, base_salary 
-       FROM accounting_employees 
-       WHERE employment_status = '입사중' 
+      `SELECT 
+         name,
+         COALESCE(base_salary, 0) as base_salary
+       FROM users 
+       WHERE employment_status = '입사중'
        ORDER BY name`
     )
     
