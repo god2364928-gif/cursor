@@ -337,7 +337,7 @@ export default function DashboardPage() {
                         <div
                           className="bg-blue-600 h-4 rounded-full transition-all"
                           style={{ 
-                            width: `${(personalStats.find(stat => stat.manager === user?.name)?.total / 200) * 100}%` 
+                            width: `${Math.min(100, (personalStats.find(stat => stat.manager === user?.name)?.total / 200) * 100)}%` 
                           }}
                         />
                       </div>
@@ -359,7 +359,7 @@ export default function DashboardPage() {
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
                               className="bg-gray-500 h-2 rounded-full transition-all"
-                              style={{ width: `${(stat.total / 200) * 100}%` }}
+                              style={{ width: `${Math.min(100, (stat.total / 200) * 100)}%` }}
                             />
                           </div>
                         </div>
