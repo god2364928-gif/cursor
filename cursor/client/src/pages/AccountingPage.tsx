@@ -260,8 +260,8 @@ export default function AccountingPage() {
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1 // 1-12
-  const currentFiscalYear = currentMonth >= 10 ? currentYear + 1 : currentYear
-  const [selectedPayrollYear, setSelectedPayrollYear] = useState<number>(currentFiscalYear)
+  // 급여는 실제 연도를 사용 (회계연도가 아님)
+  const [selectedPayrollYear, setSelectedPayrollYear] = useState<number>(currentYear)
   const [selectedPayrollMonth, setSelectedPayrollMonth] = useState<number>(currentMonth)
   const [editingPayrollCell, setEditingPayrollCell] = useState<{id: string, field: string} | null>(null)
   const [editingPayrollValue, setEditingPayrollValue] = useState<string>('')

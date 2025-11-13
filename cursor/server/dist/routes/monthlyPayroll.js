@@ -46,11 +46,15 @@ router.put('/update', auth_1.authMiddleware, adminOnly, async (req, res) => {
         }
         // 금액 필드인 경우 합계 자동 계산
         if (field !== 'notes') {
+            // 먼저 필드를 업데이트하고, 그 다음 합계를 계산
             await db_1.pool.query(`UPDATE monthly_payroll 
-         SET ${field} = $1, 
-             total = COALESCE(base_salary, 0) + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
+         SET ${field} = $1,
              updated_at = CURRENT_TIMESTAMP 
          WHERE id = $2`, [value || 0, id]);
+            // 업데이트된 값을 포함하여 합계 재계산
+            await db_1.pool.query(`UPDATE monthly_payroll 
+         SET total = COALESCE(base_salary, 0) + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0)
+         WHERE id = $1`, [id]);
         }
         else {
             await db_1.pool.query(`UPDATE monthly_payroll 
