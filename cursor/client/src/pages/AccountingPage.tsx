@@ -570,7 +570,7 @@ export default function AccountingPage() {
     }
   }
 
-  // 급여 자동 생성 (2025년 11월부터)
+  // 급여 자동 생성 (2025년 11월부터) - 기존 데이터의 기본급만 업데이트
   const handleGeneratePayroll = async () => {
     // 2025년 11월 1일 이전인지 확인
     const targetDate = new Date(selectedPayrollYear, selectedPayrollMonth - 1, 1)
@@ -584,47 +584,22 @@ export default function AccountingPage() {
     }
 
     if (!confirm(language === 'ja' 
-      ? `${selectedPayrollYear}年${selectedPayrollMonth}月の給与データを自動生成しますか？\n従業員テーブルの基本給を基に作成されます。`
-      : `${selectedPayrollYear}년 ${selectedPayrollMonth}월의 급여 데이터를 자동 생성하시겠습니까?\n직원 테이블의 기본급을 기반으로 생성됩니다.`)) {
+      ? `${selectedPayrollYear}年${selectedPayrollMonth}月の給与データを自動生成しますか？\n既存データがある場合は基本給のみ更新され、インセンティブなどは維持されます。`
+      : `${selectedPayrollYear}년 ${selectedPayrollMonth}월의 급여 데이터를 자동 생성하시겠습니까?\n기존 데이터가 있는 경우 기본급만 업데이트되고, 인센티브 등은 유지됩니다.`)) {
       return
     }
 
     try {
       const response = await api.post('/monthly-payroll/generate', {
         fiscalYear: selectedPayrollYear,
-        month: selectedPayrollMonth,
-        overwrite: false
+        month: selectedPayrollMonth
       })
       
       alert(response.data.message)
       fetchMonthlyPayroll()
     } catch (error: any) {
       console.error('Generate payroll error:', error)
-      
-      // 기존 데이터가 있는 경우 (409 Conflict)
-      if (error.response?.status === 409 && error.response?.data?.message === 'existing_data') {
-        if (confirm(language === 'ja' 
-          ? `既に${error.response.data.count}件のデータが存在します。\n削除して再生成しますか？`
-          : `이미 ${error.response.data.count}건의 데이터가 존재합니다.\n삭제하고 다시 생성하시겠습니까?`)) {
-          
-          // 덮어쓰기로 재시도
-          try {
-            const retryResponse = await api.post('/monthly-payroll/generate', {
-              fiscalYear: selectedPayrollYear,
-              month: selectedPayrollMonth,
-              overwrite: true
-            })
-            
-            alert(retryResponse.data.message)
-            fetchMonthlyPayroll()
-          } catch (retryError: any) {
-            console.error('Generate payroll retry error:', retryError)
-            alert(retryError.response?.data?.message || (language === 'ja' ? '生成に失敗しました' : '생성에 실패했습니다'))
-          }
-        }
-      } else {
-        alert(error.response?.data?.message || (language === 'ja' ? '生成に失敗しました' : '생성에 실패했습니다'))
-      }
+      alert(error.response?.data?.message || (language === 'ja' ? '生成に失敗しました' : '생성에 실패했습니다'))
     }
   }
 
@@ -2859,7 +2834,7 @@ export default function AccountingPage() {
                 className="bg-green-50 hover:bg-green-100"
               >
                 {language === 'ja' ? '給与自動生成' : '급여 자동 생성'}
-              </Button>
+            </Button>
             </div>
           </div>
 
