@@ -3,6 +3,7 @@ import { RetargetingCustomer } from '../types'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { AlertTriangle, X } from 'lucide-react'
+import { useI18nStore } from '../i18n'
 
 interface RetargetingAlertModalProps {
   customers: RetargetingCustomer[]
@@ -13,6 +14,7 @@ interface RetargetingAlertModalProps {
 
 export default function RetargetingAlertModal({ customers, onClose, onHideToday, userId }: RetargetingAlertModalProps) {
   const navigate = useNavigate()
+  const { t } = useI18nStore()
 
   const getDaysSinceLastContact = (lastContactDate: string) => {
     const diff = Date.now() - new Date(lastContactDate).getTime()
@@ -38,12 +40,12 @@ export default function RetargetingAlertModal({ customers, onClose, onHideToday,
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-6 w-6" />
-              30일 이상 연락하지 않은 고객 ({customers.length}명)
+              {t('retargetingAlertTitle')} ({customers.length}{t('retargetingAlertCount')})
             </CardTitle>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              aria-label="닫기"
+              aria-label={t('close')}
             >
               <X className="h-5 w-5" />
             </button>
@@ -66,15 +68,15 @@ export default function RetargetingAlertModal({ customers, onClose, onHideToday,
                         {customer.companyName}
                       </div>
                       <div className="text-sm text-gray-600 mt-1">
-                        고객명: {customer.customerName}
+                        {t('customerName')}: {customer.customerName}
                       </div>
                     </div>
                     <div className="text-right ml-4">
                       <div className="text-lg font-bold text-red-600">
-                        {days}일 전
+                        {days}{t('retargetingAlertDaysAgo')}
                       </div>
                       <div className="text-xs text-gray-500">
-                        마지막 연락
+                        {t('retargetingAlertLastContact')}
                       </div>
                     </div>
                   </div>
@@ -92,10 +94,10 @@ export default function RetargetingAlertModal({ customers, onClose, onHideToday,
               onClose()
             }}
           >
-            오늘 하루 보지 않기
+            {t('retargetingAlertHideToday')}
           </Button>
           <Button onClick={onClose}>
-            닫기
+            {t('close')}
           </Button>
         </div>
       </Card>

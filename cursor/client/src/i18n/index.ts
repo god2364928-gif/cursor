@@ -447,6 +447,13 @@ const translations: Record<Language, Translation> = {
     statusReplied: '返信済み',
     statusNegotiating: '商談中',
     statusContract: '契約',
+    
+    // Retargeting Alert Modal
+    retargetingAlertTitle: '30日以上連絡していない顧客',
+    retargetingAlertCount: '名',
+    retargetingAlertLastContact: '最終連絡',
+    retargetingAlertDaysAgo: '日前',
+    retargetingAlertHideToday: '今日は表示しない',
   },
   ko: {
     // Navigation
@@ -888,6 +895,13 @@ const translations: Record<Language, Translation> = {
     statusReplied: '회신 있음',
     statusNegotiating: '상담중',
     statusContract: '계약',
+    
+    // Retargeting Alert Modal
+    retargetingAlertTitle: '30일 이상 연락하지 않은 고객',
+    retargetingAlertCount: '명',
+    retargetingAlertLastContact: '마지막 연락',
+    retargetingAlertDaysAgo: '일 전',
+    retargetingAlertHideToday: '오늘 하루 보지 않기',
   },
 }
 
