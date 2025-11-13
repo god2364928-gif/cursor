@@ -257,6 +257,11 @@ export default function AccountingPage() {
   useEffect(() => {
     fetchDashboard()
     fetchTotalSales() // 대시보드 탭에서도 전체매출 데이터 로드
+    // 대시보드 탭에서도 자본금 데이터 로드
+    if (activeTab === 'dashboard') {
+      fetchCapitalBalances()
+      fetchDeposits()
+    }
     // 회계연도 변경 시 날짜 범위도 업데이트 (대시보드 탭에서만)
     if (fiscalYear && activeTab === 'dashboard') {
       // 회계연도 시작일: 전년 10월 1일
@@ -1724,19 +1729,57 @@ export default function AccountingPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>{language === 'ja' ? '口座残高' : '계좌 잔액'}</CardTitle>
+                    <CardTitle>{language === 'ja' ? '総資産' : '총 자산'}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {dashboard.accounts.map((account) => (
-                        <div key={account.accountName} className="flex justify-between items-center">
-                          <div>
-                            <p className="text-sm font-medium text-gray-700">{account.accountName}</p>
-                            <p className="text-xs text-gray-500">{account.accountType}</p>
+                    <div className="space-y-4">
+                      {/* 계좌잔액 (가장 최근) */}
+                      {capitalBalances.length > 0 && (
+                        <div className="pb-3 border-b">
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-sm font-medium text-gray-700">
+                              {language === 'ja' ? '口座残高（最新）' : '계좌잔액 (최신)'}
+                            </p>
+                            <span className="text-sm font-bold text-blue-600">
+                              {formatCurrency(capitalBalances[0]?.amount || 0)}
+                            </span>
                           </div>
-                          <span className="text-sm font-bold text-gray-900">{formatCurrency(account.balance)}</span>
+                          <p className="text-xs text-gray-500">
+                            {new Date(capitalBalances[0]?.balance_date || '').toLocaleDateString('ja-JP', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit'
+                            })} {language === 'ja' ? '時点' : '기준'}
+                          </p>
                         </div>
-                      ))}
+                      )}
+                      
+                      {/* 보증금 합계 */}
+                      <div className="pb-3 border-b">
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm font-medium text-gray-700">
+                            {language === 'ja' ? '保証金合計' : '보증금 합계'}
+                          </p>
+                          <span className="text-sm font-bold text-green-600">
+                            {formatCurrency(deposits.reduce((sum, d) => sum + (d.amount || 0), 0))}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* 총합 */}
+                      <div className="pt-2">
+                        <div className="flex justify-between items-center">
+                          <p className="text-base font-bold text-gray-900">
+                            {language === 'ja' ? '合計' : '합계'}
+                          </p>
+                          <span className="text-lg font-bold text-purple-600">
+                            {formatCurrency(
+                              (capitalBalances[0]?.amount || 0) + 
+                              deposits.reduce((sum, d) => sum + (d.amount || 0), 0)
+                            )}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
