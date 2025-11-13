@@ -172,3 +172,4 @@ process.on('unhandledRejection', (reason, promise) => {
 
 
 // Force Railway redeploy - Thu Nov 13 14:27:53 JST 2025
+// Force redeploy Thu Nov 13 14:39:08 JST 2025
