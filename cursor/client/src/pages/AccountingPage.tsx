@@ -570,6 +570,39 @@ export default function AccountingPage() {
     }
   }
 
+  // 급여 자동 생성 (2025년 11월부터)
+  const handleGeneratePayroll = async () => {
+    // 2025년 11월 1일 이전인지 확인
+    const targetDate = new Date(selectedPayrollYear, selectedPayrollMonth - 1, 1)
+    const cutoffDate = new Date(2025, 10, 1) // 2025년 11월 1일
+    
+    if (targetDate < cutoffDate) {
+      alert(language === 'ja' 
+        ? '2025年11月1日から自動生成が可能です。それ以前のデータは手動で入力してください。' 
+        : '2025년 11월 1일부터 자동 생성이 가능합니다. 이전 데이터는 수동으로 입력해주세요.')
+      return
+    }
+
+    if (!confirm(language === 'ja' 
+      ? `${selectedPayrollYear}年${selectedPayrollMonth}月の給与データを自動生成しますか？\n従業員テーブルの基本給を基に作成されます。`
+      : `${selectedPayrollYear}년 ${selectedPayrollMonth}월의 급여 데이터를 자동 생성하시겠습니까?\n직원 테이블의 기본급을 기반으로 생성됩니다.`)) {
+      return
+    }
+
+    try {
+      const response = await api.post('/monthly-payroll/generate', {
+        fiscalYear: selectedPayrollYear,
+        month: selectedPayrollMonth
+      })
+      
+      alert(response.data.message)
+      fetchMonthlyPayroll()
+    } catch (error: any) {
+      console.error('Generate payroll error:', error)
+      alert(error.response?.data?.message || (language === 'ja' ? '生成に失敗しました' : '생성에 실패했습니다'))
+    }
+  }
+
   const fetchRecurringExpenses = async () => {
     try {
       const response = await api.get('/accounting/recurring-expenses')
@@ -2794,7 +2827,14 @@ export default function AccountingPage() {
               <Button onClick={() => setShowAddEmployeeDialog(true)}>
                 <Plus className="h-4 w-4 mr-1" />
                 {language === 'ja' ? '従業員追加' : '직원 추가'}
-            </Button>
+              </Button>
+              <Button 
+                onClick={handleGeneratePayroll}
+                variant="outline"
+                className="bg-green-50 hover:bg-green-100"
+              >
+                {language === 'ja' ? '給与自動生成' : '급여 자동 생성'}
+              </Button>
             </div>
           </div>
 
