@@ -153,10 +153,10 @@ router.put('/history', authMiddleware, adminOnly, async (req: AuthRequest, res: 
   }
 })
 
-// 월별 급여 자동 생성 (직원 테이블의 기본급 기반)
+// 월별 급여 자동 생성 (직원 테이블의 기본급만 업데이트, 인센티브 등은 유지)
 router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
-    const { fiscalYear, month, overwrite } = req.body
+    const { fiscalYear, month } = req.body
     
     if (!fiscalYear || !month) {
       return res.status(400).json({ message: '연도와 월을 입력해주세요' })
@@ -172,29 +172,6 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
       })
     }
     
-    // 이미 해당 월 데이터가 있는지 확인
-    const existingData = await pool.query(
-      'SELECT COUNT(*) as count FROM monthly_payroll WHERE fiscal_year = $1 AND month = $2',
-      [fiscalYear, month]
-    )
-    
-    const hasExistingData = parseInt(existingData.rows[0].count) > 0
-    
-    if (hasExistingData && !overwrite) {
-      return res.status(409).json({ 
-        message: 'existing_data',
-        count: existingData.rows[0].count
-      })
-    }
-    
-    // 덮어쓰기 옵션이 true면 기존 데이터 삭제
-    if (hasExistingData && overwrite) {
-      await pool.query(
-        'DELETE FROM monthly_payroll WHERE fiscal_year = $1 AND month = $2',
-        [fiscalYear, month]
-      )
-    }
-    
     // 입사중인 직원들의 기본급 가져오기
     const employeesResult = await pool.query(
       `SELECT name, base_salary 
@@ -207,22 +184,46 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
       return res.status(400).json({ message: '등록된 직원이 없습니다' })
     }
     
-    // 각 직원에 대해 급여 데이터 생성
+    // 각 직원에 대해 급여 데이터 생성 또는 기본급만 업데이트
     let createdCount = 0
+    let updatedCount = 0
+    
     for (const employee of employeesResult.rows) {
-      await pool.query(
-        `INSERT INTO monthly_payroll 
-         (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
-         VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, $4)`,
-        [fiscalYear, month, employee.name, employee.base_salary || 0]
+      // 기존 데이터가 있는지 확인
+      const existingResult = await pool.query(
+        `SELECT id, base_salary FROM monthly_payroll 
+         WHERE fiscal_year = $1 AND month = $2 AND employee_name = $3`,
+        [fiscalYear, month, employee.name]
       )
-      createdCount++
+      
+      if (existingResult.rows.length > 0) {
+        // 기존 데이터가 있으면 기본급만 업데이트하고 합계 재계산
+        await pool.query(
+          `UPDATE monthly_payroll 
+           SET base_salary = $1, 
+               total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE fiscal_year = $2 AND month = $3 AND employee_name = $4`,
+          [employee.base_salary || 0, fiscalYear, month, employee.name]
+        )
+        updatedCount++
+      } else {
+        // 기존 데이터가 없으면 새로 생성
+        await pool.query(
+          `INSERT INTO monthly_payroll 
+           (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
+           VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, $4)`,
+          [fiscalYear, month, employee.name, employee.base_salary || 0]
+        )
+        createdCount++
+      }
     }
     
     res.json({ 
       success: true, 
-      message: `${createdCount}명의 직원에 대한 급여 데이터가 생성되었습니다`,
-      createdCount 
+      message: `${createdCount}명 신규 생성, ${updatedCount}명 기본급 업데이트 완료`,
+      createdCount,
+      updatedCount
     })
   } catch (error) {
     console.error('Payroll generation error:', error)
