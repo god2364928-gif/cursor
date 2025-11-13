@@ -173,11 +173,15 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
     }
     
     // 입사중인 직원들의 기본급 가져오기
+    // users 테이블의 기본급을 우선적으로 사용 (직원관리에서 변경한 값 반영)
     const employeesResult = await pool.query(
-      `SELECT name, base_salary 
-       FROM accounting_employees 
-       WHERE employment_status = '입사중' 
-       ORDER BY name`
+      `SELECT 
+         COALESCE(u.name, ae.name) as name,
+         COALESCE(u.base_salary, ae.base_salary, 0) as base_salary
+       FROM accounting_employees ae
+       LEFT JOIN users u ON u.name = ae.name AND u.employment_status IN ('입사중', '재직')
+       WHERE ae.employment_status = '입사중'
+       ORDER BY COALESCE(u.name, ae.name)`
     )
     
     if (employeesResult.rows.length === 0) {
