@@ -424,10 +424,24 @@ export default function AccountingPage() {
 
   const fetchTotalSales = async () => {
     try {
-      // fiscalYear를 우선 사용하고, 없으면 totalSalesYear 사용
-      const yearToFetch = activeTab === 'dashboard' ? fiscalYear : totalSalesYear
-      const response = await api.get(`/total-sales/${yearToFetch}`)
-      setTotalSalesData(response.data)
+      // 대시보드에서는 최근 12개월 표시를 위해 현재와 이전 회계연도 데이터 모두 로드
+      if (activeTab === 'dashboard') {
+        const currentFiscalYear = fiscalYear
+        const previousFiscalYear = fiscalYear - 1
+        
+        // 두 회계연도 데이터를 병렬로 가져오기
+        const [currentData, previousData] = await Promise.all([
+          api.get(`/total-sales/${currentFiscalYear}`),
+          api.get(`/total-sales/${previousFiscalYear}`)
+        ])
+        
+        // 두 데이터를 합침
+        setTotalSalesData([...currentData.data, ...previousData.data])
+      } else {
+        // 전체매출 탭에서는 선택된 연도만
+        const response = await api.get(`/total-sales/${totalSalesYear}`)
+        setTotalSalesData(response.data)
+      }
     } catch (error) {
       console.error('Total sales fetch error:', error)
     }
@@ -783,9 +797,12 @@ export default function AccountingPage() {
   }
 
   // 전체매출 관련 함수
-  const getTotalSalesValue = (month: number, paymentMethod: string, isFee: boolean): number => {
+  const getTotalSalesValue = (month: number, paymentMethod: string, isFee: boolean, fiscalYearFilter?: number): number => {
     const record = totalSalesData.find(
-      (r) => r.month === month && r.payment_method === paymentMethod && r.is_fee === isFee
+      (r) => r.month === month && 
+             r.payment_method === paymentMethod && 
+             r.is_fee === isFee &&
+             (!fiscalYearFilter || r.fiscal_year === fiscalYearFilter)
     )
     return record ? parseFloat(record.amount) : 0
   }
@@ -811,26 +828,19 @@ export default function AccountingPage() {
         ? `${year}年${month}月` 
         : `${year}년 ${month}월`
       
-      // 해당 연도의 전체매출 데이터에서 찾기
-      // fiscalYear를 기준으로 데이터가 로드되어 있으므로, 해당 월이 어느 회계연도에 속하는지 계산
+      // 해당 월의 회계연도 계산 (10월 이후면 다음해가 회계연도)
       const fiscalYearForMonth = month >= 10 ? year + 1 : year
       
-      // 현재 로드된 fiscalYear 데이터와 일치하는 경우에만 값을 표시
-      let revenue = 0
-      let fees = 0
-      
-      if (fiscalYearForMonth === fiscalYear) {
-        // 売上高 = 결제수단 합계 + 수수료
-        revenue = getTotalSalesValue(month, '口座振込', false) +
-          getTotalSalesValue(month, 'PayPay', false) +
-          getTotalSalesValue(month, 'PayPal', false) +
-          getTotalSalesValue(month, 'strip', false) +
-          getTotalSalesValue(month, 'strip1', false) +
-          getTotalSalesValue(month, 'ココナラ', false)
-        fees = getTotalSalesValue(month, 'PayPal', true) +
-          getTotalSalesValue(month, 'strip', true) +
-          getTotalSalesValue(month, 'strip1', true)
-      }
+      // 해당 회계연도의 데이터를 사용하여 매출액 계산
+      const revenue = getTotalSalesValue(month, '口座振込', false, fiscalYearForMonth) +
+        getTotalSalesValue(month, 'PayPay', false, fiscalYearForMonth) +
+        getTotalSalesValue(month, 'PayPal', false, fiscalYearForMonth) +
+        getTotalSalesValue(month, 'strip', false, fiscalYearForMonth) +
+        getTotalSalesValue(month, 'strip1', false, fiscalYearForMonth) +
+        getTotalSalesValue(month, 'ココナラ', false, fiscalYearForMonth)
+      const fees = getTotalSalesValue(month, 'PayPal', true, fiscalYearForMonth) +
+        getTotalSalesValue(month, 'strip', true, fiscalYearForMonth) +
+        getTotalSalesValue(month, 'strip1', true, fiscalYearForMonth)
       
       return {
         month: monthName,
