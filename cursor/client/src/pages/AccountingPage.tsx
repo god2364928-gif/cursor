@@ -9,7 +9,6 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  Calendar,
   Plus,
   Trash2,
   Upload,
@@ -203,7 +202,8 @@ export default function AccountingPage() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
-  const [payrolls, setPayrolls] = useState<Payroll[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_payrolls, _setPayrolls] = useState<Payroll[]>([])
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([])
   const [capitalBalances, setCapitalBalances] = useState<CapitalBalance[]>([])
   const [deposits, setDeposits] = useState<Deposit[]>([])
@@ -228,7 +228,8 @@ export default function AccountingPage() {
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
   const [showRecurringForm, setShowRecurringForm] = useState(false)
-  const [showPayrollForm, setShowPayrollForm] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_showPayrollForm, setShowPayrollForm] = useState(false)
   const [showCapitalForm, setShowCapitalForm] = useState(false)
   const [showDepositForm, setShowDepositForm] = useState(false)
   const [showEmployeeDetailModal, setShowEmployeeDetailModal] = useState(false)
@@ -253,6 +254,16 @@ export default function AccountingPage() {
   const [totalSalesYear, setTotalSalesYear] = useState<number>(2026)
   const [editingCell, setEditingCell] = useState<{year: number, month: number, paymentMethod: string, isFee: boolean} | null>(null)
   const [editingValue, setEditingValue] = useState<string>('')
+
+  // 월별 급여 관련 state
+  const [monthlyPayrollData, setMonthlyPayrollData] = useState<any[]>([])
+  const [selectedPayrollYear, setSelectedPayrollYear] = useState<number>(2026)
+  const [selectedPayrollMonth, setSelectedPayrollMonth] = useState<number>(5)
+  const [editingPayrollCell, setEditingPayrollCell] = useState<{id: string, field: string} | null>(null)
+  const [editingPayrollValue, setEditingPayrollValue] = useState<string>('')
+  const [monthlyPayrollHistory, setMonthlyPayrollHistory] = useState<string>('')
+  const [newEmployeeName, setNewEmployeeName] = useState<string>('')
+  const [showAddEmployeeDialog, setShowAddEmployeeDialog] = useState<boolean>(false)
 
   useEffect(() => {
     fetchDashboard()
@@ -306,14 +317,14 @@ export default function AccountingPage() {
       }
     }
     if (activeTab === 'employees') fetchEmployees()
-    if (activeTab === 'payroll') fetchPayrolls()
+    if (activeTab === 'payroll') fetchMonthlyPayroll()
     if (activeTab === 'recurring') fetchRecurringExpenses()
     if (activeTab === 'capital') {
       fetchCapitalBalances()
       fetchDeposits()
     }
     if (activeTab === 'totalsales') fetchTotalSales()
-  }, [activeTab, nameOptions.length, capitalOffset, totalSalesYear])
+  }, [activeTab, nameOptions.length, capitalOffset, totalSalesYear, selectedPayrollYear, selectedPayrollMonth])
 
   // 자동 매칭 다이얼로그가 열릴 때마다 목록 새로고침
   useEffect(() => {
@@ -447,12 +458,109 @@ export default function AccountingPage() {
     }
   }
 
-  const fetchPayrolls = async () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _fetchPayrolls = async () => {
     try {
       const response = await api.get('/accounting/payroll')
-      setPayrolls(response.data)
+      _setPayrolls(response.data)
     } catch (error) {
       console.error('Payrolls fetch error:', error)
+    }
+  }
+
+  // 월별 급여 데이터 조회
+  const fetchMonthlyPayroll = async () => {
+    try {
+      const response = await api.get(`/monthly-payroll/${selectedPayrollYear}/${selectedPayrollMonth}`)
+      setMonthlyPayrollData(response.data.payrollData || [])
+      setMonthlyPayrollHistory(response.data.history || '')
+    } catch (error) {
+      console.error('Monthly payroll fetch error:', error)
+    }
+  }
+
+  // 월별 급여 셀 편집
+  const handlePayrollCellClick = (id: string, field: string, currentValue: any) => {
+    setEditingPayrollCell({ id, field })
+    setEditingPayrollValue(currentValue?.toString() || '0')
+  }
+
+  const handlePayrollCellSave = async () => {
+    if (!editingPayrollCell) return
+    
+    try {
+      await api.put('/monthly-payroll/update', {
+        id: editingPayrollCell.id,
+        field: editingPayrollCell.field,
+        value: editingPayrollValue
+      })
+      
+      setEditingPayrollCell(null)
+      setEditingPayrollValue('')
+      fetchMonthlyPayroll()
+    } catch (error) {
+      console.error('Payroll update error:', error)
+      alert(language === 'ja' ? '更新に失敗しました' : '업데이트에 실패했습니다')
+    }
+  }
+
+  const handlePayrollCellCancel = () => {
+    setEditingPayrollCell(null)
+    setEditingPayrollValue('')
+  }
+
+  // 히스토리 저장
+  const handleSavePayrollHistory = async () => {
+    try {
+      await api.put('/monthly-payroll/history', {
+        fiscalYear: selectedPayrollYear,
+        month: selectedPayrollMonth,
+        historyText: monthlyPayrollHistory
+      })
+      alert(language === 'ja' ? '保存しました' : '저장했습니다')
+    } catch (error) {
+      console.error('History save error:', error)
+      alert(language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다')
+    }
+  }
+
+  // 직원 추가
+  const handleAddEmployee = async () => {
+    if (!newEmployeeName.trim()) {
+      alert(language === 'ja' ? '名前を入力してください' : '이름을 입력해주세요')
+      return
+    }
+
+    try {
+      await api.post('/monthly-payroll/add-employee', {
+        fiscalYear: selectedPayrollYear,
+        month: selectedPayrollMonth,
+        employeeName: newEmployeeName.trim()
+      })
+      
+      setNewEmployeeName('')
+      setShowAddEmployeeDialog(false)
+      fetchMonthlyPayroll()
+      alert(language === 'ja' ? '追加しました' : '추가했습니다')
+    } catch (error) {
+      console.error('Add employee error:', error)
+      alert(language === 'ja' ? '追加に失敗しました' : '추가에 실패했습니다')
+    }
+  }
+
+  // 직원 삭제
+  const handleDeletePayrollEmployee = async (id: string) => {
+    if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) {
+      return
+    }
+
+    try {
+      await api.delete(`/monthly-payroll/${id}`)
+      fetchMonthlyPayroll()
+      alert(language === 'ja' ? '削除しました' : '삭제했습니다')
+    } catch (error) {
+      console.error('Delete employee error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
     }
   }
 
@@ -526,16 +634,6 @@ export default function AccountingPage() {
   const closeRecurringForm = () => {
     setShowRecurringForm(false)
     setEditingRecurring(null)
-  }
-
-  const openPayrollForm = (pay: Payroll) => {
-    setEditingPayroll(pay)
-    setShowPayrollForm(true)
-  }
-
-  const closePayrollForm = () => {
-    setEditingPayroll(null)
-    setShowPayrollForm(false)
   }
 
   const openCapitalForm = (capital?: CapitalBalance) => {
@@ -1083,21 +1181,23 @@ export default function AccountingPage() {
     }
   }
 
-  const handleGeneratePayroll = async () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleGeneratePayroll = async () => {
     const month = prompt(language === 'ja' ? '対象月 (YYYY-MM-01)' : '대상 월 (YYYY-MM-01)', new Date().toISOString().slice(0, 7) + '-01')
     if (!month) return
     
     try {
       await api.post('/accounting/payroll/generate', { paymentMonth: month })
-      fetchPayrolls()
-      alert(language === 'ja' ? '給与を生成しました' : '급여를 생성했습니다')
+      // fetchPayrolls()
+      alert(language === 'ja' ? '給与を生成しました' : '급여を生성했습니다')
     } catch (error) {
       console.error('Payroll generate error:', error)
       alert(language === 'ja' ? '生成に失敗しました' : '생성에 실패했습니다')
     }
   }
 
-  const handleSubmitPayroll = async (e: React.FormEvent<HTMLFormElement>) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleSubmitPayroll = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!editingPayroll) return
 
@@ -1111,22 +1211,23 @@ export default function AccountingPage() {
         paymentStatus: formData.get('paymentStatus'),
       })
 
-      closePayrollForm()
-      fetchPayrolls()
+      // closePayrollForm()
+      // fetchPayrolls()
     } catch (error) {
       console.error('Payroll update error:', error)
       alert(language === 'ja' ? '修正に失敗しました' : '수정에 실패했습니다')
     }
   }
 
-  const handleDeletePayroll = async (id: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleDeletePayroll = async (id: string) => {
     if (!confirm(language === 'ja' ? '削除しますか？' : '삭제하시겠습니까?')) return
     try {
       await api.delete(`/accounting/payroll/${id}`)
-      if (editingPayroll?.id === id) {
-        closePayrollForm()
-      }
-      fetchPayrolls()
+      // if (editingPayroll?.id === id) {
+      //   closePayrollForm()
+      // }
+      // fetchPayrolls()
     } catch (error) {
       console.error('Payroll delete error:', error)
       alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
@@ -2658,137 +2759,296 @@ export default function AccountingPage() {
       {/* Payroll Tab */}
       {activeTab === 'payroll' && (
         <div className="space-y-4">
+          {/* 헤더 */}
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{language === 'ja' ? '給与管理' : '급여 관리'}</h2>
-            <Button onClick={handleGeneratePayroll}>
-              <Calendar className="h-4 w-4 mr-2" />
-              {language === 'ja' ? '給与生成' : '급여 생성'}
+            <div className="flex gap-2 items-center">
+              <select
+                className="border rounded px-3 py-2"
+                value={selectedPayrollYear}
+                onChange={(e) => setSelectedPayrollYear(Number(e.target.value))}
+              >
+                {[2024, 2025, 2026, 2027, 2028].map((year) => (
+                  <option key={year} value={year}>
+                    {year}{language === 'ja' ? '年度' : '년도'}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="border rounded px-3 py-2"
+                value={selectedPayrollMonth}
+                onChange={(e) => setSelectedPayrollMonth(Number(e.target.value))}
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((month) => (
+                  <option key={month} value={month}>
+                    {month}{language === 'ja' ? '月' : '월'}
+                  </option>
+                ))}
+              </select>
+              <Button onClick={() => setShowAddEmployeeDialog(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                {language === 'ja' ? '従業員追加' : '직원 추가'}
             </Button>
+            </div>
           </div>
 
-          {showPayrollForm && editingPayroll && (
+          {/* 히스토리 입력란 */}
             <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">
-                  {language === 'ja' ? '給与情報を修正' : '급여 정보 수정'}
-                </h3>
-                <form key={editingPayroll.id} onSubmit={handleSubmitPayroll} className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '基本給' : '기본급'}</label>
-                    <Input
-                      type="number"
-                      name="baseSalary"
-                      defaultValue={String(editingPayroll.baseSalary)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'インセンティブ' : '인센티브'}</label>
-                    <Input
-                      type="number"
-                      name="incentive"
-                      defaultValue={String(editingPayroll.incentive)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? 'その他支給' : '기타 지급'}</label>
-                    <Input
-                      type="number"
-                      name="otherPayments"
-                      defaultValue={String(editingPayroll.otherPayments || 0)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '状態' : '지급 상태'}</label>
-                    <select
-                      name="paymentStatus"
-                      className="w-full border rounded px-3 py-2"
-                      defaultValue={editingPayroll.paymentStatus}
-                    >
-                      <option value="미지급">{language === 'ja' ? '未支給' : '미지급'}</option>
-                      <option value="지급완료">{language === 'ja' ? '支給完了' : '지급완료'}</option>
-                    </select>
-                  </div>
-                  <div className="col-span-2 flex gap-2">
-                    <Button type="submit">{language === 'ja' ? '保存' : '저장'}</Button>
-                    <Button type="button" variant="ghost" onClick={closePayrollForm}>
-                      {language === 'ja' ? 'キャンセル' : '취소'}
+            <CardHeader>
+              <CardTitle className="text-sm">{language === 'ja' ? '履歴メモ' : '히스토리'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <textarea
+                  className="flex-1 border rounded px-3 py-2 text-sm"
+                  rows={3}
+                  value={monthlyPayrollHistory}
+                  onChange={(e) => setMonthlyPayrollHistory(e.target.value)}
+                  placeholder={language === 'ja' ? '履歴を入力...' : '히스토리를 입력...'}
+                />
+                <Button onClick={handleSavePayrollHistory} size="sm">
+                  {language === 'ja' ? '保存' : '저장'}
                     </Button>
                   </div>
-                </form>
               </CardContent>
             </Card>
-          )}
 
+          {/* 급여 테이블 */}
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left">{language === 'ja' ? '支給月' : '지급월'}</th>
-                      <th className="px-4 py-3 text-left">{language === 'ja' ? '従業員' : '직원'}</th>
+                      <th className="px-4 py-3 text-left">{language === 'ja' ? '従業員名' : '직원명'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? '基本給' : '기본급'}</th>
+                      <th className="px-4 py-3 text-right">{language === 'ja' ? 'ココナラ' : '코코나라'}</th>
+                      <th className="px-4 py-3 text-right">{language === 'ja' ? '賞与金' : '상여금'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? 'インセンティブ' : '인센티브'}</th>
-                      <th className="px-4 py-3 text-right">{language === 'ja' ? '合計' : '합계'}</th>
-                      <th className="px-4 py-3 text-center">{language === 'ja' ? '状態' : '상태'}</th>
-                      <th className="px-4 py-3 text-center" style={{ width: '80px' }}>
+                      <th className="px-4 py-3 text-right">{language === 'ja' ? 'その他' : '기타'}</th>
+                      <th className="px-4 py-3 text-right font-semibold">{language === 'ja' ? '合計' : '합계'}</th>
+                      <th className="px-4 py-3 text-left">{language === 'ja' ? '備考' : '비고'}</th>
+                      <th className="px-4 py-3 text-center" style={{ width: '60px' }}>
                         {language === 'ja' ? '操作' : '조작'}
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {payrolls.map((pay) => (
-                      <tr key={pay.id} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-3">{pay.paymentMonth.slice(0, 7)}</td>
-                        <td className="px-4 py-3">
-                          <div>
-                            <p className="font-medium">{pay.employeeName}</p>
-                            <p className="text-xs text-gray-500">{pay.position}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">{formatCurrency(pay.baseSalary)}</td>
-                        <td className="px-4 py-3 text-right text-emerald-600 font-medium">{formatCurrency(pay.incentive)}</td>
-                        <td className="px-4 py-3 text-right font-bold">{formatCurrency(pay.totalAmount)}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span
-                            className={`px-2 py-1 rounded text-xs font-medium ${
-                              pay.paymentStatus === '지급완료'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}
+                    {monthlyPayrollData.map((row) => {
+                      const isEditingBase = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'base_salary'
+                      const isEditingCoconala = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'coconala'
+                      const isEditingBonus = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'bonus'
+                      const isEditingIncentive = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'incentive'
+                      const isEditingOther = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'other'
+                      const isEditingNotes = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'notes'
+
+                      return (
+                        <tr key={row.id} className="border-t hover:bg-gray-50">
+                          <td className="px-4 py-3 font-medium">{row.employee_name}</td>
+                          <td 
+                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handlePayrollCellClick(row.id, 'base_salary', row.base_salary)}
                           >
-                            {pay.paymentStatus}
-                          </span>
+                            {isEditingBase ? (
+                              <input
+                                type="number"
+                                value={editingPayrollValue}
+                                onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onBlur={handlePayrollCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handlePayrollCellSave()
+                                  if (e.key === 'Escape') handlePayrollCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              formatCurrency(row.base_salary || 0)
+                            )}
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                          <td 
+                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handlePayrollCellClick(row.id, 'coconala', row.coconala)}
+                          >
+                            {isEditingCoconala ? (
+                              <input
+                                type="number"
+                                value={editingPayrollValue}
+                                onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onBlur={handlePayrollCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handlePayrollCellSave()
+                                  if (e.key === 'Escape') handlePayrollCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              formatCurrency(row.coconala || 0)
+                            )}
+                        </td>
+                          <td 
+                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handlePayrollCellClick(row.id, 'bonus', row.bonus)}
+                          >
+                            {isEditingBonus ? (
+                              <input
+                                type="number"
+                                value={editingPayrollValue}
+                                onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onBlur={handlePayrollCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handlePayrollCellSave()
+                                  if (e.key === 'Escape') handlePayrollCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              formatCurrency(row.bonus || 0)
+                            )}
+                          </td>
+                          <td 
+                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handlePayrollCellClick(row.id, 'incentive', row.incentive)}
+                          >
+                            {isEditingIncentive ? (
+                              <input
+                                type="number"
+                                value={editingPayrollValue}
+                                onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onBlur={handlePayrollCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handlePayrollCellSave()
+                                  if (e.key === 'Escape') handlePayrollCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              formatCurrency(row.incentive || 0)
+                            )}
+                          </td>
+                          <td 
+                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handlePayrollCellClick(row.id, 'other', row.other)}
+                          >
+                            {isEditingOther ? (
+                              <input
+                                type="number"
+                                value={editingPayrollValue}
+                                onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onBlur={handlePayrollCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handlePayrollCellSave()
+                                  if (e.key === 'Escape') handlePayrollCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              formatCurrency(row.other || 0)
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold bg-yellow-50">
+                            {formatCurrency(row.total || 0)}
+                          </td>
+                          <td 
+                            className="px-4 py-3 text-left cursor-pointer hover:bg-blue-50"
+                            onClick={() => handlePayrollCellClick(row.id, 'notes', row.notes)}
+                          >
+                            {isEditingNotes ? (
+                              <input
+                                type="text"
+                                value={editingPayrollValue}
+                                onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onBlur={handlePayrollCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handlePayrollCellSave()
+                                  if (e.key === 'Escape') handlePayrollCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full border rounded px-1"
+                              />
+                            ) : (
+                              <span className="text-xs text-gray-600">{row.notes || '-'}</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => {
-                                openPayrollForm(pay)
-                              }}
-                              aria-label={language === 'ja' ? '修正' : '수정'}
-                            >
-                              <Pencil className="h-4 w-4 text-emerald-600" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleDeletePayroll(pay.id)}
+                              onClick={() => handleDeletePayrollEmployee(row.id)}
                               aria-label={language === 'ja' ? '削除' : '삭제'}
                             >
                               <Trash2 className="h-4 w-4 text-red-600" />
                             </Button>
-                          </div>
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
+                    
+                    {/* 합계 행 */}
+                    <tr className="border-t-2 bg-blue-50 font-semibold">
+                      <td className="px-4 py-3">{language === 'ja' ? '合計' : '계'}</td>
+                      <td className="px-4 py-3 text-right">
+                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.base_salary) || 0), 0))}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.coconala) || 0), 0))}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.bonus) || 0), 0))}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.incentive) || 0), 0))}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.other) || 0), 0))}
+                      </td>
+                      <td className="px-4 py-3 text-right bg-yellow-100">
+                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0))}
+                      </td>
+                      <td colSpan={2}></td>
+                    </tr>
                   </tbody>
                 </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* 직원 추가 다이얼로그 */}
+      {showAddEmployeeDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader>
+              <CardTitle>{language === 'ja' ? '従業員追加' : '직원 추가'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    {language === 'ja' ? '従業員名' : '직원명'}
+                  </label>
+                  <Input
+                    value={newEmployeeName}
+                    onChange={(e) => setNewEmployeeName(e.target.value)}
+                    placeholder={language === 'ja' ? '名前を入力' : '이름을 입력'}
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button onClick={handleAddEmployee}>
+                    {language === 'ja' ? '追加' : '추가'}
+                  </Button>
+                  <Button variant="ghost" onClick={() => {
+                    setShowAddEmployeeDialog(false)
+                    setNewEmployeeName('')
+                  }}>
+                    {language === 'ja' ? 'キャンセル' : '취소'}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

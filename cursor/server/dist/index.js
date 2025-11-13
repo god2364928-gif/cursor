@@ -23,6 +23,7 @@ const keywordAnalysis_1 = __importDefault(require("./routes/keywordAnalysis"));
 const accounting_1 = __importDefault(require("./routes/accounting"));
 const paypay_1 = __importDefault(require("./routes/paypay"));
 const totalSales_1 = __importDefault(require("./routes/totalSales"));
+const monthlyPayroll_1 = __importDefault(require("./routes/monthlyPayroll"));
 const cpiImportService_1 = require("./services/cpiImportService");
 const autoMigrate_1 = require("./migrations/autoMigrate");
 dotenv_1.default.config();
@@ -96,6 +97,7 @@ app.use('/api/keyword-analysis', keywordAnalysis_1.default);
 app.use('/api/accounting', accounting_1.default);
 app.use('/api/paypay', paypay_1.default);
 app.use('/api/total-sales', totalSales_1.default);
+app.use('/api/monthly-payroll', monthlyPayroll_1.default);
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
