@@ -257,8 +257,12 @@ export default function AccountingPage() {
 
   // 월별 급여 관련 state
   const [monthlyPayrollData, setMonthlyPayrollData] = useState<any[]>([])
-  const [selectedPayrollYear, setSelectedPayrollYear] = useState<number>(2026)
-  const [selectedPayrollMonth, setSelectedPayrollMonth] = useState<number>(5)
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1 // 1-12
+  const currentFiscalYear = currentMonth >= 10 ? currentYear + 1 : currentYear
+  const [selectedPayrollYear, setSelectedPayrollYear] = useState<number>(currentFiscalYear)
+  const [selectedPayrollMonth, setSelectedPayrollMonth] = useState<number>(currentMonth)
   const [editingPayrollCell, setEditingPayrollCell] = useState<{id: string, field: string} | null>(null)
   const [editingPayrollValue, setEditingPayrollValue] = useState<string>('')
   const [monthlyPayrollHistory, setMonthlyPayrollHistory] = useState<string>('')
@@ -2825,6 +2829,7 @@ export default function AccountingPage() {
                       <th className="px-4 py-3 text-right">{language === 'ja' ? 'ココナラ' : '코코나라'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? '賞与金' : '상여금'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? 'インセンティブ' : '인센티브'}</th>
+                      <th className="px-4 py-3 text-right">{language === 'ja' ? '出張費' : '출장비'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? 'その他' : '기타'}</th>
                       <th className="px-4 py-3 text-right font-semibold">{language === 'ja' ? '合計' : '합계'}</th>
                       <th className="px-4 py-3 text-left">{language === 'ja' ? '備考' : '비고'}</th>
@@ -2839,6 +2844,7 @@ export default function AccountingPage() {
                       const isEditingCoconala = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'coconala'
                       const isEditingBonus = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'bonus'
                       const isEditingIncentive = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'incentive'
+                      const isEditingBusinessTrip = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'business_trip'
                       const isEditingOther = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'other'
                       const isEditingNotes = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'notes'
 
@@ -2931,6 +2937,27 @@ export default function AccountingPage() {
                           </td>
                           <td 
                             className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handlePayrollCellClick(row.id, 'business_trip', row.business_trip)}
+                          >
+                            {isEditingBusinessTrip ? (
+                              <input
+                                type="number"
+                                value={editingPayrollValue}
+                                onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onBlur={handlePayrollCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handlePayrollCellSave()
+                                  if (e.key === 'Escape') handlePayrollCellCancel()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              formatCurrency(row.business_trip || 0)
+                            )}
+                          </td>
+                          <td 
+                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
                             onClick={() => handlePayrollCellClick(row.id, 'other', row.other)}
                           >
                             {isEditingOther ? (
@@ -3002,6 +3029,9 @@ export default function AccountingPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.incentive) || 0), 0))}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.business_trip) || 0), 0))}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.other) || 0), 0))}

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS monthly_payroll (
     coconala DECIMAL(12, 2) DEFAULT 0,
     bonus DECIMAL(12, 2) DEFAULT 0,
     incentive DECIMAL(12, 2) DEFAULT 0,
+    business_trip DECIMAL(12, 2) DEFAULT 0,
     other DECIMAL(12, 2) DEFAULT 0,
     total DECIMAL(12, 2) DEFAULT 0,
     notes TEXT,
