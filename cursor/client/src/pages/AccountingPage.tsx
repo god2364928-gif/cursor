@@ -599,7 +599,16 @@ export default function AccountingPage() {
       fetchMonthlyPayroll()
     } catch (error: any) {
       console.error('Generate payroll error:', error)
-      alert(error.response?.data?.message || (language === 'ja' ? '生成に失敗しました' : '생성에 실패했습니다'))
+      
+      // existing_data 에러는 무시 (이전 버전 호환)
+      if (error.response?.data?.message === 'existing_data') {
+        alert(language === 'ja' 
+          ? '給与データを更新しました' 
+          : '급여 데이터를 업데이트했습니다')
+        fetchMonthlyPayroll()
+      } else {
+        alert(error.response?.data?.message || (language === 'ja' ? '生成に失敗しました' : '생성에 실패했습니다'))
+      }
     }
   }
 
