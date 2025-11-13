@@ -3,9 +3,10 @@ nixPkgs = ['nodejs-18_x']
 
 [phases.build]
 cmds = [
+  'rm -rf node_modules dist',
   'npm ci',
   'npm run build',
-  'echo "✅ Build completed"'
+  'echo "✅ Build completed - Force rebuild $(date)"'
 ]
 
 [start]
