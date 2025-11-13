@@ -1,0 +1,83 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'cursor/server/**'
+      - 'cursor/client/**'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-server:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install server dependencies
+      working-directory: cursor/server
+      run: npm ci
+      
+    - name: Build server
+      working-directory: cursor/server
+      run: npm run build
+      
+    - name: Check build output
+      working-directory: cursor/server
+      run: |
+        if [ ! -d "dist" ]; then
+          echo "❌ dist 폴더가 생성되지 않았습니다!"
+          exit 1
+        fi
+        echo "✅ 빌드 성공"
+        
+    - name: Commit build if changed
+      if: github.event_name == 'push'
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add cursor/server/dist/ || true
+        git diff --staged --quiet || git commit -m "chore: auto-build server [skip ci]"
+        
+    - name: Push changes
+      if: github.event_name == 'push'
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
+
+  build-client:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install client dependencies
+      working-directory: cursor/client
+      run: npm ci
+      
+    - name: Build client
+      working-directory: cursor/client
+      run: npm run build
+      
+    - name: Check build output
+      working-directory: cursor/client
+      run: |
+        if [ ! -d "dist" ]; then
+          echo "❌ dist 폴더가 생성되지 않았습니다!"
+          exit 1
+        fi
+        echo "✅ 빌드 성공"
+

@@ -1,7 +1,0 @@
-# Railway Deployment Trigger
-# This file forces Railway to detect changes and trigger a new deployment
-# Timestamp: 2025-11-13 14:55:00
-FORCE_REBUILD=true
-VERSION=1.0.1
-DEPLOYMENT_ID=20251113-1455
-
