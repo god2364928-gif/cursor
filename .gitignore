@@ -41,7 +41,7 @@ build/
 # Temporary docs and scripts
 RAILWAY-DB-INFO.md
 *MIGRATION*.md
-*DEPLOYMENT*.md
+*TROUBLESHOOTING*.md
 verify_*.py
 parse_*.py
 
