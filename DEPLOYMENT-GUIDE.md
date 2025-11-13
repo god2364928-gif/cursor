@@ -1,199 +1,177 @@
-# 배포 가이드
+# 배포 자동화 가이드
 
-## 프로젝트 구조
+## 🎯 목표
+TypeScript 빌드를 자동화하여 수동 빌드를 잊어버리는 문제를 방지합니다.
 
-```
-cursor/
-├── client/          → Vercel (프론트엔드)
-│   ├── src/
-│   ├── package.json
-│   └── vercel.json
-└── server/          → Railway (백엔드)
-    ├── src/
-    ├── package.json
-    └── nixpacks.toml
-```
+## ✅ 설정 완료된 자동화
 
----
+### 1. Git Pre-Push Hook
+**위치**: `.git/hooks/pre-push`
 
-## Vercel 프론트엔드 배포
+**동작**:
+- `git push` 전에 자동으로 실행
+- 서버 TypeScript를 자동 빌드
+- 빌드 실패 시 push 차단
+- 빌드된 `dist/` 폴더를 자동으로 스테이징
 
-### 설정
-- **Root Directory**: `cursor/client`
-- **Framework**: Vite (자동 감지)
-- **Build Command**: `npm ci && npm run build`
-- **Output Directory**: `dist`
-- **Production Branch**: `main`
-
-### 자동 배포
-`main` 브랜치에 푸시하면 자동으로 배포됩니다.
-
+**사용법**:
 ```bash
+# 평소처럼 commit & push
 git add .
-git commit -m "[Feature] 새 기능 추가"
+git commit -m "feat: 새 기능"
 git push origin main
+
+# ↑ push 전에 자동으로 빌드됨!
 ```
 
-### 주의사항
-- ❌ 빈 커밋(`--allow-empty`)은 배포를 트리거하지 않습니다
-- ✅ 실제 파일 변경이 있어야 배포됩니다
-- Production Overrides와 Project Settings가 일치해야 합니다
+### 2. GitHub Actions (자동 CI/CD)
+**위치**: `.github/workflows/build-deploy.yml`
 
----
+**동작**:
+- PR 또는 main 브랜치 push 시 자동 실행
+- 서버와 클라이언트 빌드 검증
+- 빌드 실패 시 PR 머지 차단
+- 빌드 성공 시 자동으로 커밋 및 푸시
 
-## Railway 백엔드 배포
+**GitHub에서 확인**:
+https://github.com/god2364928-gif/cursor/actions
 
-### 설정
-- **Root Directory**: `cursor/server`
-- **Build**: nixpacks.toml 기반
-- **Start Command**: `node dist/index.js`
+## 🚀 Railway 자동 배포
 
-### 필수 환경 변수
-```
-DATABASE_URL         # PostgreSQL 연결 (Railway에서 자동 설정)
-JWT_SECRET          # JWT 토큰 시크릿
-CPI_API_BASE        # CPI API 엔드포인트
-CPI_API_TOKEN       # CPI API 인증 토큰
-NODE_ENV            # production
-PORT                # Railway에서 자동 설정
-```
+Railway는 GitHub과 자동 연동되어 있습니다:
 
-### 자동 배포
-`main` 브랜치에 푸시하면 자동으로 빌드 및 배포됩니다.
+1. **main 브랜치에 push**
+2. **Railway가 자동 감지**
+3. **자동으로 빌드 및 배포**
 
----
+**배포 확인**:
+- https://railway.app/project/28ebe688-21a7-4553-8a8f-7f4a6d9bb190/deployments
+- 로그에서 빌드 및 배포 상태 확인
 
-## 배포 전 체크리스트
+## 🌐 Vercel 자동 배포
 
-### 1. 코드 변경
-- [ ] 변경사항이 실제로 있는지 확인
-- [ ] 빌드 에러가 없는지 로컬 테스트
-- [ ] 환경 변수가 올바르게 설정되었는지 확인
+Vercel도 GitHub과 자동 연동되어 있습니다:
 
-### 2. Git 커밋
+1. **main 브랜치에 push**
+2. **Vercel이 자동 감지**
+3. **자동으로 빌드 및 배포**
+
+**배포 확인**:
+- https://vercel.com/dashboard
+- 프로젝트에서 최신 배포 상태 확인
+
+## 📝 개발 워크플로우
+
+### 일반적인 개발
 ```bash
-# 변경사항 확인
-git status
+# 1. 코드 수정
+vi cursor/server/src/routes/salesTracking.ts
 
-# 커밋 (파일 변경 필요)
-git add cursor/client/src/...
-git commit -m "[Feature] 변경 내용"
+# 2. 커밋
+git add .
+git commit -m "fix: 회신수 계산 로직 수정"
 
-# 푸시
+# 3. Push (자동으로 빌드됨)
 git push origin main
+# ↑ pre-push hook이 자동으로 빌드 실행
+# ↑ Railway와 Vercel이 자동으로 배포
 ```
 
-### 3. 배포 확인
-- **Vercel**: https://vercel.com/dashboard → Deployments
-- **Railway**: https://railway.app/dashboard → Deployments
-- 빌드 로그에서 에러 확인
+### 수동 빌드가 필요한 경우
+```bash
+# 서버 빌드
+cd cursor/server
+npm run build
 
----
+# 클라이언트 빌드
+cd cursor/client
+npm run build
+```
 
-## 문제 해결
+### 빌드 확인
+```bash
+# 서버 빌드 파일 확인
+ls -la cursor/server/dist/
 
-### Vercel 배포가 안 될 때
+# 특정 파일의 빌드 내용 확인
+cat cursor/server/dist/routes/salesTracking.js | grep "reply_count"
+```
 
-1. **Production Overrides 확인** (가장 흔한 원인)
-   - Settings → Build and Deployment
-   - Production Overrides 섹션 확인
-   - Override 토글을 OFF로 변경
-   - Save 클릭
+## 🔍 트러블슈팅
 
-2. **Git 연결 확인**
-   - Settings → Git
-   - Connected 상태인지 확인
-   - 필요시 Disconnect 후 재연결
+### Pre-push hook이 실행되지 않는 경우
+```bash
+# hook 파일 권한 확인
+ls -la .git/hooks/pre-push
 
-3. **빈 커밋 확인**
-   ```bash
-   # 변경사항 확인
-   git show HEAD --stat
+# 실행 권한 추가
+chmod +x .git/hooks/pre-push
+```
+
+### GitHub Actions가 실행되지 않는 경우
+1. GitHub 저장소의 Actions 탭 확인
+2. workflow 파일 경로 확인: `.github/workflows/build-deploy.yml`
+3. workflow 파일 문법 오류 확인
+
+### Railway 배포가 트리거되지 않는 경우
+1. Railway 대시보드에서 GitHub 연동 확인
+2. Watch Paths 설정 확인 (Settings → Service)
+3. 최근 커밋이 `cursor/server/` 디렉토리를 변경했는지 확인
+
+### Vercel 배포가 트리거되지 않는 경우
+1. Vercel 대시보드에서 GitHub 연동 확인
+2. Root Directory 설정 확인 (`cursor/client`)
+3. 최근 커밋이 `cursor/client/` 디렉토리를 변경했는지 확인
+
+## ⚠️ 주의사항
+
+### dist 폴더 커밋
+- dist 폴더는 **반드시 Git에 커밋**되어야 합니다
+- .gitignore에서 dist 폴더가 무시되지 않도록 확인
+- 현재 설정: dist 폴더는 추적됨
+
+### 빌드 실패 시
+- Pre-push hook이 빌드 실패를 감지하면 push가 차단됩니다
+- TypeScript 에러를 수정한 후 다시 시도하세요
+
+### [skip ci] 태그
+- 커밋 메시지에 `[skip ci]`를 추가하면 GitHub Actions를 건너뜁니다
+- 예: `git commit -m "docs: update README [skip ci]"`
+
+## 📊 배포 체크리스트
+
+### 배포 전
+- [ ] TypeScript 에러 없음
+- [ ] 로컬에서 빌드 성공
+- [ ] dist 폴더 생성 확인
+
+### 배포 후
+- [ ] Railway 배포 성공 확인
+- [ ] Vercel 배포 성공 확인
+- [ ] Health check API 응답 확인
+- [ ] 실제 기능 테스트
+
+## 🔗 유용한 링크
+
+- **GitHub Repository**: https://github.com/god2364928-gif/cursor
+- **GitHub Actions**: https://github.com/god2364928-gif/cursor/actions
+- **Railway Dashboard**: https://railway.app/project/28ebe688-21a7-4553-8a8f-7f4a6d9bb190
+- **Vercel Dashboard**: https://vercel.com/dashboard
+- **Production URL**: https://www.hotseller-crm.com
+- **API Health Check**: https://cursor-production-1d92.up.railway.app/api/health
+
+## 💡 베스트 프랙티스
+
+1. **작은 단위로 자주 커밋**
+   - 큰 변경사항을 한 번에 배포하지 말 것
    
-   # 빈 커밋이면 실제 파일 수정 필요
-   ```
-
-### Railway 배포가 실패할 때
-
-1. **빌드 로그 확인**
-   - Railway Dashboard → Deployments → 최근 배포 클릭
-   - Build Logs에서 에러 메시지 확인
-
-2. **환경 변수 확인**
-   - Variables 탭에서 필수 변수 설정 확인
-   - DATABASE_URL, JWT_SECRET 등
-
-3. **nixpacks.toml 확인**
-   - 불필요한 검증 명령어 제거됨
-   - 빌드가 단순화됨
-
----
-
-## 자주하는 실수
-
-### ❌ 하지 말 것
-1. 빈 커밋으로 배포 트리거 시도
-2. Production Overrides와 Project Settings 불일치
-3. 환경 변수 누락
-4. CSV/SQL 파일을 Git에 커밋 (이미 .gitignore에서 제외됨)
-
-### ✅ 올바른 방법
-1. 실제 파일 변경 후 커밋
-2. Vercel/Railway 설정 일치 확인
-3. 환경 변수 미리 설정
-4. 로컬에서 먼저 테스트
-
----
-
-## 환경 변수 관리
-
-### Vercel
-프론트엔드는 별도 환경 변수가 불필요합니다 (백엔드 API를 통해 데이터 접근).
-
-### Railway
-```bash
-# Railway CLI로 환경 변수 설정
-railway variables set JWT_SECRET=your_secret_here
-railway variables set CPI_API_BASE=http://your-api-url
-railway variables set CPI_API_TOKEN=your_token_here
-```
-
-또는 Railway Dashboard → Variables 탭에서 직접 설정
-
----
-
-## 추가 정보
-
-### 프론트엔드 URL
-- Production: https://www.hotseller-crm.com
-
-### 백엔드 URL
-- Railway에서 자동 할당된 URL 사용
-- 프론트엔드에서 환경에 따라 자동 연결
-
-### 데이터베이스
-- Railway PostgreSQL (자동 연결)
-- DATABASE_URL은 Railway에서 자동 설정
-
----
-
-## 긴급 수동 배포
-
-### Vercel
-1. Vercel Dashboard → Deployments
-2. 최근 성공한 배포 선택
-3. "Redeploy" 버튼 클릭
-
-### Railway
-1. Railway Dashboard → Deployments
-2. "Deploy" 버튼 클릭
-3. 또는 GitHub에서 강제 재배포
-
----
-
-## 문의사항
-배포 중 문제가 발생하면:
-1. 먼저 이 가이드의 "문제 해결" 섹션 확인
-2. Vercel/Railway 대시보드의 로그 확인
-3. Git 커밋 히스토리 확인 (`git log --oneline -5`)
-
+2. **의미있는 커밋 메시지**
+   - `fix:`, `feat:`, `chore:` 등의 prefix 사용
+   
+3. **배포 후 즉시 확인**
+   - Health check API 확인
+   - 변경된 기능 직접 테스트
+   
+4. **문제 발생 시 신속한 롤백**
+   - GitHub에서 이전 커밋으로 revert
+   - Railway/Vercel에서 이전 배포로 롤백
