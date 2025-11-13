@@ -113,6 +113,22 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
 
     const retargetingResult = await pool.query(retargetingQuery, retargetingParams)
 
+    // 목표 계산: manager가 'all'이면 전체 마케터 수 * 200, 아니면 200
+    let target = 200
+    if (manager === 'all') {
+      // 전체 마케터 수 조회
+      const managersQuery = `
+        SELECT COUNT(DISTINCT manager) as manager_count
+        FROM retargeting_customers
+        WHERE status NOT IN ('ゴミ箱', '휴지통')
+        AND manager IS NOT NULL
+        AND TRIM(manager) != ''
+      `
+      const managersResult = await pool.query(managersQuery)
+      const managerCount = parseInt(managersResult.rows[0].manager_count) || 1
+      target = managerCount * 200
+    }
+
     // 영업 진행현황 - 매니저 필터 적용
     let dbStatusQuery = `
       SELECT 
@@ -149,8 +165,8 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
       },
       myRetargetingProgress: {
         total: parseInt(retargetingResult.rows[0].total),
-        target: 200,
-        percentage: Math.round((parseInt(retargetingResult.rows[0].total) / 200) * 100),
+        target: target,
+        percentage: Math.round((parseInt(retargetingResult.rows[0].total) / target) * 100),
       },
     }
 
