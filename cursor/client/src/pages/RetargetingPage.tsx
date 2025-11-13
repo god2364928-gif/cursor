@@ -826,7 +826,7 @@ export default function RetargetingPage() {
               <div className="w-full bg-gray-200 rounded-full h-4 mb-3">
                 <div
                   className="bg-blue-600 h-4 rounded-full transition-all"
-                  style={{ width: `${(target > 0 ? (statCustomers.length / target) * 100 : 0)}%` }}
+                  style={{ width: `${Math.min(100, (target > 0 ? (statCustomers.length / target) * 100 : 0))}%` }}
                 />
               </div>
               
