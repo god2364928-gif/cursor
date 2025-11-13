@@ -250,12 +250,25 @@ export default function AccountingPage() {
   
   // 전체매출 관련 state
   const [totalSalesData, setTotalSalesData] = useState<any[]>([])
-  const [totalSalesYear, setTotalSalesYear] = useState<number>(2025)
+  const [totalSalesYear, setTotalSalesYear] = useState<number>(2026)
   const [editingCell, setEditingCell] = useState<{year: number, month: number, paymentMethod: string, isFee: boolean} | null>(null)
   const [editingValue, setEditingValue] = useState<string>('')
 
   useEffect(() => {
     fetchDashboard()
+    fetchTotalSales() // 대시보드 탭에서도 전체매출 데이터 로드
+    // 회계연도 변경 시 날짜 범위도 업데이트
+    if (fiscalYear) {
+      // 회계연도 시작일: 전년 10월 1일
+      const startYear = fiscalYear - 1
+      const startDateString = `${startYear}-10-01`
+      
+      // 회계연도 종료일: 당해년 9월 30일
+      const endDateString = `${fiscalYear}-09-30`
+      
+      setStartDate(startDateString)
+      setEndDate(endDateString)
+    }
   }, [fiscalYear])
 
   // 초기 날짜 설정 (전월 1일 ~ 전월 마지막일)
@@ -406,7 +419,9 @@ export default function AccountingPage() {
 
   const fetchTotalSales = async () => {
     try {
-      const response = await api.get(`/total-sales/${totalSalesYear}`)
+      // fiscalYear를 우선 사용하고, 없으면 totalSalesYear 사용
+      const yearToFetch = activeTab === 'dashboard' ? fiscalYear : totalSalesYear
+      const response = await api.get(`/total-sales/${yearToFetch}`)
       setTotalSalesData(response.data)
     } catch (error) {
       console.error('Total sales fetch error:', error)
@@ -768,6 +783,43 @@ export default function AccountingPage() {
       (r) => r.month === month && r.payment_method === paymentMethod && r.is_fee === isFee
     )
     return record ? parseFloat(record.amount) : 0
+  }
+
+  // 월별 매출액 계산 (전체매출 기반)
+  const getMonthlySalesFromTotalSales = () => {
+    const months = [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    const monthNames: { [key: number]: string } = {
+      10: language === 'ja' ? '10月' : '10월',
+      11: language === 'ja' ? '11月' : '11월',
+      12: language === 'ja' ? '12月' : '12월',
+      1: language === 'ja' ? '1月' : '1월',
+      2: language === 'ja' ? '2月' : '2월',
+      3: language === 'ja' ? '3月' : '3월',
+      4: language === 'ja' ? '4月' : '4월',
+      5: language === 'ja' ? '5月' : '5월',
+      6: language === 'ja' ? '6月' : '6월',
+      7: language === 'ja' ? '7月' : '7월',
+      8: language === 'ja' ? '8月' : '8월',
+      9: language === 'ja' ? '9月' : '9월',
+    }
+
+    return months.map(month => {
+      // 売上高 = 결제수단 합계 + 수수료
+      const revenue = getTotalSalesValue(month, '口座振込', false) +
+        getTotalSalesValue(month, 'PayPay', false) +
+        getTotalSalesValue(month, 'PayPal', false) +
+        getTotalSalesValue(month, 'strip', false) +
+        getTotalSalesValue(month, 'strip1', false) +
+        getTotalSalesValue(month, 'ココナラ', false)
+      const fees = getTotalSalesValue(month, 'PayPal', true) +
+        getTotalSalesValue(month, 'strip', true) +
+        getTotalSalesValue(month, 'strip1', true)
+      
+      return {
+        month: monthNames[month],
+        amount: revenue + fees // 売上高 = 결제수단 + 수수료
+      }
+    })
   }
 
   const handleTotalSalesCellClick = (month: number, paymentMethod: string, isFee: boolean) => {
@@ -1562,7 +1614,7 @@ export default function AccountingPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-600">
-                          {language === 'ja' ? '総売上' : '총 매출'}
+                          {language === 'ja' ? '総売上（取引履歴基準）' : '총 매출 (거래내역 기반)'}
                         </p>
                         <p className="text-2xl font-bold text-emerald-600 mt-1">
                           {formatCurrency(dashboard.totalSales)}
@@ -1578,7 +1630,7 @@ export default function AccountingPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-600">
-                          {language === 'ja' ? '総支出' : '총 지출'}
+                          {language === 'ja' ? '総支出（取引履歴基準）' : '총 지출 (거래내역 기반)'}
                         </p>
                         <p className="text-2xl font-bold text-red-600 mt-1">
                           {formatCurrency(dashboard.totalExpenses)}
@@ -1594,7 +1646,7 @@ export default function AccountingPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-600">
-                          {language === 'ja' ? '純利益' : '순이익'}
+                          {language === 'ja' ? '純利益（取引履歴基準）' : '순이익 (거래내역 기반)'}
                         </p>
                         <p className={`text-2xl font-bold mt-1 ${dashboard.netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                           {formatCurrency(dashboard.netProfit)}
@@ -1609,11 +1661,11 @@ export default function AccountingPage() {
               {/* Monthly Sales Chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>{language === 'ja' ? '月別売上推移' : '월별 매출 추이'}</CardTitle>
+                  <CardTitle>{language === 'ja' ? '月別売上推移（全体売上基準）' : '월별 매출 추이 (전체매출 기반)'}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={dashboard.monthlySales}>
+                    <LineChart data={getMonthlySalesFromTotalSales()}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
                       <YAxis />
