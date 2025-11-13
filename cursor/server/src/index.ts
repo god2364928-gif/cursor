@@ -4,6 +4,8 @@ import dotenv from 'dotenv'
 import fs from 'fs'
 import path from 'path'
 import { pool } from './db'
+
+// Force rebuild - timestamp: 1731476108
 import authRoutes from './routes/auth'
 import customersRoutes from './routes/customers'
 import retargetingRoutes from './routes/retargeting'
