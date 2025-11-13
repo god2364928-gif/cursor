@@ -750,18 +750,22 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
         -- 회신수: 返信あり를 찾기 위한 다양한 조건
         COUNT(*) FILTER (WHERE st.status = '返信あり') as reply_count_exact,
         COUNT(*) FILTER (WHERE st.status LIKE '%返信あり%') as reply_count_like_ari,
-        COUNT(*) FILTER (WHERE st.status LIKE '%返信%') as reply_count_like_all,
+        COUNT(*) FILTER (
+          WHERE st.status LIKE '%返信%'
+            AND st.status NOT LIKE '未返信%'
+        ) as reply_count_like_all,
         COUNT(*) FILTER (WHERE st.status != '未返信') as reply_count_not_no_reply,
         -- 최종 회신수: 返信あり를 찾기 (정확 일치 또는 포함)
-        COUNT(*) FILTER (WHERE st.status = '返信あり' OR st.status LIKE '%返信あり%') as reply_count,
+        COUNT(*) FILTER (
+          WHERE st.status LIKE '%返信%'
+            AND st.status NOT LIKE '未返信%'
+        ) as reply_count,
         COUNT(*) FILTER (WHERE st.status = '商談中') as negotiation_count,
         COUNT(*) FILTER (WHERE st.status = '契約') as contract_count
       FROM sales_tracking st
-      JOIN users u ON u.name = st.manager_name
       WHERE 
         EXTRACT(YEAR FROM st.date) = $1 AND
-        EXTRACT(MONTH FROM st.date) = $2 AND
-        u.role = 'marketer'
+        EXTRACT(MONTH FROM st.date) = $2
       GROUP BY st.manager_name
       ORDER BY st.manager_name
     `, [yearNum, monthNum]);
@@ -774,12 +778,10 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
         COUNT(DISTINCT rc.id) as retargeting_count
       FROM sales_tracking st
       INNER JOIN retargeting_customers rc ON rc.sales_tracking_id = st.id
-      JOIN users u ON u.name = st.manager_name
       WHERE 
         EXTRACT(YEAR FROM st.date) = $1 AND
         EXTRACT(MONTH FROM st.date) = $2 AND
-        u.role = 'marketer'
-        AND rc.sales_tracking_id IS NOT NULL
+        rc.sales_tracking_id IS NOT NULL
       GROUP BY st.manager_name
     `, [yearNum, monthNum]);
         // 디버깅: 리타획득수 집계 결과 확인
@@ -806,11 +808,9 @@ router.get('/stats/monthly', auth_1.authMiddleware, async (req, res) => {
         st.status,
         COUNT(*) as count
       FROM sales_tracking st
-      JOIN users u ON u.name = st.manager_name
       WHERE 
         EXTRACT(YEAR FROM st.date) = $1 AND
-        EXTRACT(MONTH FROM st.date) = $2 AND
-        u.role = 'marketer'
+        EXTRACT(MONTH FROM st.date) = $2
       GROUP BY st.manager_name, st.status
       ORDER BY st.manager_name, st.status
     `, [yearNum, monthNum]);
@@ -955,7 +955,10 @@ router.get('/stats/daily', auth_1.authMiddleware, async (req, res) => {
               OR TRIM(COALESCE(st.contact_method, '')) = ''
           ) AS send_count,
           COUNT(*) AS total_count,
-          COUNT(*) FILTER (WHERE st.status = '返信あり' OR st.status LIKE '%返信あり%') AS reply_count,
+          COUNT(*) FILTER (
+            WHERE st.status LIKE '%返信%'
+              AND st.status NOT LIKE '未返信%'
+          ) AS reply_count,
           COUNT(*) FILTER (WHERE st.status = '商談中') AS negotiation_count,
           COUNT(*) FILTER (WHERE st.status = '契約') AS contract_count
         FROM sales_tracking st
