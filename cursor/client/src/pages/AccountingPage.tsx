@@ -592,14 +592,39 @@ export default function AccountingPage() {
     try {
       const response = await api.post('/monthly-payroll/generate', {
         fiscalYear: selectedPayrollYear,
-        month: selectedPayrollMonth
+        month: selectedPayrollMonth,
+        overwrite: false
       })
       
       alert(response.data.message)
       fetchMonthlyPayroll()
     } catch (error: any) {
       console.error('Generate payroll error:', error)
-      alert(error.response?.data?.message || (language === 'ja' ? '生成に失敗しました' : '생성에 실패했습니다'))
+      
+      // 기존 데이터가 있는 경우 (409 Conflict)
+      if (error.response?.status === 409 && error.response?.data?.message === 'existing_data') {
+        if (confirm(language === 'ja' 
+          ? `既に${error.response.data.count}件のデータが存在します。\n削除して再生成しますか？`
+          : `이미 ${error.response.data.count}건의 데이터가 존재합니다.\n삭제하고 다시 생성하시겠습니까?`)) {
+          
+          // 덮어쓰기로 재시도
+          try {
+            const retryResponse = await api.post('/monthly-payroll/generate', {
+              fiscalYear: selectedPayrollYear,
+              month: selectedPayrollMonth,
+              overwrite: true
+            })
+            
+            alert(retryResponse.data.message)
+            fetchMonthlyPayroll()
+          } catch (retryError: any) {
+            console.error('Generate payroll retry error:', retryError)
+            alert(retryError.response?.data?.message || (language === 'ja' ? '生成に失敗しました' : '생성에 실패했습니다'))
+          }
+        }
+      } else {
+        alert(error.response?.data?.message || (language === 'ja' ? '生成に失敗しました' : '생성에 실패했습니다'))
+      }
     }
   }
 

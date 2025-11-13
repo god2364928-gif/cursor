@@ -119,7 +119,7 @@ router.put('/history', auth_1.authMiddleware, adminOnly, async (req, res) => {
 // 월별 급여 자동 생성 (직원 테이블의 기본급 기반)
 router.post('/generate', auth_1.authMiddleware, adminOnly, async (req, res) => {
     try {
-        const { fiscalYear, month } = req.body;
+        const { fiscalYear, month, overwrite } = req.body;
         if (!fiscalYear || !month) {
             return res.status(400).json({ message: '연도와 월을 입력해주세요' });
         }
@@ -133,10 +133,16 @@ router.post('/generate', auth_1.authMiddleware, adminOnly, async (req, res) => {
         }
         // 이미 해당 월 데이터가 있는지 확인
         const existingData = await db_1.pool.query('SELECT COUNT(*) as count FROM monthly_payroll WHERE fiscal_year = $1 AND month = $2', [fiscalYear, month]);
-        if (parseInt(existingData.rows[0].count) > 0) {
-            return res.status(400).json({
-                message: '이미 해당 월의 급여 데이터가 존재합니다. 기존 데이터를 삭제하고 다시 생성하시겠습니까?'
+        const hasExistingData = parseInt(existingData.rows[0].count) > 0;
+        if (hasExistingData && !overwrite) {
+            return res.status(409).json({
+                message: 'existing_data',
+                count: existingData.rows[0].count
             });
+        }
+        // 덮어쓰기 옵션이 true면 기존 데이터 삭제
+        if (hasExistingData && overwrite) {
+            await db_1.pool.query('DELETE FROM monthly_payroll WHERE fiscal_year = $1 AND month = $2', [fiscalYear, month]);
         }
         // 입사중인 직원들의 기본급 가져오기
         const employeesResult = await db_1.pool.query(`SELECT name, base_salary 
