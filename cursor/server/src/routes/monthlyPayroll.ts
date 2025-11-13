@@ -52,7 +52,7 @@ router.put('/update', authMiddleware, adminOnly, async (req: AuthRequest, res: R
     }
     
     // 허용된 필드만 업데이트
-    const allowedFields = ['base_salary', 'coconala', 'bonus', 'incentive', 'other', 'notes']
+    const allowedFields = ['base_salary', 'coconala', 'bonus', 'incentive', 'business_trip', 'other', 'notes']
     if (!allowedFields.includes(field)) {
       return res.status(400).json({ message: '허용되지 않은 필드입니다' })
     }
@@ -62,7 +62,7 @@ router.put('/update', authMiddleware, adminOnly, async (req: AuthRequest, res: R
       await pool.query(
         `UPDATE monthly_payroll 
          SET ${field} = $1, 
-             total = COALESCE(base_salary, 0) + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(other, 0),
+             total = COALESCE(base_salary, 0) + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
              updated_at = CURRENT_TIMESTAMP 
          WHERE id = $2`,
         [value || 0, id]
@@ -94,8 +94,8 @@ router.post('/add-employee', authMiddleware, adminOnly, async (req: AuthRequest,
     
     await pool.query(
       `INSERT INTO monthly_payroll 
-       (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, other, total)
-       VALUES ($1, $2, $3, 0, 0, 0, 0, 0, 0)
+       (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
+       VALUES ($1, $2, $3, 0, 0, 0, 0, 0, 0, 0)
        ON CONFLICT (fiscal_year, month, employee_name) DO NOTHING`,
       [fiscalYear, month, employeeName]
     )

@@ -40,7 +40,7 @@ router.put('/update', auth_1.authMiddleware, adminOnly, async (req, res) => {
             return res.status(400).json({ message: '필수 파라미터가 누락되었습니다' });
         }
         // 허용된 필드만 업데이트
-        const allowedFields = ['base_salary', 'coconala', 'bonus', 'incentive', 'other', 'notes'];
+        const allowedFields = ['base_salary', 'coconala', 'bonus', 'incentive', 'business_trip', 'other', 'notes'];
         if (!allowedFields.includes(field)) {
             return res.status(400).json({ message: '허용되지 않은 필드입니다' });
         }
@@ -48,7 +48,7 @@ router.put('/update', auth_1.authMiddleware, adminOnly, async (req, res) => {
         if (field !== 'notes') {
             await db_1.pool.query(`UPDATE monthly_payroll 
          SET ${field} = $1, 
-             total = COALESCE(base_salary, 0) + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(other, 0),
+             total = COALESCE(base_salary, 0) + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
              updated_at = CURRENT_TIMESTAMP 
          WHERE id = $2`, [value || 0, id]);
         }
@@ -72,8 +72,8 @@ router.post('/add-employee', auth_1.authMiddleware, adminOnly, async (req, res) 
             return res.status(400).json({ message: '필수 파라미터가 누락되었습니다' });
         }
         await db_1.pool.query(`INSERT INTO monthly_payroll 
-       (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, other, total)
-       VALUES ($1, $2, $3, 0, 0, 0, 0, 0, 0)
+       (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
+       VALUES ($1, $2, $3, 0, 0, 0, 0, 0, 0, 0)
        ON CONFLICT (fiscal_year, month, employee_name) DO NOTHING`, [fiscalYear, month, employeeName]);
         res.json({ success: true, message: '직원이 추가되었습니다' });
     }
