@@ -171,3 +171,4 @@ process.on('unhandledRejection', (reason, promise) => {
 })
 
 
+// Force Railway redeploy - Thu Nov 13 14:27:53 JST 2025
