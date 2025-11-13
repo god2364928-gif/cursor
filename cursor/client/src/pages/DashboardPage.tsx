@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import api from '../lib/api'
-import { DashboardStats, MonthlySales, SalesTrendData } from '../types'
+import { DashboardStats, MonthlySales, SalesTrendData, RetargetingCustomer } from '../types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { formatNumber } from '../lib/utils'
@@ -8,6 +8,7 @@ import { Users, Phone, MessageSquare, Wallet, Target } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useI18nStore } from '../i18n'
 import { useAuthStore } from '../store/authStore'
+import RetargetingAlertModal from '../components/RetargetingAlertModal'
 
 export default function DashboardPage() {
   const { t } = useI18nStore()
@@ -22,6 +23,8 @@ export default function DashboardPage() {
   const [personalStats, setPersonalStats] = useState<any[]>([])
   const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
   const [users, setUsers] = useState<any[]>([])
+  const [alertCustomers, setAlertCustomers] = useState<RetargetingCustomer[]>([])
+  const [showAlertModal, setShowAlertModal] = useState(false)
 
   // 초기 날짜 설정 (전월 1일 ~ 전월 마지막일)
   useEffect(() => {
@@ -159,6 +162,32 @@ export default function DashboardPage() {
     }
   }, [])
 
+  const fetchAlertCustomers = useCallback(async () => {
+    try {
+      const response = await api.get('/retargeting')
+      const myCustomers = response.data.filter((c: RetargetingCustomer) => 
+        c.manager === user?.name && 
+        c.status !== 'ゴミ箱' && 
+        c.status !== '휴지통' &&
+        c.status !== 'trash'
+      )
+      
+      const overdueCustomers = myCustomers.filter((c: RetargetingCustomer) => {
+        if (!c.lastContactDate) return false
+        const days = Math.floor((Date.now() - new Date(c.lastContactDate).getTime()) / (1000 * 60 * 60 * 24))
+        return days >= 30
+      })
+      
+      setAlertCustomers(overdueCustomers.sort((a: RetargetingCustomer, b: RetargetingCustomer) => {
+        const daysA = Math.floor((Date.now() - new Date(a.lastContactDate!).getTime()) / (1000 * 60 * 60 * 24))
+        const daysB = Math.floor((Date.now() - new Date(b.lastContactDate!).getTime()) / (1000 * 60 * 60 * 24))
+        return daysB - daysA
+      }))
+    } catch (error) {
+      console.error('Failed to fetch alert customers:', error)
+    }
+  }, [user?.name])
+
   useEffect(() => {
     if (startDate && endDate) {
       // 병렬로 API 호출
@@ -170,7 +199,8 @@ export default function DashboardPage() {
         fetchDashboardStats(),
         fetchSalesTrend(),
         fetchPersonalStats(),
-        fetchUsers()
+        fetchUsers(),
+        fetchAlertCustomers()
       ]).finally(() => {
         if (!initialLoadComplete) {
           setInitialLoadComplete(true)
@@ -178,7 +208,27 @@ export default function DashboardPage() {
         setLoading(false)
       })
     }
-  }, [startDate, endDate, managerFilter, fetchDashboardStats, fetchSalesTrend, fetchPersonalStats, fetchUsers])
+  }, [startDate, endDate, managerFilter, fetchDashboardStats, fetchSalesTrend, fetchPersonalStats, fetchUsers, fetchAlertCustomers])
+
+  // 팝업 표시 로직
+  useEffect(() => {
+    if (!user?.id || alertCustomers.length === 0) return
+    
+    const today = new Date().toISOString().split('T')[0]
+    const storageKey = `retargeting_alert_hidden_${user.id}_${today}`
+    const isHidden = localStorage.getItem(storageKey)
+    
+    if (!isHidden) {
+      setShowAlertModal(true)
+    }
+  }, [alertCustomers, user?.id])
+
+  const handleHideToday = () => {
+    if (!user?.id) return
+    const today = new Date().toISOString().split('T')[0]
+    const storageKey = `retargeting_alert_hidden_${user.id}_${today}`
+    localStorage.setItem(storageKey, 'true')
+  }
 
   if (loading && !stats) {
     return <div>{t('loading')}</div>
@@ -193,6 +243,16 @@ export default function DashboardPage() {
       minHeight: '100vh', 
       backgroundColor: '#f3f4f6'
     }}>
+      {/* 30일 이상 미연락 고객 알림 팝업 */}
+      {showAlertModal && user && (
+        <RetargetingAlertModal
+          customers={alertCustomers}
+          onClose={() => setShowAlertModal(false)}
+          onHideToday={handleHideToday}
+          userId={user.id}
+        />
+      )}
+      
       <div className="bg-white p-6">
         <div className="space-y-6">
           {/* 날짜 필터 */}
