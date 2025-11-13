@@ -6,6 +6,11 @@ cursor/.DS_Store
 dev_db_complete_dump.sql
 *.sql.bak
 *_backup.sql
+*_data.sql
+*_import.sql
+
+# CSV data files
+*.csv
 
 # Environment files
 .env
@@ -33,5 +38,17 @@ build/
 *.swp
 *.swo
 
+# Temporary docs and scripts
 RAILWAY-DB-INFO.md
+*MIGRATION*.md
+*DEPLOYMENT*.md
+verify_*.py
+parse_*.py
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Vercel
 .vercel

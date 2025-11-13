@@ -5,10 +5,8 @@ nixPkgs = ['nodejs-18_x']
 cmds = [
   'npm ci',
   'npm run build',
-  'echo "✅ Fresh build completed"',
-  'ls -la dist/routes/salesTracking.js',
-  'grep -c "moved_to_retargeting" dist/routes/salesTracking.js && echo "✅ moved_to_retargeting field verified"'
+  'echo "✅ Build completed"'
 ]
 
 [start]
-cmd = 'echo "=== STARTING SERVER ===" && grep -c "moved_to_retargeting" dist/routes/salesTracking.js && echo "✅ Code verified" && node dist/index.js'
+cmd = 'node dist/index.js'
