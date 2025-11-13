@@ -177,9 +177,12 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
     const employeesResult = await pool.query(
       `SELECT 
          COALESCE(u.name, ae.name) as name,
-         COALESCE(u.base_salary, ae.base_salary, 0) as base_salary
+         CASE 
+           WHEN u.base_salary IS NOT NULL AND u.base_salary > 0 THEN u.base_salary
+           ELSE COALESCE(ae.base_salary, 0)
+         END as base_salary
        FROM accounting_employees ae
-       LEFT JOIN users u ON u.name = ae.name AND u.employment_status IN ('입사중', '재직')
+       LEFT JOIN users u ON u.name = ae.name 
        WHERE ae.employment_status = '입사중'
        ORDER BY COALESCE(u.name, ae.name)`
     )
