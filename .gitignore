@@ -41,9 +41,12 @@ build/
 # Temporary docs and scripts
 RAILWAY-DB-INFO.md
 *MIGRATION*.md
-*TROUBLESHOOTING*.md
 verify_*.py
 parse_*.py
+
+# Explicitly include important guides
+!RAILWAY-TROUBLESHOOTING-FINAL.md
+!DEPLOYMENT-GUIDE.md
 
 # Python
 .venv/
