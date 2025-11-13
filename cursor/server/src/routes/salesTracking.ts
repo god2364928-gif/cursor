@@ -948,7 +948,7 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
       WHERE 
         EXTRACT(YEAR FROM st.date) = $1 AND
         EXTRACT(MONTH FROM st.date) = $2 AND
-        AND rc.sales_tracking_id IS NOT NULL
+        rc.sales_tracking_id IS NOT NULL
       GROUP BY st.manager_name
     `, [yearNum, monthNum])
     
