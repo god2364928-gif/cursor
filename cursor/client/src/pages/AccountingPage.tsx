@@ -785,38 +785,50 @@ export default function AccountingPage() {
     return record ? parseFloat(record.amount) : 0
   }
 
-  // 월별 매출액 계산 (전체매출 기반)
+  // 월별 매출액 계산 (전체매출 기반 - 최근 12개월)
   const getMonthlySalesFromTotalSales = () => {
-    const months = [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    const monthNames: { [key: number]: string } = {
-      10: language === 'ja' ? '10月' : '10월',
-      11: language === 'ja' ? '11月' : '11월',
-      12: language === 'ja' ? '12月' : '12월',
-      1: language === 'ja' ? '1月' : '1월',
-      2: language === 'ja' ? '2月' : '2월',
-      3: language === 'ja' ? '3月' : '3월',
-      4: language === 'ja' ? '4月' : '4월',
-      5: language === 'ja' ? '5月' : '5월',
-      6: language === 'ja' ? '6月' : '6월',
-      7: language === 'ja' ? '7月' : '7월',
-      8: language === 'ja' ? '8月' : '8월',
-      9: language === 'ja' ? '9月' : '9월',
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1 // 1-12
+    
+    // 최근 12개월 생성 (현재 월부터 거꾸로 11개월)
+    const recentMonths: Array<{year: number, month: number}> = []
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(currentYear, currentMonth - 1 - i, 1)
+      recentMonths.push({
+        year: date.getFullYear(),
+        month: date.getMonth() + 1
+      })
     }
-
-    return months.map(month => {
-      // 売上高 = 결제수단 합계 + 수수료
-      const revenue = getTotalSalesValue(month, '口座振込', false) +
-        getTotalSalesValue(month, 'PayPay', false) +
-        getTotalSalesValue(month, 'PayPal', false) +
-        getTotalSalesValue(month, 'strip', false) +
-        getTotalSalesValue(month, 'strip1', false) +
-        getTotalSalesValue(month, 'ココナラ', false)
-      const fees = getTotalSalesValue(month, 'PayPal', true) +
-        getTotalSalesValue(month, 'strip', true) +
-        getTotalSalesValue(month, 'strip1', true)
+    
+    return recentMonths.map(({year, month}) => {
+      const monthName = language === 'ja' 
+        ? `${year}年${month}月` 
+        : `${year}년 ${month}월`
+      
+      // 해당 연도의 전체매출 데이터에서 찾기
+      // fiscalYear를 기준으로 데이터가 로드되어 있으므로, 해당 월이 어느 회계연도에 속하는지 계산
+      const fiscalYearForMonth = month >= 10 ? year + 1 : year
+      
+      // 현재 로드된 fiscalYear 데이터와 일치하는 경우에만 값을 표시
+      let revenue = 0
+      let fees = 0
+      
+      if (fiscalYearForMonth === fiscalYear) {
+        // 売上高 = 결제수단 합계 + 수수료
+        revenue = getTotalSalesValue(month, '口座振込', false) +
+          getTotalSalesValue(month, 'PayPay', false) +
+          getTotalSalesValue(month, 'PayPal', false) +
+          getTotalSalesValue(month, 'strip', false) +
+          getTotalSalesValue(month, 'strip1', false) +
+          getTotalSalesValue(month, 'ココナラ', false)
+        fees = getTotalSalesValue(month, 'PayPal', true) +
+          getTotalSalesValue(month, 'strip', true) +
+          getTotalSalesValue(month, 'strip1', true)
+      }
       
       return {
-        month: monthNames[month],
+        month: monthName,
         amount: revenue + fees // 売上高 = 결제수단 + 수수료
       }
     })
@@ -1662,13 +1674,29 @@ export default function AccountingPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>{language === 'ja' ? '月別売上推移（全体売上基準）' : '월별 매출 추이 (전체매출 기반)'}</CardTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {language === 'ja' ? '※最近12ヶ月' : '※ 최근 12개월'}
+                  </p>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={getMonthlySalesFromTotalSales()}>
+                    <LineChart 
+                      data={getMonthlySalesFromTotalSales()}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
+                      <XAxis 
+                        dataKey="month" 
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                        interval={0}
+                        style={{ fontSize: '11px' }}
+                      />
+                      <YAxis 
+                        width={80}
+                        tickFormatter={(value) => `¥${(value / 10000).toFixed(0)}万`}
+                      />
                       <Tooltip formatter={(value: number) => formatCurrency(value)} />
                       <Line type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={2} />
                     </LineChart>
