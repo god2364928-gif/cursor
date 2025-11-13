@@ -449,7 +449,7 @@ const translations: Record<Language, Translation> = {
     statusContract: '契約',
     
     // Retargeting Alert Modal
-    retargetingAlertTitle: '30日以上連絡していない顧客',
+    retargetingAlertTitle: '30日以上連絡していないリターゲティング',
     retargetingAlertCount: '名',
     retargetingAlertLastContact: '最終連絡',
     retargetingAlertDaysAgo: '日前',
@@ -897,7 +897,7 @@ const translations: Record<Language, Translation> = {
     statusContract: '계약',
     
     // Retargeting Alert Modal
-    retargetingAlertTitle: '30일 이상 연락하지 않은 고객',
+    retargetingAlertTitle: '30일 이상 연락하지 않은 리타겟팅',
     retargetingAlertCount: '명',
     retargetingAlertLastContact: '마지막 연락',
     retargetingAlertDaysAgo: '일 전',
