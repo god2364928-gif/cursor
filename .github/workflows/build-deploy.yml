@@ -1,5 +1,9 @@
 name: Build and Deploy
 
+# 이 워크플로우는 빌드 검증만 수행합니다
+# 실제 빌드와 커밋은 로컬의 pre-push 훅이 담당합니다
+# Railway와 Vercel은 푸시 시 자동으로 배포됩니다
+
 on:
   push:
     branches: [ main ]
