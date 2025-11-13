@@ -257,8 +257,8 @@ export default function AccountingPage() {
   useEffect(() => {
     fetchDashboard()
     fetchTotalSales() // 대시보드 탭에서도 전체매출 데이터 로드
-    // 회계연도 변경 시 날짜 범위도 업데이트
-    if (fiscalYear) {
+    // 회계연도 변경 시 날짜 범위도 업데이트 (대시보드 탭에서만)
+    if (fiscalYear && activeTab === 'dashboard') {
       // 회계연도 시작일: 전년 10월 1일
       const startYear = fiscalYear - 1
       const startDateString = `${startYear}-10-01`
@@ -269,7 +269,7 @@ export default function AccountingPage() {
       setStartDate(startDateString)
       setEndDate(endDateString)
     }
-  }, [fiscalYear])
+  }, [fiscalYear, activeTab])
 
   // 초기 날짜 설정 (전월 1일 ~ 전월 마지막일)
   useEffect(() => {
