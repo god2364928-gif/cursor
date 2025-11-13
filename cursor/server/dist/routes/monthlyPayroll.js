@@ -116,5 +116,54 @@ router.put('/history', auth_1.authMiddleware, adminOnly, async (req, res) => {
         res.status(500).json({ message: '히스토리 저장에 실패했습니다' });
     }
 });
+// 월별 급여 자동 생성 (직원 테이블의 기본급 기반)
+router.post('/generate', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { fiscalYear, month } = req.body;
+        if (!fiscalYear || !month) {
+            return res.status(400).json({ message: '연도와 월을 입력해주세요' });
+        }
+        // 2025년 11월 1일 이전에는 자동 생성 불가
+        const targetDate = new Date(fiscalYear, month - 1, 1);
+        const cutoffDate = new Date(2025, 10, 1); // 2025년 11월 1일
+        if (targetDate < cutoffDate) {
+            return res.status(400).json({
+                message: '2025년 11월 1일부터 자동 생성이 가능합니다. 이전 데이터는 수동으로 입력해주세요.'
+            });
+        }
+        // 이미 해당 월 데이터가 있는지 확인
+        const existingData = await db_1.pool.query('SELECT COUNT(*) as count FROM monthly_payroll WHERE fiscal_year = $1 AND month = $2', [fiscalYear, month]);
+        if (parseInt(existingData.rows[0].count) > 0) {
+            return res.status(400).json({
+                message: '이미 해당 월의 급여 데이터가 존재합니다. 기존 데이터를 삭제하고 다시 생성하시겠습니까?'
+            });
+        }
+        // 입사중인 직원들의 기본급 가져오기
+        const employeesResult = await db_1.pool.query(`SELECT name, base_salary 
+       FROM accounting_employees 
+       WHERE employment_status = '입사중' 
+       ORDER BY name`);
+        if (employeesResult.rows.length === 0) {
+            return res.status(400).json({ message: '등록된 직원이 없습니다' });
+        }
+        // 각 직원에 대해 급여 데이터 생성
+        let createdCount = 0;
+        for (const employee of employeesResult.rows) {
+            await db_1.pool.query(`INSERT INTO monthly_payroll 
+         (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
+         VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, $4)`, [fiscalYear, month, employee.name, employee.base_salary || 0]);
+            createdCount++;
+        }
+        res.json({
+            success: true,
+            message: `${createdCount}명의 직원에 대한 급여 데이터가 생성되었습니다`,
+            createdCount
+        });
+    }
+    catch (error) {
+        console.error('Payroll generation error:', error);
+        res.status(500).json({ message: '급여 생성에 실패했습니다' });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=monthlyPayroll.js.map
