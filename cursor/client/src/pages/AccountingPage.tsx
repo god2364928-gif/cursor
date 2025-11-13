@@ -349,6 +349,7 @@ export default function AccountingPage() {
   const [paypayActiveTab, setPaypayActiveTab] = useState<'sales' | 'expenses'>('sales') // 매출/지출 탭
   const [showPaypayExpenseForm, setShowPaypayExpenseForm] = useState(false)
   const [editingPaypayExpense, setEditingPaypayExpense] = useState<any>(null)
+  const [showPaypaySaleForm, setShowPaypaySaleForm] = useState(false)
   const [showPaypayUploadDialog, setShowPaypayUploadDialog] = useState(false)
   const [paypayUploadPreview, setPaypayUploadPreview] = useState<any[]>([])
   const [showTransactionUploadDialog, setShowTransactionUploadDialog] = useState(false)
@@ -1686,6 +1687,29 @@ export default function AccountingPage() {
       alert(language === 'ja' ? '保存しました' : '저장되었습니다')
     } catch (error) {
       console.error('PayPay sale memo update error:', error)
+      alert(language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다')
+    }
+  }
+
+  const handleSavePaypaySale = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    try {
+      await api.post('/paypay/sales', {
+        date: formData.get('date'),
+        category: formData.get('category'),
+        user_id: formData.get('user_id') || '',
+        name: formData.get('name'),
+        receipt_number: formData.get('receipt_number') || '',
+        amount: Number(formData.get('amount')),
+        memo: formData.get('memo') || ''
+      })
+      setShowPaypaySaleForm(false)
+      fetchPaypaySummary()
+      fetchPaypaySales()
+      alert(language === 'ja' ? '保存しました' : '저장되었습니다')
+    } catch (error) {
+      console.error('PayPay sale save error:', error)
       alert(language === 'ja' ? '保存に失敗しました' : '저장에 실패했습니다')
     }
   }
@@ -3756,6 +3780,13 @@ export default function AccountingPage() {
                       <div className="text-sm font-semibold text-gray-700">
                         {language === 'ja' ? '合計' : '총합'}: {formatCurrency(paypaySales.reduce((sum, sale) => sum + parseFloat(sale.amount || 0), 0))}
                       </div>
+                      <Button
+                        size="sm"
+                        onClick={() => setShowPaypaySaleForm(true)}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        {language === 'ja' ? '追加' : '추가'}
+                      </Button>
                       <input
                         type="file"
                         accept=".csv"
@@ -3765,9 +3796,10 @@ export default function AccountingPage() {
                       />
                       <Button
                         size="sm"
+                        variant="outline"
                         onClick={() => document.getElementById('paypay-csv-upload')?.click()}
                       >
-                        <Plus className="h-4 w-4 mr-1" />
+                        <Upload className="h-4 w-4 mr-1" />
                         CSV {language === 'ja' ? 'アップロード' : '업로드'}
                       </Button>
                     </>
@@ -3794,6 +3826,109 @@ export default function AccountingPage() {
             </CardHeader>
             <CardContent>
               {paypayActiveTab === 'sales' ? (
+              <>
+              {showPaypaySaleForm && (
+                <Card className="mb-4 border-blue-200 bg-blue-50">
+                  <CardContent className="p-4">
+                    <h3 className="text-lg font-semibold mb-4">
+                      {language === 'ja' ? '売上を追加' : '매출 추가'}
+                    </h3>
+                    <form onSubmit={handleSavePaypaySale} className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {language === 'ja' ? '日時' : '일시'} *
+                          </label>
+                          <Input
+                            type="datetime-local"
+                            name="date"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {language === 'ja' ? 'カテゴリ' : '카테고리'} *
+                          </label>
+                          <select
+                            name="category"
+                            className="w-full border rounded px-3 py-2"
+                            required
+                          >
+                            <option value="셀마플">{language === 'ja' ? 'Selmafl' : '셀마플'}</option>
+                            <option value="山﨑水優">山﨑水優</option>
+                            <option value="石井ひとみ">石井ひとみ</option>
+                            <option value="山下南">山下南</option>
+                            <option value="JEYI">JEYI</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {language === 'ja' ? 'ユーザーID' : '아이디'}
+                          </label>
+                          <Input
+                            type="text"
+                            name="user_id"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {language === 'ja' ? '名前' : '이름'} *
+                          </label>
+                          <Input
+                            type="text"
+                            name="name"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {language === 'ja' ? '領収書番号' : '영수증번호'}
+                          </label>
+                          <Input
+                            type="text"
+                            name="receipt_number"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {language === 'ja' ? '金額' : '금액'} *
+                          </label>
+                          <Input
+                            type="number"
+                            name="amount"
+                            required
+                            min="0"
+                            step="1"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {language === 'ja' ? 'メモ' : '메모'}
+                        </label>
+                        <Input
+                          type="text"
+                          name="memo"
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setShowPaypaySaleForm(false)}
+                        >
+                          {language === 'ja' ? 'キャンセル' : '취소'}
+                        </Button>
+                        <Button type="submit">
+                          {language === 'ja' ? '保存' : '저장'}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-gray-50">
@@ -3877,6 +4012,7 @@ export default function AccountingPage() {
                   </tbody>
                 </table>
               </div>
+                </>
               ) : (
                 <>
                   {showPaypayExpenseForm && (

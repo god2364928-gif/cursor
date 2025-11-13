@@ -55,6 +55,31 @@ router.get('/sales', async (req, res) => {
   }
 })
 
+// 매출 단건 추가
+router.post('/sales', async (req, res) => {
+  try {
+    const { date, category, user_id, name, receipt_number, amount, memo } = req.body
+
+    // 카테고리명 매핑 적용
+    let mappedCategory = category
+    if (STAFF_MAPPING[category]) {
+      mappedCategory = STAFF_MAPPING[category]
+    }
+
+    const result = await pool.query(
+      `INSERT INTO paypay_sales (date, category, user_id, name, receipt_number, amount, memo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [date, mappedCategory, user_id || null, name, receipt_number || null, amount, memo || null]
+    )
+
+    res.json(result.rows[0])
+  } catch (error) {
+    console.error('PayPay sale create error:', error)
+    res.status(500).json({ error: 'Failed to create sale' })
+  }
+})
+
 // 매출 일괄 등록
 router.post('/sales/bulk', async (req, res) => {
   const client = await pool.connect()
