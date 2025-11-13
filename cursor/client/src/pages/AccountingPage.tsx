@@ -486,7 +486,9 @@ export default function AccountingPage() {
   // 월별 급여 셀 편집
   const handlePayrollCellClick = (id: string, field: string, currentValue: any) => {
     setEditingPayrollCell({ id, field })
-    setEditingPayrollValue(currentValue?.toString() || '0')
+    // 정수로 변환하여 표시 (소수점 제거)
+    const intValue = Math.floor(parseFloat(currentValue) || 0)
+    setEditingPayrollValue(intValue.toString())
   }
 
   const handlePayrollCellSave = async () => {
@@ -2858,12 +2860,16 @@ export default function AccountingPage() {
                             {isEditingBase ? (
                               <input
                                 type="number"
+                                step="1"
                                 value={editingPayrollValue}
                                 onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onFocus={(e) => e.target.select()}
                                 onBlur={handlePayrollCellSave}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') handlePayrollCellSave()
                                   if (e.key === 'Escape') handlePayrollCellCancel()
+                                  // 소수점 입력 방지
+                                  if (e.key === '.' || e.key === ',') e.preventDefault()
                                 }}
                                 autoFocus
                                 className="w-full text-right border rounded px-1"
@@ -2879,12 +2885,15 @@ export default function AccountingPage() {
                             {isEditingCoconala ? (
                               <input
                                 type="number"
+                                step="1"
                                 value={editingPayrollValue}
                                 onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onFocus={(e) => e.target.select()}
                                 onBlur={handlePayrollCellSave}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') handlePayrollCellSave()
                                   if (e.key === 'Escape') handlePayrollCellCancel()
+                                  if (e.key === '.' || e.key === ',') e.preventDefault()
                                 }}
                                 autoFocus
                                 className="w-full text-right border rounded px-1"
@@ -2900,12 +2909,15 @@ export default function AccountingPage() {
                             {isEditingBonus ? (
                               <input
                                 type="number"
+                                step="1"
                                 value={editingPayrollValue}
                                 onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onFocus={(e) => e.target.select()}
                                 onBlur={handlePayrollCellSave}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') handlePayrollCellSave()
                                   if (e.key === 'Escape') handlePayrollCellCancel()
+                                  if (e.key === '.' || e.key === ',') e.preventDefault()
                                 }}
                                 autoFocus
                                 className="w-full text-right border rounded px-1"
@@ -2921,12 +2933,15 @@ export default function AccountingPage() {
                             {isEditingIncentive ? (
                               <input
                                 type="number"
+                                step="1"
                                 value={editingPayrollValue}
                                 onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onFocus={(e) => e.target.select()}
                                 onBlur={handlePayrollCellSave}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') handlePayrollCellSave()
                                   if (e.key === 'Escape') handlePayrollCellCancel()
+                                  if (e.key === '.' || e.key === ',') e.preventDefault()
                                 }}
                                 autoFocus
                                 className="w-full text-right border rounded px-1"
@@ -2942,12 +2957,15 @@ export default function AccountingPage() {
                             {isEditingBusinessTrip ? (
                               <input
                                 type="number"
+                                step="1"
                                 value={editingPayrollValue}
                                 onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onFocus={(e) => e.target.select()}
                                 onBlur={handlePayrollCellSave}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') handlePayrollCellSave()
                                   if (e.key === 'Escape') handlePayrollCellCancel()
+                                  if (e.key === '.' || e.key === ',') e.preventDefault()
                                 }}
                                 autoFocus
                                 className="w-full text-right border rounded px-1"
@@ -2963,12 +2981,15 @@ export default function AccountingPage() {
                             {isEditingOther ? (
                               <input
                                 type="number"
+                                step="1"
                                 value={editingPayrollValue}
                                 onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onFocus={(e) => e.target.select()}
                                 onBlur={handlePayrollCellSave}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') handlePayrollCellSave()
                                   if (e.key === 'Escape') handlePayrollCellCancel()
+                                  if (e.key === '.' || e.key === ',') e.preventDefault()
                                 }}
                                 autoFocus
                                 className="w-full text-right border rounded px-1"
