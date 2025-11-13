@@ -9,6 +9,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const db_1 = require("./db");
+// Force rebuild - timestamp: 1731476108
 const auth_1 = __importDefault(require("./routes/auth"));
 const customers_1 = __importDefault(require("./routes/customers"));
 const retargeting_1 = __importDefault(require("./routes/retargeting"));
@@ -159,4 +160,6 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
+// Force Railway redeploy - Thu Nov 13 14:27:53 JST 2025
+// Force redeploy Thu Nov 13 14:39:08 JST 2025
 //# sourceMappingURL=index.js.map

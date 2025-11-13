@@ -143,14 +143,18 @@ router.post('/generate', auth_1.authMiddleware, adminOnly, async (req, res) => {
             return res.status(400).json({ message: '등록된 직원이 없습니다' });
         }
         console.log(`[급여 자동생성] 직원 ${employeesResult.rows.length}명 조회 완료`);
+        // 각 직원에 대해 급여 데이터 생성 또는 기본급만 업데이트
         let createdCount = 0;
         let updatedCount = 0;
         for (const employee of employeesResult.rows) {
+            // base_salary를 숫자로 변환 (null이면 0)
             const baseSalary = Number(employee.base_salary) || 0;
             console.log(`[급여 자동생성] 직원: ${employee.name}, 기본급: ${baseSalary}`);
+            // 기존 데이터가 있는지 확인
             const existingResult = await db_1.pool.query(`SELECT id, base_salary FROM monthly_payroll 
          WHERE fiscal_year = $1 AND month = $2 AND employee_name = $3`, [fiscalYear, month, employee.name]);
             if (existingResult.rows.length > 0) {
+                // 기존 데이터가 있으면 기본급만 업데이트하고 합계 재계산
                 const oldBaseSalary = Number(existingResult.rows[0].base_salary) || 0;
                 console.log(`[급여 자동생성] 기존 데이터 업데이트: ${employee.name} (${oldBaseSalary} -> ${baseSalary})`);
                 await db_1.pool.query(`UPDATE monthly_payroll 
@@ -161,6 +165,7 @@ router.post('/generate', auth_1.authMiddleware, adminOnly, async (req, res) => {
                 updatedCount++;
             }
             else {
+                // 기존 데이터가 없으면 새로 생성
                 console.log(`[급여 자동생성] 신규 생성: ${employee.name} (기본급: ${baseSalary})`);
                 await db_1.pool.query(`INSERT INTO monthly_payroll 
            (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
@@ -187,6 +192,7 @@ router.post('/fix-base-salary', auth_1.authMiddleware, adminOnly, async (req, re
         if (!fiscalYear || !month) {
             return res.status(400).json({ message: '연도와 월을 입력해주세요' });
         }
+        // 입사중인 직원들의 기본급 가져오기
         const employeesResult = await db_1.pool.query(`SELECT 
          name,
          COALESCE(base_salary, 0) as base_salary
@@ -199,13 +205,14 @@ router.post('/fix-base-salary', auth_1.authMiddleware, adminOnly, async (req, re
         let updatedCount = 0;
         for (const employee of employeesResult.rows) {
             const baseSalary = Number(employee.base_salary) || 0;
+            // 해당 연도/월의 데이터가 있고 기본급이 0이거나 잘못된 경우 업데이트
             const result = await db_1.pool.query(`UPDATE monthly_payroll 
          SET base_salary = $1,
              total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
              updated_at = CURRENT_TIMESTAMP
          WHERE fiscal_year = $2 AND month = $3 AND employee_name = $4
            AND (base_salary IS NULL OR base_salary = 0 OR base_salary != $1)`, [baseSalary, fiscalYear, month, employee.name]);
-            if ((result?.rowCount || 0) > 0) {
+            if (result.rowCount && result.rowCount > 0) {
                 updatedCount++;
                 console.log(`[기본급 수정] ${employee.name}: ${baseSalary}로 업데이트`);
             }

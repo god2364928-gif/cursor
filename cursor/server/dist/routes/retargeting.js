@@ -454,24 +454,29 @@ router.post('/:id/convert', auth_1.authMiddleware, async (req, res) => {
 // Get personal statistics
 router.get('/stats/personal', auth_1.authMiddleware, async (req, res) => {
     try {
-        const result = await db_1.pool.query(`SELECT manager, 
-        COUNT(*) as total,
-        COUNT(CASE WHEN status = '시작' THEN 1 END) as start,
-        COUNT(CASE WHEN status = '인지' THEN 1 END) as awareness,
-        COUNT(CASE WHEN status = '흥미' THEN 1 END) as interest,
-        COUNT(CASE WHEN status = '욕망' THEN 1 END) as desire,
-        COUNT(CASE WHEN status = '계약완료' THEN 1 END) as completed
+        const result = await db_1.pool.query(`SELECT 
+        manager,
+        -- 진행 중인 고객 (휴지통 제외)
+        SUM(CASE WHEN status NOT IN ('ゴミ箱', '휴지통', 'trash') THEN 1 ELSE 0 END) AS total_active,
+        -- 상태별 집계 (한·일 표기 모두 포함)
+        SUM(CASE WHEN status IN ('시작', '開始') THEN 1 ELSE 0 END) AS start_count,
+        SUM(CASE WHEN status IN ('인지', '認知') THEN 1 ELSE 0 END) AS awareness_count,
+        SUM(CASE WHEN status IN ('흥미', '興味') THEN 1 ELSE 0 END) AS interest_count,
+        SUM(CASE WHEN status IN ('욕망', '欲求') THEN 1 ELSE 0 END) AS desire_count,
+        SUM(CASE WHEN status IN ('계약완료', '契約完了', '契約中', '購入') THEN 1 ELSE 0 END) AS completed_count,
+        SUM(CASE WHEN status IN ('ゴミ箱', '휴지통', 'trash') THEN 1 ELSE 0 END) AS trash_count
       FROM retargeting_customers
       GROUP BY manager
       ORDER BY manager`);
         const stats = result.rows.map(row => ({
             manager: row.manager,
-            total: parseInt(row.total),
-            start: parseInt(row.start),
-            awareness: parseInt(row.awareness),
-            interest: parseInt(row.interest),
-            desire: parseInt(row.desire),
-            completed: parseInt(row.completed)
+            total: parseInt(row.total_active) || 0,
+            start: parseInt(row.start_count) || 0,
+            awareness: parseInt(row.awareness_count) || 0,
+            interest: parseInt(row.interest_count) || 0,
+            desire: parseInt(row.desire_count) || 0,
+            completed: parseInt(row.completed_count) || 0,
+            trash: parseInt(row.trash_count) || 0
         }));
         res.json(stats);
     }
