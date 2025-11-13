@@ -226,6 +226,41 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
       return res.status(404).json({ message: 'User not found' })
     }
 
+    // accounting_employees 테이블도 동기화 (이름으로 매칭)
+    // 기본급이나 고용상태가 변경된 경우 accounting_employees도 업데이트
+    try {
+      const updatedUser = result.rows[0]
+      
+      // employment_status를 accounting_employees 형식으로 변환
+      let employmentStatusForAccounting = '입사중'
+      if (updatedUser.employment_status === '재직') {
+        employmentStatusForAccounting = '입사중'
+      } else if (updatedUser.employment_status === '퇴사') {
+        employmentStatusForAccounting = '퇴사'
+      } else if (updatedUser.employment_status === '휴직') {
+        employmentStatusForAccounting = '휴직'
+      }
+      
+      // accounting_employees 테이블에 동일한 이름의 직원이 있으면 업데이트
+      await pool.query(
+        `UPDATE accounting_employees
+         SET base_salary = $1, 
+             employment_status = $2,
+             updated_at = NOW()
+         WHERE name = $3`,
+        [
+          toNullIfEmpty(baseSalary) || 0,
+          employmentStatusForAccounting,
+          name
+        ]
+      )
+      
+      console.log(`[직원 동기화] ${name}의 기본급을 accounting_employees 테이블에 반영했습니다 (${toNullIfEmpty(baseSalary) || 0})`)
+    } catch (syncError) {
+      // accounting_employees 동기화 실패는 로그만 남기고 사용자 업데이트는 성공으로 처리
+      console.error('Error syncing to accounting_employees:', syncError)
+    }
+
     res.json({ user: result.rows[0] })
   } catch (error) {
     console.error('Error updating user:', error)

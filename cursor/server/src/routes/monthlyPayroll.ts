@@ -184,11 +184,18 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
       return res.status(400).json({ message: '등록된 직원이 없습니다' })
     }
     
+    console.log(`[급여 자동생성] 직원 ${employeesResult.rows.length}명 조회 완료`)
+    
     // 각 직원에 대해 급여 데이터 생성 또는 기본급만 업데이트
     let createdCount = 0
     let updatedCount = 0
     
     for (const employee of employeesResult.rows) {
+      // base_salary를 숫자로 변환 (null이면 0)
+      const baseSalary = Number(employee.base_salary) || 0
+      
+      console.log(`[급여 자동생성] 직원: ${employee.name}, 기본급: ${baseSalary}`)
+      
       // 기존 데이터가 있는지 확인
       const existingResult = await pool.query(
         `SELECT id, base_salary FROM monthly_payroll 
@@ -198,22 +205,27 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
       
       if (existingResult.rows.length > 0) {
         // 기존 데이터가 있으면 기본급만 업데이트하고 합계 재계산
+        const oldBaseSalary = Number(existingResult.rows[0].base_salary) || 0
+        console.log(`[급여 자동생성] 기존 데이터 업데이트: ${employee.name} (${oldBaseSalary} -> ${baseSalary})`)
+        
         await pool.query(
           `UPDATE monthly_payroll 
            SET base_salary = $1, 
                total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
                updated_at = CURRENT_TIMESTAMP
            WHERE fiscal_year = $2 AND month = $3 AND employee_name = $4`,
-          [employee.base_salary || 0, fiscalYear, month, employee.name]
+          [baseSalary, fiscalYear, month, employee.name]
         )
         updatedCount++
       } else {
         // 기존 데이터가 없으면 새로 생성
+        console.log(`[급여 자동생성] 신규 생성: ${employee.name} (기본급: ${baseSalary})`)
+        
         await pool.query(
           `INSERT INTO monthly_payroll 
            (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
            VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, $4)`,
-          [fiscalYear, month, employee.name, employee.base_salary || 0]
+          [fiscalYear, month, employee.name, baseSalary]
         )
         createdCount++
       }
@@ -228,6 +240,60 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
   } catch (error) {
     console.error('Payroll generation error:', error)
     res.status(500).json({ message: '급여 생성에 실패했습니다' })
+  }
+})
+
+// 2026년 1월 이후 데이터의 기본급 일괄 업데이트
+router.post('/fix-base-salary', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { fiscalYear, month } = req.body
+    
+    if (!fiscalYear || !month) {
+      return res.status(400).json({ message: '연도와 월을 입력해주세요' })
+    }
+    
+    // 입사중인 직원들의 기본급 가져오기
+    const employeesResult = await pool.query(
+      `SELECT name, base_salary 
+       FROM accounting_employees 
+       WHERE employment_status = '입사중' 
+       ORDER BY name`
+    )
+    
+    if (employeesResult.rows.length === 0) {
+      return res.status(400).json({ message: '등록된 직원이 없습니다' })
+    }
+    
+    let updatedCount = 0
+    
+    for (const employee of employeesResult.rows) {
+      const baseSalary = Number(employee.base_salary) || 0
+      
+      // 해당 연도/월의 데이터가 있고 기본급이 0이거나 잘못된 경우 업데이트
+      const result = await pool.query(
+        `UPDATE monthly_payroll 
+         SET base_salary = $1,
+             total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE fiscal_year = $2 AND month = $3 AND employee_name = $4
+           AND (base_salary IS NULL OR base_salary = 0 OR base_salary != $1)`,
+        [baseSalary, fiscalYear, month, employee.name]
+      )
+      
+      if (result.rowCount && result.rowCount > 0) {
+        updatedCount++
+        console.log(`[기본급 수정] ${employee.name}: ${baseSalary}로 업데이트`)
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `${updatedCount}명의 기본급이 업데이트되었습니다`,
+      updatedCount
+    })
+  } catch (error) {
+    console.error('Base salary fix error:', error)
+    res.status(500).json({ message: '기본급 수정에 실패했습니다' })
   }
 })
 
