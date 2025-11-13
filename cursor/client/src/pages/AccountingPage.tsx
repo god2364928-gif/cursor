@@ -2892,13 +2892,13 @@ export default function AccountingPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left">{language === 'ja' ? '従業員名' : '직원명'}</th>
-                      <th className="px-4 py-3 text-right">{language === 'ja' ? '基本給' : '기본급'}</th>
-                      <th className="px-4 py-3 text-right">{language === 'ja' ? 'ココナラ' : '코코나라'}</th>
+                      <th className="px-4 py-3 text-right bg-blue-50">{language === 'ja' ? '基本給' : '기본급'}</th>
+                      <th className="px-4 py-3 text-right border-l-2 border-gray-300">{language === 'ja' ? 'ココナラ' : '코코나라'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? '賞与金' : '상여금'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? 'インセンティブ' : '인센티브'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? '出張費' : '출장비'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? 'その他' : '기타'}</th>
-                      <th className="px-4 py-3 text-right font-semibold">{language === 'ja' ? '合計' : '합계'}</th>
+                      <th className="px-4 py-3 text-right font-semibold bg-green-50">{language === 'ja' ? 'インセンティブ合計' : '인센티브 합계'}</th>
                       <th className="px-4 py-3 text-left">{language === 'ja' ? '備考' : '비고'}</th>
                       <th className="px-4 py-3 text-center" style={{ width: '60px' }}>
                         {language === 'ja' ? '操作' : '조작'}
@@ -2919,7 +2919,7 @@ export default function AccountingPage() {
                         <tr key={row.id} className="border-t hover:bg-gray-50">
                           <td className="px-4 py-3 font-medium">{row.employee_name}</td>
                           <td 
-                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
+                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50 bg-blue-50"
                             onClick={() => handlePayrollCellClick(row.id, 'base_salary', row.base_salary)}
                           >
                             {isEditingBase ? (
@@ -2944,7 +2944,7 @@ export default function AccountingPage() {
                             )}
                         </td>
                           <td 
-                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
+                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50 border-l-2 border-gray-300"
                             onClick={() => handlePayrollCellClick(row.id, 'coconala', row.coconala)}
                           >
                             {isEditingCoconala ? (
@@ -3063,8 +3063,14 @@ export default function AccountingPage() {
                               formatCurrency(row.other || 0)
                             )}
                           </td>
-                          <td className="px-4 py-3 text-right font-semibold bg-yellow-50">
-                            {formatCurrency(row.total || 0)}
+                          <td className="px-4 py-3 text-right font-semibold bg-green-50">
+                            {formatCurrency(
+                              (parseFloat(row.coconala) || 0) +
+                              (parseFloat(row.bonus) || 0) +
+                              (parseFloat(row.incentive) || 0) +
+                              (parseFloat(row.business_trip) || 0) +
+                              (parseFloat(row.other) || 0)
+                            )}
                           </td>
                           <td 
                             className="px-4 py-3 text-left cursor-pointer hover:bg-blue-50"
@@ -3104,26 +3110,25 @@ export default function AccountingPage() {
                     {/* 합계 행 */}
                     <tr className="border-t-2 bg-blue-50 font-semibold">
                       <td className="px-4 py-3">{language === 'ja' ? '合計' : '계'}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right bg-blue-100">
                         {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.base_salary) || 0), 0))}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.coconala) || 0), 0))}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.bonus) || 0), 0))}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.incentive) || 0), 0))}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.business_trip) || 0), 0))}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.other) || 0), 0))}
-                      </td>
-                      <td className="px-4 py-3 text-right bg-yellow-100">
-                        {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0))}
+                      <td className="px-4 py-3 text-right border-l-2 border-gray-300"></td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right bg-green-100">
+                        {formatCurrency(
+                          monthlyPayrollData.reduce((sum, r) => 
+                            sum + 
+                            (parseFloat(r.coconala) || 0) +
+                            (parseFloat(r.bonus) || 0) +
+                            (parseFloat(r.incentive) || 0) +
+                            (parseFloat(r.business_trip) || 0) +
+                            (parseFloat(r.other) || 0), 0
+                          )
+                        )}
                       </td>
                       <td colSpan={2}></td>
                     </tr>
