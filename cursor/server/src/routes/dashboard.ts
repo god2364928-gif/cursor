@@ -80,13 +80,15 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
     let retargetingAcquiredQuery = `
       SELECT COUNT(*) as retargeting_acquired
       FROM retargeting_customers
-      WHERE last_contact_date BETWEEN $1 AND $2
-      AND status NOT IN ('ゴミ箱', '휴지통')
+      WHERE status NOT IN ('ゴミ箱', '휴지통')
     `
-    let retargetingAcquiredParams = [startDate, endDate]
+    const retargetingAcquiredParams: any[] = []
     
     if (manager && manager !== 'all') {
-      retargetingAcquiredQuery += ` AND manager = $3`
+      retargetingAcquiredQuery += ` AND (
+        TRIM(manager) = TRIM($1) OR 
+        REPLACE(TRIM(manager), '﨑', '崎') = REPLACE(TRIM($1), '﨑', '崎')
+      )`
       retargetingAcquiredParams.push(manager)
     }
 
@@ -101,7 +103,10 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
     let retargetingParams = []
     
     if (manager && manager !== 'all') {
-      retargetingQuery += ` AND manager = $1`
+      retargetingQuery += ` AND (
+        TRIM(manager) = TRIM($1) OR 
+        REPLACE(TRIM(manager), '﨑', '崎') = REPLACE(TRIM($1), '﨑', '崎')
+      )`
       retargetingParams.push(manager)
     }
     // manager가 'all'이면 모든 사용자의 리타겟팅 고객을 가져옴 (추가 조건 없음)
@@ -121,7 +126,10 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
     let dbStatusParams = []
     
     if (manager && manager !== 'all') {
-      dbStatusQuery += ` AND manager = $1`
+      dbStatusQuery += ` AND (
+        TRIM(manager) = TRIM($1) OR 
+        REPLACE(TRIM(manager), '﨑', '崎') = REPLACE(TRIM($1), '﨑', '崎')
+      )`
       dbStatusParams.push(manager)
     }
     // manager가 'all'이면 모든 사용자의 리타겟팅 고객을 가져옴 (추가 조건 없음)
