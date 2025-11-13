@@ -37,21 +37,6 @@ jobs:
           exit 1
         fi
         echo "✅ 빌드 성공"
-        
-    - name: Commit build if changed
-      if: github.event_name == 'push'
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git add cursor/server/dist/ || true
-        git diff --staged --quiet || git commit -m "chore: auto-build server [skip ci]"
-        
-    - name: Push changes
-      if: github.event_name == 'push'
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: ${{ github.ref }}
 
   build-client:
     runs-on: ubuntu-latest
