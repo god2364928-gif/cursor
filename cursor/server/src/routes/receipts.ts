@@ -9,7 +9,7 @@ const router = Router()
  * POST /api/receipts - 영수증 생성
  */
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const userId = req.userId
+  const userId = req.user?.id
   
   try {
     const {
