@@ -53,7 +53,9 @@ function ReceiptModal({
       }, 2000)
     } catch (error: any) {
       console.error('Error creating receipt:', error)
-      setError(error.response?.data?.message || error.message || 'Error creating receipt')
+      console.error('Error details:', error.response?.data)
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Error creating receipt'
+      setError(errorMsg)
     } finally {
       setIsSubmitting(false)
     }
