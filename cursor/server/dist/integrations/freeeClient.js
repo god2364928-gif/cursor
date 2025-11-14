@@ -426,8 +426,9 @@ async function downloadInvoicePdf(companyId, invoiceId) {
         throw new Error('No valid access token. Please authenticate first.');
     }
     console.log(`✅ Token validated successfully`);
-    // freee請求書 API 엔드포인트 사용
-    const url = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`;
+    // freee請求書 API 엔드포인트 - 올바른 형식 사용
+    // API 문서: GET /api/1/invoices/:id/download
+    const url = `${FREEE_INVOICE_API_BASE}/api/1/invoices/${invoiceId}/download?company_id=${companyId}`;
     console.log(`📥 Downloading PDF from: ${url}`);
     console.log(`🔑 Using token: ${token.substring(0, 10)}...`);
     try {
@@ -567,7 +568,8 @@ async function downloadReceiptPdf(companyId, receiptId) {
     if (!token) {
         throw new Error('No valid access token. Please authenticate first.');
     }
-    const url = `${FREEE_INVOICE_API_BASE}/receipts/${receiptId}/download?company_id=${companyId}`;
+    // freee請求書 API 엔드포인트 - 올바른 형식 사용
+    const url = `${FREEE_INVOICE_API_BASE}/api/1/receipts/${receiptId}/download?company_id=${companyId}`;
     console.log(`📥 Downloading Receipt PDF from: ${url}`);
     const response = await fetch(url, {
         headers: {
