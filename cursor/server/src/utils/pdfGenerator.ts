@@ -343,9 +343,9 @@ function generateInvoiceHtml(data: InvoiceData): string {
     }
   }
 
-  const emptyRows = Math.max(0, 4 - data.lines.length)
+  const emptyRows = Math.max(0, 10 - data.lines.length)
   const emptyRowsHtml = Array(emptyRows)
-    .fill('<tr><td style="height: 25px;">&nbsp;</td><td></td><td></td><td></td></tr>')
+    .fill('<tr><td style="height: 18px;">&nbsp;</td><td></td><td></td><td></td></tr>')
     .join('')
 
   return `
@@ -371,59 +371,62 @@ function generateInvoiceHtml(data: InvoiceData): string {
     }
     .title {
       text-align: center;
-      font-size: 18pt;
+      font-size: 16pt;
       font-weight: bold;
-      margin: 15px 0 25px 0;
+      margin: 10px 0 20px 0;
     }
     .header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 25px;
+      margin-bottom: 18px;
     }
     .partner-name {
-      font-size: 13pt;
+      font-size: 12pt;
       font-weight: bold;
     }
     .header-right {
       text-align: right;
-      font-size: 10pt;
-      line-height: 1.8;
+      font-size: 9pt;
+      line-height: 1.6;
     }
     .header-right-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin: 5px 0;
+      margin: 3px 0;
     }
     .header-right-label {
       text-align: left;
+      font-size: 8pt;
     }
     .header-right-value {
       text-align: right;
+      font-size: 9pt;
     }
     .company-info {
-      margin-top: 30px;
-      font-size: 11pt;
+      margin-top: 20px;
+      font-size: 9pt;
       text-align: left;
     }
     .greeting {
-      margin: 20px 0 10px 0;
+      margin: 15px 0 8px 0;
+      font-size: 9pt;
     }
     .subject-line {
-      margin: 10px 0;
-      font-size: 10pt;
+      margin: 8px 0;
+      font-size: 9pt;
     }
     
     /* 금액 테이블 */
     table.amount-table {
       width: 100%;
       border-collapse: collapse;
-      margin: 15px 0;
-      font-size: 10pt;
+      margin: 12px 0;
+      font-size: 9pt;
     }
     table.amount-table td {
       border: 1px solid #000;
-      padding: 8px 12px;
+      padding: 6px 10px;
       text-align: center;
     }
     table.amount-table .label {
@@ -435,7 +438,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
       font-weight: bold;
     }
     table.amount-table .total-value {
-      font-size: 14pt;
+      font-size: 13pt;
       font-weight: bold;
     }
     
@@ -443,12 +446,12 @@ function generateInvoiceHtml(data: InvoiceData): string {
     table.payment-table {
       width: 100%;
       border-collapse: collapse;
-      margin: 15px 0;
-      font-size: 9pt;
+      margin: 12px 0;
+      font-size: 8pt;
     }
     table.payment-table td {
       border: 1px solid #000;
-      padding: 8px 12px;
+      padding: 6px 10px;
     }
     table.payment-table .label {
       background-color: #f5f5f5;
@@ -456,7 +459,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
       text-align: center;
     }
     table.payment-table .content {
-      line-height: 1.5;
+      line-height: 1.4;
       text-align: left;
     }
     
@@ -464,8 +467,8 @@ function generateInvoiceHtml(data: InvoiceData): string {
     table.items {
       width: 100%;
       border-collapse: collapse;
-      margin: 15px 0;
-      font-size: 9pt;
+      margin: 12px 0;
+      font-size: 8pt;
     }
     table.items th,
     table.items td {
@@ -497,15 +500,15 @@ function generateInvoiceHtml(data: InvoiceData): string {
     /* 내역 박스 */
     .summary-box {
       float: right;
-      width: 300px;
+      width: 280px;
       border: 1px solid #000;
       margin: 10px 0;
-      font-size: 9pt;
+      font-size: 8pt;
     }
     .summary-row {
       display: flex;
       justify-content: space-between;
-      padding: 6px 12px;
+      padding: 6px 10px;
       border-bottom: 1px solid #000;
     }
     .summary-row:last-child {
@@ -521,25 +524,26 @@ function generateInvoiceHtml(data: InvoiceData): string {
     /* 비고 */
     .remarks {
       clear: both;
-      margin: 20px 0;
+      margin: 15px 0;
     }
     .remarks-header {
-      padding: 6px 12px;
+      padding: 6px 10px;
       font-weight: bold;
       border: 1px solid #000;
       border-bottom: none;
       background-color: #f5f5f5;
+      font-size: 9pt;
     }
     .remarks-box {
       border: 1px solid #000;
-      min-height: 80px;
-      padding: 10px 12px;
+      min-height: 50px;
+      padding: 8px 10px;
     }
     
     .page-number {
       text-align: center;
-      margin-top: 20px;
-      font-size: 9pt;
+      margin-top: 12px;
+      font-size: 8pt;
     }
   </style>
 </head>
