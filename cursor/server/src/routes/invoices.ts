@@ -154,32 +154,21 @@ router.get('/list', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(`
       SELECT 
-        fi.id,
-        fi.freee_invoice_id,
-        fi.freee_company_id,
-        fi.partner_name,
-        fi.partner_zipcode,
-        fi.partner_address,
-        fi.invoice_date,
-        fi.due_date,
-        fi.total_amount,
-        fi.tax_amount,
-        fi.issued_by_user_id,
-        fi.issued_by_user_name,
-        fi.created_at,
-        json_agg(
-          json_build_object(
-            'id', fii.id,
-            'item_name', fii.item_name,
-            'quantity', fii.quantity,
-            'unit_price', fii.unit_price,
-            'tax', fii.tax
-          ) ORDER BY fii.id
-        ) as items
-      FROM freee_invoices fi
-      LEFT JOIN freee_invoice_items fii ON fi.id = fii.invoice_id
-      GROUP BY fi.id
-      ORDER BY fi.created_at DESC
+        i.id,
+        i.freee_invoice_id,
+        i.company_id as freee_company_id,
+        i.partner_name,
+        i.invoice_date,
+        i.due_date,
+        i.total_amount,
+        i.tax_amount,
+        i.user_id as issued_by_user_id,
+        u.name as issued_by_user_name,
+        i.receipt_id,
+        i.created_at
+      FROM invoices i
+      LEFT JOIN users u ON i.user_id = u.id
+      ORDER BY i.created_at DESC
     `)
 
     res.json(result.rows)
