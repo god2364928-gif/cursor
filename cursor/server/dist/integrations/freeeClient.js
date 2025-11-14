@@ -419,26 +419,42 @@ async function createInvoice(invoiceData) {
  * 청구서 PDF 다운로드 (freee請求書 API)
  */
 async function downloadInvoicePdf(companyId, invoiceId) {
+    console.log(`📥 [downloadInvoicePdf] Starting download for company_id=${companyId}, invoice_id=${invoiceId}`);
     const token = await ensureValidToken();
     if (!token) {
+        console.error('❌ No valid access token available');
         throw new Error('No valid access token. Please authenticate first.');
     }
+    console.log(`✅ Token validated successfully`);
     // freee請求書 API 엔드포인트 사용
     const url = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`;
     console.log(`📥 Downloading PDF from: ${url}`);
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${token}`,
-        },
-    });
-    if (!response.ok) {
-        const text = await response.text();
-        console.error(`❌ PDF download error: ${response.status}`, text);
-        throw new Error(`freee PDF download error: ${response.status} ${text}`);
+    console.log(`🔑 Using token: ${token.substring(0, 10)}...`);
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+        console.log(`📡 Response headers:`, Object.fromEntries(response.headers.entries()));
+        if (!response.ok) {
+            const text = await response.text();
+            console.error(`❌ PDF download error: ${response.status}`, text);
+            throw new Error(`freee PDF download error: ${response.status} ${text}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        console.log(`✅ PDF downloaded: ${arrayBuffer.byteLength} bytes`);
+        if (arrayBuffer.byteLength === 0) {
+            console.error('❌ Downloaded PDF is empty');
+            throw new Error('Downloaded PDF is empty');
+        }
+        return Buffer.from(arrayBuffer);
     }
-    const arrayBuffer = await response.arrayBuffer();
-    console.log(`✅ PDF downloaded: ${arrayBuffer.byteLength} bytes`);
-    return Buffer.from(arrayBuffer);
+    catch (error) {
+        console.error(`❌ Exception during PDF download:`, error);
+        throw error;
+    }
 }
 /**
  * 인증 상태 확인
