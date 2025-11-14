@@ -7,6 +7,8 @@ exports.getAuthorizationUrl = getAuthorizationUrl;
 exports.exchangeCodeForToken = exchangeCodeForToken;
 exports.getCompanies = getCompanies;
 exports.getInvoiceTemplates = getInvoiceTemplates;
+exports.getPartners = getPartners;
+exports.createPartner = createPartner;
 exports.createInvoice = createInvoice;
 exports.downloadInvoicePdf = downloadInvoicePdf;
 exports.isAuthenticated = isAuthenticated;
@@ -249,9 +251,37 @@ async function getInvoiceTemplates(companyId) {
     return data;
 }
 /**
- * 거래처 생성 또는 조회 (freee会計 API)
+ * 거래처 목록 조회 (freee会計 API)
  */
-async function getOrCreatePartner(companyId, partnerName) {
+async function getPartners(companyId, keyword) {
+    const token = await ensureValidToken();
+    if (!token) {
+        throw new Error('No valid access token.');
+    }
+    let url = `${FREEE_API_BASE}/partners?company_id=${companyId}`;
+    if (keyword) {
+        url += `&keyword=${encodeURIComponent(keyword)}`;
+    }
+    console.log(`📋 Fetching partners from: ${url}`);
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        console.error(`❌ Partners fetch error: ${response.status}`, text);
+        throw new Error(`freee API error: ${response.status} ${text}`);
+    }
+    const data = await response.json();
+    console.log(`✅ Partners fetched: ${data.partners?.length || 0} items`);
+    return data;
+}
+/**
+ * 거래처 생성 (freee会計 API)
+ */
+async function createPartner(companyId, partnerName) {
     const token = await ensureValidToken();
     if (!token) {
         throw new Error('No valid access token.');
@@ -279,7 +309,15 @@ async function getOrCreatePartner(companyId, partnerName) {
     }
     const data = await response.json();
     console.log(`✅ Partner created: ID=${data.partner.id}`);
-    return data.partner.id;
+    return data.partner;
+}
+/**
+ * 거래처 검색 또는 생성 (내부 사용)
+ */
+async function getOrCreatePartner(companyId, partnerName) {
+    // 이제 createPartner를 직접 호출
+    const partner = await createPartner(companyId, partnerName);
+    return partner.id;
 }
 /**
  * 청구書 생성 (freee請求書 API 사용)
@@ -289,15 +327,23 @@ async function createInvoice(invoiceData) {
     if (!token) {
         throw new Error('No valid access token. Please authenticate first.');
     }
-    // 1. 거래처 생성
+    // 1. 거래처 ID 확정 (선택된 partner_id 또는 신규 생성)
     let partnerId;
-    try {
-        const partnerName = invoiceData.partner_name;
-        partnerId = await getOrCreatePartner(invoiceData.company_id, partnerName);
+    if (invoiceData.partner_id) {
+        // 이미 선택된 거래처 ID 사용
+        partnerId = invoiceData.partner_id;
+        console.log(`📋 Using existing partner ID: ${partnerId}`);
     }
-    catch (error) {
-        console.error('⚠️ Failed to create partner:', error);
-        throw error;
+    else {
+        // 거래처 이름으로 신규 생성
+        try {
+            const partnerName = invoiceData.partner_name;
+            partnerId = await getOrCreatePartner(invoiceData.company_id, partnerName);
+        }
+        catch (error) {
+            console.error('⚠️ Failed to create partner:', error);
+            throw error;
+        }
     }
     // 2. 템플릿 조회
     let templateId;

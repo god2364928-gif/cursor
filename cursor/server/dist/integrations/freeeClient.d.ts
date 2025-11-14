@@ -7,6 +7,7 @@ export interface FreeeInvoiceLineItem {
 }
 export interface FreeeInvoiceRequest {
     company_id: number;
+    partner_id?: number;
     partner_name: string;
     partner_title?: '御中' | '様' | '';
     invoice_title?: string;
@@ -35,6 +36,14 @@ export declare function getCompanies(): Promise<any>;
  * 청구서 템플릿 목록 조회 (freee請求書 API)
  */
 export declare function getInvoiceTemplates(companyId: number): Promise<any>;
+/**
+ * 거래처 목록 조회 (freee会計 API)
+ */
+export declare function getPartners(companyId: number, keyword?: string): Promise<any>;
+/**
+ * 거래처 생성 (freee会計 API)
+ */
+export declare function createPartner(companyId: number, partnerName: string): Promise<any>;
 /**
  * 청구書 생성 (freee請求書 API 사용)
  */

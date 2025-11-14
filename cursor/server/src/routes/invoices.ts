@@ -4,10 +4,12 @@ import {
   getAuthorizationUrl,
   exchangeCodeForToken,
   getCompanies,
+  getPartners,
+  createPartner,
   createInvoice,
   downloadInvoicePdf,
   isAuthenticated,
-  clearTokenCache,  // 추가
+  clearTokenCache,
   FreeeInvoiceRequest,
 } from '../integrations/freeeClient'
 import { pool } from '../db'
@@ -94,6 +96,54 @@ router.get('/companies', authMiddleware, async (req: AuthRequest, res: Response)
     }
     
     res.status(500).json({ error: 'Failed to fetch companies' })
+  }
+})
+
+/**
+ * 거래처 목록 조회
+ */
+router.get('/partners', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { company_id, keyword } = req.query
+    
+    if (!company_id) {
+      return res.status(400).json({ error: 'company_id is required' })
+    }
+
+    const partners = await getPartners(Number(company_id), keyword as string | undefined)
+    res.json(partners)
+  } catch (error: any) {
+    console.error('Error fetching partners:', error)
+    
+    if (error.message?.includes('No valid access token')) {
+      return res.status(401).json({ error: 'Not authenticated. Please authenticate first.' })
+    }
+    
+    res.status(500).json({ error: 'Failed to fetch partners' })
+  }
+})
+
+/**
+ * 거래처 생성
+ */
+router.post('/partners', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { company_id, partner_name } = req.body
+    
+    if (!company_id || !partner_name) {
+      return res.status(400).json({ error: 'company_id and partner_name are required' })
+    }
+
+    const partner = await createPartner(Number(company_id), partner_name)
+    res.json(partner)
+  } catch (error: any) {
+    console.error('Error creating partner:', error)
+    
+    if (error.message?.includes('No valid access token')) {
+      return res.status(401).json({ error: 'Not authenticated. Please authenticate first.' })
+    }
+    
+    res.status(500).json({ error: 'Failed to create partner' })
   }
 })
 
