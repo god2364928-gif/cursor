@@ -161,7 +161,9 @@ export default function InvoicePage() {
 
   const handleDownloadPdf = async (invoice: FreeeInvoice) => {
     try {
+      console.log('📥 Downloading PDF for invoice:', invoice.id, invoice.freee_invoice_id)
       const pdfResponse = await invoiceAPI.downloadPdf(invoice.id)
+      console.log('✅ PDF response received:', pdfResponse)
       const blob = new Blob([pdfResponse.data], { type: 'application/pdf' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -171,9 +173,15 @@ export default function InvoicePage() {
       a.click()
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('PDF download error:', error)
-      setError(language === 'ja' ? 'PDFのダウンロードに失敗しました' : 'PDF 다운로드 실패')
+      console.log('✅ PDF download completed')
+    } catch (error: any) {
+      console.error('❌ PDF download error:', error)
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      setError(language === 'ja' ? `PDFのダウンロードに失敗しました: ${error.response?.data?.error || error.message}` : `PDF 다운로드 실패: ${error.response?.data?.error || error.message}`)
     }
   }
 
