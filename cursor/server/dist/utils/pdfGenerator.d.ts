@@ -16,9 +16,10 @@ interface InvoiceData {
         tax_rate: number;
     }>;
     payment_bank_info?: string;
+    invoice_registration_number?: string;
 }
 /**
- * 청구서 PDF 생성
+ * 청구서 PDF 생성 (freee 스타일)
  */
 export declare function generateInvoicePdf(invoiceData: InvoiceData): Promise<Buffer>;
 export {};
