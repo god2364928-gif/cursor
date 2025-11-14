@@ -64,7 +64,7 @@ export declare function createInvoice(invoiceData: FreeeInvoiceRequest): Promise
  * 청구서 PDF 다운로드 (freee請求書 API)
  * freee 請求書 API는 /reports/ 경로를 사용
  */
-export declare function downloadInvoicePdf(companyId: number, invoiceId: number): Promise<Buffer>;
+export declare function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string): Promise<Buffer>;
 /**
  * 인증 상태 확인
  */
