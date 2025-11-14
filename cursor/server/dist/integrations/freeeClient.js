@@ -205,9 +205,8 @@ async function getCompanies() {
  * 청구서 생성
  */
 async function createInvoice(invoiceData) {
-    // freee API 형식으로 데이터 변환
+    // freee API 형식으로 데이터 변환 (company_id는 query parameter로)
     const freeePayload = {
-        company_id: invoiceData.company_id,
         partner_name: invoiceData.partner_name + (invoiceData.partner_title || ''),
         invoice_date: invoiceData.invoice_date,
         due_date: invoiceData.due_date,
@@ -226,7 +225,9 @@ async function createInvoice(invoiceData) {
         freeePayload.payment_bank_info = invoiceData.payment_bank_info;
     }
     console.log('📤 Sending to freee API:', JSON.stringify(freeePayload, null, 2));
-    return callFreeeAPI('/api/1/invoices', {
+    console.log('📤 Company ID (query param):', invoiceData.company_id);
+    // company_id를 query parameter로 전달
+    return callFreeeAPI(`/api/1/invoices?company_id=${invoiceData.company_id}`, {
         method: 'POST',
         body: JSON.stringify(freeePayload),
     });
