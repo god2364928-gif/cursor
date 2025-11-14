@@ -85,6 +85,16 @@ export const invoiceAPI = {
   // 사업소 목록 조회
   getCompanies: () => api.get('/invoices/companies'),
   
+  // 거래처 목록 조회
+  getPartners: (companyId: number, keyword?: string) => {
+    const params = keyword ? `?company_id=${companyId}&keyword=${encodeURIComponent(keyword)}` : `?company_id=${companyId}`
+    return api.get(`/invoices/partners${params}`)
+  },
+  
+  // 거래처 생성
+  createPartner: (companyId: number, partnerName: string) => 
+    api.post('/invoices/partners', { company_id: companyId, partner_name: partnerName }),
+  
   // 청구서 목록 조회
   getInvoiceList: () => api.get('/invoices/list'),
   

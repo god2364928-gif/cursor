@@ -15,6 +15,10 @@ export default function InvoiceCreatePage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [companies, setCompanies] = useState<FreeeCompany[]>([])
   const [selectedCompany, setSelectedCompany] = useState<number | null>(null)
+  const [partners, setPartners] = useState<any[]>([])
+  const [selectedPartner, setSelectedPartner] = useState<number | null>(null)
+  const [isLoadingPartners, setIsLoadingPartners] = useState(false)
+  const [showNewPartnerForm, setShowNewPartnerForm] = useState(false)
   const [authCode, setAuthCode] = useState('')
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -85,11 +89,28 @@ export default function InvoiceCreatePage() {
       if (response.data.companies) {
         setCompanies(response.data.companies)
         if (response.data.companies.length > 0) {
-          setSelectedCompany(response.data.companies[0].id)
+          const firstCompanyId = response.data.companies[0].id
+          setSelectedCompany(firstCompanyId)
+          // 거래처 목록도 로드
+          await loadPartners(firstCompanyId)
         }
       }
     } catch (error) {
       console.error('Error loading companies:', error)
+    }
+  }
+
+  const loadPartners = async (companyId: number) => {
+    setIsLoadingPartners(true)
+    try {
+      const response = await invoiceAPI.getPartners(companyId)
+      if (response.data.partners) {
+        setPartners(response.data.partners)
+      }
+    } catch (error) {
+      console.error('Error loading partners:', error)
+    } finally {
+      setIsLoadingPartners(false)
     }
   }
 
@@ -249,6 +270,7 @@ export default function InvoiceCreatePage() {
 
       const response = await invoiceAPI.createInvoice({
         company_id: selectedCompany!,
+        partner_id: selectedPartner || undefined,  // 선택된 거래처 ID
         ...formData,
         line_items: processedLineItems,
       })
@@ -442,13 +464,69 @@ export default function InvoiceCreatePage() {
                 <label className="block text-sm font-medium mb-1">
                   {language === 'ja' ? '取引先名' : '거래처명'} <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.partner_name}
-                  onChange={(e) => setFormData({ ...formData, partner_name: e.target.value })}
-                  className="w-full border rounded px-3 py-2"
-                  required
-                />
+                {showNewPartnerForm ? (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={formData.partner_name}
+                      onChange={(e) => setFormData({ ...formData, partner_name: e.target.value })}
+                      placeholder={language === 'ja' ? '新しい取引先名を入力' : '새 거래처명 입력'}
+                      className="w-full border rounded px-3 py-2"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowNewPartnerForm(false)
+                        setFormData({ ...formData, partner_name: '' })
+                      }}
+                    >
+                      {language === 'ja' ? '既存取引先から選択' : '기존 거래처에서 선택'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <select
+                      value={selectedPartner || ''}
+                      onChange={(e) => {
+                        const partnerId = e.target.value ? Number(e.target.value) : null
+                        setSelectedPartner(partnerId)
+                        if (partnerId) {
+                          const partner = partners.find(p => p.id === partnerId)
+                          if (partner) {
+                            setFormData({ ...formData, partner_name: partner.name })
+                          }
+                        } else {
+                          setFormData({ ...formData, partner_name: '' })
+                        }
+                      }}
+                      className="w-full border rounded px-3 py-2"
+                      required={!showNewPartnerForm}
+                      disabled={isLoadingPartners}
+                    >
+                      <option value="">
+                        {isLoadingPartners 
+                          ? (language === 'ja' ? '読み込み中...' : '로딩 중...') 
+                          : (language === 'ja' ? '取引先を選択' : '거래처 선택')}
+                      </option>
+                      {partners.map((partner) => (
+                        <option key={partner.id} value={partner.id}>
+                          {partner.name} {partner.code ? `(${partner.code})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowNewPartnerForm(true)}
+                    >
+                      + {language === 'ja' ? '新規登録' : '새로 등록'}
+                    </Button>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
