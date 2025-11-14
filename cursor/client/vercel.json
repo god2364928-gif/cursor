@@ -1,7 +1,4 @@
 {
-  "buildCommand": "cd /Users/go/Desktop/new/cursor/client && npm ci && npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "cd /Users/go/Desktop/new/cursor/client && npm ci",
   "framework": "vite",
   "rewrites": [
     {
@@ -14,5 +11,6 @@
     }
   ]
 }
+
 
 
