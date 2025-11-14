@@ -286,10 +286,8 @@ async function createPartner(companyId, partnerName) {
     if (!token) {
         throw new Error('No valid access token.');
     }
-    // 거래처 코드 생성 (타임스탬프 기반)
-    const partnerCode = `P-${Date.now().toString(36).toUpperCase()}`;
-    console.log(`📋 Creating partner: ${partnerName} (${partnerCode})`);
-    // freee会計 API로 거래처 생성
+    console.log(`📋 Creating partner: ${partnerName}`);
+    // freee会計 API로 거래처 생성 (code 없이 - 자동 관리 설정 때문)
     const response = await fetch(`${FREEE_API_BASE}/partners`, {
         method: 'POST',
         headers: {
@@ -299,7 +297,7 @@ async function createPartner(companyId, partnerName) {
         body: JSON.stringify({
             company_id: companyId,
             name: partnerName,
-            code: partnerCode,
+            // code는 보내지 않음 - freee가 자동으로 관리
         }),
     });
     if (!response.ok) {
