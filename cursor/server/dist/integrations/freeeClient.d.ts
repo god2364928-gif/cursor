@@ -32,7 +32,8 @@ export declare function exchangeCodeForToken(code: string): Promise<{
  */
 export declare function getCompanies(): Promise<any>;
 /**
- * 청구서 생성 (freee会計 API)
+ * 청구서 생성 (freee会計 API - Deals)
+ * 청구서는 "取引(거래)"로 생성 후 請求書로 변환
  */
 export declare function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<any>;
 /**
