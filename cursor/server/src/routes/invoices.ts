@@ -194,6 +194,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
       tax_entry_method,
       line_items,
       payment_bank_info,
+      memo,  // 추가: 비고
     } = req.body
 
     // 입력 유효성 검사
@@ -216,6 +217,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
       due_date,
       tax_entry_method,
       payment_bank_info,
+      memo,  // 추가: 비고
       invoice_contents: line_items.map((item: any) => ({
         name: item.name,
         quantity: Number(item.quantity),
@@ -255,8 +257,9 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
         due_date, 
         total_amount, 
         tax_amount,
-        tax_entry_method
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+        tax_entry_method,
+        memo
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
       [
         req.user!.id,
         company_id,
@@ -269,6 +272,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
         totalAmount,
         taxAmount,
         tax_entry_method || 'exclusive',
+        memo,  // 추가: 비고
       ]
     )
 

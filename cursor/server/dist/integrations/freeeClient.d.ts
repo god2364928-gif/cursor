@@ -16,6 +16,7 @@ export interface FreeeInvoiceRequest {
     tax_entry_method?: 'inclusive' | 'exclusive';
     invoice_contents: FreeeInvoiceLineItem[];
     payment_bank_info?: string;
+    memo?: string;
 }
 export interface FreeeReceiptRequest {
     company_id: number;

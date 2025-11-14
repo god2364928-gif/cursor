@@ -281,7 +281,7 @@ function generateReceiptHtml(data) {
 
   <div class="remarks">
     <div class="remarks-header">備考</div>
-    <div class="remarks-box"></div>
+    <div class="remarks-box">${data.memo ? data.memo.replace(/\n/g, '<br>') : ''}</div>
   </div>
 
   <div class="page-number">1 / 1</div>
@@ -601,7 +601,7 @@ function generateInvoiceHtml(data) {
 
   <div class="remarks">
     <div class="remarks-header">備考</div>
-    <div class="remarks-box"></div>
+    <div class="remarks-box">${data.memo ? data.memo.replace(/\n/g, '<br>') : ''}</div>
   </div>
 
   <div class="page-number">1 / 1</div>

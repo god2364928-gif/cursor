@@ -17,6 +17,7 @@ interface InvoiceData {
     }>;
     payment_bank_info?: string;
     invoice_registration_number?: string;
+    memo?: string;
 }
 interface ReceiptData {
     receipt_number: string;
@@ -33,6 +34,7 @@ interface ReceiptData {
         unit_price: number;
     }>;
     invoice_registration_number?: string;
+    memo?: string;
 }
 /**
  * 청구서 PDF 생성 (Puppeteer 사용)

@@ -158,7 +158,8 @@ router.get('/list', auth_1.authMiddleware, async (req, res) => {
 router.post('/create', auth_1.authMiddleware, async (req, res) => {
     try {
         const { company_id, partner_id, // 추가: 선택된 거래처 ID
-        partner_name, partner_title, invoice_title, invoice_date, due_date, tax_entry_method, line_items, payment_bank_info, } = req.body;
+        partner_name, partner_title, invoice_title, invoice_date, due_date, tax_entry_method, line_items, payment_bank_info, memo, // 추가: 비고
+         } = req.body;
         // 입력 유효성 검사
         if (!company_id || !partner_name || !invoice_date || !due_date || !line_items || line_items.length === 0) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -177,6 +178,7 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
             due_date,
             tax_entry_method,
             payment_bank_info,
+            memo, // 추가: 비고
             invoice_contents: line_items.map((item) => ({
                 name: item.name,
                 quantity: Number(item.quantity),
@@ -207,8 +209,9 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
         due_date, 
         total_amount, 
         tax_amount,
-        tax_entry_method
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`, [
+        tax_entry_method,
+        memo
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`, [
             req.user.id,
             company_id,
             partner_id,
@@ -220,6 +223,7 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
             totalAmount,
             taxAmount,
             tax_entry_method || 'exclusive',
+            memo, // 추가: 비고
         ]);
         const dbInvoiceId = insertResult.rows[0].id;
         console.log(`✅ Invoice created: freee_id=${invoiceId}, db_id=${dbInvoiceId}, partner=${partner_name}, user=${userName}`);

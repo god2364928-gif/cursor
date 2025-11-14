@@ -19,6 +19,7 @@ interface InvoiceData {
   }>
   payment_bank_info?: string
   invoice_registration_number?: string
+  memo?: string  // 추가: 비고
 }
 
 interface ReceiptData {
@@ -36,6 +37,7 @@ interface ReceiptData {
     unit_price: number
   }>
   invoice_registration_number?: string
+  memo?: string  // 추가: 비고
 }
 
 /**
@@ -316,7 +318,7 @@ function generateReceiptHtml(data: ReceiptData): string {
 
   <div class="remarks">
     <div class="remarks-header">備考</div>
-    <div class="remarks-box"></div>
+    <div class="remarks-box">${data.memo ? data.memo.replace(/\n/g, '<br>') : ''}</div>
   </div>
 
   <div class="page-number">1 / 1</div>
@@ -639,7 +641,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
 
   <div class="remarks">
     <div class="remarks-header">備考</div>
-    <div class="remarks-box"></div>
+    <div class="remarks-box">${data.memo ? data.memo.replace(/\n/g, '<br>') : ''}</div>
   </div>
 
   <div class="page-number">1 / 1</div>
