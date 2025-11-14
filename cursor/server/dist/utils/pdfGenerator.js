@@ -4,154 +4,247 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateInvoicePdf = generateInvoicePdf;
-const pdfkit_1 = __importDefault(require("pdfkit"));
+const puppeteer_1 = __importDefault(require("puppeteer"));
 /**
- * 청구서 PDF 생성 (freee 스타일)
+ * 청구서 HTML 생성
  */
-function generateInvoicePdf(invoiceData) {
-    return new Promise((resolve, reject) => {
-        try {
-            const doc = new pdfkit_1.default({
-                size: 'A4',
-                margin: 60,
-            });
-            const chunks = [];
-            doc.on('data', (chunk) => chunks.push(chunk));
-            doc.on('end', () => resolve(Buffer.concat(chunks)));
-            doc.on('error', reject);
-            const pageWidth = 595.28; // A4 width in points
-            const margin = 60;
-            // 제목 - 중앙 상단
-            doc.fontSize(18);
-            doc.text('請求書', margin, 80, {
-                width: pageWidth - margin * 2,
-                align: 'center',
-            });
-            // 왼쪽: 거래처 정보
-            let leftY = 140;
-            doc.fontSize(12);
-            doc.text(`${invoiceData.partner_name} ${invoiceData.partner_title}`, margin, leftY);
-            // 오른쪽: 청구서 정보
-            let rightY = 140;
-            const rightX = 350;
-            doc.fontSize(9);
-            doc.text('請求日', rightX, rightY);
-            doc.text(invoiceData.billing_date, rightX + 80, rightY);
-            rightY += 15;
-            doc.text('請求書番号', rightX, rightY);
-            doc.text(invoiceData.invoice_number, rightX + 80, rightY);
-            if (invoiceData.due_date) {
-                rightY += 15;
-                doc.text('支払期限', rightX, rightY);
-                doc.text(invoiceData.due_date, rightX + 80, rightY);
-            }
-            // 발행원 정보 (오른쪽)
-            rightY += 30;
-            doc.fontSize(10);
-            doc.text(invoiceData.company_name, rightX, rightY);
-            rightY += 15;
-            doc.fontSize(8);
-            const addressLines = invoiceData.company_address.split('\n');
-            addressLines.forEach((line) => {
-                doc.text(line, rightX, rightY);
-                rightY += 12;
-            });
-            if (invoiceData.invoice_registration_number) {
-                rightY += 5;
-                doc.fontSize(8);
-                doc.text(`登録番号: ${invoiceData.invoice_registration_number}`, rightX, rightY);
-            }
-            // 인사말
-            leftY = 240;
-            doc.fontSize(10);
-            doc.text('下記の通りご請求申し上げます。', margin, leftY);
-            // 청구 금액 박스
-            leftY += 30;
-            doc.fontSize(10);
-            doc.text('件名', margin, leftY);
-            doc.text('COCOマーケご利用料', margin + 100, leftY);
-            leftY += 20;
-            doc.rect(margin, leftY, 200, 60).stroke();
-            doc.fontSize(9);
-            doc.text('小計', margin + 10, leftY + 10);
-            doc.text('消費税', margin + 10, leftY + 30);
-            doc.fontSize(11);
-            doc.text('合計', margin + 10, leftY + 50);
-            doc.fontSize(9);
-            doc.text(`¥${invoiceData.amount_excluding_tax.toLocaleString()}`, margin + 120, leftY + 10, { align: 'right', width: 70 });
-            doc.text(`¥${invoiceData.amount_tax.toLocaleString()}`, margin + 120, leftY + 30, { align: 'right', width: 70 });
-            doc.fontSize(11);
-            doc.text(`¥${invoiceData.total_amount.toLocaleString()}`, margin + 120, leftY + 50, { align: 'right', width: 70 });
-            // 입금처 정보
-            leftY += 80;
-            doc.fontSize(9);
-            doc.text('入金先口座', margin, leftY);
-            leftY += 15;
-            doc.fontSize(8);
-            if (invoiceData.payment_bank_info) {
-                const bankLines = invoiceData.payment_bank_info.split('\n');
-                bankLines.forEach((line) => {
-                    doc.text(line, margin, leftY);
-                    leftY += 12;
-                });
-            }
-            // 명세 테이블
-            leftY += 20;
-            const tableTop = leftY;
-            const colWidths = [250, 60, 80, 100];
-            const colX = [margin, margin + colWidths[0], margin + colWidths[0] + colWidths[1], margin + colWidths[0] + colWidths[1] + colWidths[2]];
-            // 테이블 헤더
-            doc.fontSize(9);
-            doc.rect(margin, tableTop, colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], 20).stroke();
-            doc.text('品目', colX[0] + 5, tableTop + 6);
-            doc.text('数量', colX[1] + 5, tableTop + 6);
-            doc.text('単価', colX[2] + 5, tableTop + 6);
-            doc.text('税抜金額', colX[3] + 5, tableTop + 6);
-            let rowY = tableTop + 20;
-            // 테이블 행
-            invoiceData.lines.forEach((line, index) => {
-                const rowHeight = 25;
-                doc.rect(margin, rowY, colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], rowHeight).stroke();
-                doc.fontSize(8);
-                doc.text(line.description, colX[0] + 5, rowY + 8, { width: colWidths[0] - 10 });
-                doc.text(line.quantity.toString(), colX[1] + 5, rowY + 8);
-                doc.text(`¥${line.unit_price.toLocaleString()}`, colX[2] + 5, rowY + 8);
-                const amount = line.quantity * line.unit_price;
-                doc.text(`¥${amount.toLocaleString()}`, colX[3] + 5, rowY + 8);
-                rowY += rowHeight;
-            });
-            // 빈 행 추가 (최대 10행까지)
-            const emptyRows = Math.max(0, 10 - invoiceData.lines.length);
-            for (let i = 0; i < emptyRows; i++) {
-                doc.rect(margin, rowY, colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], 25).stroke();
-                rowY += 25;
-            }
-            // 합계 행
-            doc.rect(margin, rowY, colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], 20).stroke();
-            doc.fontSize(9);
-            doc.text('小計', colX[2] + 5, rowY + 6);
-            doc.text(`¥${invoiceData.amount_excluding_tax.toLocaleString()}`, colX[3] + 5, rowY + 6);
-            rowY += 20;
-            doc.rect(margin, rowY, colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], 20).stroke();
-            doc.text('消費税', colX[2] + 5, rowY + 6);
-            doc.text(`¥${invoiceData.amount_tax.toLocaleString()}`, colX[3] + 5, rowY + 6);
-            // 비고
-            rowY += 30;
-            doc.fontSize(9);
-            doc.text('備考', margin, rowY);
-            rowY += 15;
-            doc.rect(margin, rowY, colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], 60).stroke();
-            // 페이지 번호
-            doc.fontSize(8);
-            doc.text('1 / 1', margin, 750, {
-                width: pageWidth - margin * 2,
-                align: 'center',
-            });
-            doc.end();
-        }
-        catch (error) {
-            reject(error);
-        }
+function generateInvoiceHtml(data) {
+    const emptyRows = Math.max(0, 10 - data.lines.length);
+    const emptyRowsHtml = Array(emptyRows).fill('<tr><td>&nbsp;</td><td></td><td></td><td></td></tr>').join('');
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+    body {
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      font-size: 10pt;
+      line-height: 1.5;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      width: 100%;
+      max-width: 210mm;
+      margin: 0 auto;
+    }
+    .title {
+      text-align: center;
+      font-size: 18pt;
+      font-weight: bold;
+      margin: 20px 0;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .header-left {
+      flex: 1;
+    }
+    .header-right {
+      flex: 1;
+      text-align: right;
+      font-size: 9pt;
+    }
+    .partner-name {
+      font-size: 12pt;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .company-info {
+      margin-top: 10px;
+      line-height: 1.4;
+    }
+    .greeting {
+      margin: 20px 0;
+    }
+    .subject {
+      margin: 10px 0;
+    }
+    .amount-box {
+      border: 1px solid #000;
+      padding: 10px;
+      width: 200px;
+      margin: 20px 0;
+    }
+    .amount-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 5px 0;
+    }
+    .amount-total {
+      font-size: 11pt;
+      font-weight: bold;
+      border-top: 1px solid #000;
+      padding-top: 5px;
+      margin-top: 5px;
+    }
+    .bank-info {
+      margin: 20px 0;
+      font-size: 9pt;
+    }
+    .bank-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 9pt;
+    }
+    th, td {
+      border: 1px solid #000;
+      padding: 8px 5px;
+      text-align: left;
+    }
+    th {
+      background-color: #f0f0f0;
+      font-weight: bold;
+    }
+    .col-item { width: 50%; }
+    .col-qty { width: 10%; text-align: center; }
+    .col-price { width: 20%; text-align: right; }
+    .col-amount { width: 20%; text-align: right; }
+    .total-row {
+      font-weight: bold;
+    }
+    .remarks {
+      margin: 20px 0;
+    }
+    .remarks-box {
+      border: 1px solid #000;
+      min-height: 60px;
+      padding: 10px;
+    }
+    .page-number {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 9pt;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">請求書</div>
+    
+    <div class="header">
+      <div class="header-left">
+        <div class="partner-name">${data.partner_name} ${data.partner_title}</div>
+      </div>
+      <div class="header-right">
+        <div>請求日: ${data.billing_date}</div>
+        <div>請求書番号: ${data.invoice_number}</div>
+        ${data.due_date ? `<div>支払期限: ${data.due_date}</div>` : ''}
+        <div class="company-info">
+          <div style="font-weight: bold; margin-top: 15px;">${data.company_name}</div>
+          <div>${data.company_address.replace(/\n/g, '<br>')}</div>
+          ${data.invoice_registration_number ? `<div style="margin-top: 5px;">登録番号: ${data.invoice_registration_number}</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="greeting">下記の通りご請求申し上げます。</div>
+
+    <div class="subject">
+      <strong>件名:</strong> COCOマーケご利用料
+    </div>
+
+    <div class="amount-box">
+      <div class="amount-row">
+        <span>小計</span>
+        <span>¥${data.amount_excluding_tax.toLocaleString()}</span>
+      </div>
+      <div class="amount-row">
+        <span>消費税</span>
+        <span>¥${data.amount_tax.toLocaleString()}</span>
+      </div>
+      <div class="amount-row amount-total">
+        <span>合計</span>
+        <span>¥${data.total_amount.toLocaleString()}</span>
+      </div>
+    </div>
+
+    ${data.payment_bank_info ? `
+    <div class="bank-info">
+      <div class="bank-title">入金先口座</div>
+      <div>${data.payment_bank_info.replace(/\n/g, '<br>')}</div>
+    </div>
+    ` : ''}
+
+    <table>
+      <thead>
+        <tr>
+          <th class="col-item">品目</th>
+          <th class="col-qty">数量</th>
+          <th class="col-price">単価</th>
+          <th class="col-amount">税抜金額</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.lines.map(line => `
+        <tr>
+          <td class="col-item">${line.description}</td>
+          <td class="col-qty">${line.quantity}</td>
+          <td class="col-price">¥${line.unit_price.toLocaleString()}</td>
+          <td class="col-amount">¥${(line.quantity * line.unit_price).toLocaleString()}</td>
+        </tr>
+        `).join('')}
+        ${emptyRowsHtml}
+        <tr class="total-row">
+          <td colspan="3" style="text-align: right;">小計</td>
+          <td class="col-amount">¥${data.amount_excluding_tax.toLocaleString()}</td>
+        </tr>
+        <tr class="total-row">
+          <td colspan="3" style="text-align: right;">消費税</td>
+          <td class="col-amount">¥${data.amount_tax.toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="remarks">
+      <div class="bank-title">備考</div>
+      <div class="remarks-box"></div>
+    </div>
+
+    <div class="page-number">1 / 1</div>
+  </div>
+</body>
+</html>
+  `;
+}
+/**
+ * 청구서 PDF 생성 (Puppeteer 사용)
+ */
+async function generateInvoicePdf(invoiceData) {
+    const html = generateInvoiceHtml(invoiceData);
+    const browser = await puppeteer_1.default.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+    try {
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'networkidle0' });
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: {
+                top: '20mm',
+                right: '15mm',
+                bottom: '20mm',
+                left: '15mm',
+            },
+        });
+        return Buffer.from(pdfBuffer);
+    }
+    finally {
+        await browser.close();
+    }
 }
 //# sourceMappingURL=pdfGenerator.js.map
