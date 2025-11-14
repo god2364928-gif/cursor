@@ -7,11 +7,13 @@ export interface FreeeInvoiceLineItem {
 export interface FreeeInvoiceRequest {
     company_id: number;
     partner_name: string;
-    partner_zipcode?: string;
-    partner_address?: string;
+    partner_title?: '御中' | '様' | '';
+    invoice_title?: string;
     invoice_date: string;
     due_date: string;
+    tax_entry_method?: 'inclusive' | 'exclusive';
     invoice_contents: FreeeInvoiceLineItem[];
+    payment_bank_info?: string;
 }
 /**
  * OAuth 인증 URL 생성

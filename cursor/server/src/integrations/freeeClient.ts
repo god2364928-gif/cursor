@@ -26,11 +26,13 @@ export interface FreeeInvoiceLineItem {
 export interface FreeeInvoiceRequest {
   company_id: number
   partner_name: string
-  partner_zipcode?: string
-  partner_address?: string
+  partner_title?: '御中' | '様' | ''
+  invoice_title?: string
   invoice_date: string
   due_date: string
+  tax_entry_method?: 'inclusive' | 'exclusive'
   invoice_contents: FreeeInvoiceLineItem[]
+  payment_bank_info?: string
 }
 
 /**
@@ -253,9 +255,33 @@ export async function getCompanies(): Promise<any> {
  * 청구서 생성
  */
 export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<any> {
+  // freee API 형식으로 데이터 변환
+  const freeePayload: any = {
+    company_id: invoiceData.company_id,
+    partner_name: invoiceData.partner_name + (invoiceData.partner_title || ''),
+    invoice_date: invoiceData.invoice_date,
+    due_date: invoiceData.due_date,
+    invoice_contents: invoiceData.invoice_contents,
+  }
+
+  // 청구서 제목 추가
+  if (invoiceData.invoice_title) {
+    freeePayload.title = invoiceData.invoice_title
+  }
+
+  // 내세/외세 설정
+  if (invoiceData.tax_entry_method) {
+    freeePayload.tax_entry_method = invoiceData.tax_entry_method
+  }
+
+  // 송금처 정보 추가
+  if (invoiceData.payment_bank_info) {
+    freeePayload.payment_bank_info = invoiceData.payment_bank_info
+  }
+
   return callFreeeAPI('/api/1/invoices', {
     method: 'POST',
-    body: JSON.stringify(invoiceData),
+    body: JSON.stringify(freeePayload),
   })
 }
 

@@ -206,11 +206,13 @@ export interface InvoiceLineItem {
 export interface InvoiceFormData {
   company_id: number
   partner_name: string
-  partner_address?: string
-  partner_zipcode?: string
+  partner_title: '御中' | '様' | ''  // 경칭
+  invoice_title: string  // 제목
   invoice_date: string
   due_date: string
+  tax_entry_method: 'inclusive' | 'exclusive'  // 내세/외세
   line_items: InvoiceLineItem[]
+  payment_bank_info?: string  // 송금처 정보
 }
 
 export interface FreeeCompany {

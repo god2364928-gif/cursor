@@ -113,7 +113,7 @@ router.get('/list', auth_1.authMiddleware, async (req, res) => {
  */
 router.post('/create', auth_1.authMiddleware, async (req, res) => {
     try {
-        const { company_id, partner_name, partner_zipcode, partner_address, invoice_date, due_date, line_items, } = req.body;
+        const { company_id, partner_name, partner_title, invoice_title, invoice_date, due_date, tax_entry_method, line_items, payment_bank_info, } = req.body;
         // 입력 유효성 검사
         if (!company_id || !partner_name || !invoice_date || !due_date || !line_items || line_items.length === 0) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -125,10 +125,12 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
         const invoiceData = {
             company_id: Number(company_id),
             partner_name,
-            partner_zipcode,
-            partner_address,
+            partner_title,
+            invoice_title,
             invoice_date,
             due_date,
+            tax_entry_method,
+            payment_bank_info,
             invoice_contents: line_items.map((item) => ({
                 name: item.name,
                 quantity: Number(item.quantity),
@@ -146,25 +148,21 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
         // 사용자 정보 조회
         const userResult = await db_1.pool.query('SELECT name FROM users WHERE id = $1', [req.user.id]);
         const userName = userResult.rows[0]?.name || '알 수 없음';
-        // DB에 청구서 정보 저장
+        // DB에 청구서 정보 저장 (우편번호/주소 필드 제거)
         const insertResult = await db_1.pool.query(`INSERT INTO freee_invoices (
         freee_invoice_id, 
         freee_company_id, 
         partner_name, 
-        partner_zipcode, 
-        partner_address, 
         invoice_date, 
         due_date, 
         total_amount, 
         tax_amount, 
         issued_by_user_id, 
         issued_by_user_name
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`, [
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`, [
             invoiceId,
             company_id,
-            partner_name,
-            partner_zipcode || null,
-            partner_address || null,
+            partner_name + (partner_title || ''),
             invoice_date,
             due_date,
             totalAmount,
