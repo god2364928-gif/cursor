@@ -244,25 +244,42 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
 router.get('/:id/pdf', auth_1.authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
+        const userId = req.user?.id;
+        console.log(`📥 [PDF Download] Request for invoice ID: ${id} by user: ${userId}`);
         // DB에서 청구서 조회하여 freee_invoice_id와 company_id 가져오기
         const result = await db_1.pool.query('SELECT freee_invoice_id, company_id FROM invoices WHERE id = $1', [id]);
         if (result.rows.length === 0) {
+            console.error(`❌ Invoice not found in DB: ${id}`);
             return res.status(404).json({ error: 'Invoice not found' });
         }
         const { freee_invoice_id, company_id } = result.rows[0];
+        console.log(`📋 Invoice details: freee_id=${freee_invoice_id}, company_id=${company_id}`);
         if (!freee_invoice_id || !company_id) {
+            console.error(`❌ Missing freee information: freee_id=${freee_invoice_id}, company_id=${company_id}`);
             return res.status(400).json({ error: 'Invoice missing freee information' });
         }
-        console.log(`📥 Downloading PDF for invoice ${id}, freee_id: ${freee_invoice_id}, company_id: ${company_id}`);
+        console.log(`📥 Calling downloadInvoicePdf with company_id=${company_id}, invoice_id=${freee_invoice_id}`);
         const pdfBuffer = await (0, freeeClient_1.downloadInvoicePdf)(Number(company_id), Number(freee_invoice_id));
+        if (!pdfBuffer || pdfBuffer.length === 0) {
+            console.error(`❌ PDF buffer is empty`);
+            return res.status(500).json({ error: 'PDF download returned empty data' });
+        }
+        console.log(`✅ PDF downloaded successfully: ${pdfBuffer.length} bytes`);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="invoice_${freee_invoice_id}.pdf"`);
         res.send(pdfBuffer);
     }
     catch (error) {
         console.error('❌ Error downloading PDF:', error);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
         if (error.message?.includes('No valid access token')) {
             return res.status(401).json({ error: 'Not authenticated. Please authenticate first.' });
+        }
+        if (error.message?.includes('freee PDF download error')) {
+            const statusMatch = error.message.match(/error: (\d+)/);
+            const status = statusMatch ? parseInt(statusMatch[1]) : 500;
+            return res.status(status).json({ error: error.message });
         }
         res.status(500).json({ error: error.message || 'Failed to download PDF' });
     }
