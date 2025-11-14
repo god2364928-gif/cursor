@@ -162,6 +162,10 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
-// Force Railway redeploy - Thu Nov 13 14:27:53 JST 2025
-// Force redeploy Thu Nov 13 14:39:08 JST 2025
+// Force Railway redeploy - Optimized build system
+// Timestamp: 2025-11-14 20:00:00
+// Changes:
+// - Removed 16 unnecessary files
+// - Optimized Railway build configuration
+// - Enforced clean build (no cache)
 //# sourceMappingURL=index.js.map
