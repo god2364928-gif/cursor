@@ -249,6 +249,39 @@ async function getInvoiceTemplates(companyId) {
     return data;
 }
 /**
+ * 거래처 생성 또는 조회 (freee会計 API)
+ */
+async function getOrCreatePartner(companyId, partnerName) {
+    const token = await ensureValidToken();
+    if (!token) {
+        throw new Error('No valid access token.');
+    }
+    // 거래처 코드 생성 (타임스탬프 기반)
+    const partnerCode = `P-${Date.now().toString(36).toUpperCase()}`;
+    console.log(`📋 Creating partner: ${partnerName} (${partnerCode})`);
+    // freee会計 API로 거래처 생성
+    const response = await fetch(`${FREEE_API_BASE}/partners`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            company_id: companyId,
+            name: partnerName,
+            code: partnerCode,
+        }),
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        console.error(`❌ Partner creation error: ${response.status}`, text);
+        throw new Error(`Failed to create partner: ${response.status} ${text}`);
+    }
+    const data = await response.json();
+    console.log(`✅ Partner created: ID=${data.partner.id}`);
+    return data.partner.id;
+}
+/**
  * 청구書 생성 (freee請求書 API 사용)
  */
 async function createInvoice(invoiceData) {
@@ -256,7 +289,17 @@ async function createInvoice(invoiceData) {
     if (!token) {
         throw new Error('No valid access token. Please authenticate first.');
     }
-    // 먼저 사용 가능한 템플릿 조회
+    // 1. 거래처 생성
+    let partnerId;
+    try {
+        const partnerName = invoiceData.partner_name;
+        partnerId = await getOrCreatePartner(invoiceData.company_id, partnerName);
+    }
+    catch (error) {
+        console.error('⚠️ Failed to create partner:', error);
+        throw error;
+    }
+    // 2. 템플릿 조회
     let templateId;
     try {
         const templates = await getInvoiceTemplates(invoiceData.company_id);
@@ -275,7 +318,8 @@ async function createInvoice(invoiceData) {
     const freeePayload = {
         company_id: invoiceData.company_id,
         invoice_number: invoiceNumber, // 필수: 청구서 번호
-        partner_name: partnerName, // partner_code 대신 partner_name만 사용
+        partner_id: partnerId, // 필수: 거래처 ID
+        partner_name: partnerName,
         partner_title: invoiceData.partner_title || '御中',
         billing_date: invoiceData.invoice_date, // 필수: 청구일
         due_date: invoiceData.due_date,
