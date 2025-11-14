@@ -49,7 +49,7 @@ export declare function createPartner(companyId: number, partnerName: string): P
  */
 export declare function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<any>;
 /**
- * 청구서 PDF 다운로드 (freee会計 API)
+ * 청구서 PDF 다운로드 (freee請求書 API)
  */
 export declare function downloadInvoicePdf(companyId: number, invoiceId: number): Promise<Buffer>;
 /**
