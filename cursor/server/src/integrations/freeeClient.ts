@@ -6,7 +6,7 @@ dotenv.config()
 const FREEE_CLIENT_ID = process.env.FREEE_CLIENT_ID || '632732953685764'
 const FREEE_CLIENT_SECRET = process.env.FREEE_CLIENT_SECRET || 'An9MEyDAacju9EyiLx3jZKeKpqC-aYdkhDGvwsGwHFoQmiwm6jeAVzJyuBo8ttJ0Dj0OOYboVjImkZLoLNeJeQ'
 const FREEE_REDIRECT_URI = process.env.FREEE_REDIRECT_URI || 'urn:ietf:wg:oauth:2.0:oob'
-const FREEE_API_BASE = 'https://api.freee.co.jp/api/1'  // freee会計 API로 변경
+const FREEE_API_BASE = 'https://api.freee.co.jp/iv'  // freee請求書 API
 const FREEE_AUTH_BASE = 'https://accounts.secure.freee.co.jp'
 
 // 메모리 캐시 (DB 조회 최소화)
@@ -279,34 +279,34 @@ export async function getCompanies(): Promise<any> {
 }
 
 /**
- * 청구書 생성 (freee会計 API)
+ * 청구書 생성 (freee請求書 API)
  */
 export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<any> {
-  // freee会計 API 형식으로 데이터 변환
+  // freee請求書 API 형식으로 데이터 변환
   const freeePayload: any = {
     company_id: invoiceData.company_id,
-    partner_name: invoiceData.partner_name + (invoiceData.partner_title || ''),
-    invoice_number: '',  // 자동 생성
-    invoice_date: invoiceData.invoice_date,
-    due_date: invoiceData.due_date,
-    title: invoiceData.invoice_title || 'COCOマーケご利用料',
-    tax_entry_method: invoiceData.tax_entry_method === 'inclusive' ? 'inclusive' : 'exclusive',
-    invoice_contents: invoiceData.invoice_contents.map((item, index) => ({
-      order: index + 1,
-      type: 'normal',
-      qty: item.quantity.toString(),
+    issue_date: invoiceData.invoice_date,
+    payment_date: invoiceData.due_date,
+    partner_display_name: invoiceData.partner_name + (invoiceData.partner_title || ''),
+    partner_title: invoiceData.partner_title || '',
+    subject: invoiceData.invoice_title || 'COCOマーケご利用料',
+    tax_entry_method: invoiceData.tax_entry_method === 'inclusive' ? 'in' : 'out',
+    invoice_status: 'submitted',  // 発行済み
+    lines: invoiceData.invoice_contents.map(item => ({
+      type: 'item',
       description: item.name,
-      unit_price: item.unit_price,
-      vat: item.tax_rate || 10,
+      quantity: item.quantity,
+      unit_price: item.unit_price.toString(),
+      tax_rate: item.tax_rate || 10,
     })),
   }
 
-  // 송금처 정보 추가 (메모로)
+  // 送金先情報 추가
   if (invoiceData.payment_bank_info) {
-    freeePayload.notes = invoiceData.payment_bank_info
+    freeePayload.payment_bank_info = invoiceData.payment_bank_info
   }
 
-  console.log('📤 Sending to freee会計 API:', JSON.stringify(freeePayload, null, 2))
+  console.log('📤 Sending to freee請求書 API:', JSON.stringify(freeePayload, null, 2))
 
   return callFreeeAPI('/invoices', {
     method: 'POST',
@@ -315,7 +315,7 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
 }
 
 /**
- * 청구서 PDF 다운로드 (freee会計 API)
+ * 청구서 PDF 다운로드 (freee請求書 API)
  */
 export async function downloadInvoicePdf(companyId: number, invoiceId: number): Promise<Buffer> {
   const token = await ensureValidToken()

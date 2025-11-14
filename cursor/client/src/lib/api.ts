@@ -79,6 +79,9 @@ export const invoiceAPI = {
   // 인증 상태 확인
   checkAuthStatus: () => api.get('/invoices/auth-status'),
   
+  // 인증 리셋 (재인증용)
+  resetAuth: () => api.post('/invoices/reset-auth'),
+  
   // 사업소 목록 조회
   getCompanies: () => api.get('/invoices/companies'),
   

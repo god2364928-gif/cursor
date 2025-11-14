@@ -64,6 +64,20 @@ router.get('/auth-status', authMiddleware, async (req: AuthRequest, res: Respons
 })
 
 /**
+ * OAuth 토큰 삭제 (재인증용)
+ */
+router.post('/reset-auth', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    await pool.query('DELETE FROM freee_tokens')
+    console.log('🗑️ freee tokens deleted - ready for re-authentication')
+    res.json({ success: true, message: 'Authentication reset. Please authenticate again.' })
+  } catch (error) {
+    console.error('Error resetting auth:', error)
+    res.status(500).json({ error: 'Failed to reset authentication' })
+  }
+})
+
+/**
  * 사업소 목록 조회
  */
 router.get('/companies', authMiddleware, async (req: AuthRequest, res: Response) => {

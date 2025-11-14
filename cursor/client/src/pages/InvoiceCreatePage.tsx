@@ -304,6 +304,14 @@ export default function InvoiceCreatePage() {
                 : 'freee와 연동하여 청구서를 발행합니다. 먼저 인증을 진행하세요.'}
             </p>
 
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+              <p className="text-sm text-yellow-800">
+                {language === 'ja'
+                  ? '⚠️ freee請求書 API権限で再認証が必要です'
+                  : '⚠️ freee請求書 API 권한으로 재인증이 필요합니다'}
+              </p>
+            </div>
+
             <Button onClick={handleAuthRedirect} className="w-full mb-4">
               {language === 'ja' ? 'freee認証ページを開く' : 'freee 인증 페이지 열기'}
             </Button>
