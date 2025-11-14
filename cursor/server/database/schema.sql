@@ -255,5 +255,39 @@ CREATE INDEX IF NOT EXISTS idx_receipts_company_id ON receipts(company_id);
 CREATE INDEX IF NOT EXISTS idx_receipts_receipt_date ON receipts(receipt_date);
 CREATE INDEX IF NOT EXISTS idx_receipts_invoice_id ON receipts(invoice_id);
 
+-- =============================
+-- 데이터 마이그레이션: freee_invoices → invoices
+-- =============================
+-- 기존 freee_invoices 테이블의 데이터를 invoices 테이블로 복사
+INSERT INTO invoices (
+  user_id,
+  company_id,
+  partner_name,
+  invoice_number,
+  freee_invoice_id,
+  invoice_date,
+  due_date,
+  total_amount,
+  tax_amount,
+  tax_entry_method,
+  created_at
+)
+SELECT 
+  issued_by_user_id as user_id,
+  freee_company_id as company_id,
+  partner_name,
+  CAST(freee_invoice_id AS VARCHAR) as invoice_number,
+  freee_invoice_id,
+  invoice_date,
+  due_date,
+  total_amount,
+  tax_amount,
+  'exclusive' as tax_entry_method,
+  created_at
+FROM freee_invoices
+WHERE EXISTS (SELECT 1 FROM freee_invoices)  -- freee_invoices 테이블이 존재하면
+  AND freee_invoice_id NOT IN (SELECT freee_invoice_id FROM invoices WHERE freee_invoice_id IS NOT NULL)
+ON CONFLICT DO NOTHING;
+
 
 
