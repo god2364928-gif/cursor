@@ -309,19 +309,29 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
 router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
-    const { company_id } = req.query
 
-    if (!company_id) {
-      return res.status(400).json({ error: 'company_id is required' })
+    // DB에서 청구서 조회하여 freee_invoice_id와 company_id 가져오기
+    const result = await pool.query('SELECT freee_invoice_id, company_id FROM invoices WHERE id = $1', [id])
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' })
     }
 
-    const pdfBuffer = await downloadInvoicePdf(Number(company_id), Number(id))
+    const { freee_invoice_id, company_id } = result.rows[0]
+
+    if (!freee_invoice_id || !company_id) {
+      return res.status(400).json({ error: 'Invoice missing freee information' })
+    }
+
+    console.log(`📥 Downloading PDF for invoice ${id}, freee_id: ${freee_invoice_id}, company_id: ${company_id}`)
+
+    const pdfBuffer = await downloadInvoicePdf(Number(company_id), Number(freee_invoice_id))
     
     res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `attachment; filename="invoice_${id}.pdf"`)
+    res.setHeader('Content-Disposition', `attachment; filename="invoice_${freee_invoice_id}.pdf"`)
     res.send(pdfBuffer)
   } catch (error: any) {
-    console.error('Error downloading PDF:', error)
+    console.error('❌ Error downloading PDF:', error)
     
     if (error.message?.includes('No valid access token')) {
       return res.status(401).json({ error: 'Not authenticated. Please authenticate first.' })

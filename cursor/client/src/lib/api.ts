@@ -101,9 +101,9 @@ export const invoiceAPI = {
   // 청구서 생성
   createInvoice: (data: any) => api.post('/invoices/create', data),
   
-  // PDF 다운로드
-  downloadPdf: (invoiceId: number, companyId: number) => 
-    api.get(`/invoices/${invoiceId}/pdf?company_id=${companyId}`, { 
+  // PDF 다운로드 (invoice DB id 사용)
+  downloadPdf: (invoiceDbId: string | number) => 
+    api.get(`/invoices/${invoiceDbId}/pdf`, { 
       responseType: 'blob' 
     }),
 }
