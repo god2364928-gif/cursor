@@ -4,11 +4,12 @@ import { InvoiceFormData, InvoiceLineItem, FreeeCompany } from '../types'
 import { Button } from '../components/ui/button'
 import { useI18nStore } from '../i18n'
 import { Plus, Trash2, FileText, Download, ArrowLeft } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import InvoicePreviewModal from '../components/InvoicePreviewModal'
 
 export default function InvoiceCreatePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { language, t } = useI18nStore()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
@@ -45,10 +46,23 @@ export default function InvoiceCreatePage() {
     bankInfo: 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
   }
 
-  // 인증 상태 확인
+  // 인증 상태 확인 (페이지 마운트 시 + 포커스될 때마다)
   useEffect(() => {
+    console.log('🔄 Checking auth status...')
     checkAuthStatus()
-  }, [])
+
+    // 페이지가 포커스될 때마다 인증 상태 재확인
+    const handleFocus = () => {
+      console.log('🔄 Page focused - checking auth status')
+      checkAuthStatus()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [location.pathname]) // location 변경 시에도 재확인
 
   const checkAuthStatus = async () => {
     try {
