@@ -55,9 +55,9 @@ function generateReceiptHtml(data: ReceiptData): string {
     }
   }
 
-  const emptyRows = Math.max(0, 6 - data.lines.length)
+  const emptyRows = Math.max(0, 10 - data.lines.length)
   const emptyRowsHtml = Array(emptyRows)
-    .fill('<tr><td style="height: 20px;">&nbsp;</td><td></td><td></td><td></td></tr>')
+    .fill('<tr><td style="height: 18px;">&nbsp;</td><td></td><td></td><td></td></tr>')
     .join('')
 
   return `
