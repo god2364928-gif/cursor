@@ -15,6 +15,7 @@ import {
   LogOut,
   Languages,
   Calculator,
+  FileText,
 } from 'lucide-react'
 import { Button } from './ui/button'
 
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'retargeting', href: '/retargeting', icon: Target },
   { name: 'salesTracking', href: '/sales-tracking', icon: History },
   { name: 'sales', href: '/sales', icon: BarChart3 },
+  { name: 'invoices', href: '/invoices', icon: FileText },
   { name: 'settings', href: '/settings', icon: Settings },
   { name: 'accountOptimization', href: '/settings/account-optimization', icon: Gauge, nested: true },
   { name: 'keywordAnalysisMenu', href: '/settings/keyword-analysis', icon: TrendingUp, nested: true },

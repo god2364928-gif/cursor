@@ -11,6 +11,7 @@ import SettingsPage from './pages/SettingsPage'
 import AccountOptimizationPage from './pages/AccountOptimizationPage'
 import KeywordAnalysisPage from './pages/KeywordAnalysisPage'
 import AccountingPage from './pages/AccountingPage'
+import InvoicePage from './pages/InvoicePage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token)
@@ -35,6 +36,7 @@ function App() {
           <Route path="retargeting" element={<RetargetingPage />} />
           <Route path="sales" element={<SalesPage />} />
           <Route path="sales-tracking" element={<SalesTrackingPage />} />
+          <Route path="invoices" element={<InvoicePage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="settings/account-optimization" element={<AccountOptimizationPage />} />
           <Route path="settings/keyword-analysis" element={<KeywordAnalysisPage />} />

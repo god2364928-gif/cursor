@@ -68,4 +68,27 @@ api.interceptors.response.use(
 
 export default api
 
+// Invoice API functions
+export const invoiceAPI = {
+  // freee 인증 URL 가져오기
+  getAuthUrl: () => api.get('/invoices/auth-url'),
+  
+  // OAuth 콜백 - 인증 코드로 토큰 교환
+  authCallback: (code: string) => api.post('/invoices/auth-callback', { code }),
+  
+  // 인증 상태 확인
+  checkAuthStatus: () => api.get('/invoices/auth-status'),
+  
+  // 사업소 목록 조회
+  getCompanies: () => api.get('/invoices/companies'),
+  
+  // 청구서 생성
+  createInvoice: (data: any) => api.post('/invoices/create', data),
+  
+  // PDF 다운로드
+  downloadPdf: (invoiceId: number, companyId: number) => 
+    api.get(`/invoices/${invoiceId}/pdf?company_id=${companyId}`, { 
+      responseType: 'blob' 
+    }),
+}
 

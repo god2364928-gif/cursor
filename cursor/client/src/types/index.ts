@@ -196,3 +196,26 @@ export interface UserFile {
   createdAt: string
 }
 
+export interface InvoiceLineItem {
+  name: string
+  quantity: number
+  unit_price: number
+  tax: number
+}
+
+export interface InvoiceFormData {
+  company_id: number
+  partner_name: string
+  partner_address?: string
+  partner_zipcode?: string
+  invoice_date: string
+  due_date: string
+  line_items: InvoiceLineItem[]
+}
+
+export interface FreeeCompany {
+  id: number
+  name: string
+  role: string
+}
+
