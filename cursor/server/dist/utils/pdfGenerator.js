@@ -50,28 +50,26 @@ function generateInvoiceHtml(data) {
       font-weight: bold;
     }
     .header-right {
-      text-align: center;
+      text-align: right;
       font-size: 10pt;
       line-height: 1.8;
     }
     .header-right-row {
       display: flex;
-      justify-content: center;
+      justify-content: space-between;
       align-items: center;
       margin: 5px 0;
     }
     .header-right-label {
-      min-width: 120px;
       text-align: left;
     }
     .header-right-value {
-      text-align: left;
-      margin-left: 20px;
+      text-align: right;
     }
     .company-info {
-      margin-top: 20px;
+      margin-top: 30px;
       font-size: 11pt;
-      text-align: center;
+      text-align: left;
     }
     .greeting {
       margin: 20px 0 10px 0;
