@@ -276,7 +276,7 @@ async function createInvoice(invoiceData) {
         partner_title: invoiceData.partner_title || '御中',
         billing_date: invoiceData.invoice_date, // 필수: 청구일
         due_date: invoiceData.due_date,
-        tax_entry_method: invoiceData.tax_entry_method || 'exclusive', // 필수: 세금 표시 방법
+        tax_entry_method: invoiceData.tax_entry_method === 'inclusive' ? 'in' : 'out', // 필수: in/out
         tax_fraction: 'round', // 필수: 세금 단수 처리 (round/floor/ceil)
         withholding_tax_entry_method: 'exclude', // 필수: 원천징수 표시 방법
         lines: invoiceData.invoice_contents.map((item) => ({
