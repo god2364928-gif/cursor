@@ -120,3 +120,4 @@ class TrendsClient:
         return result or {}
 
 
+
