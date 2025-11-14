@@ -441,27 +441,49 @@ async function downloadInvoicePdf(companyId, invoiceId) {
     const data = await detailResponse.json();
     const invoice = data.invoice;
     console.log(`📋 Invoice: ${invoice.invoice_number}, status: ${invoice.sending_status}`);
-    // 2단계: 청구서가 unsent 상태면 발송 처리
+    // 2단계: 청구서가 unsent 상태면 발송 처리 시도
     if (invoice.sending_status === 'unsent') {
-        console.log(`📤 Step 2: Sending invoice to enable PDF download...`);
-        const sendUrl = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/send`;
-        const sendResponse = await fetch(sendUrl, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                company_id: companyId,
-                sending_method: 'posting',
-            }),
-        });
-        if (!sendResponse.ok) {
-            const errorText = await sendResponse.text();
-            console.error(`❌ Send failed: ${sendResponse.status}`, errorText);
-            throw new Error(`Failed to send invoice: ${sendResponse.status}`);
+        console.log(`📤 Step 2: Trying to send invoice...`);
+        // 여러 가능한 발송 엔드포인트 시도
+        const sendUrls = [
+            `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/send`,
+            `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/actions/send`,
+            `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}`,
+        ];
+        let sendSuccess = false;
+        for (const sendUrl of sendUrls) {
+            console.log(`📤 Trying send URL: ${sendUrl}`);
+            try {
+                const sendResponse = await fetch(sendUrl, {
+                    method: sendUrl.includes('/actions/') ? 'POST' : 'PATCH',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        company_id: companyId,
+                        sending_method: 'posting',
+                        sending_status: 'sent',
+                    }),
+                });
+                console.log(`📡 Send response: ${sendResponse.status}`);
+                if (sendResponse.ok) {
+                    console.log(`✅ Invoice sent successfully`);
+                    sendSuccess = true;
+                    break;
+                }
+                else {
+                    const errorText = await sendResponse.text();
+                    console.log(`⚠️ Send failed: ${sendResponse.status}`, errorText.substring(0, 200));
+                }
+            }
+            catch (error) {
+                console.log(`⚠️ Send exception:`, error.message);
+            }
         }
-        console.log(`✅ Invoice sent successfully`);
+        if (!sendSuccess) {
+            console.log(`⚠️ Could not send invoice via API, trying PDF download anyway...`);
+        }
     }
     else {
         console.log(`✅ Invoice already sent (status: ${invoice.sending_status})`);
