@@ -3,10 +3,16 @@ nixPkgs = ['nodejs-18_x']
 
 [phases.build]
 cmds = [
+  'echo "=== Railway Build Start ==="',
+  'echo "Node version: $(node --version)"',
+  'echo "NPM version: $(npm --version)"',
   'rm -rf node_modules dist',
-  'npm ci',
+  'npm ci --prefer-offline --no-audit',
   'npm run build',
-  'echo "✅ Build completed - Force rebuild $(date)"'
+  'echo "=== Verifying build output ==="',
+  'ls -la dist/',
+  'test -f dist/index.js || (echo "ERROR: dist/index.js not found!" && exit 1)',
+  'echo "✅ Build completed successfully at $(date)"'
 ]
 
 [start]
