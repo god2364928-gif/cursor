@@ -1,113 +1,12 @@
 import { Router, Request, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
-import { createReceipt, downloadReceiptPdf, FreeeReceiptRequest } from '../integrations/freeeClient'
+import { generateReceiptPdf } from '../utils/pdfGenerator'
 
 const router = Router()
 
 /**
- * POST /api/receipts - 영수증 생성
- */
-router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const userId = req.user?.id
-  
-  try {
-    let {
-      company_id,
-      partner_id,
-      partner_name,
-      partner_title,
-      receipt_title,
-      receipt_date,
-      issue_date,  // 영수일
-      tax_entry_method,
-      payment_bank_info,
-      receipt_contents,
-    } = req.body
-
-    // 필수 필드 검증
-    if (!company_id || !partner_name || !receipt_date || !issue_date || !receipt_contents || receipt_contents.length === 0) {
-      return res.status(400).json({
-        message: 'Missing required fields: company_id, partner_name, receipt_date, issue_date, receipt_contents',
-      })
-    }
-
-    // 날짜 형식 정리 (YYYY-MM-DD만 추출)
-    if (receipt_date.includes('T')) {
-      receipt_date = receipt_date.split('T')[0]
-    }
-    if (issue_date.includes('T')) {
-      issue_date = issue_date.split('T')[0]
-    }
-
-    console.log(`📝 [USER ${userId}] Creating receipt...`)
-    console.log(`📅 Receipt date: ${receipt_date}, Issue date: ${issue_date}`)
-
-    // freee請求書 API 호출
-    const receiptData: FreeeReceiptRequest = {
-      company_id,
-      partner_id,
-      partner_name,
-      partner_title,
-      receipt_title,
-      receipt_date,
-      issue_date,
-      tax_entry_method,
-      payment_bank_info,
-      receipt_contents,
-    }
-
-    const result = await createReceipt(receiptData)
-
-    if (!result.success) {
-      return res.status(500).json({ message: 'Failed to create receipt in freee' })
-    }
-
-    // DB에 영수증 정보 저장
-    const receiptNumber = result.receipt.receipt_number || result.receipt.id
-    const freeeReceiptId = result.receipt.id
-    const totalAmount = result.receipt.total_amount || 0
-    const taxAmount = result.receipt.amount_tax || 0
-
-    const insertQuery = `
-      INSERT INTO receipts (
-        user_id, company_id, partner_id, partner_name,
-        receipt_number, freee_receipt_id, receipt_date, issue_date,
-        total_amount, tax_amount, tax_entry_method
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING *
-    `
-    const values = [
-      userId,
-      company_id,
-      partner_id,
-      partner_name,
-      receiptNumber,
-      freeeReceiptId,
-      receipt_date,
-      issue_date,
-      totalAmount,
-      taxAmount,
-      tax_entry_method,
-    ]
-
-    const insertResult = await pool.query(insertQuery, values)
-
-    console.log(`✅ Receipt created: freee_id=${freeeReceiptId}, db_id=${insertResult.rows[0].id}`)
-
-    res.json({
-      success: true,
-      receipt: insertResult.rows[0],
-      freee_receipt: result.receipt,
-    })
-  } catch (error: any) {
-    console.error('❌ Error creating receipt:', error)
-    res.status(500).json({ message: 'Error creating receipt', error: error.message })
-  }
-})
-
-/**
- * POST /api/receipts/from-invoice - 청구서 기반 영수증 생성
+ * POST /api/receipts/from-invoice - 청구서 기반 영수증 생성 (freee 독립, 자체 PDF)
  */
 router.post('/from-invoice', authMiddleware, async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id
@@ -151,54 +50,52 @@ router.post('/from-invoice', authMiddleware, async (req: AuthRequest, res: Respo
       })
     }
 
-    // 청구서의 품목 정보를 조회 (DB에 저장되어 있다면)
-    // 현재는 freee에서 직접 조회
-    // 간단하게 청구서 정보만으로 영수증 생성
+    // 영수증 번호 생성 (YYYYMMDDHHmm 형식, 한국시간 KST)
+    const now = new Date()
+    const kstOffset = 9 * 60
+    const kstTime = new Date(now.getTime() + kstOffset * 60 * 1000)
+    const receiptNumber = kstTime.toISOString().replace(/[-:T]/g, '').slice(0, 12)
+
+    console.log(`📋 Generated receipt number: ${receiptNumber}`)
+
+    // 영수증 PDF 생성
+    console.log(`📄 Generating receipt PDF...`)
     
-    // partner_name에 이미 경칭(御中/様)이 포함되어 있는지 확인
-    const hasTitle = /[御中様]+$/.test(invoice.partner_name)
-    
-    const receiptData: FreeeReceiptRequest = {
-      company_id: invoice.company_id,
-      partner_id: invoice.partner_id,
+    const pdfBuffer = await generateReceiptPdf({
+      receipt_number: receiptNumber,
       partner_name: invoice.partner_name,
-      partner_title: hasTitle ? '' : '様',  // 이미 경칭이 있으면 추가하지 않음
-      receipt_title: 'COCOマーケご利用料 領収書',
-      receipt_date: invoice.invoice_date,
       issue_date: issue_date,
-      tax_entry_method: invoice.tax_entry_method,
-      payment_bank_info: 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
-      receipt_contents: [
+      company_name: '株式会社ホットセラー',
+      company_address: '〒1040053\n東京都中央区晴海一丁目8番10号\n晴海アイランドトリトンスクエア\nオフィスタワーX棟8階',
+      total_amount: invoice.total_amount,
+      amount_tax: invoice.tax_amount,
+      amount_excluding_tax: invoice.total_amount - invoice.tax_amount,
+      lines: [
         {
-          name: 'COCOマーケご利用料',
+          description: 'アカウント管理',
           quantity: 1,
           unit_price: invoice.tax_entry_method === 'inclusive' 
             ? invoice.total_amount 
             : invoice.total_amount - invoice.tax_amount,
-          tax: invoice.tax_amount,
-          tax_rate: 10,
+        },
+        {
+          description: 'クーポン利用済み',
+          quantity: 0,
+          unit_price: 0,
         }
       ],
-    }
+      invoice_registration_number: 'T5013301050765',
+    })
 
-    const result = await createReceipt(receiptData)
-
-    if (!result.success) {
-      return res.status(500).json({ message: 'Failed to create receipt in freee' })
-    }
+    console.log(`✅ Receipt PDF generated: ${pdfBuffer.length} bytes`)
 
     // DB에 영수증 정보 저장
-    const receiptNumber = result.receipt.receipt_number || result.receipt.id
-    const freeeReceiptId = result.receipt.id
-    const totalAmount = result.receipt.total_amount || invoice.total_amount
-    const taxAmount = result.receipt.amount_tax || invoice.tax_amount
-
     const insertQuery = `
       INSERT INTO receipts (
         user_id, company_id, partner_id, partner_name,
-        receipt_number, freee_receipt_id, receipt_date, issue_date,
+        receipt_number, receipt_date, issue_date,
         total_amount, tax_amount, tax_entry_method, invoice_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `
     const values = [
@@ -207,11 +104,10 @@ router.post('/from-invoice', authMiddleware, async (req: AuthRequest, res: Respo
       invoice.partner_id,
       invoice.partner_name,
       receiptNumber,
-      freeeReceiptId,
       invoice.invoice_date,
       issue_date,
-      totalAmount,
-      taxAmount,
+      invoice.total_amount,
+      invoice.tax_amount,
       invoice.tax_entry_method,
       invoice_id,
     ]
@@ -224,13 +120,12 @@ router.post('/from-invoice', authMiddleware, async (req: AuthRequest, res: Respo
       [insertResult.rows[0].id, invoice_id]
     )
 
-    console.log(`✅ Receipt created from invoice: freee_id=${freeeReceiptId}, db_id=${insertResult.rows[0].id}`)
+    console.log(`✅ Receipt created: db_id=${insertResult.rows[0].id}`)
 
-    res.json({
-      success: true,
-      receipt: insertResult.rows[0],
-      freee_receipt: result.receipt,
-    })
+    // PDF를 바로 반환
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="receipt_${receiptNumber}.pdf"`)
+    res.send(pdfBuffer)
   } catch (error: any) {
     console.error('❌ Error creating receipt from invoice:', error)
     res.status(500).json({ message: 'Error creating receipt', error: error.message })
@@ -258,7 +153,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 })
 
 /**
- * GET /api/receipts/:id/pdf - 영수증 PDF 다운로드
+ * GET /api/receipts/:id/pdf - 영수증 PDF 재생성 및 다운로드
  */
 router.get('/:id/pdf', authMiddleware, async (req: Request, res: Response) => {
   const { id } = req.params
@@ -272,15 +167,35 @@ router.get('/:id/pdf', authMiddleware, async (req: Request, res: Response) => {
     }
 
     const receipt = result.rows[0]
-    const companyId = receipt.company_id
-    const freeeReceiptId = receipt.freee_receipt_id
 
-    if (!freeeReceiptId) {
-      return res.status(400).json({ message: 'freee receipt ID not found' })
-    }
+    console.log(`📥 Regenerating receipt PDF: ${receipt.receipt_number}`)
 
-    // freee請求書 API에서 PDF 다운로드
-    const pdfBuffer = await downloadReceiptPdf(companyId, freeeReceiptId)
+    // PDF 재생성
+    const pdfBuffer = await generateReceiptPdf({
+      receipt_number: receipt.receipt_number,
+      partner_name: receipt.partner_name,
+      issue_date: receipt.issue_date,
+      company_name: '株式会社ホットセラー',
+      company_address: '〒1040053\n東京都中央区晴海一丁目8番10号\n晴海アイランドトリトンスクエア\nオフィスタワーX棟8階',
+      total_amount: receipt.total_amount,
+      amount_tax: receipt.tax_amount,
+      amount_excluding_tax: receipt.total_amount - receipt.tax_amount,
+      lines: [
+        {
+          description: 'アカウント管理',
+          quantity: 1,
+          unit_price: receipt.tax_entry_method === 'inclusive' 
+            ? receipt.total_amount 
+            : receipt.total_amount - receipt.tax_amount,
+        },
+        {
+          description: 'クーポン利用済み',
+          quantity: 0,
+          unit_price: 0,
+        }
+      ],
+      invoice_registration_number: 'T5013301050765',
+    })
 
     // PDF 파일로 응답
     res.setHeader('Content-Type', 'application/pdf')
@@ -293,4 +208,3 @@ router.get('/:id/pdf', authMiddleware, async (req: Request, res: Response) => {
 })
 
 export default router
-
