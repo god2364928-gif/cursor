@@ -535,41 +535,64 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
 
   console.log(`✅ Token validated successfully`)
 
-  // freee請求書 API 엔드포인트 - 청구서 생성과 동일한 베이스 사용
-  const url = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`
-
-  console.log(`📥 Downloading PDF from: ${url}`)
-  console.log(`🔑 Using token: ${token.substring(0, 10)}...`)
+  // 먼저 청구서 상세 정보를 조회하여 PDF URL 확인
+  const detailUrl = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}?company_id=${companyId}`
+  console.log(`📋 Fetching invoice details from: ${detailUrl}`)
 
   try {
-    const response = await fetch(url, {
+    const detailResponse = await fetch(detailUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     })
 
-    console.log(`📡 Response status: ${response.status} ${response.statusText}`)
-    console.log(`📡 Response headers:`, Object.fromEntries(response.headers.entries()))
-
-    if (!response.ok) {
-      const text = await response.text()
-      console.error(`❌ PDF download error: ${response.status}`, text)
-      throw new Error(`freee PDF download error: ${response.status} ${text}`)
+    if (detailResponse.ok) {
+      const detailData = await detailResponse.json()
+      console.log(`📋 Invoice details:`, JSON.stringify(detailData, null, 2))
     }
-
-    const arrayBuffer = await response.arrayBuffer()
-    console.log(`✅ PDF downloaded: ${arrayBuffer.byteLength} bytes`)
-
-    if (arrayBuffer.byteLength === 0) {
-      console.error('❌ Downloaded PDF is empty')
-      throw new Error('Downloaded PDF is empty')
-    }
-
-    return Buffer.from(arrayBuffer)
-  } catch (error: any) {
-    console.error(`❌ Exception during PDF download:`, error)
-    throw error
+  } catch (error) {
+    console.log(`⚠️ Could not fetch invoice details:`, error)
   }
+
+  // PDF 다운로드 시도 - 여러 가능한 엔드포인트 시도
+  const possibleUrls = [
+    `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`,
+    `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/pdf?company_id=${companyId}`,
+    `https://api.freee.co.jp/api/1/invoices/${invoiceId}/download?company_id=${companyId}`,
+  ]
+
+  for (const url of possibleUrls) {
+    console.log(`📥 Trying PDF download from: ${url}`)
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      console.log(`📡 Response status: ${response.status} ${response.statusText}`)
+
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer()
+        console.log(`✅ PDF downloaded successfully: ${arrayBuffer.byteLength} bytes`)
+
+        if (arrayBuffer.byteLength === 0) {
+          console.error('❌ Downloaded PDF is empty')
+          continue
+        }
+
+        return Buffer.from(arrayBuffer)
+      } else {
+        const text = await response.text()
+        console.log(`❌ Failed with ${response.status}:`, text)
+      }
+    } catch (error: any) {
+      console.log(`❌ Exception with this URL:`, error.message)
+    }
+  }
+
+  throw new Error('All PDF download attempts failed. Please check freee API documentation.')
 }
 
 /**
