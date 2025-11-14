@@ -3,6 +3,7 @@ export interface FreeeInvoiceLineItem {
     quantity: number;
     unit_price: number;
     tax: number;
+    tax_rate?: number;
 }
 export interface FreeeInvoiceRequest {
     company_id: number;

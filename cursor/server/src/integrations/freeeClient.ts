@@ -21,6 +21,7 @@ export interface FreeeInvoiceLineItem {
   quantity: number
   unit_price: number
   tax: number
+  tax_rate?: number  // 품목별 세율 (옵션)
 }
 
 export interface FreeeInvoiceRequest {

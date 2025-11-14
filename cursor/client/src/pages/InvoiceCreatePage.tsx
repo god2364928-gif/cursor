@@ -28,19 +28,19 @@ export default function InvoiceCreatePage() {
     due_date: '',
     tax_entry_method: 'exclusive',
     line_items: [
-      { name: '', quantity: 1, unit_price: 0, tax: 0 },
+      { name: '', quantity: 1, unit_price: 0, tax: 0, tax_rate: 10 },
     ],
     payment_bank_info: 'PayPay銀行 ビジネス営業部支店（005） 普通 7136331 カブシキガイシャホットセラー',
   })
 
-  const [taxRate, setTaxRate] = useState<number>(10) // 세율 (0, 8, 10)
+  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'paypay'>('bank')
 
   // 자사 정보 (고정값)
   const companyInfo = {
     name: '株式会社ホットセラー',
     registrationNumber: 'T5013301050765',
-    address: '〒104-0053 東京都中央区晴海一丁目8番10号 晴海アイランドトリトンスクエア オフィスタワーX棟8階',
-    bankInfo: 'PayPay銀行 ビジネス営業部支店（005） 普通 7136331 カブシキガイシャホットセラー',
+    address: '〒104-0053\n東京都中央区晴海一丁目8番10号\n晴海アイランドトリトンスクエア\nオフィスタワーX棟8階',
+    bankInfo: 'PayPay銀行 ビジネス営業部支店（005）\n普通 7136331\nカブシキガイシャホットセラー',
   }
 
   // 인증 상태 확인
@@ -116,7 +116,7 @@ export default function InvoiceCreatePage() {
     }
     setFormData({
       ...formData,
-      line_items: [...formData.line_items, { name: '', quantity: 1, unit_price: 0, tax: 0 }],
+      line_items: [...formData.line_items, { name: '', quantity: 1, unit_price: 0, tax: 0, tax_rate: 10 }],
     })
   }
 
@@ -133,24 +133,31 @@ export default function InvoiceCreatePage() {
     const newItems = [...formData.line_items]
     newItems[index] = { ...newItems[index], [field]: value }
     
-    // 세액 자동 계산 (선택된 세율 적용)
-    if (field === 'unit_price' || field === 'quantity') {
+    // 세액 자동 계산 (품목별 세율 적용)
+    if (field === 'unit_price' || field === 'quantity' || field === 'tax_rate') {
       const unitPrice = field === 'unit_price' ? Number(value) : newItems[index].unit_price
       const quantity = field === 'quantity' ? Number(value) : newItems[index].quantity
+      const taxRate = field === 'tax_rate' ? Number(value) : newItems[index].tax_rate
       newItems[index].tax = Math.floor(unitPrice * quantity * (taxRate / 100))
     }
     
     setFormData({ ...formData, line_items: newItems })
   }
 
-  // 세율 변경 시 모든 품목의 세액 재계산
-  const handleTaxRateChange = (newTaxRate: number) => {
-    setTaxRate(newTaxRate)
-    const newItems = formData.line_items.map(item => ({
-      ...item,
-      tax: Math.floor(item.unit_price * item.quantity * (newTaxRate / 100))
-    }))
-    setFormData({ ...formData, line_items: newItems })
+  // 송금처 변경 핸들러
+  const handlePaymentMethodChange = (method: 'bank' | 'paypay') => {
+    setPaymentMethod(method)
+    if (method === 'bank') {
+      setFormData({
+        ...formData,
+        payment_bank_info: 'PayPay銀行 ビジネス営業部支店（005） 普通 7136331 カブシキガイシャホットセラー'
+      })
+    } else {
+      setFormData({
+        ...formData,
+        payment_bank_info: 'PayPayアカウント名：株式会社ホットセラー\nPayPayID：hotseller_jp'
+      })
+    }
   }
 
   const calculateSubtotal = (item: InvoiceLineItem) => {
@@ -367,25 +374,18 @@ export default function InvoiceCreatePage() {
             <div className="text-sm space-y-1 text-gray-700">
               <p><strong>{language === 'ja' ? '会社名:' : '회사명:'}</strong> {companyInfo.name}</p>
               <p><strong>{language === 'ja' ? '登録番号:' : '등록번호:'}</strong> {companyInfo.registrationNumber}</p>
-              <p><strong>{language === 'ja' ? '住所:' : '주소:'}</strong> {companyInfo.address}</p>
-              <p><strong>{language === 'ja' ? '振込先:' : '입금처:'}</strong> {companyInfo.bankInfo}</p>
+              <div>
+                <strong>{language === 'ja' ? '住所:' : '주소:'}</strong>
+                <div className="whitespace-pre-line ml-16">{companyInfo.address}</div>
+              </div>
+              <div>
+                <strong>{language === 'ja' ? '振込先:' : '입금처:'}</strong>
+                <div className="whitespace-pre-line ml-16">{companyInfo.bankInfo}</div>
+              </div>
             </div>
           </div>
 
-          {/* 청구서 제목 */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">
-              {language === 'ja' ? '請求書タイトル' : '청구서 제목'} <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.invoice_title}
-              onChange={(e) => setFormData({ ...formData, invoice_title: e.target.value })}
-              className="w-full border rounded px-3 py-2 bg-gray-50"
-              required
-              readOnly
-            />
-          </div>
+          {/* 청구서 제목 삭제 - 나중에 품목 위로 이동 */}
 
           {/* 거래처 정보 */}
           <div className="mb-6">
@@ -421,80 +421,52 @@ export default function InvoiceCreatePage() {
             </div>
           </div>
 
-          {/* 세율 및 내세/외세 선택 */}
-          <div className="mb-6 bg-blue-50 p-4 rounded">
-            <h3 className="font-bold mb-3">{language === 'ja' ? '税率設定' : '세율 설정'}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === 'ja' ? '税率' : '세율'} <span className="text-red-500">*</span>
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleTaxRateChange(0)}
-                    className={`flex-1 px-4 py-2 rounded border ${taxRate === 0 ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
-                  >
-                    0%
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTaxRateChange(8)}
-                    className={`flex-1 px-4 py-2 rounded border ${taxRate === 8 ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
-                  >
-                    8%
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTaxRateChange(10)}
-                    className={`flex-1 px-4 py-2 rounded border ${taxRate === 10 ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
-                  >
-                    10%
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === 'ja' ? '税の表示方法' : '세금 표시 방법'} <span className="text-red-500">*</span>
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, tax_entry_method: 'inclusive' })}
-                    className={`flex-1 px-4 py-2 rounded border ${formData.tax_entry_method === 'inclusive' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
-                  >
-                    {language === 'ja' ? '内税（込）' : '내세(포함)'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, tax_entry_method: 'exclusive' })}
-                    className={`flex-1 px-4 py-2 rounded border ${formData.tax_entry_method === 'exclusive' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
-                  >
-                    {language === 'ja' ? '外税（別）' : '외세(별도)'}
-                  </button>
-                </div>
-              </div>
+          {/* 내세/외세 선택 */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">
+              {language === 'ja' ? '税の表示方法' : '세금 표시 방법'} <span className="text-red-500">*</span>
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, tax_entry_method: 'inclusive' })}
+                className={`flex-1 px-4 py-2 rounded border ${formData.tax_entry_method === 'inclusive' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
+              >
+                {language === 'ja' ? '内税' : '내세'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, tax_entry_method: 'exclusive' })}
+                className={`flex-1 px-4 py-2 rounded border ${formData.tax_entry_method === 'exclusive' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
+              >
+                {language === 'ja' ? '外税' : '외세'}
+              </button>
             </div>
           </div>
 
-          {/* 송금처 정보 */}
+          {/* 송금처 선택 */}
           <div className="mb-6">
             <label className="block text-sm font-medium mb-2">
               {language === 'ja' ? '振込先' : '송금처'} <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              value={formData.payment_bank_info}
-              onChange={(e) => setFormData({ ...formData, payment_bank_info: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-              placeholder="PayPay銀行 ビジネス営業部支店（005） 普通 7136331 カブシキガイシャホットセラー"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              {language === 'ja' 
-                ? 'PayPay決済の場合は送金先を変更してください' 
-                : 'PayPay 결제의 경우 송금처를 변경하세요'}
-            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handlePaymentMethodChange('bank')}
+                className={`flex-1 px-4 py-2 rounded border text-left ${paymentMethod === 'bank' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
+              >
+                <div className="text-sm">PayPay銀行</div>
+                <div className="text-xs opacity-80">ビジネス営業部支店（005）</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePaymentMethodChange('paypay')}
+                className={`flex-1 px-4 py-2 rounded border text-left ${paymentMethod === 'paypay' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
+              >
+                <div className="text-sm">PayPayアカウント</div>
+                <div className="text-xs opacity-80">株式会社ホットセラー</div>
+              </button>
+            </div>
           </div>
 
           {/* 날짜 */}
@@ -528,6 +500,20 @@ export default function InvoiceCreatePage() {
             </div>
           </div>
 
+          {/* 件名 (청구서 제목) */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">
+              {language === 'ja' ? '件名' : '건명'} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.invoice_title}
+              onChange={(e) => setFormData({ ...formData, invoice_title: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              required
+            />
+          </div>
+
           {/* 품목 */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-3">
@@ -548,7 +534,7 @@ export default function InvoiceCreatePage() {
               {formData.line_items.map((item, index) => (
                 <div key={index} className="border rounded p-3">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
-                    <div className="md:col-span-5">
+                    <div className="md:col-span-4">
                       <label className="block text-xs mb-1">{language === 'ja' ? '品目名' : '품목명'}</label>
                       <input
                         type="text"
@@ -558,7 +544,7 @@ export default function InvoiceCreatePage() {
                         required
                       />
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-1">
                       <label className="block text-xs mb-1">{language === 'ja' ? '数量' : '수량'}</label>
                       <input
                         type="number"
@@ -580,10 +566,28 @@ export default function InvoiceCreatePage() {
                         required
                       />
                     </div>
+                    <div className="md:col-span-1">
+                      <label className="block text-xs mb-1">{language === 'ja' ? '税率' : '세율'}</label>
+                      <select
+                        value={item.tax_rate}
+                        onChange={(e) => handleLineItemChange(index, 'tax_rate', Number(e.target.value))}
+                        className="w-full border rounded px-2 py-1 text-sm"
+                      >
+                        <option value={0}>0%</option>
+                        <option value={8}>8%</option>
+                        <option value={10}>10%</option>
+                      </select>
+                    </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs mb-1">{language === 'ja' ? '小計' : '소계'}</label>
                       <div className="text-sm font-medium py-1">
                         ¥{calculateSubtotal(item).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="md:col-span-1">
+                      <label className="block text-xs mb-1">{language === 'ja' ? '税額' : '세액'}</label>
+                      <div className="text-sm font-medium py-1">
+                        ¥{item.tax.toLocaleString()}
                       </div>
                     </div>
                     <div className="md:col-span-1 flex items-end">
@@ -612,7 +616,7 @@ export default function InvoiceCreatePage() {
               </div>
               {formData.tax_entry_method === 'exclusive' && (
                 <div className="flex justify-between">
-                  <span>{language === 'ja' ? `消費税(${taxRate}%)` : `소비세(${taxRate}%)`}:</span>
+                  <span>{language === 'ja' ? '消費税' : '소비세'}:</span>
                   <span className="font-medium">¥{calculateTaxTotal().toLocaleString()}</span>
                 </div>
               )}
@@ -624,11 +628,11 @@ export default function InvoiceCreatePage() {
                 </span>
                 <span>¥{calculateGrandTotal().toLocaleString()}</span>
               </div>
-              {formData.tax_entry_method === 'inclusive' && taxRate > 0 && (
+              {formData.tax_entry_method === 'inclusive' && (
                 <div className="text-xs text-gray-500 mt-2">
                   {language === 'ja' 
-                    ? `※ 消費税${taxRate}%が含まれています` 
-                    : `※ 소비세 ${taxRate}%가 포함되어 있습니다`}
+                    ? '※ 消費税が含まれています' 
+                    : '※ 소비세가 포함되어 있습니다'}
                 </div>
               )}
             </div>
