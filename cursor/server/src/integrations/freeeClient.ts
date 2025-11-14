@@ -354,3 +354,11 @@ export async function isAuthenticated(): Promise<boolean> {
   
   return cachedToken !== null && cachedToken.expiresAt > Date.now()
 }
+
+/**
+ * 캐시 초기화 (재인증 시 사용)
+ */
+export function clearTokenCache(): void {
+  cachedToken = null
+  console.log('🗑️ Token cache cleared')
+}
