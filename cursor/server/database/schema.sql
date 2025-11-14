@@ -206,4 +206,51 @@ CREATE INDEX IF NOT EXISTS idx_payments_manager ON payments(manager_user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_service ON payments(service_id);
 CREATE INDEX IF NOT EXISTS idx_payments_payment_type ON payments(payment_type_id);
 
+-- =============================
+-- freee 청구서 (Invoices)
+-- =============================
+CREATE TABLE IF NOT EXISTS invoices (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id),
+  company_id INTEGER NOT NULL,
+  partner_id INTEGER,
+  partner_name VARCHAR(255) NOT NULL,
+  invoice_number VARCHAR(100) NOT NULL,
+  freee_invoice_id INTEGER,
+  invoice_date DATE NOT NULL,
+  due_date DATE NOT NULL,
+  total_amount INTEGER NOT NULL,
+  tax_amount INTEGER NOT NULL,
+  tax_entry_method VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_company_id ON invoices(company_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_invoice_date ON invoices(invoice_date);
+
+-- =============================
+-- freee 영수증 (Receipts)
+-- =============================
+CREATE TABLE IF NOT EXISTS receipts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id),
+  company_id INTEGER NOT NULL,
+  partner_id INTEGER,
+  partner_name VARCHAR(255) NOT NULL,
+  receipt_number VARCHAR(100) NOT NULL,
+  freee_receipt_id INTEGER,
+  receipt_date DATE NOT NULL,
+  issue_date DATE NOT NULL,
+  total_amount INTEGER NOT NULL,
+  tax_amount INTEGER NOT NULL,
+  tax_entry_method VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_receipts_user_id ON receipts(user_id);
+CREATE INDEX IF NOT EXISTS idx_receipts_company_id ON receipts(company_id);
+CREATE INDEX IF NOT EXISTS idx_receipts_receipt_date ON receipts(receipt_date);
+
+
 

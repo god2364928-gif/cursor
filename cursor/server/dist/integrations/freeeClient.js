@@ -356,8 +356,11 @@ async function createInvoice(invoiceData) {
         console.error('⚠️ Failed to fetch templates, continuing without template_id:', error);
     }
     const partnerName = invoiceData.partner_name + (invoiceData.partner_title || '');
-    // 청구서 번호 자동 생성 (YYYYMMDDHHMMSS 형식, INV- 제거)
-    const invoiceNumber = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+    // 청구서 번호 자동 생성 (YYYYMMDDHHMM 형식, 한국시간 KST, 분까지만)
+    const now = new Date();
+    const kstOffset = 9 * 60; // KST는 UTC+9
+    const kstTime = new Date(now.getTime() + kstOffset * 60 * 1000);
+    const invoiceNumber = kstTime.toISOString().replace(/[-:T]/g, '').slice(0, 12); // YYYYMMDDHHmm
     // freee請求書 API 페이로드 (공식 스펙에 따라 필수 필드 포함)
     const freeePayload = {
         company_id: invoiceData.company_id,

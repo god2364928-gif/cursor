@@ -38,6 +38,20 @@ export interface FreeeInvoiceRequest {
   payment_bank_info?: string
 }
 
+// 영수증 요청 인터페이스
+export interface FreeeReceiptRequest {
+  company_id: number
+  partner_id?: number
+  partner_name: string
+  partner_title?: '御中' | '様' | ''
+  receipt_title?: string
+  issue_date: string  // 영수일 (사용자가 직접 입력)
+  receipt_date: string  // 청구일과 동일
+  tax_entry_method?: 'inclusive' | 'exclusive'
+  receipt_contents: FreeeInvoiceLineItem[]
+  payment_bank_info?: string
+}
+
 /**
  * DB에서 토큰 로드
  */
@@ -556,4 +570,135 @@ export async function isAuthenticated(): Promise<boolean> {
 export function clearTokenCache(): void {
   cachedToken = null
   console.log('🗑️ Token cache cleared')
+}
+
+/**
+ * 영수증 생성 (freee請求書 API - /receipts 엔드포인트)
+ */
+export async function createReceipt(receiptData: FreeeReceiptRequest): Promise<any> {
+  const token = await ensureValidToken()
+  
+  if (!token) {
+    throw new Error('No valid access token. Please authenticate first.')
+  }
+
+  // 1. 거래처 ID 확정
+  let partnerId: number
+  if (receiptData.partner_id) {
+    partnerId = receiptData.partner_id
+    console.log(`📋 Using existing partner ID: ${partnerId}`)
+  } else {
+    const partnerName = receiptData.partner_name
+    partnerId = await getOrCreatePartner(receiptData.company_id, partnerName)
+  }
+
+  // 2. 템플릿 조회
+  let templateId: number | undefined
+  try {
+    const templates = await getInvoiceTemplates(receiptData.company_id)
+    if (templates.length > 0) {
+      templateId = templates[0].id
+      console.log(`📋 Using template ID: ${templateId}`)
+    }
+  } catch (error) {
+    console.error('⚠️ Failed to fetch templates, continuing without template_id:', error)
+  }
+
+  const partnerName = receiptData.partner_name + (receiptData.partner_title || '')
+  
+  // 영수증 번호 자동 생성 (YYYYMMDDHHMM 형식, 한국시간 KST, 분까지만)
+  const now = new Date()
+  const kstOffset = 9 * 60
+  const kstTime = new Date(now.getTime() + kstOffset * 60 * 1000)
+  const receiptNumber = kstTime.toISOString().replace(/[-:T]/g, '').slice(0, 12)
+  
+  // freee請求書 API 영수증 페이로드
+  const freeePayload: any = {
+    company_id: receiptData.company_id,
+    receipt_number: receiptNumber,
+    partner_id: partnerId,
+    partner_name: partnerName,
+    partner_title: receiptData.partner_title || '御中',
+    receipt_date: receiptData.receipt_date,  // 청구일
+    issue_date: receiptData.issue_date,  // 영수일
+    tax_entry_method: receiptData.tax_entry_method === 'inclusive' ? 'in' : 'out',
+    tax_fraction: 'round',
+    withholding_tax_entry_method: receiptData.tax_entry_method === 'inclusive' ? 'in' : 'out',
+    lines: receiptData.receipt_contents.map((item) => ({
+      description: item.name,
+      quantity: String(item.quantity),
+      unit_price: String(item.unit_price),
+      tax_rate: item.tax_rate || 10,
+    })),
+  }
+
+  if (templateId) {
+    freeePayload.template_id = templateId
+  }
+
+  if (receiptData.receipt_title) {
+    freeePayload.receipt_title = receiptData.receipt_title
+  }
+  
+  if (receiptData.payment_bank_info) {
+    freeePayload.payment_bank_info = receiptData.payment_bank_info
+  }
+
+  console.log('📤 Sending to freee請求書 Receipt API:', JSON.stringify(freeePayload, null, 2))
+
+  const url = `${FREEE_INVOICE_API_BASE}/receipts`
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(freeePayload),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error(`❌ freee請求書 Receipt API error: ${response.status}`, text)
+    throw new Error(`freee Receipt API error: ${response.status} ${text}`)
+  }
+
+  const data: any = await response.json()
+  console.log('✅ freee請求書 Receipt API response:', JSON.stringify(data, null, 2))
+  
+  return {
+    success: true,
+    receipt: data.receipt || data,
+  }
+}
+
+/**
+ * 영수증 PDF 다운로드
+ */
+export async function downloadReceiptPdf(companyId: number, receiptId: number): Promise<Buffer> {
+  const token = await ensureValidToken()
+  
+  if (!token) {
+    throw new Error('No valid access token. Please authenticate first.')
+  }
+
+  const url = `${FREEE_INVOICE_API_BASE}/receipts/${receiptId}/download?company_id=${companyId}`
+  
+  console.log(`📥 Downloading Receipt PDF from: ${url}`)
+  
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error(`❌ Receipt PDF download error: ${response.status}`, text)
+    throw new Error(`freee Receipt PDF download error: ${response.status} ${text}`)
+  }
+
+  const arrayBuffer = await response.arrayBuffer()
+  console.log(`✅ Receipt PDF downloaded: ${arrayBuffer.byteLength} bytes`)
+  return Buffer.from(arrayBuffer)
 }
