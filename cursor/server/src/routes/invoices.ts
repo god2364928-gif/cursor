@@ -196,6 +196,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
   try {
     const {
       company_id,
+      partner_id,  // 추가: 선택된 거래처 ID
       partner_name,
       partner_title,
       invoice_title,
@@ -218,6 +219,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
     // freee API 형식으로 변환
     const invoiceData: FreeeInvoiceRequest = {
       company_id: Number(company_id),
+      partner_id: partner_id ? Number(partner_id) : undefined,  // 추가: 거래처 ID
       partner_name,
       partner_title,
       invoice_title,

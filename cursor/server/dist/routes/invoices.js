@@ -168,7 +168,8 @@ router.get('/list', auth_1.authMiddleware, async (req, res) => {
  */
 router.post('/create', auth_1.authMiddleware, async (req, res) => {
     try {
-        const { company_id, partner_name, partner_title, invoice_title, invoice_date, due_date, tax_entry_method, line_items, payment_bank_info, } = req.body;
+        const { company_id, partner_id, // 추가: 선택된 거래처 ID
+        partner_name, partner_title, invoice_title, invoice_date, due_date, tax_entry_method, line_items, payment_bank_info, } = req.body;
         // 입력 유효성 검사
         if (!company_id || !partner_name || !invoice_date || !due_date || !line_items || line_items.length === 0) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -179,6 +180,7 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
         // freee API 형식으로 변환
         const invoiceData = {
             company_id: Number(company_id),
+            partner_id: partner_id ? Number(partner_id) : undefined, // 추가: 거래처 ID
             partner_name,
             partner_title,
             invoice_title,
