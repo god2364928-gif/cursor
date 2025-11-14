@@ -33,13 +33,16 @@ function generateInvoiceHtml(data: InvoiceData): string {
 <html>
 <head>
   <meta charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
   <style>
     @page {
       size: A4;
       margin: 20mm;
     }
     body {
-      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      font-family: "Noto Sans JP", sans-serif;
       font-size: 10pt;
       line-height: 1.5;
       margin: 0;
@@ -251,6 +254,9 @@ export async function generateInvoicePdf(invoiceData: InvoiceData): Promise<Buff
   try {
     const page = await browser.newPage()
     await page.setContent(html, { waitUntil: 'networkidle0' })
+    
+    // 폰트 로딩 대기
+    await page.evaluateHandle('document.fonts.ready')
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
