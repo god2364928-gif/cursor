@@ -44,4 +44,8 @@ export declare function downloadInvoicePdf(companyId: number, invoiceId: number)
  * 인증 상태 확인
  */
 export declare function isAuthenticated(): Promise<boolean>;
+/**
+ * 캐시 초기화 (재인증 시 사용)
+ */
+export declare function clearTokenCache(): void;
 //# sourceMappingURL=freeeClient.d.ts.map

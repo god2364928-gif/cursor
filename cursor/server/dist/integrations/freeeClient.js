@@ -9,6 +9,7 @@ exports.getCompanies = getCompanies;
 exports.createInvoice = createInvoice;
 exports.downloadInvoicePdf = downloadInvoicePdf;
 exports.isAuthenticated = isAuthenticated;
+exports.clearTokenCache = clearTokenCache;
 const dotenv_1 = __importDefault(require("dotenv"));
 const db_1 = require("../db");
 dotenv_1.default.config();
@@ -279,5 +280,12 @@ async function isAuthenticated() {
         await loadTokenFromDB();
     }
     return cachedToken !== null && cachedToken.expiresAt > Date.now();
+}
+/**
+ * 캐시 초기화 (재인증 시 사용)
+ */
+function clearTokenCache() {
+    cachedToken = null;
+    console.log('🗑️ Token cache cleared');
 }
 //# sourceMappingURL=freeeClient.js.map

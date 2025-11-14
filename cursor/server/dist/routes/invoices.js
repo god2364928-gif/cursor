@@ -57,7 +57,8 @@ router.get('/auth-status', auth_1.authMiddleware, async (req, res) => {
 router.post('/reset-auth', auth_1.authMiddleware, async (req, res) => {
     try {
         await db_1.pool.query('DELETE FROM freee_tokens');
-        console.log('🗑️ freee tokens deleted - ready for re-authentication');
+        (0, freeeClient_1.clearTokenCache)(); // 캐시도 초기화
+        console.log('🗑️ freee tokens deleted and cache cleared - ready for re-authentication');
         res.json({ success: true, message: 'Authentication reset. Please authenticate again.' });
     }
     catch (error) {

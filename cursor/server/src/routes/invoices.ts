@@ -7,6 +7,7 @@ import {
   createInvoice,
   downloadInvoicePdf,
   isAuthenticated,
+  clearTokenCache,  // 추가
   FreeeInvoiceRequest,
 } from '../integrations/freeeClient'
 import { pool } from '../db'
@@ -69,7 +70,8 @@ router.get('/auth-status', authMiddleware, async (req: AuthRequest, res: Respons
 router.post('/reset-auth', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     await pool.query('DELETE FROM freee_tokens')
-    console.log('🗑️ freee tokens deleted - ready for re-authentication')
+    clearTokenCache()  // 캐시도 초기화
+    console.log('🗑️ freee tokens deleted and cache cleared - ready for re-authentication')
     res.json({ success: true, message: 'Authentication reset. Please authenticate again.' })
   } catch (error) {
     console.error('Error resetting auth:', error)
