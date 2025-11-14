@@ -7,7 +7,7 @@ exports.generateInvoicePdf = generateInvoicePdf;
 exports.generateReceiptPdf = generateReceiptPdf;
 const puppeteer_1 = __importDefault(require("puppeteer"));
 /**
- * 영수증 HTML 생성 (제공된 이미지와 완전 동일)
+ * 영수증 HTML 생성 (청구서와 동일한 스타일)
  */
 function generateReceiptHtml(data) {
     // 날짜 포맷팅 함수
@@ -50,18 +50,18 @@ function generateReceiptHtml(data) {
     }
     .title {
       text-align: center;
-      font-size: 18pt;
+      font-size: 16pt;
       font-weight: bold;
-      margin: 15px 0 30px 0;
+      margin: 10px 0 20px 0;
     }
     .header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
     .partner-name {
-      font-size: 13pt;
-      font-weight: normal;
+      font-size: 12pt;
+      font-weight: bold;
     }
     .header-right {
       text-align: right;
@@ -73,7 +73,6 @@ function generateReceiptHtml(data) {
       justify-content: space-between;
       align-items: center;
       margin: 3px 0;
-      min-width: 280px;
     }
     .header-right-label {
       text-align: left;
@@ -86,23 +85,23 @@ function generateReceiptHtml(data) {
     .company-info {
       margin-top: 20px;
       font-size: 9pt;
-      text-align: right;
+      text-align: left;
     }
     .subject-line {
-      margin: 15px 0;
-      font-size: 10pt;
+      margin: 8px 0;
+      font-size: 9pt;
     }
     
     /* 금액 테이블 */
     table.amount-table {
       width: 100%;
       border-collapse: collapse;
-      margin: 15px 0;
+      margin: 12px 0;
       font-size: 9pt;
     }
     table.amount-table td {
       border: 1px solid #000;
-      padding: 8px 12px;
+      padding: 6px 10px;
       text-align: center;
     }
     table.amount-table .label {
@@ -114,7 +113,7 @@ function generateReceiptHtml(data) {
       font-weight: bold;
     }
     table.amount-table .total-value {
-      font-size: 14pt;
+      font-size: 13pt;
       font-weight: bold;
     }
     
@@ -122,7 +121,7 @@ function generateReceiptHtml(data) {
     table.items {
       width: 100%;
       border-collapse: collapse;
-      margin: 15px 0;
+      margin: 12px 0;
       font-size: 8pt;
     }
     table.items th,
@@ -179,7 +178,7 @@ function generateReceiptHtml(data) {
     /* 비고 */
     .remarks {
       clear: both;
-      margin: 20px 0;
+      margin: 15px 0;
     }
     .remarks-header {
       padding: 6px 10px;
@@ -191,13 +190,13 @@ function generateReceiptHtml(data) {
     }
     .remarks-box {
       border: 1px solid #000;
-      min-height: 60px;
+      min-height: 50px;
       padding: 8px 10px;
     }
     
     .page-number {
       text-align: center;
-      margin-top: 15px;
+      margin-top: 12px;
       font-size: 8pt;
     }
   </style>
