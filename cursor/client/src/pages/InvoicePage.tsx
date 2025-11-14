@@ -30,7 +30,7 @@ function ReceiptModal({
     setSuccess('')
 
     try {
-      const response = await fetch('https://cursor-production.up.railway.app/api/receipts/from-invoice', {
+      const response = await fetch('/api/receipts/from-invoice', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -187,7 +187,7 @@ export default function InvoicePage() {
 
   const handleDownloadReceiptPdf = async (invoice: FreeeInvoice) => {
     try {
-      const response = await fetch(`https://cursor-production.up.railway.app/api/receipts/${invoice.receipt_id}/pdf`, {
+      const response = await fetch(`/api/receipts/${invoice.receipt_id}/pdf`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -213,7 +213,12 @@ export default function InvoicePage() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'ko-KR')
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}/${month}/${day}`
   }
 
   const formatCurrency = (amount: number) => {

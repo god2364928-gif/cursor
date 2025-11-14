@@ -12,7 +12,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id
   
   try {
-    const {
+    let {
       company_id,
       partner_id,
       partner_name,
@@ -32,7 +32,16 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       })
     }
 
+    // 날짜 형식 정리 (YYYY-MM-DD만 추출)
+    if (receipt_date.includes('T')) {
+      receipt_date = receipt_date.split('T')[0]
+    }
+    if (issue_date.includes('T')) {
+      issue_date = issue_date.split('T')[0]
+    }
+
     console.log(`📝 [USER ${userId}] Creating receipt...`)
+    console.log(`📅 Receipt date: ${receipt_date}, Issue date: ${issue_date}`)
 
     // freee請求書 API 호출
     const receiptData: FreeeReceiptRequest = {
@@ -104,7 +113,7 @@ router.post('/from-invoice', authMiddleware, async (req: AuthRequest, res: Respo
   const userId = req.user?.id
   
   try {
-    const { invoice_id, issue_date } = req.body
+    let { invoice_id, issue_date } = req.body
 
     if (!invoice_id || !issue_date) {
       return res.status(400).json({
@@ -112,7 +121,13 @@ router.post('/from-invoice', authMiddleware, async (req: AuthRequest, res: Respo
       })
     }
 
+    // 날짜 형식 정리 (YYYY-MM-DD만 추출)
+    if (issue_date.includes('T')) {
+      issue_date = issue_date.split('T')[0]
+    }
+
     console.log(`📝 [USER ${userId}] Creating receipt from invoice ${invoice_id}...`)
+    console.log(`📅 Issue date: ${issue_date}`)
 
     // 청구서 조회
     const invoiceQuery = await pool.query('SELECT * FROM invoices WHERE id = $1', [invoice_id])
