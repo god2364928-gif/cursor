@@ -404,7 +404,11 @@ async function createInvoice(invoiceData) {
     }
     const data = await response.json();
     console.log('✅ freee請求書 API response:', JSON.stringify(data, null, 2));
-    return data;
+    // freee請求書 API 응답 구조: { invoice: { ... } }
+    return {
+        success: true,
+        invoice: data.invoice || data, // invoice 객체가 있으면 사용, 없으면 data 자체
+    };
 }
 /**
  * 청구서 PDF 다운로드 (freee会計 API)

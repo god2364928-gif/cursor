@@ -244,7 +244,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
 
     const invoiceId = result.invoice.id
     const totalAmount = result.invoice.total_amount || 0
-    const taxAmount = result.invoice.tax_entry_total || 0
+    const taxAmount = result.invoice.amount_tax || 0  // freee請求書 API는 amount_tax 사용
 
     // 사용자 정보 조회
     const userResult = await pool.query(
