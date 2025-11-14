@@ -281,8 +281,8 @@ async function createInvoice(invoiceData) {
         withholding_tax_entry_method: 'out', // 필수: 원천징수 표시 방법 (in/out)
         lines: invoiceData.invoice_contents.map((item) => ({
             description: item.name,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
+            quantity: String(item.quantity), // 문자열로 변환
+            unit_price: String(item.unit_price), // 문자열로 변환
             tax_rate: item.tax_rate || 10, // 세율 (0, 8, 10)
         })),
     };
