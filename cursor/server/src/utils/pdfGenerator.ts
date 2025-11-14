@@ -55,9 +55,9 @@ function generateReceiptHtml(data: ReceiptData): string {
     }
   }
 
-  const emptyRows = Math.max(0, 15 - data.lines.length)
+  const emptyRows = Math.max(0, 6 - data.lines.length)
   const emptyRowsHtml = Array(emptyRows)
-    .fill('<tr><td style="height: 25px;">&nbsp;</td><td></td><td></td><td></td></tr>')
+    .fill('<tr><td style="height: 20px;">&nbsp;</td><td></td><td></td><td></td></tr>')
     .join('')
 
   return `
@@ -83,53 +83,55 @@ function generateReceiptHtml(data: ReceiptData): string {
     }
     .title {
       text-align: center;
-      font-size: 20pt;
+      font-size: 18pt;
       font-weight: bold;
-      margin: 20px 0 40px 0;
+      margin: 15px 0 30px 0;
     }
     .header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
     .partner-name {
-      font-size: 14pt;
+      font-size: 13pt;
       font-weight: normal;
     }
     .header-right {
       text-align: right;
-      font-size: 10pt;
-      line-height: 1.8;
+      font-size: 9pt;
+      line-height: 1.6;
     }
     .header-right-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin: 5px 0;
-      min-width: 300px;
+      margin: 3px 0;
+      min-width: 280px;
     }
     .header-right-label {
       text-align: left;
+      font-size: 8pt;
     }
     .header-right-value {
       text-align: right;
+      font-size: 9pt;
     }
     .company-info {
-      margin-top: 30px;
-      font-size: 11pt;
+      margin-top: 20px;
+      font-size: 9pt;
       text-align: right;
     }
     .subject-line {
-      margin: 20px 0;
-      font-size: 11pt;
+      margin: 15px 0;
+      font-size: 10pt;
     }
     
     /* 금액 테이블 */
     table.amount-table {
       width: 100%;
       border-collapse: collapse;
-      margin: 20px 0;
-      font-size: 10pt;
+      margin: 15px 0;
+      font-size: 9pt;
     }
     table.amount-table td {
       border: 1px solid #000;
@@ -145,7 +147,7 @@ function generateReceiptHtml(data: ReceiptData): string {
       font-weight: bold;
     }
     table.amount-table .total-value {
-      font-size: 16pt;
+      font-size: 14pt;
       font-weight: bold;
     }
     
@@ -153,8 +155,8 @@ function generateReceiptHtml(data: ReceiptData): string {
     table.items {
       width: 100%;
       border-collapse: collapse;
-      margin: 20px 0;
-      font-size: 9pt;
+      margin: 15px 0;
+      font-size: 8pt;
     }
     table.items th,
     table.items td {
@@ -186,15 +188,15 @@ function generateReceiptHtml(data: ReceiptData): string {
     /* 내역 박스 */
     .summary-box {
       float: right;
-      width: 300px;
+      width: 280px;
       border: 1px solid #000;
-      margin: 15px 0;
-      font-size: 9pt;
+      margin: 10px 0;
+      font-size: 8pt;
     }
     .summary-row {
       display: flex;
       justify-content: space-between;
-      padding: 8px 12px;
+      padding: 6px 10px;
       border-bottom: 1px solid #000;
     }
     .summary-row:last-child {
@@ -210,25 +212,26 @@ function generateReceiptHtml(data: ReceiptData): string {
     /* 비고 */
     .remarks {
       clear: both;
-      margin: 30px 0;
+      margin: 20px 0;
     }
     .remarks-header {
-      padding: 8px 12px;
+      padding: 6px 10px;
       font-weight: bold;
       border: 1px solid #000;
       border-bottom: none;
       background-color: #f5f5f5;
+      font-size: 9pt;
     }
     .remarks-box {
       border: 1px solid #000;
-      min-height: 100px;
-      padding: 10px 12px;
+      min-height: 60px;
+      padding: 8px 10px;
     }
     
     .page-number {
       text-align: center;
-      margin-top: 30px;
-      font-size: 9pt;
+      margin-top: 15px;
+      font-size: 8pt;
     }
   </style>
 </head>
