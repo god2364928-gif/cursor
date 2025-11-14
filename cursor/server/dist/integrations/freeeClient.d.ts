@@ -28,11 +28,11 @@ export declare function exchangeCodeForToken(code: string): Promise<{
     error?: string;
 }>;
 /**
- * 사업소 목록 조회
+ * 사업소 목록 조회 (회계 API 사용)
  */
 export declare function getCompanies(): Promise<any>;
 /**
- * 청구서 생성
+ * 청구서 생성 (freee請求書 API)
  */
 export declare function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<any>;
 /**

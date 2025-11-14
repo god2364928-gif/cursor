@@ -15,7 +15,7 @@ dotenv_1.default.config();
 const FREEE_CLIENT_ID = process.env.FREEE_CLIENT_ID || '632732953685764';
 const FREEE_CLIENT_SECRET = process.env.FREEE_CLIENT_SECRET || 'An9MEyDAacju9EyiLx3jZKeKpqC-aYdkhDGvwsGwHFoQmiwm6jeAVzJyuBo8ttJ0Dj0OOYboVjImkZLoLNeJeQ';
 const FREEE_REDIRECT_URI = process.env.FREEE_REDIRECT_URI || 'urn:ietf:wg:oauth:2.0:oob';
-const FREEE_API_BASE = 'https://api.freee.co.jp';
+const FREEE_API_BASE = 'https://api.freee.co.jp/iv'; // freee請求書 API
 const FREEE_AUTH_BASE = 'https://accounts.secure.freee.co.jp';
 // 메모리 캐시 (DB 조회 최소화)
 let cachedToken = null;
@@ -196,45 +196,54 @@ async function callFreeeAPI(endpoint, options = {}) {
     return data;
 }
 /**
- * 사업소 목록 조회
+ * 사업소 목록 조회 (회계 API 사용)
  */
 async function getCompanies() {
-    return callFreeeAPI('/api/1/companies');
+    // 회계 API를 사용하여 사업소 목록 조회
+    const token = await ensureValidToken();
+    if (!token) {
+        throw new Error('No valid access token. Please authenticate first.');
+    }
+    const url = 'https://api.freee.co.jp/api/1/companies';
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`freee API error: ${response.status} ${text}`);
+    }
+    return response.json();
 }
 /**
- * 청구서 생성
+ * 청구서 생성 (freee請求書 API)
  */
 async function createInvoice(invoiceData) {
-    // freee API 형식으로 데이터 변환
+    // freee請求書 API 형식으로 데이터 변환
     const freeePayload = {
         company_id: invoiceData.company_id,
-        partner_name: invoiceData.partner_name + (invoiceData.partner_title || ''),
-        issue_date: invoiceData.invoice_date, // invoice_date -> issue_date
-        due_date: invoiceData.due_date,
-        invoice_status: 'submitted', // 송부済み 상태로 생성
-        invoice_contents: invoiceData.invoice_contents.map(item => ({
-            type: 'normal',
-            qty: item.quantity,
-            unit_price: item.unit_price,
-            amount: item.unit_price * item.quantity,
-            vat: item.tax,
+        issue_date: invoiceData.invoice_date,
+        payment_date: invoiceData.due_date,
+        partner_display_name: invoiceData.partner_name + (invoiceData.partner_title || ''),
+        partner_title: invoiceData.partner_title || '',
+        subject: invoiceData.invoice_title || 'COCOマーケご利用料',
+        tax_entry_method: invoiceData.tax_entry_method === 'inclusive' ? 'in' : 'out',
+        lines: invoiceData.invoice_contents.map(item => ({
+            type: 'item',
             description: item.name,
+            quantity: item.quantity,
+            unit_price: item.unit_price.toString(),
+            tax_rate: item.tax_rate || 10,
         })),
     };
-    // 청구서 제목 추가
-    if (invoiceData.invoice_title) {
-        freeePayload.title = invoiceData.invoice_title;
-    }
-    // 내세/외세 설정
-    if (invoiceData.tax_entry_method) {
-        freeePayload.tax_entry_method = invoiceData.tax_entry_method;
-    }
     // 송금처 정보 추가
     if (invoiceData.payment_bank_info) {
-        freeePayload.payment_bank_info = invoiceData.payment_bank_info;
+        freeePayload.bank_account_to_transfer = invoiceData.payment_bank_info;
     }
-    console.log('📤 Sending to freee API:', JSON.stringify(freeePayload, null, 2));
-    return callFreeeAPI('/api/1/invoices', {
+    console.log('📤 Sending to freee請求書 API:', JSON.stringify(freeePayload, null, 2));
+    return callFreeeAPI('/invoices', {
         method: 'POST',
         body: JSON.stringify(freeePayload),
     });
@@ -247,7 +256,7 @@ async function downloadInvoicePdf(companyId, invoiceId) {
     if (!token) {
         throw new Error('No valid access token. Please authenticate first.');
     }
-    const url = `${FREEE_API_BASE}/api/1/invoices/${invoiceId}/download?company_id=${companyId}`;
+    const url = `${FREEE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`;
     const response = await fetch(url, {
         headers: {
             'Authorization': `Bearer ${token}`,
