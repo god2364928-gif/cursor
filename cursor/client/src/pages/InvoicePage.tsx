@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { invoiceAPI } from '../lib/api'
+import api, { invoiceAPI } from '../lib/api'
 import { FreeeInvoice } from '../types'
 import { Button } from '../components/ui/button'
 import { useI18nStore } from '../i18n'
@@ -30,24 +30,11 @@ function ReceiptModal({
     setSuccess('')
 
     try {
-      const response = await fetch('/api/receipts/from-invoice', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          invoice_id: invoice.id,
-          issue_date: issueDate,
-        }),
+      const response = await api.post('/receipts/from-invoice', {
+        invoice_id: invoice.id,
+        issue_date: issueDate,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to create receipt')
-      }
-
-      const data = await response.json()
       setSuccess(language === 'ja' ? '領収書を発行しました' : '영수증이 발급되었습니다')
       
       // 2초 후 모달 닫기
@@ -57,7 +44,7 @@ function ReceiptModal({
       }, 2000)
     } catch (error: any) {
       console.error('Error creating receipt:', error)
-      setError(error.message || 'Error creating receipt')
+      setError(error.response?.data?.message || error.message || 'Error creating receipt')
     } finally {
       setIsSubmitting(false)
     }
@@ -187,17 +174,11 @@ export default function InvoicePage() {
 
   const handleDownloadReceiptPdf = async (invoice: FreeeInvoice) => {
     try {
-      const response = await fetch(`/api/receipts/${invoice.receipt_id}/pdf`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
+      const response = await api.get(`/receipts/${invoice.receipt_id}/pdf`, {
+        responseType: 'blob'
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to download receipt PDF')
-      }
-
-      const blob = await response.blob()
+      const blob = new Blob([response.data], { type: 'application/pdf' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -206,7 +187,7 @@ export default function InvoicePage() {
       a.click()
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Receipt PDF download error:', error)
       setError(language === 'ja' ? '領収書PDFのダウンロードに失敗しました' : '영수증 PDF 다운로드 실패')
     }
