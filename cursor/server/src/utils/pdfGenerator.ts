@@ -249,10 +249,10 @@ function generateInvoiceHtml(data: InvoiceData): string {
 
   <table class="payment-table">
     <tr>
-      <td class="label" style="width: 15%;">入金期日</td>
-      <td class="content" style="width: 35%;">${data.due_date || ''}</td>
-      <td class="label" style="width: 15%;">振込先</td>
-      <td class="content" style="width: 35%;">${data.payment_bank_info ? data.payment_bank_info.replace(/\n/g, '<br>') : ''}</td>
+      <td class="label" style="width: 12%;">入金期日</td>
+      <td class="content" style="width: 38%;">${data.due_date || ''}</td>
+      <td class="label" style="width: 12%;">振込先</td>
+      <td class="content" style="width: 38%;">${data.payment_bank_info ? data.payment_bank_info.replace(/\n/g, '<br>') : ''}</td>
     </tr>
   </table>
 
