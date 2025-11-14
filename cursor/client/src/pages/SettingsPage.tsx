@@ -8,6 +8,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Edit2, Trash2, X, RefreshCw } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface User {
   id: string
@@ -19,6 +20,7 @@ interface User {
 }
 
 export default function SettingsPage() {
+  const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const isAdmin = user?.role === 'admin'
   const { t } = useI18nStore()
@@ -145,7 +147,9 @@ export default function SettingsPage() {
     setResettingAuth(true)
     try {
       await invoiceAPI.resetAuth()
-      alert('freee 인증이 초기화되었습니다. 청구서 발행 페이지에서 다시 인증하세요.')
+      alert('freee 인증이 초기화되었습니다. 청구서 발행 페이지로 이동합니다.')
+      // 청구서 발행 페이지로 자동 이동
+      navigate('/invoices/create')
     } catch (error: any) {
       alert('인증 초기화 실패: ' + (error.response?.data?.error || error.message))
     } finally {
