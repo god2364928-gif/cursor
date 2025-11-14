@@ -1,4 +1,6 @@
 import dotenv from 'dotenv'
+import { pool } from '../db'
+
 dotenv.config()
 
 const FREEE_CLIENT_ID = process.env.FREEE_CLIENT_ID || '632732953685764'
@@ -7,10 +9,12 @@ const FREEE_REDIRECT_URI = process.env.FREEE_REDIRECT_URI || 'urn:ietf:wg:oauth:
 const FREEE_API_BASE = 'https://api.freee.co.jp'
 const FREEE_AUTH_BASE = 'https://accounts.secure.freee.co.jp'
 
-// In-memory token storage (간단한 구현)
-let accessToken: string | null = null
-let refreshToken: string | null = null
-let tokenExpiresAt: number | null = null
+// 메모리 캐시 (DB 조회 최소화)
+let cachedToken: {
+  accessToken: string
+  refreshToken: string
+  expiresAt: number
+} | null = null
 
 export interface FreeeInvoiceLineItem {
   name: string
@@ -27,6 +31,56 @@ export interface FreeeInvoiceRequest {
   invoice_date: string
   due_date: string
   invoice_contents: FreeeInvoiceLineItem[]
+}
+
+/**
+ * DB에서 토큰 로드
+ */
+async function loadTokenFromDB(): Promise<boolean> {
+  try {
+    const result = await pool.query(
+      'SELECT access_token, refresh_token, expires_at FROM freee_tokens ORDER BY id DESC LIMIT 1'
+    )
+    
+    if (result.rows.length === 0) {
+      return false
+    }
+    
+    const row = result.rows[0]
+    cachedToken = {
+      accessToken: row.access_token,
+      refreshToken: row.refresh_token,
+      expiresAt: parseInt(row.expires_at),
+    }
+    
+    console.log('✅ freee token loaded from DB')
+    return true
+  } catch (error) {
+    console.error('Error loading token from DB:', error)
+    return false
+  }
+}
+
+/**
+ * DB에 토큰 저장
+ */
+async function saveTokenToDB(accessToken: string, refreshToken: string, expiresAt: number): Promise<void> {
+  try {
+    // 기존 토큰 삭제 후 새로 삽입
+    await pool.query('DELETE FROM freee_tokens')
+    await pool.query(
+      'INSERT INTO freee_tokens (access_token, refresh_token, expires_at) VALUES ($1, $2, $3)',
+      [accessToken, refreshToken, expiresAt]
+    )
+    
+    // 캐시 업데이트
+    cachedToken = { accessToken, refreshToken, expiresAt }
+    
+    console.log('✅ freee token saved to DB')
+  } catch (error) {
+    console.error('Error saving token to DB:', error)
+    throw error
+  }
 }
 
 /**
@@ -72,11 +126,12 @@ export async function exchangeCodeForToken(code: string): Promise<{ success: boo
 
     const data: any = await response.json()
     
-    accessToken = data.access_token
-    refreshToken = data.refresh_token
-    tokenExpiresAt = Date.now() + (data.expires_in * 1000)
+    const expiresAt = Date.now() + (data.expires_in * 1000)
     
-    console.log('✅ freee token obtained successfully')
+    // DB에 저장
+    await saveTokenToDB(data.access_token, data.refresh_token, expiresAt)
+    
+    console.log('✅ freee token obtained and saved successfully')
     return { success: true }
   } catch (error) {
     console.error('Token exchange error:', error)
@@ -88,8 +143,8 @@ export async function exchangeCodeForToken(code: string): Promise<{ success: boo
  * 토큰 갱신
  */
 async function refreshAccessToken(): Promise<boolean> {
-  if (!refreshToken) {
-    console.error('No refresh token available')
+  if (!cachedToken) {
+    console.error('No cached token available')
     return false
   }
 
@@ -100,7 +155,7 @@ async function refreshAccessToken(): Promise<boolean> {
     params.set('grant_type', 'refresh_token')
     params.set('client_id', FREEE_CLIENT_ID)
     params.set('client_secret', FREEE_CLIENT_SECRET)
-    params.set('refresh_token', refreshToken)
+    params.set('refresh_token', cachedToken.refreshToken)
 
     const response = await fetch(url, {
       method: 'POST',
@@ -117,11 +172,12 @@ async function refreshAccessToken(): Promise<boolean> {
 
     const data: any = await response.json()
     
-    accessToken = data.access_token
-    refreshToken = data.refresh_token
-    tokenExpiresAt = Date.now() + (data.expires_in * 1000)
+    const expiresAt = Date.now() + (data.expires_in * 1000)
     
-    console.log('✅ freee token refreshed successfully')
+    // DB에 저장
+    await saveTokenToDB(data.access_token, data.refresh_token, expiresAt)
+    
+    console.log('✅ freee token refreshed and saved successfully')
     return true
   } catch (error) {
     console.error('Token refresh error:', error)
@@ -133,19 +189,28 @@ async function refreshAccessToken(): Promise<boolean> {
  * 유효한 액세스 토큰 확인 및 갱신
  */
 async function ensureValidToken(): Promise<string | null> {
-  if (!accessToken) {
+  // 캐시가 없으면 DB에서 로드
+  if (!cachedToken) {
+    const loaded = await loadTokenFromDB()
+    if (!loaded) {
+      return null
+    }
+  }
+
+  // 토큰이 여전히 없으면 인증 필요
+  if (!cachedToken) {
     return null
   }
 
   // 토큰이 5분 이내에 만료되면 갱신
-  if (tokenExpiresAt && tokenExpiresAt - Date.now() < 5 * 60 * 1000) {
+  if (cachedToken.expiresAt - Date.now() < 5 * 60 * 1000) {
     const refreshed = await refreshAccessToken()
     if (!refreshed) {
       return null
     }
   }
 
-  return accessToken
+  return cachedToken.accessToken
 }
 
 /**
@@ -224,7 +289,11 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
 /**
  * 인증 상태 확인
  */
-export function isAuthenticated(): boolean {
-  return accessToken !== null && tokenExpiresAt !== null && tokenExpiresAt > Date.now()
+export async function isAuthenticated(): Promise<boolean> {
+  // 캐시가 없으면 DB에서 로드
+  if (!cachedToken) {
+    await loadTokenFromDB()
+  }
+  
+  return cachedToken !== null && cachedToken.expiresAt > Date.now()
 }
-

@@ -54,7 +54,7 @@ router.post('/auth-callback', authMiddleware, async (req: AuthRequest, res: Resp
  */
 router.get('/auth-status', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const authenticated = isAuthenticated()
+    const authenticated = await isAuthenticated()
     res.json({ authenticated })
   } catch (error) {
     console.error('Error checking auth status:', error)

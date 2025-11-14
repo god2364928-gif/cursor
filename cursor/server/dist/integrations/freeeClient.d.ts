@@ -39,5 +39,5 @@ export declare function downloadInvoicePdf(companyId: number, invoiceId: number)
 /**
  * 인증 상태 확인
  */
-export declare function isAuthenticated(): boolean;
+export declare function isAuthenticated(): Promise<boolean>;
 //# sourceMappingURL=freeeClient.d.ts.map
