@@ -15,7 +15,7 @@ dotenv_1.default.config();
 const FREEE_CLIENT_ID = process.env.FREEE_CLIENT_ID || '632732953685764';
 const FREEE_CLIENT_SECRET = process.env.FREEE_CLIENT_SECRET || 'An9MEyDAacju9EyiLx3jZKeKpqC-aYdkhDGvwsGwHFoQmiwm6jeAVzJyuBo8ttJ0Dj0OOYboVjImkZLoLNeJeQ';
 const FREEE_REDIRECT_URI = process.env.FREEE_REDIRECT_URI || 'urn:ietf:wg:oauth:2.0:oob';
-const FREEE_API_BASE = 'https://api.freee.co.jp/api/1'; // freee会計 API 사용
+const FREEE_API_BASE = 'https://api.freee.co.jp/api/1'; // freee会計 API
 const FREEE_AUTH_BASE = 'https://accounts.secure.freee.co.jp';
 // 메모리 캐시 (DB 조회 최소화)
 let cachedToken = null;
@@ -219,33 +219,29 @@ async function getCompanies() {
     return response.json();
 }
 /**
- * 청구서 생성 (freee会計 API)
+ * 청구서 생성 (freee会計 API - Deals)
+ * 청구서는 "取引(거래)"로 생성 후 請求書로 변환
  */
 async function createInvoice(invoiceData) {
-    // freee会計 API 형식으로 데이터 변환
+    // freee会計 API - Deals 형식으로 데이터 변환
     const partnerName = invoiceData.partner_name + (invoiceData.partner_title || '');
+    // 먼저 거래처(Partner) 생성 또는 조회
+    // 간단하게 하기 위해 거래 직접 생성
     const freeePayload = {
         company_id: invoiceData.company_id,
+        issue_date: invoiceData.invoice_date,
+        type: 'income', // 수입
         partner_name: partnerName,
-        invoice_date: invoiceData.invoice_date,
-        due_date: invoiceData.due_date,
-        title: invoiceData.invoice_title || 'COCOマーケご利用料',
-        tax_entry_method: invoiceData.tax_entry_method === 'inclusive' ? 'inclusive' : 'exclusive',
-        invoice_contents: invoiceData.invoice_contents.map((item, index) => ({
-            order: index + 1,
-            type: 'normal',
-            qty: item.quantity.toString(),
+        details: invoiceData.invoice_contents.map((item) => ({
+            tax_code: item.tax_rate === 10 ? 108 : (item.tax_rate === 8 ? 107 : 106), // 세율 코드
+            account_item_id: 1, // 매출 (기본값, 실제로는 계정과목 ID 필요)
+            amount: item.unit_price * item.quantity,
             description: item.name,
-            unit_price: item.unit_price,
             vat: item.tax_rate || 10,
         })),
     };
-    // 송금처 정보를 메모로 추가
-    if (invoiceData.payment_bank_info) {
-        freeePayload.notes = invoiceData.payment_bank_info;
-    }
-    console.log('📤 Sending to freee会計 API:', JSON.stringify(freeePayload, null, 2));
-    return callFreeeAPI('/invoices', {
+    console.log('📤 Sending to freee会計 API (Deals):', JSON.stringify(freeePayload, null, 2));
+    return callFreeeAPI('/deals', {
         method: 'POST',
         body: JSON.stringify(freeePayload),
     });
