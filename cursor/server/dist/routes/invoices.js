@@ -42,7 +42,7 @@ router.post('/auth-callback', auth_1.authMiddleware, async (req, res) => {
  */
 router.get('/auth-status', auth_1.authMiddleware, async (req, res) => {
     try {
-        const authenticated = (0, freeeClient_1.isAuthenticated)();
+        const authenticated = await (0, freeeClient_1.isAuthenticated)();
         res.json({ authenticated });
     }
     catch (error) {
