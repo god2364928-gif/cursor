@@ -237,7 +237,7 @@ router.post('/bulk-move-to-retargeting', authMiddleware, async (req: AuthRequest
     
     // 본인이 작성한 레코드만 조회
     const recordsResult = await pool.query(
-      `SELECT id, company_name, customer_name, phone, account_id, memo, industry, manager_name, date
+      `SELECT id, company_name, customer_name, phone, account_id, contact_method, memo, industry, manager_name, date
        FROM sales_tracking 
        WHERE id = ANY($1) AND user_id = $2`,
       [ids, req.user?.id]
@@ -267,7 +267,7 @@ router.post('/bulk-move-to-retargeting', authMiddleware, async (req: AuthRequest
             record.customer_name || record.company_name || '이름 없음',
             record.phone || '',
             null, // region
-            null, // inflow_path
+            record.contact_method || null, // inflow_path (유입경로)
             record.manager_name || '',
             null, // manager_team
             '시작', // status
@@ -599,7 +599,7 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
         customerNameFinal, // customer_name (NOT NULL) - null-safe 처리 완료
         phoneFinal, // phone (NOT NULL) - null-safe 처리 완료
         null, // region
-        null, // inflow_path
+        record.contact_method || null, // inflow_path (유입경로)
         managerName, // manager - null-safe 처리 완료
         null, // manager_team
         '시작', // status
