@@ -554,6 +554,8 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
   const invoice = data.invoice
 
   console.log(`📋 Invoice: ${invoice.invoice_number}`)
+  console.log(`📋 Due date from API: ${invoice.due_date}`)
+  console.log(`📋 Invoice object keys:`, Object.keys(invoice))
 
   // 2단계: 청구서 데이터로 직접 PDF 생성
   console.log(`📄 Step 2: Generating PDF from invoice data...`)
