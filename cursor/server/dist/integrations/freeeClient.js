@@ -269,18 +269,21 @@ async function createInvoice(invoiceData) {
         console.error('⚠️ Failed to fetch templates, continuing without template_id:', error);
     }
     const partnerName = invoiceData.partner_name + (invoiceData.partner_title || '');
-    // freee請求書 API 페이로드
+    // freee請求書 API 페이로드 (공식 스펙에 따라 필수 필드 포함)
     const freeePayload = {
         company_id: invoiceData.company_id,
         partner_name: partnerName,
         partner_title: invoiceData.partner_title || '御中',
-        invoice_date: invoiceData.invoice_date,
+        billing_date: invoiceData.invoice_date, // 필수: 청구일
         due_date: invoiceData.due_date,
-        invoice_contents: invoiceData.invoice_contents.map((item) => ({
-            name: item.name,
+        tax_entry_method: invoiceData.tax_entry_method || 'exclusive', // 필수: 세금 표시 방법
+        tax_fraction: 'round', // 필수: 세금 단수 처리 (round/floor/ceil)
+        withholding_tax_entry_method: 'exclude', // 필수: 원천징수 표시 방법
+        lines: invoiceData.invoice_contents.map((item) => ({
+            description: item.name,
             quantity: item.quantity,
             unit_price: item.unit_price,
-            tax: item.tax,
+            tax_rate: item.tax_rate || 10, // 세율 (0, 8, 10)
         })),
     };
     // 템플릿 ID가 있으면 추가
