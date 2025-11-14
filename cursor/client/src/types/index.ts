@@ -214,6 +214,7 @@ export interface InvoiceFormData {
   tax_entry_method: 'inclusive' | 'exclusive'  // 내세/외세
   line_items: InvoiceLineItem[]
   payment_bank_info?: string  // 송금처 정보
+  memo?: string  // 비고
 }
 
 export interface FreeeCompany {

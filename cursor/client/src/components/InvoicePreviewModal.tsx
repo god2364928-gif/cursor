@@ -202,7 +202,7 @@ export default function InvoicePreviewModal({
           </div>
 
           {/* 송금처 정보 */}
-          <div className="border-t pt-4">
+          <div className="border-t pt-4 mb-4">
             <p className="text-sm font-medium text-gray-700 mb-2">
               {language === 'ja' ? '振込先' : '송금처'}
             </p>
@@ -210,6 +210,18 @@ export default function InvoicePreviewModal({
               {formData.payment_bank_info}
             </p>
           </div>
+
+          {/* 비고 */}
+          {formData.memo && (
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                {language === 'ja' ? '備考' : '비고'}
+              </p>
+              <p className="text-sm whitespace-pre-line text-gray-600">
+                {formData.memo}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* 푸터 버튼 */}
