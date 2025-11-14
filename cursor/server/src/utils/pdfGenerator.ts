@@ -67,13 +67,28 @@ function generateInvoiceHtml(data: InvoiceData): string {
       font-weight: bold;
     }
     .header-right {
-      text-align: right;
-      font-size: 9pt;
-      line-height: 1.6;
+      text-align: center;
+      font-size: 10pt;
+      line-height: 1.8;
+    }
+    .header-right-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 5px 0;
+    }
+    .header-right-label {
+      min-width: 120px;
+      text-align: left;
+    }
+    .header-right-value {
+      text-align: left;
+      margin-left: 20px;
     }
     .company-info {
-      margin-top: 15px;
-      font-size: 10pt;
+      margin-top: 20px;
+      font-size: 11pt;
+      text-align: center;
     }
     .greeting {
       margin: 20px 0 10px 0;
@@ -218,12 +233,21 @@ function generateInvoiceHtml(data: InvoiceData): string {
   <div class="header">
     <div class="partner-name">${data.partner_name} ${data.partner_title}</div>
     <div class="header-right">
-      <div>請求日　　　　　${data.billing_date}</div>
-      <div>請求書番号　　　${data.invoice_number}</div>
-      <div>登録番号　　　　${data.invoice_registration_number || 'T5013301050765'}</div>
+      <div class="header-right-row">
+        <span class="header-right-label">請求日</span>
+        <span class="header-right-value">${data.billing_date}</span>
+      </div>
+      <div class="header-right-row">
+        <span class="header-right-label">請求書番号</span>
+        <span class="header-right-value">${data.invoice_number}</span>
+      </div>
+      <div class="header-right-row">
+        <span class="header-right-label">登録番号</span>
+        <span class="header-right-value">${data.invoice_registration_number || 'T5013301050765'}</span>
+      </div>
       <div class="company-info">
-        <div style="font-weight: bold; margin-top: 15px;">${data.company_name}</div>
-        <div style="margin-top: 5px;">${data.company_address.replace(/\n/g, '<br>')}</div>
+        <div style="font-weight: bold; margin-top: 20px;">${data.company_name}</div>
+        <div style="margin-top: 10px;">${data.company_address.replace(/\n/g, '<br>')}</div>
       </div>
     </div>
   </div>
