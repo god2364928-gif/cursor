@@ -493,9 +493,14 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
     throw new Error(`freee API error: ${response.status} ${text}`)
   }
 
-  const data = await response.json()
+  const data: any = await response.json()
   console.log('✅ freee請求書 API response:', JSON.stringify(data, null, 2))
-  return data
+  
+  // freee請求書 API 응답 구조: { invoice: { ... } }
+  return {
+    success: true,
+    invoice: data.invoice || data,  // invoice 객체가 있으면 사용, 없으면 data 자체
+  }
 }
 
 /**

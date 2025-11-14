@@ -89,3 +89,4 @@ def test_simple_insights_localized_messages():
     assert "2024년 3월" in insights["ko"]["seasonal_peak"]
 
 
+

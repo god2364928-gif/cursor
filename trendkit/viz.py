@@ -186,3 +186,4 @@ def save_weekday_ranking_table(
     return _render_table(ordered, Path(out_png), lang, "weekday")
 
 
+
