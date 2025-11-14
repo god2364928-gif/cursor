@@ -199,7 +199,7 @@ export interface UserFile {
 export interface InvoiceLineItem {
   name: string
   quantity: number
-  unit_price: number
+  unit_price: number | ''  // 빈 문자열 허용
   tax: number
   tax_rate: number  // 품목별 세율 (0, 8, 10)
 }

@@ -28,7 +28,7 @@ export default function InvoiceCreatePage() {
     due_date: '',
     tax_entry_method: 'exclusive',
     line_items: [
-      { name: '', quantity: 1, unit_price: 0, tax: 0, tax_rate: 10 },
+      { name: '', quantity: 1, unit_price: '', tax: 0, tax_rate: 10 },
     ],
     payment_bank_info: 'PayPay銀行\nビジネス営業部支店（005）\n\n普通　7136331\nカブシキガイシャホットセラー',
   })
@@ -116,7 +116,7 @@ export default function InvoiceCreatePage() {
     }
     setFormData({
       ...formData,
-      line_items: [...formData.line_items, { name: '', quantity: 1, unit_price: 0, tax: 0, tax_rate: 10 }],
+      line_items: [...formData.line_items, { name: '', quantity: 1, unit_price: '', tax: 0, tax_rate: 10 }],
     })
   }
 
@@ -135,7 +135,7 @@ export default function InvoiceCreatePage() {
     
     // 세액 자동 계산 (품목별 세율 적용)
     if (field === 'unit_price' || field === 'quantity' || field === 'tax_rate') {
-      const unitPrice = field === 'unit_price' ? Number(value) : newItems[index].unit_price
+      const unitPrice = field === 'unit_price' ? (typeof value === 'string' ? (value === '' ? 0 : Number(value)) : Number(value)) : (typeof newItems[index].unit_price === 'string' ? 0 : newItems[index].unit_price)
       const quantity = field === 'quantity' ? Number(value) : newItems[index].quantity
       const taxRate = field === 'tax_rate' ? Number(value) : newItems[index].tax_rate
       newItems[index].tax = Math.floor(unitPrice * quantity * (taxRate / 100))
@@ -161,7 +161,8 @@ export default function InvoiceCreatePage() {
   }
 
   const calculateSubtotal = (item: InvoiceLineItem) => {
-    return item.unit_price * item.quantity
+    const price = typeof item.unit_price === 'string' ? 0 : item.unit_price
+    return price * item.quantity
   }
 
   const calculateTotal = () => {
@@ -203,7 +204,10 @@ export default function InvoiceCreatePage() {
       return
     }
 
-    const hasEmptyLineItem = formData.line_items.some(item => !item.name.trim() || item.quantity <= 0 || item.unit_price <= 0)
+    const hasEmptyLineItem = formData.line_items.some(item => {
+      const price = typeof item.unit_price === 'string' ? (item.unit_price === '' ? 0 : Number(item.unit_price)) : item.unit_price
+      return !item.name.trim() || item.quantity <= 0 || price <= 0
+    })
     if (hasEmptyLineItem) {
       setError(language === 'ja' ? '品目情報を正しく入力してください' : '품목 정보를 올바르게 입력하세요')
       return
@@ -560,9 +564,10 @@ export default function InvoiceCreatePage() {
                       <input
                         type="number"
                         value={item.unit_price}
-                        onChange={(e) => handleLineItemChange(index, 'unit_price', Number(e.target.value))}
+                        onChange={(e) => handleLineItemChange(index, 'unit_price', e.target.value)}
                         className="w-full border rounded px-2 py-1 text-sm"
                         min="0"
+                        placeholder="0"
                         required
                       />
                     </div>
