@@ -1,0 +1,532 @@
+import { useState, useEffect } from 'react'
+import { invoiceAPI } from '../lib/api'
+import { InvoiceFormData, InvoiceLineItem, FreeeCompany } from '../types'
+import { Button } from '../components/ui/button'
+import { useI18nStore } from '../i18n'
+import { Plus, Trash2, FileText, Download } from 'lucide-react'
+
+export default function InvoicePage() {
+  const { language, t } = useI18nStore()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [companies, setCompanies] = useState<FreeeCompany[]>([])
+  const [selectedCompany, setSelectedCompany] = useState<number | null>(null)
+  const [authCode, setAuthCode] = useState('')
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  // 청구서 폼 데이터
+  const [formData, setFormData] = useState<Omit<InvoiceFormData, 'company_id'>>({
+    partner_name: '',
+    partner_zipcode: '',
+    partner_address: '',
+    invoice_date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    line_items: [
+      { name: '', quantity: 1, unit_price: 0, tax: 0 },
+    ],
+  })
+
+  // 자사 정보 (고정값)
+  const companyInfo = {
+    name: '株式会社ホットセラー',
+    registrationNumber: 'T5013301050765',
+    address: '〒104-0053 東京都中央区晴海一丁目8番10号 晴海アイランドトリトンスクエア オフィスタワーX棟8階',
+    bankInfo: 'PayPay銀行 ビジネス営業部支店（005） 普通 7136331 カブシキガイシャホットセラー',
+  }
+
+  // 인증 상태 확인
+  useEffect(() => {
+    checkAuthStatus()
+  }, [])
+
+  const checkAuthStatus = async () => {
+    try {
+      const response = await invoiceAPI.checkAuthStatus()
+      setIsAuthenticated(response.data.authenticated)
+      
+      if (response.data.authenticated) {
+        await loadCompanies()
+      }
+    } catch (error) {
+      console.error('Error checking auth status:', error)
+    } finally {
+      setIsCheckingAuth(false)
+    }
+  }
+
+  const loadCompanies = async () => {
+    try {
+      const response = await invoiceAPI.getCompanies()
+      if (response.data.companies) {
+        setCompanies(response.data.companies)
+        if (response.data.companies.length > 0) {
+          setSelectedCompany(response.data.companies[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading companies:', error)
+    }
+  }
+
+  const handleAuthRedirect = async () => {
+    try {
+      const response = await invoiceAPI.getAuthUrl()
+      window.open(response.data.authUrl, '_blank')
+      setError('')
+    } catch (error) {
+      setError(language === 'ja' ? '認証URLの取得に失敗しました' : '인증 URL 가져오기 실패')
+    }
+  }
+
+  const handleAuthCallback = async () => {
+    if (!authCode.trim()) {
+      setError(language === 'ja' ? '認証コードを入力してください' : '인증 코드를 입력하세요')
+      return
+    }
+
+    setIsAuthenticating(true)
+    setError('')
+
+    try {
+      await invoiceAPI.authCallback(authCode)
+      setIsAuthenticated(true)
+      setAuthCode('')
+      await loadCompanies()
+      setSuccess(language === 'ja' ? '認証に成功しました' : '인증 성공')
+    } catch (error: any) {
+      setError(error.response?.data?.error || (language === 'ja' ? '認証に失敗しました' : '인증 실패'))
+    } finally {
+      setIsAuthenticating(false)
+    }
+  }
+
+  const handleAddLineItem = () => {
+    if (formData.line_items.length >= 5) {
+      setError(language === 'ja' ? '品目は最大5つまでです' : '품목은 최대 5개까지 가능합니다')
+      return
+    }
+    setFormData({
+      ...formData,
+      line_items: [...formData.line_items, { name: '', quantity: 1, unit_price: 0, tax: 0 }],
+    })
+  }
+
+  const handleRemoveLineItem = (index: number) => {
+    if (formData.line_items.length <= 1) {
+      setError(language === 'ja' ? '品目は最低1つ必要です' : '품목은 최소 1개 필요합니다')
+      return
+    }
+    const newItems = formData.line_items.filter((_, i) => i !== index)
+    setFormData({ ...formData, line_items: newItems })
+  }
+
+  const handleLineItemChange = (index: number, field: keyof InvoiceLineItem, value: string | number) => {
+    const newItems = [...formData.line_items]
+    newItems[index] = { ...newItems[index], [field]: value }
+    
+    // 税額 자동 계산 (10%)
+    if (field === 'unit_price' || field === 'quantity') {
+      const unitPrice = field === 'unit_price' ? Number(value) : newItems[index].unit_price
+      const quantity = field === 'quantity' ? Number(value) : newItems[index].quantity
+      newItems[index].tax = Math.floor(unitPrice * quantity * 0.1)
+    }
+    
+    setFormData({ ...formData, line_items: newItems })
+  }
+
+  const calculateSubtotal = (item: InvoiceLineItem) => {
+    return item.unit_price * item.quantity
+  }
+
+  const calculateTotal = () => {
+    return formData.line_items.reduce((sum, item) => sum + calculateSubtotal(item), 0)
+  }
+
+  const calculateTaxTotal = () => {
+    return formData.line_items.reduce((sum, item) => sum + item.tax, 0)
+  }
+
+  const calculateGrandTotal = () => {
+    return calculateTotal() + calculateTaxTotal()
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!selectedCompany) {
+      setError(language === 'ja' ? '事業所を選択してください' : '사업소를 선택하세요')
+      return
+    }
+
+    // 유효성 검사
+    if (!formData.partner_name.trim()) {
+      setError(language === 'ja' ? '取引先名を入力してください' : '거래처명을 입력하세요')
+      return
+    }
+
+    if (!formData.invoice_date || !formData.due_date) {
+      setError(language === 'ja' ? '日付を入力してください' : '날짜를 입력하세요')
+      return
+    }
+
+    const hasEmptyLineItem = formData.line_items.some(item => !item.name.trim() || item.quantity <= 0 || item.unit_price <= 0)
+    if (hasEmptyLineItem) {
+      setError(language === 'ja' ? '品目情報を正しく入力してください' : '품목 정보를 올바르게 입력하세요')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const response = await invoiceAPI.createInvoice({
+        company_id: selectedCompany,
+        ...formData,
+      })
+
+      const invoiceId = response.data.invoice_id
+
+      setSuccess(language === 'ja' ? `請求書を発行しました (ID: ${invoiceId})` : `청구서가 발행되었습니다 (ID: ${invoiceId})`)
+
+      // PDF 자동 다운로드
+      try {
+        const pdfResponse = await invoiceAPI.downloadPdf(invoiceId, selectedCompany)
+        const blob = new Blob([pdfResponse.data], { type: 'application/pdf' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `invoice_${invoiceId}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+      } catch (pdfError) {
+        console.error('PDF download error:', pdfError)
+        setError(language === 'ja' ? 'PDFのダウンロードに失敗しました' : 'PDF 다운로드 실패')
+      }
+
+      // 폼 초기화
+      setFormData({
+        partner_name: '',
+        partner_zipcode: '',
+        partner_address: '',
+        invoice_date: new Date().toISOString().split('T')[0],
+        due_date: '',
+        line_items: [{ name: '', quantity: 1, unit_price: 0, tax: 0 }],
+      })
+    } catch (error: any) {
+      console.error('Error creating invoice:', error)
+      setError(error.response?.data?.error || (language === 'ja' ? '請求書の発行に失敗しました' : '청구서 발행 실패'))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (isCheckingAuth) {
+    return (
+      <div className="p-6">
+        <div className="text-center">{language === 'ja' ? '読み込み中...' : '로딩 중...'}</div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <FileText className="w-6 h-6" />
+            {language === 'ja' ? '請求書発行' : '청구서 발행'}
+          </h1>
+
+          <div className="mb-6">
+            <p className="text-gray-600 mb-4">
+              {language === 'ja' 
+                ? 'freeeと連携して請求書を発行します。まず認証を行ってください。' 
+                : 'freee와 연동하여 청구서를 발행합니다. 먼저 인증을 진행하세요.'}
+            </p>
+
+            <Button onClick={handleAuthRedirect} className="w-full mb-4">
+              {language === 'ja' ? 'freee認証ページを開く' : 'freee 인증 페이지 열기'}
+            </Button>
+
+            <div className="border-t pt-4">
+              <label className="block text-sm font-medium mb-2">
+                {language === 'ja' ? '認証コードを入力' : '인증 코드 입력'}
+              </label>
+              <input
+                type="text"
+                value={authCode}
+                onChange={(e) => setAuthCode(e.target.value)}
+                className="w-full border rounded px-3 py-2 mb-2"
+                placeholder={language === 'ja' ? '認証コード' : '인증 코드'}
+              />
+              <Button 
+                onClick={handleAuthCallback} 
+                disabled={isAuthenticating}
+                className="w-full"
+              >
+                {isAuthenticating 
+                  ? (language === 'ja' ? '認証中...' : '인증 중...') 
+                  : (language === 'ja' ? '認証を完了' : '인증 완료')}
+              </Button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded mb-4">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="bg-green-50 text-green-600 p-3 rounded mb-4">
+              {success}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <div className="bg-white rounded-lg shadow p-6">
+        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
+          <FileText className="w-6 h-6" />
+          {language === 'ja' ? '請求書発行' : '청구서 발행'}
+        </h1>
+
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-50 text-green-600 p-3 rounded mb-4">
+            {success}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {/* 사업소 선택 */}
+          {companies.length > 0 && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">
+                {language === 'ja' ? '事業所' : '사업소'}
+              </label>
+              <select
+                value={selectedCompany || ''}
+                onChange={(e) => setSelectedCompany(Number(e.target.value))}
+                className="w-full border rounded px-3 py-2"
+              >
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* 자사 정보 */}
+          <div className="mb-6 bg-gray-50 p-4 rounded">
+            <h3 className="font-bold mb-2">{language === 'ja' ? '自社情報' : '자사 정보'}</h3>
+            <div className="text-sm space-y-1 text-gray-700">
+              <p><strong>{language === 'ja' ? '会社名:' : '회사명:'}</strong> {companyInfo.name}</p>
+              <p><strong>{language === 'ja' ? '登録番号:' : '등록번호:'}</strong> {companyInfo.registrationNumber}</p>
+              <p><strong>{language === 'ja' ? '住所:' : '주소:'}</strong> {companyInfo.address}</p>
+              <p><strong>{language === 'ja' ? '振込先:' : '입금처:'}</strong> {companyInfo.bankInfo}</p>
+            </div>
+          </div>
+
+          {/* 거래처 정보 */}
+          <div className="mb-6">
+            <h3 className="font-bold mb-3">{language === 'ja' ? '取引先情報' : '거래처 정보'}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">
+                  {language === 'ja' ? '取引先名' : '거래처명'} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.partner_name}
+                  onChange={(e) => setFormData({ ...formData, partner_name: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {language === 'ja' ? '郵便番号' : '우편번호'}
+                </label>
+                <input
+                  type="text"
+                  value={formData.partner_zipcode}
+                  onChange={(e) => setFormData({ ...formData, partner_zipcode: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="123-4567"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {language === 'ja' ? '住所' : '주소'}
+                </label>
+                <input
+                  type="text"
+                  value={formData.partner_address}
+                  onChange={(e) => setFormData({ ...formData, partner_address: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 날짜 */}
+          <div className="mb-6">
+            <h3 className="font-bold mb-3">{language === 'ja' ? '日付' : '날짜'}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {language === 'ja' ? '請求日' : '청구일'} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.invoice_date}
+                  onChange={(e) => setFormData({ ...formData, invoice_date: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {language === 'ja' ? '入金期限' : '입금기한'} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.due_date}
+                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 품목 */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-bold">{language === 'ja' ? '品目' : '품목'}</h3>
+              <Button
+                type="button"
+                onClick={handleAddLineItem}
+                disabled={formData.line_items.length >= 5}
+                className="flex items-center gap-1"
+                size="sm"
+              >
+                <Plus className="w-4 h-4" />
+                {language === 'ja' ? '追加' : '추가'}
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {formData.line_items.map((item, index) => (
+                <div key={index} className="border rounded p-3">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                    <div className="md:col-span-5">
+                      <label className="block text-xs mb-1">{language === 'ja' ? '品目名' : '품목명'}</label>
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => handleLineItemChange(index, 'name', e.target.value)}
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs mb-1">{language === 'ja' ? '数量' : '수량'}</label>
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => handleLineItemChange(index, 'quantity', Number(e.target.value))}
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        min="1"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs mb-1">{language === 'ja' ? '単価' : '단가'}</label>
+                      <input
+                        type="number"
+                        value={item.unit_price}
+                        onChange={(e) => handleLineItemChange(index, 'unit_price', Number(e.target.value))}
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        min="0"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs mb-1">{language === 'ja' ? '小計' : '소계'}</label>
+                      <div className="text-sm font-medium py-1">
+                        ¥{calculateSubtotal(item).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="md:col-span-1 flex items-end">
+                      <Button
+                        type="button"
+                        onClick={() => handleRemoveLineItem(index)}
+                        variant="ghost"
+                        size="sm"
+                        disabled={formData.line_items.length <= 1}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 합계 */}
+          <div className="mb-6 bg-gray-50 p-4 rounded">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>{language === 'ja' ? '小計' : '소계'}:</span>
+                <span className="font-medium">¥{calculateTotal().toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>{language === 'ja' ? '消費税(10%)' : '소비세(10%)'}:</span>
+                <span className="font-medium">¥{calculateTaxTotal().toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-lg font-bold border-t pt-2">
+                <span>{language === 'ja' ? '合計' : '합계'}:</span>
+                <span>¥{calculateGrandTotal().toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 제출 버튼 */}
+          <div className="flex gap-3">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 flex items-center justify-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              {isSubmitting 
+                ? (language === 'ja' ? '発行中...' : '발행 중...') 
+                : (language === 'ja' ? '請求書を発行してPDFダウンロード' : '청구서 발행 및 PDF 다운로드')}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
