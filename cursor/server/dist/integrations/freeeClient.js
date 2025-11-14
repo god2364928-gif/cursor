@@ -444,6 +444,9 @@ async function createInvoice(invoiceData) {
     if (invoiceData.payment_bank_info) {
         freeePayload.payment_bank_info = invoiceData.payment_bank_info;
     }
+    if (invoiceData.memo) {
+        freeePayload.memo = invoiceData.memo; // 추가: 비고
+    }
     console.log('📤 Sending to freee請求書 API:', JSON.stringify(freeePayload, null, 2));
     const url = `${FREEE_INVOICE_API_BASE}/invoices`;
     const response = await fetch(url, {

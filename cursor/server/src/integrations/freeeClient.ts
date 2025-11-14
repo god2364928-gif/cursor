@@ -37,6 +37,7 @@ export interface FreeeInvoiceRequest {
   tax_entry_method?: 'inclusive' | 'exclusive'
   invoice_contents: FreeeInvoiceLineItem[]
   payment_bank_info?: string
+  memo?: string  // 추가: 비고
 }
 
 // 영수증 요청 인터페이스
@@ -551,6 +552,10 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
   
   if (invoiceData.payment_bank_info) {
     freeePayload.payment_bank_info = invoiceData.payment_bank_info
+  }
+  
+  if (invoiceData.memo) {
+    freeePayload.memo = invoiceData.memo  // 추가: 비고
   }
 
   console.log('📤 Sending to freee請求書 API:', JSON.stringify(freeePayload, null, 2))
