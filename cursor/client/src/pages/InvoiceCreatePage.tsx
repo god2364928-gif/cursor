@@ -5,6 +5,7 @@ import { Button } from '../components/ui/button'
 import { useI18nStore } from '../i18n'
 import { Plus, Trash2, FileText, Download, ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import InvoicePreviewModal from '../components/InvoicePreviewModal'
 
 export default function InvoiceCreatePage() {
   const navigate = useNavigate()
@@ -18,6 +19,7 @@ export default function InvoiceCreatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [showPreview, setShowPreview] = useState(false)
 
   // 청구서 폼 데이터
   const [formData, setFormData] = useState<Omit<InvoiceFormData, 'company_id'>>({
@@ -183,6 +185,7 @@ export default function InvoiceCreatePage() {
     }
   }
 
+  // 미리보기 열기 (유효성 검사)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -213,6 +216,14 @@ export default function InvoiceCreatePage() {
       return
     }
 
+    // 유효성 검사 통과하면 미리보기 표시
+    setShowPreview(true)
+  }
+
+  // 실제 발급 처리
+  const handleConfirmInvoice = async () => {
+    setError('')
+    setSuccess('')
     setIsSubmitting(true)
 
     try {
@@ -223,7 +234,7 @@ export default function InvoiceCreatePage() {
       }))
 
       const response = await invoiceAPI.createInvoice({
-        company_id: selectedCompany,
+        company_id: selectedCompany!,
         ...formData,
         line_items: processedLineItems,
       })
@@ -234,7 +245,7 @@ export default function InvoiceCreatePage() {
 
       // PDF 자동 다운로드
       try {
-        const pdfResponse = await invoiceAPI.downloadPdf(invoiceId, selectedCompany)
+        const pdfResponse = await invoiceAPI.downloadPdf(invoiceId, selectedCompany!)
         const blob = new Blob([pdfResponse.data], { type: 'application/pdf' })
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -248,6 +259,9 @@ export default function InvoiceCreatePage() {
         console.error('PDF download error:', pdfError)
         setError(language === 'ja' ? 'PDFのダウンロードに失敗しました' : 'PDF 다운로드 실패')
       }
+
+      // 미리보기 닫기
+      setShowPreview(false)
 
       // 2초 후 목록 페이지로 이동
       setTimeout(() => {
@@ -657,14 +671,23 @@ export default function InvoiceCreatePage() {
               disabled={isSubmitting}
               className="flex-1 flex items-center justify-center gap-2"
             >
-              <Download className="w-4 h-4" />
-              {isSubmitting 
-                ? (language === 'ja' ? '発行中...' : '발행 중...') 
-                : (language === 'ja' ? '請求書を発行してPDFダウンロード' : '청구서 발행 및 PDF 다운로드')}
+              <FileText className="w-4 h-4" />
+              {language === 'ja' ? 'プレビュー' : '미리보기'}
             </Button>
           </div>
         </form>
       </div>
+
+      {/* 미리보기 모달 */}
+      <InvoicePreviewModal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        onConfirm={handleConfirmInvoice}
+        formData={formData}
+        companyInfo={companyInfo}
+        isSubmitting={isSubmitting}
+        language={language}
+      />
     </div>
   )
 }
