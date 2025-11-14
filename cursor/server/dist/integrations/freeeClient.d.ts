@@ -62,6 +62,10 @@ export declare function createPartner(companyId: number, partnerName: string): P
 export declare function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<any>;
 /**
  * 청구서 PDF 다운로드 (freee請求書 API)
+ *
+ * freee 請求書 API에서 PDF를 다운로드하려면:
+ * 1. 청구서를 먼저 "발송" 상태로 변경
+ * 2. 그 후 PDF 다운로드 가능
  */
 export declare function downloadInvoicePdf(companyId: number, invoiceId: number): Promise<Buffer>;
 /**
