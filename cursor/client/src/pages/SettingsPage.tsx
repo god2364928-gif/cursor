@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import api from '../lib/api'
+import api, { invoiceAPI } from '../lib/api'
 import { formatDateTime } from '../lib/utils'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Edit2, Trash2, X } from 'lucide-react'
+import { Edit2, Trash2, X, RefreshCw } from 'lucide-react'
 
 interface User {
   id: string
@@ -40,6 +40,7 @@ export default function SettingsPage() {
     confirmPassword: ''
   })
   const [changingPassword, setChangingPassword] = useState(false)
+  const [resettingAuth, setResettingAuth] = useState(false)
 
   useEffect(() => {
     if (isAdmin) {
@@ -136,6 +137,22 @@ export default function SettingsPage() {
     }
   }
 
+  const handleResetFreeeAuth = async () => {
+    if (!confirm('freee 인증을 초기화하시겠습니까? 다시 인증해야 합니다.')) {
+      return
+    }
+
+    setResettingAuth(true)
+    try {
+      await invoiceAPI.resetAuth()
+      alert('freee 인증이 초기화되었습니다. 청구서 발행 페이지에서 다시 인증하세요.')
+    } catch (error: any) {
+      alert('인증 초기화 실패: ' + (error.response?.data?.error || error.message))
+    } finally {
+      setResettingAuth(false)
+    }
+  }
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -214,6 +231,32 @@ export default function SettingsPage() {
                   </form>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* freee 재인증 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="w-5 h-5" />
+                freee 재인증
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  freee請求書 API 권한을 추가한 경우, 기존 인증을 초기화하고 다시 인증해야 합니다.
+                </p>
+                <Button 
+                  onClick={handleResetFreeeAuth} 
+                  variant="outline"
+                  disabled={resettingAuth}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${resettingAuth ? 'animate-spin' : ''}`} />
+                  {resettingAuth ? '초기화 중...' : 'freee 인증 초기화'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
