@@ -553,99 +553,10 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
   const data: any = await detailResponse.json()
   const invoice = data.invoice
 
-  console.log(`📋 Invoice: ${invoice.invoice_number}, status: ${invoice.sending_status}`)
+  console.log(`📋 Invoice: ${invoice.invoice_number}`)
 
-  // 2단계: 청구서가 unsent 상태면 발송 처리 시도
-  if (invoice.sending_status === 'unsent') {
-    console.log(`📤 Step 2: Trying to send invoice...`)
-
-    // 여러 가능한 발송 엔드포인트 시도
-    const sendUrls = [
-      `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/send`,
-      `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/actions/send`,
-      `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}`,
-    ]
-
-    let sendSuccess = false
-
-    for (const sendUrl of sendUrls) {
-      console.log(`📤 Trying send URL: ${sendUrl}`)
-
-      try {
-        const sendResponse = await fetch(sendUrl, {
-          method: sendUrl.includes('/actions/') ? 'POST' : 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            company_id: companyId,
-            sending_method: 'posting',
-            sending_status: 'sent',
-          }),
-        })
-
-        console.log(`📡 Send response: ${sendResponse.status}`)
-
-        if (sendResponse.ok) {
-          console.log(`✅ Invoice sent successfully`)
-          sendSuccess = true
-          break
-        } else {
-          const errorText = await sendResponse.text()
-          console.log(`⚠️ Send failed: ${sendResponse.status}`, errorText.substring(0, 200))
-        }
-      } catch (error: any) {
-        console.log(`⚠️ Send exception:`, error.message)
-      }
-    }
-
-    if (!sendSuccess) {
-      console.log(`⚠️ Could not send invoice via API, trying PDF download anyway...`)
-    }
-  } else {
-    console.log(`✅ Invoice already sent (status: ${invoice.sending_status})`)
-  }
-
-  // 3단계: freee API에서 PDF 다운로드 시도
-  console.log(`📥 Step 3: Trying to download PDF from freee API...`)
-  
-  const pdfUrls = [
-    `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`,
-    `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/pdf?company_id=${companyId}`,
-  ]
-
-  for (const pdfUrl of pdfUrls) {
-    console.log(`📥 Trying: ${pdfUrl}`)
-
-    try {
-      const pdfResponse = await fetch(pdfUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/pdf',
-        },
-      })
-
-      console.log(`📡 Response: ${pdfResponse.status}`)
-
-      if (pdfResponse.ok) {
-        const arrayBuffer = await pdfResponse.arrayBuffer()
-        console.log(`✅ PDF downloaded from freee: ${arrayBuffer.byteLength} bytes`)
-
-        if (arrayBuffer.byteLength > 0) {
-          return Buffer.from(arrayBuffer)
-        }
-      } else {
-        const errorText = await pdfResponse.text()
-        console.log(`❌ Failed: ${pdfResponse.status}`, errorText.substring(0, 200))
-      }
-    } catch (error: any) {
-      console.log(`❌ Exception:`, error.message)
-    }
-  }
-
-  // 4단계: freee API에서 다운로드 실패 시 직접 PDF 생성
-  console.log(`📄 Step 4: Generating PDF from invoice data...`)
+  // 2단계: 청구서 데이터로 직접 PDF 생성
+  console.log(`📄 Step 2: Generating PDF from invoice data...`)
 
   try {
     const pdfBuffer = await generateInvoicePdf({
