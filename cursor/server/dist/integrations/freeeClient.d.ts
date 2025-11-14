@@ -32,11 +32,11 @@ export declare function exchangeCodeForToken(code: string): Promise<{
  */
 export declare function getCompanies(): Promise<any>;
 /**
- * 청구서 생성 (freee請求書 API)
+ * 청구書 생성 (freee会計 API)
  */
 export declare function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<any>;
 /**
- * 청구서 PDF 다운로드
+ * 청구서 PDF 다운로드 (freee会計 API)
  */
 export declare function downloadInvoicePdf(companyId: number, invoiceId: number): Promise<Buffer>;
 /**
