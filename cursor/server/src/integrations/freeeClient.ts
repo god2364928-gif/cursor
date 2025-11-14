@@ -339,11 +339,14 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
 
   const partnerName = invoiceData.partner_name + (invoiceData.partner_title || '')
   
+  // 청구서 번호 자동 생성 (YYYYMMDD-HHMMSS 형식)
+  const invoiceNumber = `INV-${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}`
+  
   // freee請求書 API 페이로드 (공식 스펙에 따라 필수 필드 포함)
   const freeePayload: any = {
     company_id: invoiceData.company_id,
-    partner_code: invoiceData.partner_name,  // 거래처 코드 (partner_name을 code로 사용)
-    partner_name: partnerName,
+    invoice_number: invoiceNumber,  // 필수: 청구서 번호
+    partner_name: partnerName,  // partner_code 대신 partner_name만 사용
     partner_title: invoiceData.partner_title || '御中',
     billing_date: invoiceData.invoice_date,  // 필수: 청구일
     due_date: invoiceData.due_date,
