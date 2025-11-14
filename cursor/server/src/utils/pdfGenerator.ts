@@ -25,7 +25,7 @@ interface InvoiceData {
  * 청구서 HTML 생성 (freee 스타일 완전 동일)
  */
 function generateInvoiceHtml(data: InvoiceData): string {
-  const emptyRows = Math.max(0, 10 - data.lines.length)
+  const emptyRows = Math.max(0, 6 - data.lines.length)
   const emptyRowsHtml = Array(emptyRows)
     .fill('<tr><td style="height: 25px;">&nbsp;</td><td></td><td></td><td></td></tr>')
     .join('')
@@ -250,9 +250,9 @@ function generateInvoiceHtml(data: InvoiceData): string {
   <table class="payment-table">
     <tr>
       <td class="label" style="width: 12%;">入金期日</td>
-      <td class="content" style="width: 38%;">${data.due_date || ''}</td>
+      <td class="content" style="width: 38%;">${data.due_date || '&nbsp;'}</td>
       <td class="label" style="width: 12%;">振込先</td>
-      <td class="content" style="width: 38%;">${data.payment_bank_info ? data.payment_bank_info.replace(/\n/g, '<br>') : ''}</td>
+      <td class="content" style="width: 38%;">${data.payment_bank_info ? data.payment_bank_info.replace(/\n/g, '<br>') : '&nbsp;'}</td>
     </tr>
   </table>
 
