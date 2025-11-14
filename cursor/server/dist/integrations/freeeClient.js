@@ -316,9 +316,60 @@ async function createPartner(companyId, partnerName) {
  * 거래처 검색 또는 생성 (내부 사용)
  */
 async function getOrCreatePartner(companyId, partnerName) {
-    // 이제 createPartner를 직접 호출
-    const partner = await createPartner(companyId, partnerName);
-    return partner.id;
+    console.log(`🔍 Searching for existing partner: ${partnerName}`);
+    try {
+        // 1. 기존 거래처 검색 (keyword로 검색)
+        const partnersData = await getPartners(companyId, partnerName);
+        if (partnersData.partners && partnersData.partners.length > 0) {
+            // 완전 일치하는 거래처 찾기
+            const exactMatch = partnersData.partners.find((p) => p.name === partnerName);
+            if (exactMatch) {
+                console.log(`✅ Found existing partner: ID=${exactMatch.id}, name=${exactMatch.name}`);
+                return exactMatch.id;
+            }
+            // 경칭 제외하고 비교 (御中, 様 등)
+            const partnerNameWithoutTitle = partnerName.replace(/[御中様]+$/, '');
+            const matchWithoutTitle = partnersData.partners.find((p) => {
+                const pNameWithoutTitle = p.name.replace(/[御中様]+$/, '');
+                return pNameWithoutTitle === partnerNameWithoutTitle;
+            });
+            if (matchWithoutTitle) {
+                console.log(`✅ Found existing partner (without title): ID=${matchWithoutTitle.id}, name=${matchWithoutTitle.name}`);
+                return matchWithoutTitle.id;
+            }
+        }
+        // 2. 없으면 새로 생성
+        console.log(`📋 Partner not found, creating new: ${partnerName}`);
+        const partner = await createPartner(companyId, partnerName);
+        return partner.id;
+    }
+    catch (error) {
+        // 생성 시도 중 "이미 존재" 오류가 발생하면 다시 검색
+        if (error.message.includes('既に使用されています') || error.message.includes('already')) {
+            console.log(`⚠️ Partner creation failed (already exists), searching again...`);
+            // 모든 거래처 목록 조회 (keyword 없이)
+            const allPartnersData = await getPartners(companyId);
+            if (allPartnersData.partners && allPartnersData.partners.length > 0) {
+                // 완전 일치 검색
+                const exactMatch = allPartnersData.partners.find((p) => p.name === partnerName);
+                if (exactMatch) {
+                    console.log(`✅ Found existing partner on retry: ID=${exactMatch.id}`);
+                    return exactMatch.id;
+                }
+                // 경칭 제외하고 검색
+                const partnerNameWithoutTitle = partnerName.replace(/[御中様]+$/, '');
+                const matchWithoutTitle = allPartnersData.partners.find((p) => {
+                    const pNameWithoutTitle = p.name.replace(/[御中様]+$/, '');
+                    return pNameWithoutTitle === partnerNameWithoutTitle;
+                });
+                if (matchWithoutTitle) {
+                    console.log(`✅ Found existing partner on retry (without title): ID=${matchWithoutTitle.id}`);
+                    return matchWithoutTitle.id;
+                }
+            }
+        }
+        throw error;
+    }
 }
 /**
  * 청구書 생성 (freee請求書 API 사용)
