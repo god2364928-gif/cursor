@@ -30,7 +30,7 @@ export default function InvoiceCreatePage() {
     line_items: [
       { name: '', quantity: 1, unit_price: '', tax: 0, tax_rate: 10 },
     ],
-    payment_bank_info: 'PayPay銀行\nビジネス営業部支店（005）\n\n普通　7136331\nカブシキガイシャホットセラー',
+    payment_bank_info: 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
   })
 
   const [paymentMethod, setPaymentMethod] = useState<'bank' | 'paypay'>('bank')
@@ -40,7 +40,7 @@ export default function InvoiceCreatePage() {
     name: '株式会社ホットセラー',
     registrationNumber: 'T5013301050765',
     address: '〒104-0053\n東京都中央区晴海一丁目8番10号\n晴海アイランドトリトンスクエア\nオフィスタワーX棟8階',
-    bankInfo: 'PayPay銀行\nビジネス営業部支店（005）\n\n普通　7136331\nカブシキガイシャホットセラー',
+    bankInfo: 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
   }
 
   // 인증 상태 확인
@@ -150,7 +150,7 @@ export default function InvoiceCreatePage() {
     if (method === 'bank') {
       setFormData({
         ...formData,
-        payment_bank_info: 'PayPay銀行\nビジネス営業部支店（005）\n\n普通　7136331\nカブシキガイシャホットセラー'
+        payment_bank_info: 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー'
       })
     } else {
       setFormData({
