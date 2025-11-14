@@ -195,40 +195,34 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
         // 사용자 정보 조회
         const userResult = await db_1.pool.query('SELECT name FROM users WHERE id = $1', [req.user.id]);
         const userName = userResult.rows[0]?.name || '알 수 없음';
-        // DB에 청구서 정보 저장 (우편번호/주소 필드 제거)
-        const insertResult = await db_1.pool.query(`INSERT INTO freee_invoices (
-        freee_invoice_id, 
-        freee_company_id, 
+        // DB에 청구서 정보 저장
+        const insertResult = await db_1.pool.query(`INSERT INTO invoices (
+        user_id,
+        company_id,
+        partner_id,
         partner_name, 
+        invoice_number,
+        freee_invoice_id, 
         invoice_date, 
         due_date, 
         total_amount, 
-        tax_amount, 
-        issued_by_user_id, 
-        issued_by_user_name
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`, [
-            invoiceId,
+        tax_amount,
+        tax_entry_method
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`, [
+            req.user.id,
             company_id,
+            partner_id,
             partner_name + (partner_title || ''),
+            result.invoice.invoice_number || invoiceId,
+            invoiceId,
             invoice_date,
             due_date,
             totalAmount,
             taxAmount,
-            req.user.id,
-            userName,
+            tax_entry_method || 'exclusive',
         ]);
         const dbInvoiceId = insertResult.rows[0].id;
-        // 청구서 품목 저장
-        for (const item of line_items) {
-            await db_1.pool.query(`INSERT INTO freee_invoice_items (
-          invoice_id, 
-          item_name, 
-          quantity, 
-          unit_price, 
-          tax
-        ) VALUES ($1, $2, $3, $4, $5)`, [dbInvoiceId, item.name, item.quantity, item.unit_price, item.tax || 0]);
-        }
-        console.log(`✅ Invoice created: ID=${invoiceId}, partner=${partner_name}, user=${userName}`);
+        console.log(`✅ Invoice created: freee_id=${invoiceId}, db_id=${dbInvoiceId}, partner=${partner_name}, user=${userName}`);
         res.json({
             success: true,
             invoice_id: invoiceId,
