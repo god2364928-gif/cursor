@@ -202,7 +202,7 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
         }
         const invoiceId = result.invoice.id;
         const totalAmount = result.invoice.total_amount || 0;
-        const taxAmount = result.invoice.tax_entry_total || 0;
+        const taxAmount = result.invoice.amount_tax || 0; // freee請求書 API는 amount_tax 사용
         // 사용자 정보 조회
         const userResult = await db_1.pool.query('SELECT name FROM users WHERE id = $1', [req.user.id]);
         const userName = userResult.rows[0]?.name || '알 수 없음';
