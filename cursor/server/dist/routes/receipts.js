@@ -119,11 +119,13 @@ router.post('/from-invoice', auth_1.authMiddleware, async (req, res) => {
         // 청구서의 품목 정보를 조회 (DB에 저장되어 있다면)
         // 현재는 freee에서 직접 조회
         // 간단하게 청구서 정보만으로 영수증 생성
+        // partner_name에 이미 경칭(御中/様)이 포함되어 있는지 확인
+        const hasTitle = /[御中様]+$/.test(invoice.partner_name);
         const receiptData = {
             company_id: invoice.company_id,
             partner_id: invoice.partner_id,
             partner_name: invoice.partner_name,
-            partner_title: '様',
+            partner_title: hasTitle ? '' : '様', // 이미 경칭이 있으면 추가하지 않음
             receipt_title: 'COCOマーケご利用料 領収書',
             receipt_date: invoice.invoice_date,
             issue_date: issue_date,
