@@ -7,7 +7,7 @@ const FREEE_CLIENT_ID = process.env.FREEE_CLIENT_ID || '632732953685764'
 const FREEE_CLIENT_SECRET = process.env.FREEE_CLIENT_SECRET || 'An9MEyDAacju9EyiLx3jZKeKpqC-aYdkhDGvwsGwHFoQmiwm6jeAVzJyuBo8ttJ0Dj0OOYboVjImkZLoLNeJeQ'
 const FREEE_REDIRECT_URI = process.env.FREEE_REDIRECT_URI || 'urn:ietf:wg:oauth:2.0:oob'
 const FREEE_API_BASE = 'https://api.freee.co.jp/api/1'  // freee会計 API
-const FREEE_INVOICE_API_BASE = 'https://api.freee.co.jp/invoice'  // freee請求書 API
+const FREEE_INVOICE_API_BASE = 'https://api.freee.co.jp/iv'  // freee請求書 API (수정: /invoice → /iv)
 const FREEE_AUTH_BASE = 'https://accounts.secure.freee.co.jp'
 
 // 메모리 캐시 (DB 조회 최소화)
@@ -284,6 +284,38 @@ export async function getCompanies(): Promise<any> {
 }
 
 /**
+ * 청구서 템플릿 목록 조회 (freee請求書 API)
+ */
+export async function getInvoiceTemplates(companyId: number): Promise<any> {
+  const token = await ensureValidToken()
+  
+  if (!token) {
+    throw new Error('No valid access token. Please authenticate first.')
+  }
+
+  const url = `${FREEE_INVOICE_API_BASE}/invoices/templates?company_id=${companyId}`
+  
+  console.log(`📋 Fetching invoice templates from: ${url}`)
+  
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error(`❌ Template fetch error: ${response.status}`, text)
+    throw new Error(`freee API error: ${response.status} ${text}`)
+  }
+
+  const data = await response.json()
+  console.log('✅ Templates fetched:', JSON.stringify(data, null, 2))
+  return data
+}
+
+/**
  * 청구書 생성 (freee請求書 API 사용)
  */
 export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<any> {
@@ -291,6 +323,18 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
   
   if (!token) {
     throw new Error('No valid access token. Please authenticate first.')
+  }
+
+  // 먼저 사용 가능한 템플릿 조회
+  let templateId: number | undefined
+  try {
+    const templates = await getInvoiceTemplates(invoiceData.company_id)
+    if (templates && templates.templates && templates.templates.length > 0) {
+      templateId = templates.templates[0].id  // 첫 번째 템플릿 사용
+      console.log(`📋 Using template ID: ${templateId}`)
+    }
+  } catch (error) {
+    console.error('⚠️ Failed to fetch templates, continuing without template_id:', error)
   }
 
   const partnerName = invoiceData.partner_name + (invoiceData.partner_title || '')
@@ -310,6 +354,11 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
     })),
   }
 
+  // 템플릿 ID가 있으면 추가
+  if (templateId) {
+    freeePayload.template_id = templateId
+  }
+
   if (invoiceData.invoice_title) {
     freeePayload.invoice_title = invoiceData.invoice_title
   }
@@ -320,7 +369,7 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
 
   console.log('📤 Sending to freee請求書 API:', JSON.stringify(freeePayload, null, 2))
 
-  const url = `${FREEE_INVOICE_API_BASE}/v1/invoices`
+  const url = `${FREEE_INVOICE_API_BASE}/invoices`
   
   const response = await fetch(url, {
     method: 'POST',

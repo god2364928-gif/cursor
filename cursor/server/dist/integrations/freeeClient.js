@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAuthorizationUrl = getAuthorizationUrl;
 exports.exchangeCodeForToken = exchangeCodeForToken;
 exports.getCompanies = getCompanies;
+exports.getInvoiceTemplates = getInvoiceTemplates;
 exports.createInvoice = createInvoice;
 exports.downloadInvoicePdf = downloadInvoicePdf;
 exports.isAuthenticated = isAuthenticated;
@@ -17,6 +18,7 @@ const FREEE_CLIENT_ID = process.env.FREEE_CLIENT_ID || '632732953685764';
 const FREEE_CLIENT_SECRET = process.env.FREEE_CLIENT_SECRET || 'An9MEyDAacju9EyiLx3jZKeKpqC-aYdkhDGvwsGwHFoQmiwm6jeAVzJyuBo8ttJ0Dj0OOYboVjImkZLoLNeJeQ';
 const FREEE_REDIRECT_URI = process.env.FREEE_REDIRECT_URI || 'urn:ietf:wg:oauth:2.0:oob';
 const FREEE_API_BASE = 'https://api.freee.co.jp/api/1'; // freee会計 API
+const FREEE_INVOICE_API_BASE = 'https://api.freee.co.jp/iv'; // freee請求書 API (수정: /invoice → /iv)
 const FREEE_AUTH_BASE = 'https://accounts.secure.freee.co.jp';
 // 메모리 캐시 (DB 조회 최소화)
 let cachedToken = null;
@@ -222,32 +224,93 @@ async function getCompanies() {
     return response.json();
 }
 /**
- * 청구서 생성 (freee会計 API - Deals)
- * 청구서는 "取引(거래)"로 생성 후 請求書로 변환
+ * 청구서 템플릿 목록 조회 (freee請求書 API)
+ */
+async function getInvoiceTemplates(companyId) {
+    const token = await ensureValidToken();
+    if (!token) {
+        throw new Error('No valid access token. Please authenticate first.');
+    }
+    const url = `${FREEE_INVOICE_API_BASE}/invoices/templates?company_id=${companyId}`;
+    console.log(`📋 Fetching invoice templates from: ${url}`);
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        console.error(`❌ Template fetch error: ${response.status}`, text);
+        throw new Error(`freee API error: ${response.status} ${text}`);
+    }
+    const data = await response.json();
+    console.log('✅ Templates fetched:', JSON.stringify(data, null, 2));
+    return data;
+}
+/**
+ * 청구書 생성 (freee請求書 API 사용)
  */
 async function createInvoice(invoiceData) {
-    // freee会計 API - Deals 형식으로 데이터 변환
+    const token = await ensureValidToken();
+    if (!token) {
+        throw new Error('No valid access token. Please authenticate first.');
+    }
+    // 먼저 사용 가능한 템플릿 조회
+    let templateId;
+    try {
+        const templates = await getInvoiceTemplates(invoiceData.company_id);
+        if (templates && templates.templates && templates.templates.length > 0) {
+            templateId = templates.templates[0].id; // 첫 번째 템플릿 사용
+            console.log(`📋 Using template ID: ${templateId}`);
+        }
+    }
+    catch (error) {
+        console.error('⚠️ Failed to fetch templates, continuing without template_id:', error);
+    }
     const partnerName = invoiceData.partner_name + (invoiceData.partner_title || '');
-    // 먼저 거래처(Partner) 생성 또는 조회
-    // 간단하게 하기 위해 거래 직접 생성
+    // freee請求書 API 페이로드
     const freeePayload = {
         company_id: invoiceData.company_id,
-        issue_date: invoiceData.invoice_date,
-        type: 'income', // 수입
         partner_name: partnerName,
-        details: invoiceData.invoice_contents.map((item) => ({
-            tax_code: item.tax_rate === 10 ? 108 : (item.tax_rate === 8 ? 107 : 106), // 세율 코드
-            account_item_id: 1, // 매출 (기본값, 실제로는 계정과목 ID 필요)
-            amount: item.unit_price * item.quantity,
-            description: item.name,
-            vat: item.tax_rate || 10,
+        partner_title: invoiceData.partner_title || '御中',
+        invoice_date: invoiceData.invoice_date,
+        due_date: invoiceData.due_date,
+        invoice_contents: invoiceData.invoice_contents.map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            tax: item.tax,
         })),
     };
-    console.log('📤 Sending to freee会計 API (Deals):', JSON.stringify(freeePayload, null, 2));
-    return callFreeeAPI('/deals', {
+    // 템플릿 ID가 있으면 추가
+    if (templateId) {
+        freeePayload.template_id = templateId;
+    }
+    if (invoiceData.invoice_title) {
+        freeePayload.invoice_title = invoiceData.invoice_title;
+    }
+    if (invoiceData.payment_bank_info) {
+        freeePayload.payment_bank_info = invoiceData.payment_bank_info;
+    }
+    console.log('📤 Sending to freee請求書 API:', JSON.stringify(freeePayload, null, 2));
+    const url = `${FREEE_INVOICE_API_BASE}/invoices`;
+    const response = await fetch(url, {
         method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
         body: JSON.stringify(freeePayload),
     });
+    if (!response.ok) {
+        const text = await response.text();
+        console.error(`❌ freee請求書 API error: ${response.status}`, text);
+        throw new Error(`freee API error: ${response.status} ${text}`);
+    }
+    const data = await response.json();
+    console.log('✅ freee請求書 API response:', JSON.stringify(data, null, 2));
+    return data;
 }
 /**
  * 청구서 PDF 다운로드 (freee会計 API)
