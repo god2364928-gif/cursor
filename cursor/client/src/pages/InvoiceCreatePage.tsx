@@ -19,6 +19,7 @@ export default function InvoiceCreatePage() {
   const [selectedPartner, setSelectedPartner] = useState<number | null>(null)
   const [isLoadingPartners, setIsLoadingPartners] = useState(false)
   const [showNewPartnerForm, setShowNewPartnerForm] = useState(false)
+  const [partnerSearchKeyword, setPartnerSearchKeyword] = useState('')  // 거래처 검색어
   const [authCode, setAuthCode] = useState('')
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -488,6 +489,14 @@ export default function InvoiceCreatePage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
+                    {/* 거래처 검색 */}
+                    <input
+                      type="text"
+                      value={partnerSearchKeyword}
+                      onChange={(e) => setPartnerSearchKeyword(e.target.value)}
+                      placeholder={language === 'ja' ? '取引先名で検索...' : '거래처명 검색...'}
+                      className="w-full border rounded px-3 py-2 mb-2"
+                    />
                     <select
                       value={selectedPartner || ''}
                       onChange={(e) => {
@@ -511,11 +520,16 @@ export default function InvoiceCreatePage() {
                           ? (language === 'ja' ? '読み込み中...' : '로딩 중...') 
                           : (language === 'ja' ? '取引先を選択' : '거래처 선택')}
                       </option>
-                      {partners.map((partner) => (
-                        <option key={partner.id} value={partner.id}>
-                          {partner.name} {partner.code ? `(${partner.code})` : ''}
-                        </option>
-                      ))}
+                      {partners
+                        .filter(partner => 
+                          !partnerSearchKeyword || 
+                          partner.name.toLowerCase().includes(partnerSearchKeyword.toLowerCase())
+                        )
+                        .map((partner) => (
+                          <option key={partner.id} value={partner.id}>
+                            {partner.name} {partner.code ? `(${partner.code})` : ''}
+                          </option>
+                        ))}
                     </select>
                     <Button
                       type="button"
@@ -704,9 +718,9 @@ export default function InvoiceCreatePage() {
                         <option value={10}>10%</option>
                       </select>
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-2 flex flex-col items-end justify-end">
                       <label className="block text-xs mb-1">{language === 'ja' ? '小計' : '소계'}</label>
-                      <div className="text-sm font-medium py-1">
+                      <div className="text-sm font-medium py-1 text-right min-w-[120px]">
                         ¥{calculateSubtotal(item).toLocaleString()}
                       </div>
                     </div>

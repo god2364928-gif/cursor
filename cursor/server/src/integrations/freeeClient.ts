@@ -438,8 +438,8 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
 
   const partnerName = invoiceData.partner_name + (invoiceData.partner_title || '')
   
-  // 청구서 번호 자동 생성 (YYYYMMDD-HHMMSS 형식)
-  const invoiceNumber = `INV-${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}`
+  // 청구서 번호 자동 생성 (YYYYMMDDHHMMSS 형식, INV- 제거)
+  const invoiceNumber = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)
   
   // freee請求書 API 페이로드 (공식 스펙에 따라 필수 필드 포함)
   const freeePayload: any = {
@@ -504,7 +504,7 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
 }
 
 /**
- * 청구서 PDF 다운로드 (freee会計 API)
+ * 청구서 PDF 다운로드 (freee請求書 API)
  */
 export async function downloadInvoicePdf(companyId: number, invoiceId: number): Promise<Buffer> {
   const token = await ensureValidToken()
@@ -513,7 +513,8 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
     throw new Error('No valid access token. Please authenticate first.')
   }
 
-  const url = `${FREEE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`
+  // freee請求書 API 엔드포인트 사용
+  const url = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`
   
   console.log(`📥 Downloading PDF from: ${url}`)
   
