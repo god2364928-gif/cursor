@@ -19,7 +19,7 @@ interface InvoiceData {
     invoice_registration_number?: string;
 }
 /**
- * 청구서 PDF 생성 (freee 스타일)
+ * 청구서 PDF 생성 (Puppeteer 사용)
  */
 export declare function generateInvoicePdf(invoiceData: InvoiceData): Promise<Buffer>;
 export {};
