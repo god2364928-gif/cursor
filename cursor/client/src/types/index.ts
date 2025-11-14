@@ -201,6 +201,7 @@ export interface InvoiceLineItem {
   quantity: number
   unit_price: number
   tax: number
+  tax_rate: number  // 품목별 세율 (0, 8, 10)
 }
 
 export interface InvoiceFormData {
