@@ -220,3 +220,26 @@ export interface FreeeCompany {
   role: string
 }
 
+export interface FreeeInvoice {
+  id: number
+  freee_invoice_id: number
+  freee_company_id: number
+  partner_name: string
+  partner_zipcode?: string
+  partner_address?: string
+  invoice_date: string
+  due_date: string
+  total_amount: number
+  tax_amount: number
+  issued_by_user_id: string
+  issued_by_user_name: string
+  created_at: string
+  items: Array<{
+    id: number
+    item_name: string
+    quantity: number
+    unit_price: number
+    tax: number
+  }>
+}
+

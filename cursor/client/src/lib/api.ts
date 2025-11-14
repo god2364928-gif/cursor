@@ -82,6 +82,9 @@ export const invoiceAPI = {
   // 사업소 목록 조회
   getCompanies: () => api.get('/invoices/companies'),
   
+  // 청구서 목록 조회
+  getInvoiceList: () => api.get('/invoices/list'),
+  
   // 청구서 생성
   createInvoice: (data: any) => api.post('/invoices/create', data),
   
