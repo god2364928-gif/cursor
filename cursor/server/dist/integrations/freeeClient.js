@@ -425,51 +425,80 @@ async function downloadInvoicePdf(companyId, invoiceId) {
     if (!token) {
         throw new Error('No valid access token. Please authenticate first.');
     }
-    // freee 請求書 API - reports 엔드포인트 사용
-    // 웹 UI에서 사용하는 것과 동일한 경로
-    const possibleUrls = [
-        `${FREEE_INVOICE_API_BASE}/reports/invoices/${invoiceId}?company_id=${companyId}&download=pdf`,
-        `${FREEE_INVOICE_API_BASE}/reports/invoices/${invoiceId}/download?company_id=${companyId}`,
-        `${FREEE_INVOICE_API_BASE}/reports/invoices/${invoiceId}.pdf?company_id=${companyId}`,
-        `https://api.freee.co.jp/api/1/reports/invoices/${invoiceId}?company_id=${companyId}&download=pdf`,
+    // 1단계: 청구서 상세 조회
+    console.log(`📋 Step 1: Fetching invoice details...`);
+    const detailUrl = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}?company_id=${companyId}`;
+    const detailResponse = await fetch(detailUrl, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+    if (!detailResponse.ok) {
+        const errorText = await detailResponse.text();
+        console.error(`❌ Failed to fetch invoice: ${detailResponse.status}`, errorText);
+        throw new Error(`Failed to fetch invoice: ${detailResponse.status}`);
+    }
+    const data = await detailResponse.json();
+    const invoice = data.invoice;
+    console.log(`📋 Invoice: ${invoice.invoice_number}, status: ${invoice.sending_status}`);
+    // 2단계: 청구서가 unsent 상태면 발송 처리
+    if (invoice.sending_status === 'unsent') {
+        console.log(`📤 Step 2: Sending invoice to enable PDF download...`);
+        const sendUrl = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/send`;
+        const sendResponse = await fetch(sendUrl, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                company_id: companyId,
+                sending_method: 'posting',
+            }),
+        });
+        if (!sendResponse.ok) {
+            const errorText = await sendResponse.text();
+            console.error(`❌ Send failed: ${sendResponse.status}`, errorText);
+            throw new Error(`Failed to send invoice: ${sendResponse.status}`);
+        }
+        console.log(`✅ Invoice sent successfully`);
+    }
+    else {
+        console.log(`✅ Invoice already sent (status: ${invoice.sending_status})`);
+    }
+    // 3단계: PDF 다운로드 시도
+    console.log(`📥 Step 3: Downloading PDF...`);
+    const pdfUrls = [
+        `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`,
+        `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/pdf?company_id=${companyId}`,
     ];
-    for (const url of possibleUrls) {
-        console.log(`📥 Trying: ${url}`);
+    for (const pdfUrl of pdfUrls) {
+        console.log(`📥 Trying: ${pdfUrl}`);
         try {
-            const response = await fetch(url, {
+            const pdfResponse = await fetch(pdfUrl, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/pdf',
                 },
             });
-            console.log(`📡 Response: ${response.status} ${response.statusText}`);
-            console.log(`📡 Content-Type: ${response.headers.get('content-type')}`);
-            if (response.ok) {
-                const contentType = response.headers.get('content-type');
-                // PDF 또는 octet-stream이면 성공
-                if (contentType?.includes('pdf') || contentType?.includes('octet-stream')) {
-                    const arrayBuffer = await response.arrayBuffer();
-                    console.log(`✅ PDF downloaded: ${arrayBuffer.byteLength} bytes`);
-                    if (arrayBuffer.byteLength > 0) {
-                        return Buffer.from(arrayBuffer);
-                    }
-                }
-                else {
-                    const text = await response.text();
-                    console.log(`⚠️ Unexpected content type, response:`, text.substring(0, 200));
+            console.log(`📡 Response: ${pdfResponse.status}`);
+            if (pdfResponse.ok) {
+                const arrayBuffer = await pdfResponse.arrayBuffer();
+                console.log(`✅ PDF downloaded: ${arrayBuffer.byteLength} bytes`);
+                if (arrayBuffer.byteLength > 0) {
+                    return Buffer.from(arrayBuffer);
                 }
             }
             else {
-                const text = await response.text();
-                console.log(`❌ Failed: ${response.status}`, text.substring(0, 200));
+                const errorText = await pdfResponse.text();
+                console.log(`❌ Failed: ${pdfResponse.status}`, errorText.substring(0, 200));
             }
         }
         catch (error) {
             console.log(`❌ Exception:`, error.message);
         }
     }
-    throw new Error(`All PDF download attempts failed. freee 請求書 API may not support PDF download via API. ` +
-        `Invoice ID: ${invoiceId}`);
+    throw new Error(`PDF download failed. Invoice ID: ${invoiceId}`);
 }
 /**
  * 인증 상태 확인
