@@ -105,12 +105,11 @@ function generateInvoiceHtml(data) {
     table.payment-table .label {
       background-color: #f5f5f5;
       font-weight: normal;
-      width: 25%;
       text-align: center;
     }
     table.payment-table .content {
-      width: 75%;
       line-height: 1.5;
+      text-align: left;
     }
     
     /* 품목 테이블 */
@@ -233,10 +232,10 @@ function generateInvoiceHtml(data) {
 
   <table class="payment-table">
     <tr>
-      <td class="label">入金期日</td>
-      <td class="content">${data.due_date || ''}</td>
-      <td class="label">振込先</td>
-      <td class="content">${data.payment_bank_info ? data.payment_bank_info.replace(/\n/g, '<br>') : ''}</td>
+      <td class="label" style="width: 15%;">入金期日</td>
+      <td class="content" style="width: 35%;">${data.due_date || ''}</td>
+      <td class="label" style="width: 15%;">振込先</td>
+      <td class="content" style="width: 35%;">${data.payment_bank_info ? data.payment_bank_info.replace(/\n/g, '<br>') : ''}</td>
     </tr>
   </table>
 
