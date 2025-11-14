@@ -356,8 +356,8 @@ async function createInvoice(invoiceData) {
         console.error('⚠️ Failed to fetch templates, continuing without template_id:', error);
     }
     const partnerName = invoiceData.partner_name + (invoiceData.partner_title || '');
-    // 청구서 번호 자동 생성 (YYYYMMDD-HHMMSS 형식)
-    const invoiceNumber = `INV-${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}`;
+    // 청구서 번호 자동 생성 (YYYYMMDDHHMMSS 형식, INV- 제거)
+    const invoiceNumber = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
     // freee請求書 API 페이로드 (공식 스펙에 따라 필수 필드 포함)
     const freeePayload = {
         company_id: invoiceData.company_id,
@@ -411,14 +411,15 @@ async function createInvoice(invoiceData) {
     };
 }
 /**
- * 청구서 PDF 다운로드 (freee会計 API)
+ * 청구서 PDF 다운로드 (freee請求書 API)
  */
 async function downloadInvoicePdf(companyId, invoiceId) {
     const token = await ensureValidToken();
     if (!token) {
         throw new Error('No valid access token. Please authenticate first.');
     }
-    const url = `${FREEE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`;
+    // freee請求書 API 엔드포인트 사용
+    const url = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`;
     console.log(`📥 Downloading PDF from: ${url}`);
     const response = await fetch(url, {
         headers: {
