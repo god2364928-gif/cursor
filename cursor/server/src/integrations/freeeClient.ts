@@ -95,6 +95,10 @@ export function getAuthorizationUrl(): string {
   url.searchParams.set('redirect_uri', FREEE_REDIRECT_URI)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('prompt', 'select_company')
+  // freee請求書 API 권한 요청
+  url.searchParams.set('scope', 'write:invoices read:invoices')
+  
+  console.log('🔗 Authorization URL:', url.toString())
   
   return url.toString()
 }
