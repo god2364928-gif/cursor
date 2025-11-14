@@ -95,6 +95,8 @@ export function getAuthorizationUrl(): string {
   url.searchParams.set('redirect_uri', FREEE_REDIRECT_URI)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('prompt', 'select_company')
+  // freee会計 API 권한 (거래 생성에 필요)
+  url.searchParams.set('scope', 'read write')
   
   console.log('🔗 Authorization URL:', url.toString())
   
