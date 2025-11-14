@@ -6,6 +6,38 @@ const auth_1 = require("../middleware/auth");
 const pdfGenerator_1 = require("../utils/pdfGenerator");
 const router = (0, express_1.Router)();
 /**
+ * freee에서 청구서 상세 정보 가져오기 (품목 포함)
+ */
+async function getInvoiceDetailsFromFreee(companyId, invoiceId) {
+    try {
+        // freee 토큰 가져오기
+        const tokenResult = await db_1.pool.query('SELECT access_token FROM freee_tokens ORDER BY id DESC LIMIT 1');
+        if (tokenResult.rows.length === 0) {
+            console.log('⚠️ No freee token found');
+            return null;
+        }
+        const accessToken = tokenResult.rows[0].access_token;
+        const url = `https://api.freee.co.jp/iv/invoices/${invoiceId}?company_id=${companyId}`;
+        console.log(`📋 Fetching invoice details from freee: ${url}`);
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            console.log(`⚠️ Failed to fetch invoice from freee: ${response.status}`);
+            return null;
+        }
+        const data = await response.json();
+        return data.invoice;
+    }
+    catch (error) {
+        console.error('⚠️ Error fetching invoice from freee:', error.message);
+        return null;
+    }
+}
+/**
  * POST /api/receipts/from-invoice - 청구서 기반 영수증 생성 (freee 독립, 자체 PDF)
  */
 router.post('/from-invoice', auth_1.authMiddleware, async (req, res) => {
@@ -43,6 +75,31 @@ router.post('/from-invoice', auth_1.authMiddleware, async (req, res) => {
         const kstTime = new Date(now.getTime() + kstOffset * 60 * 1000);
         const receiptNumber = kstTime.toISOString().replace(/[-:T]/g, '').slice(0, 12);
         console.log(`📋 Generated receipt number: ${receiptNumber}`);
+        // freee에서 청구서 상세 정보 가져오기 (품목 포함)
+        let invoiceLines = [];
+        if (invoice.freee_invoice_id) {
+            const freeeInvoice = await getInvoiceDetailsFromFreee(invoice.company_id, invoice.freee_invoice_id);
+            if (freeeInvoice && freeeInvoice.lines) {
+                invoiceLines = freeeInvoice.lines.map((line) => ({
+                    description: line.description || '',
+                    quantity: parseFloat(line.quantity) || 1,
+                    unit_price: parseFloat(line.unit_price) || 0,
+                }));
+                console.log(`✅ Fetched ${invoiceLines.length} line items from freee`);
+            }
+        }
+        // freee에서 가져오지 못했으면 기본값 사용
+        if (invoiceLines.length === 0) {
+            invoiceLines = [
+                {
+                    description: 'COCOマーケご利用料',
+                    quantity: 1,
+                    unit_price: invoice.tax_entry_method === 'inclusive'
+                        ? invoice.total_amount
+                        : invoice.total_amount - invoice.tax_amount,
+                }
+            ];
+        }
         // 영수증 PDF 생성
         console.log(`📄 Generating receipt PDF...`);
         const pdfBuffer = await (0, pdfGenerator_1.generateReceiptPdf)({
@@ -54,20 +111,7 @@ router.post('/from-invoice', auth_1.authMiddleware, async (req, res) => {
             total_amount: invoice.total_amount,
             amount_tax: invoice.tax_amount,
             amount_excluding_tax: invoice.total_amount - invoice.tax_amount,
-            lines: [
-                {
-                    description: 'アカウント管理',
-                    quantity: 1,
-                    unit_price: invoice.tax_entry_method === 'inclusive'
-                        ? invoice.total_amount
-                        : invoice.total_amount - invoice.tax_amount,
-                },
-                {
-                    description: 'クーポン利用済み',
-                    quantity: 0,
-                    unit_price: 0,
-                }
-            ],
+            lines: invoiceLines,
             invoice_registration_number: 'T5013301050765',
         });
         console.log(`✅ Receipt PDF generated: ${pdfBuffer.length} bytes`);
@@ -139,6 +183,37 @@ router.get('/:id/pdf', auth_1.authMiddleware, async (req, res) => {
         }
         const receipt = result.rows[0];
         console.log(`📥 Regenerating receipt PDF: ${receipt.receipt_number}`);
+        // 연결된 청구서에서 freee_invoice_id 가져오기
+        let invoiceLines = [];
+        if (receipt.invoice_id) {
+            const invoiceQuery = await db_1.pool.query('SELECT freee_invoice_id, company_id, tax_entry_method FROM invoices WHERE id = $1', [receipt.invoice_id]);
+            if (invoiceQuery.rows.length > 0) {
+                const invoice = invoiceQuery.rows[0];
+                if (invoice.freee_invoice_id) {
+                    const freeeInvoice = await getInvoiceDetailsFromFreee(invoice.company_id, invoice.freee_invoice_id);
+                    if (freeeInvoice && freeeInvoice.lines) {
+                        invoiceLines = freeeInvoice.lines.map((line) => ({
+                            description: line.description || '',
+                            quantity: parseFloat(line.quantity) || 1,
+                            unit_price: parseFloat(line.unit_price) || 0,
+                        }));
+                        console.log(`✅ Fetched ${invoiceLines.length} line items from freee`);
+                    }
+                }
+            }
+        }
+        // freee에서 가져오지 못했으면 기본값 사용
+        if (invoiceLines.length === 0) {
+            invoiceLines = [
+                {
+                    description: 'COCOマーケご利用料',
+                    quantity: 1,
+                    unit_price: receipt.tax_entry_method === 'inclusive'
+                        ? receipt.total_amount
+                        : receipt.total_amount - receipt.tax_amount,
+                }
+            ];
+        }
         // PDF 재생성
         const pdfBuffer = await (0, pdfGenerator_1.generateReceiptPdf)({
             receipt_number: receipt.receipt_number,
@@ -149,20 +224,7 @@ router.get('/:id/pdf', auth_1.authMiddleware, async (req, res) => {
             total_amount: receipt.total_amount,
             amount_tax: receipt.tax_amount,
             amount_excluding_tax: receipt.total_amount - receipt.tax_amount,
-            lines: [
-                {
-                    description: 'アカウント管理',
-                    quantity: 1,
-                    unit_price: receipt.tax_entry_method === 'inclusive'
-                        ? receipt.total_amount
-                        : receipt.total_amount - receipt.tax_amount,
-                },
-                {
-                    description: 'クーポン利用済み',
-                    quantity: 0,
-                    unit_price: 0,
-                }
-            ],
+            lines: invoiceLines,
             invoice_registration_number: 'T5013301050765',
         });
         // PDF 파일로 응답
