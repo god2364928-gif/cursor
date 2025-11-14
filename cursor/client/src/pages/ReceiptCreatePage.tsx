@@ -164,7 +164,7 @@ export default function ReceiptCreatePage() {
     setError('')
 
     try {
-      await invoiceAPI.authenticate(authCode)
+      await invoiceAPI.authCallback(authCode)
       setSuccess(language === 'ja' ? '認証が完了しました' : '인증이 완료되었습니다')
       setAuthCode('')
       await checkAuthStatus()
