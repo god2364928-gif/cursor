@@ -216,6 +216,7 @@ export interface InvoiceFormData {
 export interface FreeeCompany {
   id: number
   name: string
+  display_name?: string
   role: string
 }
 

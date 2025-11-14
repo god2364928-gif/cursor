@@ -327,7 +327,7 @@ export default function InvoicePage() {
               >
                 {companies.map((company) => (
                   <option key={company.id} value={company.id}>
-                    {company.name}
+                    {company.display_name || company.name}
                   </option>
                 ))}
               </select>
