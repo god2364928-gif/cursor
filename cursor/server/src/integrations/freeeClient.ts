@@ -525,8 +525,8 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
  * 청구서 PDF 다운로드 (freee請求書 API)
  * freee 請求書 API는 /reports/ 경로를 사용
  */
-export async function downloadInvoicePdf(companyId: number, invoiceId: number): Promise<Buffer> {
-  console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}`)
+export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string): Promise<Buffer> {
+  console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}`)
 
   const token = await ensureValidToken()
 
@@ -554,8 +554,6 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
   const invoice = data.invoice
 
   console.log(`📋 Invoice: ${invoice.invoice_number}`)
-  console.log(`📋 Due date from API: ${invoice.due_date}`)
-  console.log(`📋 Invoice object keys:`, Object.keys(invoice))
 
   // 2단계: 청구서 데이터로 직접 PDF 생성
   console.log(`📄 Step 2: Generating PDF from invoice data...`)
@@ -568,7 +566,7 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
       partner_name: invoice.partner_display_name || invoice.partner_name,
       partner_title: invoice.partner_title || '御中',
       billing_date: invoice.billing_date,
-      due_date: invoice.due_date,
+      due_date: dueDateFromDb || invoice.due_date,
       total_amount: invoice.total_amount,
       amount_tax: invoice.amount_tax,
       amount_excluding_tax: invoice.amount_excluding_tax || invoice.total_amount - invoice.amount_tax,
