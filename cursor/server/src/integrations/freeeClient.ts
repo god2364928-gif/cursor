@@ -666,6 +666,7 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
         tax_rate: line.tax_rate,
       })),
       payment_bank_info: invoice.bank_account_to_transfer || 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
+      invoice_registration_number: invoice.template?.invoice_registration_number || 'T5013301050765',
     })
 
     console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`)
