@@ -136,9 +136,6 @@ export default function InvoicePreviewModal({
                   <th className="px-4 py-2 text-right font-medium text-gray-700">
                     {language === 'ja' ? '小計' : '소계'}
                   </th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">
-                    {language === 'ja' ? '税額' : '세액'}
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -155,7 +152,6 @@ export default function InvoicePreviewModal({
                     <td className="px-4 py-3 text-right">
                       ¥{calculateSubtotal(item).toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-right">¥{item.tax.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
