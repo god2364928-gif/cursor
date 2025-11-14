@@ -70,7 +70,7 @@ export async function exchangeCodeForToken(code: string): Promise<{ success: boo
       return { success: false, error: `Token exchange failed: ${response.status}` }
     }
 
-    const data = await response.json()
+    const data: any = await response.json()
     
     accessToken = data.access_token
     refreshToken = data.refresh_token
@@ -115,7 +115,7 @@ async function refreshAccessToken(): Promise<boolean> {
       return false
     }
 
-    const data = await response.json()
+    const data: any = await response.json()
     
     accessToken = data.access_token
     refreshToken = data.refresh_token
