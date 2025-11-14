@@ -23,6 +23,15 @@ function ReceiptModal({
 
   if (!invoice) return null
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}/${month}/${day}`
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -77,7 +86,7 @@ function ReceiptModal({
             </div>
             <div>
               <span className="text-gray-600">{language === 'ja' ? '請求日' : '청구일'}:</span>
-              <span className="ml-2">{invoice.invoice_date}</span>
+              <span className="ml-2">{formatDate(invoice.invoice_date)}</span>
             </div>
             <div>
               <span className="text-gray-600">{language === 'ja' ? '金額' : '금액'}:</span>
