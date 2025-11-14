@@ -39,6 +39,7 @@ export default function InvoiceCreatePage() {
       { name: '', quantity: 1, unit_price: '', tax: 0, tax_rate: 10 },
     ],
     payment_bank_info: 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
+    memo: '',
   })
 
   const [paymentMethod, setPaymentMethod] = useState<'bank' | 'paypay'>('bank')
@@ -771,6 +772,19 @@ export default function InvoiceCreatePage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* 비고 */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">
+              {language === 'ja' ? '備考' : '비고'}
+            </label>
+            <textarea
+              value={formData.memo || ''}
+              onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+              className="w-full border rounded px-3 py-2 min-h-[100px]"
+              placeholder={language === 'ja' ? '備考を入力（任意）' : '비고를 입력하세요 (선택사항)'}
+            />
           </div>
 
           {/* 제출 버튼 */}
