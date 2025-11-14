@@ -11,7 +11,7 @@ const router = (0, express_1.Router)();
 router.post('/', auth_1.authMiddleware, async (req, res) => {
     const userId = req.user?.id;
     try {
-        const { company_id, partner_id, partner_name, partner_title, receipt_title, receipt_date, issue_date, // 영수일
+        let { company_id, partner_id, partner_name, partner_title, receipt_title, receipt_date, issue_date, // 영수일
         tax_entry_method, payment_bank_info, receipt_contents, } = req.body;
         // 필수 필드 검증
         if (!company_id || !partner_name || !receipt_date || !issue_date || !receipt_contents || receipt_contents.length === 0) {
@@ -19,7 +19,15 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
                 message: 'Missing required fields: company_id, partner_name, receipt_date, issue_date, receipt_contents',
             });
         }
+        // 날짜 형식 정리 (YYYY-MM-DD만 추출)
+        if (receipt_date.includes('T')) {
+            receipt_date = receipt_date.split('T')[0];
+        }
+        if (issue_date.includes('T')) {
+            issue_date = issue_date.split('T')[0];
+        }
         console.log(`📝 [USER ${userId}] Creating receipt...`);
+        console.log(`📅 Receipt date: ${receipt_date}, Issue date: ${issue_date}`);
         // freee請求書 API 호출
         const receiptData = {
             company_id,
@@ -82,13 +90,18 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
 router.post('/from-invoice', auth_1.authMiddleware, async (req, res) => {
     const userId = req.user?.id;
     try {
-        const { invoice_id, issue_date } = req.body;
+        let { invoice_id, issue_date } = req.body;
         if (!invoice_id || !issue_date) {
             return res.status(400).json({
                 message: 'Missing required fields: invoice_id, issue_date',
             });
         }
+        // 날짜 형식 정리 (YYYY-MM-DD만 추출)
+        if (issue_date.includes('T')) {
+            issue_date = issue_date.split('T')[0];
+        }
         console.log(`📝 [USER ${userId}] Creating receipt from invoice ${invoice_id}...`);
+        console.log(`📅 Issue date: ${issue_date}`);
         // 청구서 조회
         const invoiceQuery = await db_1.pool.query('SELECT * FROM invoices WHERE id = $1', [invoice_id]);
         if (invoiceQuery.rows.length === 0) {
