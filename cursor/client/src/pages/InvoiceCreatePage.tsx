@@ -658,7 +658,7 @@ export default function InvoiceCreatePage() {
             <div className="space-y-3">
               {formData.line_items.map((item, index) => (
                 <div key={index} className="border rounded p-3">
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-11 gap-2">
                     <div className="md:col-span-4">
                       <label className="block text-xs mb-1">{language === 'ja' ? '品目名' : '품목명'}</label>
                       <input
@@ -708,12 +708,6 @@ export default function InvoiceCreatePage() {
                       <label className="block text-xs mb-1">{language === 'ja' ? '小計' : '소계'}</label>
                       <div className="text-sm font-medium py-1">
                         ¥{calculateSubtotal(item).toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="md:col-span-1">
-                      <label className="block text-xs mb-1">{language === 'ja' ? '税額' : '세액'}</label>
-                      <div className="text-sm font-medium py-1">
-                        ¥{item.tax.toLocaleString()}
                       </div>
                     </div>
                     <div className="md:col-span-1 flex items-end">
