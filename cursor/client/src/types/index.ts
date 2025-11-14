@@ -236,6 +236,7 @@ export interface FreeeInvoice {
   tax_amount: number
   issued_by_user_id: string
   issued_by_user_name: string
+  receipt_id?: string  // 영수증 ID (발급된 경우)
   created_at: string
   items: Array<{
     id: number
