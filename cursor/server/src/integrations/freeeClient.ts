@@ -342,6 +342,7 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
   // freee請求書 API 페이로드 (공식 스펙에 따라 필수 필드 포함)
   const freeePayload: any = {
     company_id: invoiceData.company_id,
+    partner_code: invoiceData.partner_name,  // 거래처 코드 (partner_name을 code로 사용)
     partner_name: partnerName,
     partner_title: invoiceData.partner_title || '御中',
     billing_date: invoiceData.invoice_date,  // 필수: 청구일
