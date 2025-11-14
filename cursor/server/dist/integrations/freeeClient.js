@@ -555,7 +555,9 @@ async function createReceipt(receiptData) {
         freeePayload.payment_bank_info = receiptData.payment_bank_info;
     }
     console.log('📤 Sending to freee請求書 Receipt API:', JSON.stringify(freeePayload, null, 2));
-    const url = `${FREEE_INVOICE_API_BASE}/receipts`;
+    // freee請求書 API의 영수증 엔드포인트: /invoices/receipts
+    const url = `${FREEE_INVOICE_API_BASE}/invoices/receipts`;
+    console.log('📍 API URL:', url);
     const response = await fetch(url, {
         method: 'POST',
         headers: {
