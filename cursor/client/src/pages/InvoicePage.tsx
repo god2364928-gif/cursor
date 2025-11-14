@@ -73,10 +73,16 @@ export default function InvoicePage() {
             <FileText className="w-6 h-6" />
             {language === 'ja' ? '請求書管理' : '청구서 관리'}
           </h1>
-          <Button onClick={() => navigate('/invoices/create')} className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            {language === 'ja' ? '請求書発行' : '청구서 발행'}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate('/invoices/create')} className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              {language === 'ja' ? '請求書発行' : '청구서 발행'}
+            </Button>
+            <Button onClick={() => navigate('/receipts/create')} variant="outline" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              {language === 'ja' ? '領収書発行' : '영수증 발급'}
+            </Button>
+          </div>
         </div>
 
         {/* 에러 메시지 */}

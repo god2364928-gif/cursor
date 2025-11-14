@@ -22,6 +22,7 @@ import paypayRoutes from './routes/paypay'
 import totalSalesRoutes from './routes/totalSales'
 import monthlyPayrollRoutes from './routes/monthlyPayroll'
 import invoicesRoutes from './routes/invoices'
+import receiptsRoutes from './routes/receipts'
 import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking } from './migrations/autoMigrate'
 
@@ -103,6 +104,7 @@ app.use('/api/paypay', paypayRoutes)
 app.use('/api/total-sales', totalSalesRoutes)
 app.use('/api/monthly-payroll', monthlyPayrollRoutes)
 app.use('/api/invoices', invoicesRoutes)
+app.use('/api/receipts', receiptsRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
