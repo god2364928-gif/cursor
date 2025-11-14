@@ -277,12 +277,13 @@ export default function InvoiceCreatePage() {
       })
 
       const invoiceId = response.data.invoice_id
+      const dbId = response.data.db_id  // DB UUID ID
 
       setSuccess(language === 'ja' ? `請求書を発行しました (ID: ${invoiceId})` : `청구서가 발행되었습니다 (ID: ${invoiceId})`)
 
-      // PDF 자동 다운로드
+      // PDF 자동 다운로드 (DB ID 사용)
       try {
-        const pdfResponse = await invoiceAPI.downloadPdf(invoiceId, selectedCompany!)
+        const pdfResponse = await invoiceAPI.downloadPdf(dbId)
         const blob = new Blob([pdfResponse.data], { type: 'application/pdf' })
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -294,7 +295,7 @@ export default function InvoiceCreatePage() {
         window.URL.revokeObjectURL(url)
       } catch (pdfError) {
         console.error('PDF download error:', pdfError)
-        setError(language === 'ja' ? 'PDFのダウンロードに失敗しました' : 'PDF 다운로드 실패')
+        // PDF 다운로드 실패는 무시하고 계속 진행
       }
 
       // 미리보기 닫기
