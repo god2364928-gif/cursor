@@ -17,6 +17,7 @@ exports.createReceipt = createReceipt;
 exports.downloadReceiptPdf = downloadReceiptPdf;
 const dotenv_1 = __importDefault(require("dotenv"));
 const db_1 = require("../db");
+const pdfGenerator_1 = require("../utils/pdfGenerator");
 dotenv_1.default.config();
 const FREEE_CLIENT_ID = process.env.FREEE_CLIENT_ID || '632732953685764';
 const FREEE_CLIENT_SECRET = process.env.FREEE_CLIENT_SECRET || 'An9MEyDAacju9EyiLx3jZKeKpqC-aYdkhDGvwsGwHFoQmiwm6jeAVzJyuBo8ttJ0Dj0OOYboVjImkZLoLNeJeQ';
@@ -488,8 +489,8 @@ async function downloadInvoicePdf(companyId, invoiceId) {
     else {
         console.log(`✅ Invoice already sent (status: ${invoice.sending_status})`);
     }
-    // 3단계: PDF 다운로드 시도
-    console.log(`📥 Step 3: Downloading PDF...`);
+    // 3단계: freee API에서 PDF 다운로드 시도
+    console.log(`📥 Step 3: Trying to download PDF from freee API...`);
     const pdfUrls = [
         `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`,
         `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/pdf?company_id=${companyId}`,
@@ -506,7 +507,7 @@ async function downloadInvoicePdf(companyId, invoiceId) {
             console.log(`📡 Response: ${pdfResponse.status}`);
             if (pdfResponse.ok) {
                 const arrayBuffer = await pdfResponse.arrayBuffer();
-                console.log(`✅ PDF downloaded: ${arrayBuffer.byteLength} bytes`);
+                console.log(`✅ PDF downloaded from freee: ${arrayBuffer.byteLength} bytes`);
                 if (arrayBuffer.byteLength > 0) {
                     return Buffer.from(arrayBuffer);
                 }
@@ -520,7 +521,35 @@ async function downloadInvoicePdf(companyId, invoiceId) {
             console.log(`❌ Exception:`, error.message);
         }
     }
-    throw new Error(`PDF download failed. Invoice ID: ${invoiceId}`);
+    // 4단계: freee API에서 다운로드 실패 시 직접 PDF 생성
+    console.log(`📄 Step 4: Generating PDF from invoice data...`);
+    try {
+        const pdfBuffer = await (0, pdfGenerator_1.generateInvoicePdf)({
+            invoice_number: invoice.invoice_number,
+            company_name: invoice.company_name || '株式会社ホットセラー',
+            company_address: invoice.company_description || '〒104-0053\n東京都中央区晴海一丁目8番10号\n晴海アイランドトリトンスクエア\nオフィスタワーX棟8階',
+            partner_name: invoice.partner_display_name || invoice.partner_name,
+            partner_title: invoice.partner_title || '御中',
+            billing_date: invoice.billing_date,
+            due_date: invoice.due_date,
+            total_amount: invoice.total_amount,
+            amount_tax: invoice.amount_tax,
+            amount_excluding_tax: invoice.amount_excluding_tax || invoice.total_amount - invoice.amount_tax,
+            lines: invoice.lines.map((line) => ({
+                description: line.description,
+                quantity: parseFloat(line.quantity),
+                unit_price: parseFloat(line.unit_price),
+                tax_rate: line.tax_rate,
+            })),
+            payment_bank_info: invoice.bank_account_to_transfer || 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
+        });
+        console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`);
+        return pdfBuffer;
+    }
+    catch (error) {
+        console.error(`❌ PDF generation failed:`, error);
+        throw new Error(`Failed to generate PDF: ${error.message}`);
+    }
 }
 /**
  * 인증 상태 확인

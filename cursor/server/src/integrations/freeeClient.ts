@@ -1,5 +1,6 @@
 import dotenv from 'dotenv'
 import { pool } from '../db'
+import { generateInvoicePdf } from '../utils/pdfGenerator'
 
 dotenv.config()
 
@@ -606,8 +607,8 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
     console.log(`✅ Invoice already sent (status: ${invoice.sending_status})`)
   }
 
-  // 3단계: PDF 다운로드 시도
-  console.log(`📥 Step 3: Downloading PDF...`)
+  // 3단계: freee API에서 PDF 다운로드 시도
+  console.log(`📥 Step 3: Trying to download PDF from freee API...`)
   
   const pdfUrls = [
     `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`,
@@ -629,7 +630,7 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
 
       if (pdfResponse.ok) {
         const arrayBuffer = await pdfResponse.arrayBuffer()
-        console.log(`✅ PDF downloaded: ${arrayBuffer.byteLength} bytes`)
+        console.log(`✅ PDF downloaded from freee: ${arrayBuffer.byteLength} bytes`)
 
         if (arrayBuffer.byteLength > 0) {
           return Buffer.from(arrayBuffer)
@@ -643,7 +644,36 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
     }
   }
 
-  throw new Error(`PDF download failed. Invoice ID: ${invoiceId}`)
+  // 4단계: freee API에서 다운로드 실패 시 직접 PDF 생성
+  console.log(`📄 Step 4: Generating PDF from invoice data...`)
+
+  try {
+    const pdfBuffer = await generateInvoicePdf({
+      invoice_number: invoice.invoice_number,
+      company_name: invoice.company_name || '株式会社ホットセラー',
+      company_address: invoice.company_description || '〒104-0053\n東京都中央区晴海一丁目8番10号\n晴海アイランドトリトンスクエア\nオフィスタワーX棟8階',
+      partner_name: invoice.partner_display_name || invoice.partner_name,
+      partner_title: invoice.partner_title || '御中',
+      billing_date: invoice.billing_date,
+      due_date: invoice.due_date,
+      total_amount: invoice.total_amount,
+      amount_tax: invoice.amount_tax,
+      amount_excluding_tax: invoice.amount_excluding_tax || invoice.total_amount - invoice.amount_tax,
+      lines: invoice.lines.map((line: any) => ({
+        description: line.description,
+        quantity: parseFloat(line.quantity),
+        unit_price: parseFloat(line.unit_price),
+        tax_rate: line.tax_rate,
+      })),
+      payment_bank_info: invoice.bank_account_to_transfer || 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
+    })
+
+    console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`)
+    return pdfBuffer
+  } catch (error: any) {
+    console.error(`❌ PDF generation failed:`, error)
+    throw new Error(`Failed to generate PDF: ${error.message}`)
+  }
 }
 
 /**
