@@ -216,9 +216,16 @@ export default function InvoiceCreatePage() {
     setIsSubmitting(true)
 
     try {
+      // line_items의 unit_price를 숫자로 변환
+      const processedLineItems = formData.line_items.map(item => ({
+        ...item,
+        unit_price: typeof item.unit_price === 'string' ? Number(item.unit_price) : item.unit_price
+      }))
+
       const response = await invoiceAPI.createInvoice({
         company_id: selectedCompany,
         ...formData,
+        line_items: processedLineItems,
       })
 
       const invoiceId = response.data.invoice_id
