@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
 const freeeClient_1 = require("../integrations/freeeClient");
+const db_1 = require("../db");
 const router = (0, express_1.Router)();
 /**
  * OAuth 인증 URL 반환
@@ -67,6 +68,47 @@ router.get('/companies', auth_1.authMiddleware, async (req, res) => {
     }
 });
 /**
+ * 청구서 발급 내역 목록 조회 (CRM에서 발급한 것만)
+ */
+router.get('/list', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const result = await db_1.pool.query(`
+      SELECT 
+        fi.id,
+        fi.freee_invoice_id,
+        fi.freee_company_id,
+        fi.partner_name,
+        fi.partner_zipcode,
+        fi.partner_address,
+        fi.invoice_date,
+        fi.due_date,
+        fi.total_amount,
+        fi.tax_amount,
+        fi.issued_by_user_id,
+        fi.issued_by_user_name,
+        fi.created_at,
+        json_agg(
+          json_build_object(
+            'id', fii.id,
+            'item_name', fii.item_name,
+            'quantity', fii.quantity,
+            'unit_price', fii.unit_price,
+            'tax', fii.tax
+          ) ORDER BY fii.id
+        ) as items
+      FROM freee_invoices fi
+      LEFT JOIN freee_invoice_items fii ON fi.id = fii.invoice_id
+      GROUP BY fi.id
+      ORDER BY fi.created_at DESC
+    `);
+        res.json(result.rows);
+    }
+    catch (error) {
+        console.error('Error fetching invoices:', error);
+        res.status(500).json({ error: 'Failed to fetch invoices' });
+    }
+});
+/**
  * 청구서 생성
  */
 router.post('/create', auth_1.authMiddleware, async (req, res) => {
@@ -95,11 +137,58 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
             })),
         };
         const result = await (0, freeeClient_1.createInvoice)(invoiceData);
-        console.log(`✅ Invoice created: ID=${result.invoice?.id}, partner=${partner_name}`);
+        if (!result.success || !result.invoice) {
+            throw new Error('Failed to create invoice in freee');
+        }
+        const invoiceId = result.invoice.id;
+        const totalAmount = result.invoice.total_amount || 0;
+        const taxAmount = result.invoice.tax_entry_total || 0;
+        // 사용자 정보 조회
+        const userResult = await db_1.pool.query('SELECT name FROM users WHERE id = $1', [req.user.id]);
+        const userName = userResult.rows[0]?.name || '알 수 없음';
+        // DB에 청구서 정보 저장
+        const insertResult = await db_1.pool.query(`INSERT INTO freee_invoices (
+        freee_invoice_id, 
+        freee_company_id, 
+        partner_name, 
+        partner_zipcode, 
+        partner_address, 
+        invoice_date, 
+        due_date, 
+        total_amount, 
+        tax_amount, 
+        issued_by_user_id, 
+        issued_by_user_name
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`, [
+            invoiceId,
+            company_id,
+            partner_name,
+            partner_zipcode || null,
+            partner_address || null,
+            invoice_date,
+            due_date,
+            totalAmount,
+            taxAmount,
+            req.user.id,
+            userName,
+        ]);
+        const dbInvoiceId = insertResult.rows[0].id;
+        // 청구서 품목 저장
+        for (const item of line_items) {
+            await db_1.pool.query(`INSERT INTO freee_invoice_items (
+          invoice_id, 
+          item_name, 
+          quantity, 
+          unit_price, 
+          tax
+        ) VALUES ($1, $2, $3, $4, $5)`, [dbInvoiceId, item.name, item.quantity, item.unit_price, item.tax || 0]);
+        }
+        console.log(`✅ Invoice created: ID=${invoiceId}, partner=${partner_name}, user=${userName}`);
         res.json({
             success: true,
-            invoice_id: result.invoice?.id,
+            invoice_id: invoiceId,
             invoice: result.invoice,
+            db_id: dbInvoiceId,
         });
     }
     catch (error) {
