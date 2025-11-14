@@ -161,7 +161,7 @@ export default function InvoicePage() {
 
   const handleDownloadPdf = async (invoice: FreeeInvoice) => {
     try {
-      const pdfResponse = await invoiceAPI.downloadPdf(invoice.freee_invoice_id, invoice.freee_company_id)
+      const pdfResponse = await invoiceAPI.downloadPdf(invoice.id)
       const blob = new Blob([pdfResponse.data], { type: 'application/pdf' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
