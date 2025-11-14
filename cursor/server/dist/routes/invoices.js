@@ -192,6 +192,7 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
                 name: item.name,
                 quantity: Number(item.quantity),
                 unit_price: Number(item.unit_price),
+                tax_rate: Number(item.tax_rate || 10), // 추가: 세율
                 tax: Number(item.tax || 0),
             })),
         };
