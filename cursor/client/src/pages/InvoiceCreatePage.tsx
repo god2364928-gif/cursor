@@ -161,7 +161,7 @@ export default function InvoiceCreatePage() {
   }
 
   const calculateSubtotal = (item: InvoiceLineItem) => {
-    const price = typeof item.unit_price === 'string' ? 0 : item.unit_price
+    const price = typeof item.unit_price === 'string' ? (item.unit_price === '' ? 0 : Number(item.unit_price)) : item.unit_price
     return price * item.quantity
   }
 
