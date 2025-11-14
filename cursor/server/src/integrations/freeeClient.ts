@@ -670,7 +670,8 @@ export function clearTokenCache(): void {
 }
 
 /**
- * 영수증 생성 (freee請求書 API - /receipts 엔드포인트)
+ * 영수증 생성 (freee請求書 API - 청구서를 영수증으로 생성)
+ * freee에는 별도의 영수증 API가 없으므로 청구서(invoice)를 "領収書" 타이틀로 생성
  */
 export async function createReceipt(receiptData: FreeeReceiptRequest): Promise<any> {
   const token = await ensureValidToken()
@@ -693,8 +694,8 @@ export async function createReceipt(receiptData: FreeeReceiptRequest): Promise<a
   let templateId: number | undefined
   try {
     const templates = await getInvoiceTemplates(receiptData.company_id)
-    if (templates.length > 0) {
-      templateId = templates[0].id
+    if (templates && templates.templates && templates.templates.length > 0) {
+      templateId = templates.templates[0].id
       console.log(`📋 Using template ID: ${templateId}`)
     }
   } catch (error) {
@@ -709,15 +710,15 @@ export async function createReceipt(receiptData: FreeeReceiptRequest): Promise<a
   const kstTime = new Date(now.getTime() + kstOffset * 60 * 1000)
   const receiptNumber = kstTime.toISOString().replace(/[-:T]/g, '').slice(0, 12)
   
-  // freee請求書 API 영수증 페이로드
+  // freee請求書 API 페이로드 (청구서를 영수증으로 생성)
   const freeePayload: any = {
     company_id: receiptData.company_id,
-    receipt_number: receiptNumber,
+    invoice_number: receiptNumber,  // 청구서 번호 (필수)
     partner_id: partnerId,
     partner_name: partnerName,
     partner_title: receiptData.partner_title || '御中',
-    receipt_date: receiptData.receipt_date,  // 청구일
-    issue_date: receiptData.issue_date,  // 영수일
+    billing_date: receiptData.issue_date,  // 영수일을 청구일로 사용
+    due_date: receiptData.issue_date,  // 영수증은 지불일과 동일
     tax_entry_method: receiptData.tax_entry_method === 'inclusive' ? 'in' : 'out',
     tax_fraction: 'round',
     withholding_tax_entry_method: receiptData.tax_entry_method === 'inclusive' ? 'in' : 'out',
@@ -733,18 +734,19 @@ export async function createReceipt(receiptData: FreeeReceiptRequest): Promise<a
     freeePayload.template_id = templateId
   }
 
+  // 영수증 타이틀 설정
   if (receiptData.receipt_title) {
-    freeePayload.receipt_title = receiptData.receipt_title
+    freeePayload.invoice_title = receiptData.receipt_title  // invoice_title로 설정
   }
   
   if (receiptData.payment_bank_info) {
     freeePayload.payment_bank_info = receiptData.payment_bank_info
   }
 
-  console.log('📤 Sending to freee請求書 Receipt API:', JSON.stringify(freeePayload, null, 2))
+  console.log('📤 Sending to freee請求書 API (as receipt):', JSON.stringify(freeePayload, null, 2))
 
-  // freee請求書 API의 영수증 엔드포인트: /invoices/receipts
-  const url = `${FREEE_INVOICE_API_BASE}/invoices/receipts`
+  // 청구서 엔드포인트 사용
+  const url = `${FREEE_INVOICE_API_BASE}/invoices`
   console.log('📍 API URL:', url)
   
   const response = await fetch(url, {
@@ -758,47 +760,23 @@ export async function createReceipt(receiptData: FreeeReceiptRequest): Promise<a
 
   if (!response.ok) {
     const text = await response.text()
-    console.error(`❌ freee請求書 Receipt API error: ${response.status}`, text)
-    throw new Error(`freee Receipt API error: ${response.status} ${text}`)
+    console.error(`❌ freee請求書 API error: ${response.status}`, text)
+    throw new Error(`freee Invoice API error: ${response.status} ${text}`)
   }
 
   const data: any = await response.json()
-  console.log('✅ freee請求書 Receipt API response:', JSON.stringify(data, null, 2))
+  console.log('✅ freee請求書 API response (receipt as invoice):', JSON.stringify(data, null, 2))
   
   return {
     success: true,
-    receipt: data.receipt || data,
+    receipt: data.invoice || data,  // invoice 객체를 receipt로 반환
   }
 }
 
 /**
- * 영수증 PDF 다운로드
+ * 영수증 PDF 다운로드 (청구서 API 사용)
  */
 export async function downloadReceiptPdf(companyId: number, receiptId: number): Promise<Buffer> {
-  const token = await ensureValidToken()
-
-  if (!token) {
-    throw new Error('No valid access token. Please authenticate first.')
-  }
-
-  // freee請求書 API 엔드포인트 - 청구서와 동일한 베이스 사용
-  const url = `${FREEE_INVOICE_API_BASE}/receipts/${receiptId}/download?company_id=${companyId}`
-
-  console.log(`📥 Downloading Receipt PDF from: ${url}`)
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  if (!response.ok) {
-    const text = await response.text()
-    console.error(`❌ Receipt PDF download error: ${response.status}`, text)
-    throw new Error(`freee Receipt PDF download error: ${response.status} ${text}`)
-  }
-
-  const arrayBuffer = await response.arrayBuffer()
-  console.log(`✅ Receipt PDF downloaded: ${arrayBuffer.byteLength} bytes`)
-  return Buffer.from(arrayBuffer)
+  // 영수증은 청구서로 저장되므로, downloadInvoicePdf와 동일한 로직 사용
+  return downloadInvoicePdf(companyId, receiptId)
 }

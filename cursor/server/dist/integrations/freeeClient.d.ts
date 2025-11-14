@@ -74,11 +74,12 @@ export declare function isAuthenticated(): Promise<boolean>;
  */
 export declare function clearTokenCache(): void;
 /**
- * 영수증 생성 (freee請求書 API - /receipts 엔드포인트)
+ * 영수증 생성 (freee請求書 API - 청구서를 영수증으로 생성)
+ * freee에는 별도의 영수증 API가 없으므로 청구서(invoice)를 "領収書" 타이틀로 생성
  */
 export declare function createReceipt(receiptData: FreeeReceiptRequest): Promise<any>;
 /**
- * 영수증 PDF 다운로드
+ * 영수증 PDF 다운로드 (청구서 API 사용)
  */
 export declare function downloadReceiptPdf(companyId: number, receiptId: number): Promise<Buffer>;
 //# sourceMappingURL=freeeClient.d.ts.map
