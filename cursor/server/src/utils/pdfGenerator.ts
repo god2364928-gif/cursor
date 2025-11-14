@@ -25,8 +25,8 @@ interface InvoiceData {
  * 청구서 HTML 생성
  */
 function generateInvoiceHtml(data: InvoiceData): string {
-  const emptyRows = Math.max(0, 10 - data.lines.length)
-  const emptyRowsHtml = Array(emptyRows).fill('<tr><td>&nbsp;</td><td></td><td></td><td></td></tr>').join('')
+  const emptyRows = Math.max(0, 8 - data.lines.length)
+  const emptyRowsHtml = Array(emptyRows).fill('<tr><td style="height: 20px;">&nbsp;</td><td></td><td></td><td></td></tr>').join('')
 
   return `
 <!DOCTYPE html>
@@ -39,30 +39,32 @@ function generateInvoiceHtml(data: InvoiceData): string {
   <style>
     @page {
       size: A4;
-      margin: 20mm;
+      margin: 15mm 20mm;
+    }
+    * {
+      box-sizing: border-box;
     }
     body {
       font-family: "Noto Sans JP", sans-serif;
-      font-size: 10pt;
-      line-height: 1.5;
+      font-size: 9pt;
+      line-height: 1.3;
       margin: 0;
       padding: 0;
     }
     .container {
       width: 100%;
-      max-width: 210mm;
-      margin: 0 auto;
+      height: 100%;
     }
     .title {
       text-align: center;
-      font-size: 18pt;
+      font-size: 16pt;
       font-weight: bold;
-      margin: 20px 0;
+      margin: 10px 0 15px 0;
     }
     .header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
     .header-left {
       flex: 1;
@@ -70,83 +72,112 @@ function generateInvoiceHtml(data: InvoiceData): string {
     .header-right {
       flex: 1;
       text-align: right;
-      font-size: 9pt;
-    }
-    .partner-name {
-      font-size: 12pt;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-    .company-info {
-      margin-top: 10px;
+      font-size: 8pt;
       line-height: 1.4;
     }
+    .partner-name {
+      font-size: 11pt;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .company-info {
+      margin-top: 8px;
+    }
     .greeting {
-      margin: 20px 0;
+      margin: 10px 0;
+      font-size: 9pt;
+    }
+    .subject-section {
+      display: flex;
+      gap: 20px;
+      margin: 10px 0;
     }
     .subject {
-      margin: 10px 0;
+      flex: 1;
+    }
+    .subject-label {
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+    .subject-box {
+      border: 1px solid #000;
+      padding: 5px 8px;
+      min-height: 25px;
+    }
+    .amount-section {
+      display: flex;
+      gap: 20px;
+      margin: 10px 0 15px 0;
     }
     .amount-box {
       border: 1px solid #000;
-      padding: 10px;
-      width: 200px;
-      margin: 20px 0;
+      width: 180px;
     }
     .amount-row {
       display: flex;
       justify-content: space-between;
-      margin: 5px 0;
+      padding: 4px 8px;
+      border-bottom: 1px solid #000;
     }
-    .amount-total {
-      font-size: 11pt;
+    .amount-row:last-child {
+      border-bottom: none;
+    }
+    .amount-row.total {
       font-weight: bold;
-      border-top: 1px solid #000;
-      padding-top: 5px;
-      margin-top: 5px;
+      background-color: #f5f5f5;
     }
     .bank-info {
-      margin: 20px 0;
-      font-size: 9pt;
+      flex: 1;
+      font-size: 8pt;
+      line-height: 1.4;
     }
     .bank-title {
       font-weight: bold;
-      margin-bottom: 5px;
+      margin-bottom: 3px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 20px 0;
-      font-size: 9pt;
+      margin: 10px 0;
+      font-size: 8pt;
     }
     th, td {
       border: 1px solid #000;
-      padding: 8px 5px;
+      padding: 4px 6px;
       text-align: left;
     }
     th {
       background-color: #f0f0f0;
       font-weight: bold;
+      text-align: center;
     }
     .col-item { width: 50%; }
-    .col-qty { width: 10%; text-align: center; }
-    .col-price { width: 20%; text-align: right; }
+    .col-qty { width: 12%; text-align: center; }
+    .col-price { width: 18%; text-align: right; }
     .col-amount { width: 20%; text-align: right; }
     .total-row {
+      background-color: #f5f5f5;
+    }
+    .total-row td {
       font-weight: bold;
     }
     .remarks {
-      margin: 20px 0;
+      margin: 10px 0;
+    }
+    .remarks-title {
+      font-weight: bold;
+      margin-bottom: 3px;
+      font-size: 9pt;
     }
     .remarks-box {
       border: 1px solid #000;
-      min-height: 60px;
-      padding: 10px;
+      min-height: 40px;
+      padding: 5px;
     }
     .page-number {
       text-align: center;
-      margin-top: 20px;
-      font-size: 9pt;
+      margin-top: 10px;
+      font-size: 8pt;
     }
   </style>
 </head>
@@ -163,40 +194,48 @@ function generateInvoiceHtml(data: InvoiceData): string {
         <div>請求書番号: ${data.invoice_number}</div>
         ${data.due_date ? `<div>支払期限: ${data.due_date}</div>` : ''}
         <div class="company-info">
-          <div style="font-weight: bold; margin-top: 15px;">${data.company_name}</div>
+          <div style="font-weight: bold; margin-top: 8px;">${data.company_name}</div>
           <div>${data.company_address.replace(/\n/g, '<br>')}</div>
-          ${data.invoice_registration_number ? `<div style="margin-top: 5px;">登録番号: ${data.invoice_registration_number}</div>` : ''}
+          ${data.invoice_registration_number ? `<div style="margin-top: 3px;">登録番号: ${data.invoice_registration_number}</div>` : ''}
         </div>
       </div>
     </div>
 
     <div class="greeting">下記の通りご請求申し上げます。</div>
 
-    <div class="subject">
-      <strong>件名:</strong> COCOマーケご利用料
+    <div class="subject-section">
+      <div class="subject">
+        <div class="subject-label">件名</div>
+        <div class="subject-box">COCOマーケご利用料</div>
+      </div>
+      <div class="amount-box">
+        <div class="amount-row">
+          <span>小計</span>
+          <span>¥${data.amount_excluding_tax.toLocaleString()}</span>
+        </div>
+        <div class="amount-row">
+          <span>消費税</span>
+          <span>¥${data.amount_tax.toLocaleString()}</span>
+        </div>
+        <div class="amount-row total">
+          <span>合計</span>
+          <span>¥${data.total_amount.toLocaleString()}</span>
+        </div>
+      </div>
     </div>
 
-    <div class="amount-box">
-      <div class="amount-row">
-        <span>小計</span>
-        <span>¥${data.amount_excluding_tax.toLocaleString()}</span>
+    <div class="amount-section">
+      <div class="subject">
+        <div class="subject-label">入金期日</div>
+        <div class="subject-box">${data.due_date || ''}</div>
       </div>
-      <div class="amount-row">
-        <span>消費税</span>
-        <span>¥${data.amount_tax.toLocaleString()}</span>
+      ${data.payment_bank_info ? `
+      <div class="bank-info">
+        <div class="bank-title">振込先</div>
+        <div>${data.payment_bank_info.replace(/\n/g, '<br>')}</div>
       </div>
-      <div class="amount-row amount-total">
-        <span>合計</span>
-        <span>¥${data.total_amount.toLocaleString()}</span>
-      </div>
+      ` : ''}
     </div>
-
-    ${data.payment_bank_info ? `
-    <div class="bank-info">
-      <div class="bank-title">入金先口座</div>
-      <div>${data.payment_bank_info.replace(/\n/g, '<br>')}</div>
-    </div>
-    ` : ''}
 
     <table>
       <thead>
@@ -218,7 +257,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
         `).join('')}
         ${emptyRowsHtml}
         <tr class="total-row">
-          <td colspan="3" style="text-align: right;">小計</td>
+          <td colspan="3" style="text-align: right;">小計（税抜金額）</td>
           <td class="col-amount">¥${data.amount_excluding_tax.toLocaleString()}</td>
         </tr>
         <tr class="total-row">
@@ -229,7 +268,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
     </table>
 
     <div class="remarks">
-      <div class="bank-title">備考</div>
+      <div class="remarks-title">備考</div>
       <div class="remarks-box"></div>
     </div>
 
