@@ -228,6 +228,8 @@ async function callFreeeAPI(endpoint: string, options: RequestInit = {}): Promis
 
   const url = `${FREEE_API_BASE}${endpoint}`
   
+  console.log(`🌐 Calling freee API: ${url}`)
+  
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -239,10 +241,13 @@ async function callFreeeAPI(endpoint: string, options: RequestInit = {}): Promis
 
   if (!response.ok) {
     const text = await response.text()
+    console.error(`❌ freee API error: ${response.status}`, text)
     throw new Error(`freee API error: ${response.status} ${text}`)
   }
 
-  return response.json()
+  const data = await response.json()
+  console.log('✅ freee API response:', JSON.stringify(data, null, 2))
+  return data
 }
 
 /**
@@ -279,6 +284,8 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
   if (invoiceData.payment_bank_info) {
     freeePayload.payment_bank_info = invoiceData.payment_bank_info
   }
+
+  console.log('📤 Sending to freee API:', JSON.stringify(freeePayload, null, 2))
 
   return callFreeeAPI('/api/1/invoices', {
     method: 'POST',
