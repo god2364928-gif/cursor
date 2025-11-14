@@ -525,9 +525,9 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
  */
 export async function downloadInvoicePdf(companyId: number, invoiceId: number): Promise<Buffer> {
   console.log(`📥 [downloadInvoicePdf] Starting download for company_id=${companyId}, invoice_id=${invoiceId}`)
-  
+
   const token = await ensureValidToken()
-  
+
   if (!token) {
     console.error('❌ No valid access token available')
     throw new Error('No valid access token. Please authenticate first.')
@@ -535,17 +535,16 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
 
   console.log(`✅ Token validated successfully`)
 
-  // freee請求書 API 엔드포인트 - 올바른 형식 사용
-  // API 문서: GET /api/1/invoices/:id/download
-  const url = `${FREEE_INVOICE_API_BASE}/api/1/invoices/${invoiceId}/download?company_id=${companyId}`
-  
+  // freee請求書 API 엔드포인트 - 청구서 생성과 동일한 베이스 사용
+  const url = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}/download?company_id=${companyId}`
+
   console.log(`📥 Downloading PDF from: ${url}`)
   console.log(`🔑 Using token: ${token.substring(0, 10)}...`)
-  
+
   try {
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     })
 
@@ -560,12 +559,12 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number): 
 
     const arrayBuffer = await response.arrayBuffer()
     console.log(`✅ PDF downloaded: ${arrayBuffer.byteLength} bytes`)
-    
+
     if (arrayBuffer.byteLength === 0) {
       console.error('❌ Downloaded PDF is empty')
       throw new Error('Downloaded PDF is empty')
     }
-    
+
     return Buffer.from(arrayBuffer)
   } catch (error: any) {
     console.error(`❌ Exception during PDF download:`, error)
@@ -698,19 +697,19 @@ export async function createReceipt(receiptData: FreeeReceiptRequest): Promise<a
  */
 export async function downloadReceiptPdf(companyId: number, receiptId: number): Promise<Buffer> {
   const token = await ensureValidToken()
-  
+
   if (!token) {
     throw new Error('No valid access token. Please authenticate first.')
   }
 
-  // freee請求書 API 엔드포인트 - 올바른 형식 사용
-  const url = `${FREEE_INVOICE_API_BASE}/api/1/receipts/${receiptId}/download?company_id=${companyId}`
-  
+  // freee請求書 API 엔드포인트 - 청구서와 동일한 베이스 사용
+  const url = `${FREEE_INVOICE_API_BASE}/receipts/${receiptId}/download?company_id=${companyId}`
+
   console.log(`📥 Downloading Receipt PDF from: ${url}`)
-  
+
   const response = await fetch(url, {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
   })
 
