@@ -222,6 +222,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   total_amount INTEGER NOT NULL,
   tax_amount INTEGER NOT NULL,
   tax_entry_method VARCHAR(20) NOT NULL,
+  receipt_id UUID,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -245,12 +246,14 @@ CREATE TABLE IF NOT EXISTS receipts (
   total_amount INTEGER NOT NULL,
   tax_amount INTEGER NOT NULL,
   tax_entry_method VARCHAR(20) NOT NULL,
+  invoice_id UUID REFERENCES invoices(id),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_receipts_user_id ON receipts(user_id);
 CREATE INDEX IF NOT EXISTS idx_receipts_company_id ON receipts(company_id);
 CREATE INDEX IF NOT EXISTS idx_receipts_receipt_date ON receipts(receipt_date);
+CREATE INDEX IF NOT EXISTS idx_receipts_invoice_id ON receipts(invoice_id);
 
 
 
