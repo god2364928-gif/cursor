@@ -533,7 +533,24 @@ async function downloadInvoicePdf(companyId, invoiceId, dueDateFromDb) {
 async function isAuthenticated() {
     // 캐시가 없으면 DB에서 로드
     if (!cachedToken) {
-        await loadTokenFromDB();
+        const loaded = await loadTokenFromDB();
+        if (!loaded) {
+            return false;
+        }
+    }
+    // 토큰이 없으면 인증 필요
+    if (!cachedToken) {
+        return false;
+    }
+    // 토큰이 이미 만료되었거나 5분 이내에 만료되면 갱신 시도
+    if (cachedToken.expiresAt - Date.now() < 5 * 60 * 1000) {
+        console.log('🔄 Token expired or expiring soon, attempting refresh...');
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+            console.log('❌ Token refresh failed, re-authentication required');
+            return false;
+        }
+        console.log('✅ Token refreshed successfully');
     }
     return cachedToken !== null && cachedToken.expiresAt > Date.now();
 }
