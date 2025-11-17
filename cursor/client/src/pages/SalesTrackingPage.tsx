@@ -967,7 +967,7 @@ export default function SalesTrackingPage() {
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                 />
               </div>
               <div>
@@ -976,7 +976,7 @@ export default function SalesTrackingPage() {
                   value={formData.managerName}
                   onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
                   className="w-full px-3 py-2 border rounded"
-                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                 >
                   <option value="">{t('selectManager')}</option>
                   {managerOptions.map((name) => (
@@ -989,7 +989,7 @@ export default function SalesTrackingPage() {
                 <Input
                   value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                 />
               </div>
               <div>
@@ -997,7 +997,7 @@ export default function SalesTrackingPage() {
                 <Input
                   value={formData.accountId}
                   onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
-                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                 />
               </div>
               <div>
@@ -1006,7 +1006,7 @@ export default function SalesTrackingPage() {
                   value={formData.industry}
                   onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
                   className="w-full px-3 py-2 border rounded"
-                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                 >
                   <option value="">-</option>
                   <option value="飲食店">{t('industryRestaurant')}</option>
@@ -1027,7 +1027,7 @@ export default function SalesTrackingPage() {
                   value={formData.contactMethod}
                   onChange={(e) => setFormData({ ...formData, contactMethod: e.target.value })}
                   className="w-full px-3 py-2 border rounded"
-                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                 >
                   <option value="">-</option>
                   <option value="電話">{t('contactPhone')}</option>
@@ -1055,7 +1055,7 @@ export default function SalesTrackingPage() {
                 <Input
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                 />
               </div>
               <div className="md:col-span-2">
@@ -1063,7 +1063,7 @@ export default function SalesTrackingPage() {
                 <Input
                   value={formData.memo}
                   onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
-                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                 />
               </div>
             </div>
