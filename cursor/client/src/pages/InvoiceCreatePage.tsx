@@ -721,7 +721,7 @@ export default function InvoiceCreatePage() {
             <div className="space-y-3">
               {formData.line_items.map((item, index) => (
                 <div key={index} className="border rounded p-3">
-                  <div className="grid grid-cols-1 md:grid-cols-11 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
                     <div className="md:col-span-4">
                       <label className="block text-xs mb-1">{language === 'ja' ? '品目名' : '품목명'}</label>
                       <input
@@ -755,7 +755,7 @@ export default function InvoiceCreatePage() {
                         required
                       />
                     </div>
-                    <div className="md:col-span-1">
+                    <div className="md:col-span-2">
                       <label className="block text-xs mb-1">{language === 'ja' ? '税率' : '세율'}</label>
                       <select
                         value={item.tax_rate}
