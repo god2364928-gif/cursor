@@ -422,7 +422,7 @@ export default function SalesTrackingPage() {
   }
 
   const startEdit = (record: SalesTrackingRecord) => {
-    // Check if user can edit
+    // Check if user can edit (moved_to_retargeting인 경우에도 status는 수정 가능)
     if (user?.role !== 'admin' && record.user_id !== user?.id) {
       showToast(t('onlyOwnerCanModify'), 'error')
       return
@@ -952,6 +952,14 @@ export default function SalesTrackingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {/* 리타겟팅으로 이동된 항목인지 확인 */}
+            {editingId && records.find(r => r.id === editingId)?.moved_to_retargeting && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded">
+                <p className="text-sm text-yellow-800">
+                  {t('movedToRetargeting')} - 진행 현황만 수정할 수 있습니다
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="text-sm font-medium">{t('date')}</label>
@@ -959,6 +967,7 @@ export default function SalesTrackingPage() {
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
                 />
               </div>
               <div>
@@ -967,6 +976,7 @@ export default function SalesTrackingPage() {
                   value={formData.managerName}
                   onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
                   className="w-full px-3 py-2 border rounded"
+                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
                 >
                   <option value="">{t('selectManager')}</option>
                   {managerOptions.map((name) => (
@@ -979,6 +989,7 @@ export default function SalesTrackingPage() {
                 <Input
                   value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
                 />
               </div>
               <div>
@@ -986,6 +997,7 @@ export default function SalesTrackingPage() {
                 <Input
                   value={formData.accountId}
                   onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
+                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
                 />
               </div>
               <div>
@@ -994,6 +1006,7 @@ export default function SalesTrackingPage() {
                   value={formData.industry}
                   onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
                   className="w-full px-3 py-2 border rounded"
+                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
                 >
                   <option value="">-</option>
                   <option value="飲食店">{t('industryRestaurant')}</option>
@@ -1014,6 +1027,7 @@ export default function SalesTrackingPage() {
                   value={formData.contactMethod}
                   onChange={(e) => setFormData({ ...formData, contactMethod: e.target.value })}
                   className="w-full px-3 py-2 border rounded"
+                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
                 >
                   <option value="">-</option>
                   <option value="電話">{t('contactPhone')}</option>
@@ -1041,6 +1055,7 @@ export default function SalesTrackingPage() {
                 <Input
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
                 />
               </div>
               <div className="md:col-span-2">
@@ -1048,6 +1063,7 @@ export default function SalesTrackingPage() {
                 <Input
                   value={formData.memo}
                   onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+                  disabled={editingId && records.find(r => r.id === editingId)?.moved_to_retargeting}
                 />
               </div>
             </div>
@@ -1145,8 +1161,9 @@ export default function SalesTrackingPage() {
                         {record.memo || '-'}
                       </td>
                       <td className="px-2 py-1 text-center overflow-hidden">
-                        {canEdit(record) && !record.moved_to_retargeting && (
+                        {canEdit(record) && (
                           <div className="flex gap-1 justify-center">
+                            {/* moved_to_retargeting인 경우에도 수정 버튼 표시 (status만 수정 가능) */}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1155,23 +1172,27 @@ export default function SalesTrackingPage() {
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleMoveToRetargeting(record)}
-                              title={t('moveToRetargeting')}
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              <ArrowRight className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(record.id)}
-                              title={t('delete')}
-                            >
-                              <Trash2 className="h-3 w-3 text-red-500" />
-                            </Button>
+                            {!record.moved_to_retargeting && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleMoveToRetargeting(record)}
+                                  title={t('moveToRetargeting')}
+                                  className="text-blue-600 hover:text-blue-700"
+                                >
+                                  <ArrowRight className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(record.id)}
+                                  title={t('delete')}
+                                >
+                                  <Trash2 className="h-3 w-3 text-red-500" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         )}
                       </td>

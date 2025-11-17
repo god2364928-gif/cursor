@@ -246,45 +246,56 @@ router.post('/bulk-move-to-retargeting', auth_1.authMiddleware, async (req, res)
 router.put('/:id', auth_1.authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        // Check if record exists and get user_id
-        const recordResult = await db_1.pool.query('SELECT user_id FROM sales_tracking WHERE id = $1', [id]);
+        // Check if record exists and get user_id, moved_to_retargeting
+        const recordResult = await db_1.pool.query('SELECT user_id, moved_to_retargeting FROM sales_tracking WHERE id = $1', [id]);
         if (recordResult.rows.length === 0) {
             return res.status(404).json({ message: 'Record not found' });
         }
         // Check if user is the owner (or admin)
         const recordUserId = recordResult.rows[0].user_id;
+        const movedToRetargeting = recordResult.rows[0].moved_to_retargeting;
         if (req.user?.role !== 'admin' && req.user?.id !== recordUserId) {
             return res.status(403).json({ message: 'You can only edit your own records' });
         }
         const { date, managerName, companyName, accountId, industry, contactMethod, status, contactPerson, phone, memo, memoNote } = req.body;
-        await db_1.pool.query(`UPDATE sales_tracking SET
-        date = $1,
-        manager_name = $2,
-        company_name = $3,
-        account_id = $4,
-        customer_name = '',
-        industry = $5,
-        contact_method = $6,
-        status = $7,
-        contact_person = $8,
-        phone = $9,
-        memo = $10,
-        memo_note = $11,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $12`, [
-            date,
-            managerName,
-            companyName || null,
-            accountId || null,
-            industry || null,
-            contactMethod || null,
-            status,
-            contactPerson || null,
-            (0, nullSafe_1.formatPhoneNumber)(phone) || null,
-            memo || null,
-            memoNote || null,
-            id
-        ]);
+        // moved_to_retargeting인 경우 status만 업데이트
+        if (movedToRetargeting) {
+            await db_1.pool.query(`UPDATE sales_tracking SET
+          status = $1,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2`, [status, id]);
+        }
+        else {
+            // 일반 레코드는 전체 업데이트
+            await db_1.pool.query(`UPDATE sales_tracking SET
+          date = $1,
+          manager_name = $2,
+          company_name = $3,
+          account_id = $4,
+          customer_name = '',
+          industry = $5,
+          contact_method = $6,
+          status = $7,
+          contact_person = $8,
+          phone = $9,
+          memo = $10,
+          memo_note = $11,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $12`, [
+                date,
+                managerName,
+                companyName || null,
+                accountId || null,
+                industry || null,
+                contactMethod || null,
+                status,
+                contactPerson || null,
+                (0, nullSafe_1.formatPhoneNumber)(phone) || null,
+                memo || null,
+                memoNote || null,
+                id
+            ]);
+        }
         res.json({ success: true });
     }
     catch (error) {
