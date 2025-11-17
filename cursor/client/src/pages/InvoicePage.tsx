@@ -168,7 +168,7 @@ export default function InvoicePage() {
       a.href = url
       
       // 파일명 생성: {거래처명}_청구서_{날짜}.pdf
-      const dateStr = invoice.invoice_date ? invoice.invoice_date.replace(/-/g, '') : 'unknown'
+      const dateStr = invoice.invoice_date ? invoice.invoice_date.split('T')[0].replace(/-/g, '') : 'unknown'
       const partnerName = invoice.partner_name || 'unknown'
       const sanitizedName = partnerName.replace(/[\\/:*?"<>|]/g, '_')  // 파일명에 사용 불가능한 문자 제거
       a.download = `${sanitizedName}_청구서_${dateStr}.pdf`
@@ -201,7 +201,7 @@ export default function InvoicePage() {
       a.href = url
       
       // 파일명 생성: {거래처명}_영수증_{날짜}.pdf
-      const dateStr = invoice.invoice_date ? invoice.invoice_date.replace(/-/g, '') : 'unknown'
+      const dateStr = invoice.invoice_date ? invoice.invoice_date.split('T')[0].replace(/-/g, '') : 'unknown'
       const partnerName = invoice.partner_name || 'unknown'
       const sanitizedName = partnerName.replace(/[\\/:*?"<>|]/g, '_')  // 파일명에 사용 불가능한 문자 제거
       a.download = `${sanitizedName}_영수증_${dateStr}.pdf`
