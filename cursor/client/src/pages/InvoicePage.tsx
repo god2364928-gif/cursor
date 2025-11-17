@@ -166,7 +166,13 @@ export default function InvoicePage() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `invoice_${invoice.freee_invoice_id}.pdf`
+      
+      // 파일명 생성: {거래처명}_청구서_{날짜}.pdf
+      const dateStr = invoice.invoice_date ? invoice.invoice_date.replace(/-/g, '') : 'unknown'
+      const partnerName = invoice.partner_name || 'unknown'
+      const sanitizedName = partnerName.replace(/[\\/:*?"<>|]/g, '_')  // 파일명에 사용 불가능한 문자 제거
+      a.download = `${sanitizedName}_청구서_${dateStr}.pdf`
+      
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -193,7 +199,13 @@ export default function InvoicePage() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `receipt_${invoice.receipt_id}.pdf`
+      
+      // 파일명 생성: {거래처명}_영수증_{날짜}.pdf
+      const dateStr = invoice.invoice_date ? invoice.invoice_date.replace(/-/g, '') : 'unknown'
+      const partnerName = invoice.partner_name || 'unknown'
+      const sanitizedName = partnerName.replace(/[\\/:*?"<>|]/g, '_')  // 파일명에 사용 불가능한 문자 제거
+      a.download = `${sanitizedName}_영수증_${dateStr}.pdf`
+      
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
