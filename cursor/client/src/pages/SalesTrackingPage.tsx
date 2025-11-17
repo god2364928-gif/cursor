@@ -862,25 +862,6 @@ export default function SalesTrackingPage() {
           </select>
         </div>
 
-        {/* 진행현황 필터 */}
-        <div>
-          <label className="text-sm text-gray-600 mb-2 block">{t('status')}</label>
-          <select
-            className="border rounded px-3 py-2 min-w-[120px]"
-            value={statusFilter}
-            onChange={e => {
-              setStatusFilter(e.target.value)
-              setCurrentPage(1)
-            }}
-          >
-            <option value="all">{t('all')}</option>
-            <option value="未返信">{t('statusNoReply')}</option>
-            <option value="返信済み">{t('statusReplied')}</option>
-            <option value="商談中">{t('statusNegotiating')}</option>
-            <option value="契約">{t('statusContract')}</option>
-          </select>
-        </div>
-
         {/* 영업방법 필터 */}
         <div>
           <label className="text-sm text-gray-600 mb-2 block">{t('contactMethod')}</label>
@@ -898,6 +879,25 @@ export default function SalesTrackingPage() {
             <option value="DM">{t('contactDM')}</option>
             <option value="メール">{t('contactMail')}</option>
             <option value="フォーム">{t('contactForm')}</option>
+          </select>
+        </div>
+
+        {/* 진행현황 필터 */}
+        <div>
+          <label className="text-sm text-gray-600 mb-2 block">{t('status')}</label>
+          <select
+            className="border rounded px-3 py-2 min-w-[120px]"
+            value={statusFilter}
+            onChange={e => {
+              setStatusFilter(e.target.value)
+              setCurrentPage(1)
+            }}
+          >
+            <option value="all">{t('all')}</option>
+            <option value="未返信">{t('statusNoReply')}</option>
+            <option value="返信済み">{t('statusReplied')}</option>
+            <option value="商談中">{t('statusNegotiating')}</option>
+            <option value="契約">{t('statusContract')}</option>
           </select>
         </div>
       </div>
