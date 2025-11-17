@@ -7,6 +7,35 @@ import { Plus, Trash2, FileText, Download, ArrowLeft } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import InvoicePreviewModal from '../components/InvoicePreviewModal'
 
+// 청구서 발행 시 제외할 거래처 목록
+const EXCLUDED_PARTNER_NAMES = [
+  '給与',
+  'ヘルスライフ株式会社',
+  '東京海上日動',
+  '首都圏新都市鉄道',
+  'お名前ドットコム',
+  '株式会社ライトハウス',
+  'JooRealEstate株式会社',
+  'OJT JAPAN',
+  'OJTJAPAN',
+  'ゆうちょ銀行（個人）',
+  '中村さくら',
+  '代表給与',
+  'スタートアップ税理士法人',
+  '(株)アルファーマネジメント＆パートナーズ',
+  '(株)モデリア',
+  '高代表',
+  'ソーシャルアドバイザーズ株式会社',
+  'エポスカード',
+  'クレジット2',
+  '山崎さん',
+  '髙橋智恵',
+  '松倉',
+  '社会保険料',
+  '星野翔太',
+  'キムヨンボム'
+]
+
 export default function InvoiceCreatePage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -529,10 +558,18 @@ export default function InvoiceCreatePage() {
                           : (language === 'ja' ? '取引先を選択' : '거래처 선택')}
                       </option>
                       {partners
-                        .filter(partner => 
-                          !partnerSearchKeyword || 
-                          partner.name.toLowerCase().includes(partnerSearchKeyword.toLowerCase())
-                        )
+                        .filter(partner => {
+                          // 검색어 필터링
+                          const matchesSearch = !partnerSearchKeyword || 
+                            partner.name.toLowerCase().includes(partnerSearchKeyword.toLowerCase())
+                          
+                          // 제외 목록에 없는 거래처만 표시
+                          const isNotExcluded = !EXCLUDED_PARTNER_NAMES.some(excludedName => 
+                            partner.name.includes(excludedName)
+                          )
+                          
+                          return matchesSearch && isNotExcluded
+                        })
                         .map((partner) => (
                           <option key={partner.id} value={partner.id}>
                             {partner.name} {partner.code ? `(${partner.code})` : ''}
