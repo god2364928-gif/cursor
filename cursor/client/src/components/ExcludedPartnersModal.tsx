@@ -179,10 +179,18 @@ export default function ExcludedPartnersModal({
                     : (language === 'ja' ? '取引先を選択' : '거래처 선택')}
                 </option>
                 {freeePartners
-                  .filter(partner => 
-                    !partnerSearchKeyword || 
-                    partner.name.toLowerCase().includes(partnerSearchKeyword.toLowerCase())
-                  )
+                  .filter(partner => {
+                    // 검색어 필터링
+                    const matchesSearch = !partnerSearchKeyword || 
+                      partner.name.toLowerCase().includes(partnerSearchKeyword.toLowerCase())
+                    
+                    // 이미 제외된 거래처는 표시하지 않음
+                    const notAlreadyExcluded = !excludedPartners.some(excluded => 
+                      excluded.partner_name === partner.name
+                    )
+                    
+                    return matchesSearch && notAlreadyExcluded
+                  })
                   .map((partner) => (
                     <option key={partner.id} value={partner.id}>
                       {partner.name} {partner.code ? `(${partner.code})` : ''}
