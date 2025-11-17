@@ -27,6 +27,7 @@ const totalSales_1 = __importDefault(require("./routes/totalSales"));
 const monthlyPayroll_1 = __importDefault(require("./routes/monthlyPayroll"));
 const invoices_1 = __importDefault(require("./routes/invoices"));
 const receipts_1 = __importDefault(require("./routes/receipts"));
+const excludedPartners_1 = __importDefault(require("./routes/excludedPartners"));
 const cpiImportService_1 = require("./services/cpiImportService");
 const autoMigrate_1 = require("./migrations/autoMigrate");
 dotenv_1.default.config();
@@ -103,6 +104,7 @@ app.use('/api/total-sales', totalSales_1.default);
 app.use('/api/monthly-payroll', monthlyPayroll_1.default);
 app.use('/api/invoices', invoices_1.default);
 app.use('/api/receipts', receipts_1.default);
+app.use('/api/excluded-partners', excludedPartners_1.default);
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });

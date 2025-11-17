@@ -3,51 +3,26 @@ import { invoiceAPI } from '../lib/api'
 import { InvoiceFormData, InvoiceLineItem, FreeeCompany } from '../types'
 import { Button } from '../components/ui/button'
 import { useI18nStore } from '../i18n'
-import { Plus, Trash2, FileText, Download, ArrowLeft } from 'lucide-react'
+import { Plus, Trash2, FileText, Download, ArrowLeft, Settings } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import InvoicePreviewModal from '../components/InvoicePreviewModal'
-
-// 청구서 발행 시 제외할 거래처 목록
-const EXCLUDED_PARTNER_NAMES = [
-  '給与',
-  'ヘルスライフ株式会社',
-  '東京海上日動',
-  '首都圏新都市鉄道',
-  'お名前ドットコム',
-  '株式会社ライトハウス',
-  'JooRealEstate株式会社',
-  'OJT JAPAN',
-  'OJTJAPAN',
-  'ゆうちょ銀行（個人）',
-  '中村さくら',
-  '代表給与',
-  'スタートアップ税理士法人',
-  '㈱アルファーマネジメント＆パートナーズ',  // ㈱ (유니코드 합자)
-  '(株)アルファーマネジメント＆パートナーズ',  // (株) (괄호+주식) - 둘 다 추가
-  '㈱モデリア',  // ㈱ (유니코드 합자)
-  '(株)モデリア',  // (株) (괄호+주식) - 둘 다 추가
-  '高代表',
-  'ソーシャルアドバイザーズ株式会社',
-  'エポスカード',
-  'クレジット2',  // 반각 2
-  'クレジット２',  // 전각 ２ - 둘 다 추가
-  '山崎さん',
-  '髙橋智恵',
-  '松倉',
-  '社会保険料',
-  '星野翔太',
-  'キムヨンボム'
-]
+import ExcludedPartnersModal from '../components/ExcludedPartnersModal'
+import { useAuthStore } from '../store/authStore'
+import api from '../lib/api'
 
 export default function InvoiceCreatePage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { language, t } = useI18nStore()
+  const user = useAuthStore((state) => state.user)
+  const isAdmin = user?.role === 'admin'
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [companies, setCompanies] = useState<FreeeCompany[]>([])
   const [selectedCompany, setSelectedCompany] = useState<number | null>(null)
   const [partners, setPartners] = useState<any[]>([])
+  const [excludedPartnerNames, setExcludedPartnerNames] = useState<string[]>([])
+  const [showExcludedPartnersModal, setShowExcludedPartnersModal] = useState(false)
   const [selectedPartner, setSelectedPartner] = useState<number | null>(null)
   const [isLoadingPartners, setIsLoadingPartners] = useState(false)
   const [showNewPartnerForm, setShowNewPartnerForm] = useState(false)
@@ -88,11 +63,13 @@ export default function InvoiceCreatePage() {
   useEffect(() => {
     console.log('🔄 Checking auth status...')
     checkAuthStatus()
+    loadExcludedPartners() // 제외 거래처 목록 로드
 
     // 페이지가 포커스될 때마다 인증 상태 재확인
     const handleFocus = () => {
       console.log('🔄 Page focused - checking auth status')
       checkAuthStatus()
+      loadExcludedPartners()
     }
 
     window.addEventListener('focus', handleFocus)
@@ -101,6 +78,17 @@ export default function InvoiceCreatePage() {
       window.removeEventListener('focus', handleFocus)
     }
   }, [location.pathname]) // location 변경 시에도 재확인
+
+  const loadExcludedPartners = async () => {
+    try {
+      const response = await api.get('/excluded-partners')
+      const names = response.data.map((p: any) => p.partner_name)
+      setExcludedPartnerNames(names)
+      console.log('🚫 제외 거래처 목록 로드:', names.length, '개')
+    } catch (error) {
+      console.error('Error loading excluded partners:', error)
+    }
+  }
 
   const checkAuthStatus = async () => {
     try {
@@ -139,12 +127,6 @@ export default function InvoiceCreatePage() {
     try {
       const response = await invoiceAPI.getPartners(companyId)
       if (response.data.partners) {
-        // 디버깅: 제외 대상 거래처 확인
-        const excludedPartners = response.data.partners.filter((p: any) => 
-          EXCLUDED_PARTNER_NAMES.some(excluded => p.name.includes(excluded))
-        )
-        console.log('🚫 제외된 거래처:', excludedPartners.map((p: any) => p.name))
-        
         setPartners(response.data.partners)
       }
     } catch (error) {
@@ -441,14 +423,27 @@ export default function InvoiceCreatePage() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <Button onClick={() => navigate('/invoices')} variant="ghost" size="sm">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FileText className="w-6 h-6" />
-            {language === 'ja' ? '請求書発行' : '청구서 발행'}
-          </h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Button onClick={() => navigate('/invoices')} variant="ghost" size="sm">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <FileText className="w-6 h-6" />
+              {language === 'ja' ? '請求書発行' : '청구서 발행'}
+            </h1>
+          </div>
+          {isAdmin && (
+            <Button
+              onClick={() => setShowExcludedPartnersModal(true)}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              {language === 'ja' ? '除外取引先管理' : '제외 거래처 관리'}
+            </Button>
+          )}
         </div>
 
         {error && (
@@ -572,15 +567,10 @@ export default function InvoiceCreatePage() {
                           const matchesSearch = !partnerSearchKeyword || 
                             partner.name.toLowerCase().includes(partnerSearchKeyword.toLowerCase())
                           
-                          // 제외 목록에 없는 거래처만 표시
-                          const isNotExcluded = !EXCLUDED_PARTNER_NAMES.some(excludedName => 
+                          // 제외 목록에 없는 거래처만 표시 (DB에서 로드한 목록 사용)
+                          const isNotExcluded = !excludedPartnerNames.some(excludedName => 
                             partner.name.includes(excludedName)
                           )
-                          
-                          // 디버깅: 제외되지 않은 거래처 확인
-                          if (!isNotExcluded) {
-                            console.log(`⛔ ${partner.name} - 제외됨`)
-                          }
                           
                           return matchesSearch && isNotExcluded
                         })
@@ -868,6 +858,16 @@ export default function InvoiceCreatePage() {
         isSubmitting={isSubmitting}
         language={language}
       />
+
+      {/* 제외 거래처 관리 모달 (어드민만) */}
+      {isAdmin && (
+        <ExcludedPartnersModal
+          isOpen={showExcludedPartnersModal}
+          onClose={() => setShowExcludedPartnersModal(false)}
+          onUpdate={loadExcludedPartners}
+          language={language}
+        />
+      )}
     </div>
   )
 }
