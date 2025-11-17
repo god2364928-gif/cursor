@@ -342,7 +342,7 @@ export async function getPartners(companyId: number, keyword?: string): Promise<
     throw new Error('No valid access token.')
   }
 
-  let url = `${FREEE_API_BASE}/partners?company_id=${companyId}`
+  let url = `${FREEE_API_BASE}/partners?company_id=${companyId}&limit=100`
   if (keyword) {
     url += `&keyword=${encodeURIComponent(keyword)}`
   }
@@ -364,6 +364,25 @@ export async function getPartners(companyId: number, keyword?: string): Promise<
 
   const data: any = await response.json()
   console.log(`✅ Partners fetched: ${data.partners?.length || 0} items`)
+  
+  // 처음 5개와 마지막 5개 거래처 이름 출력 (디버깅용)
+  if (data.partners && data.partners.length > 0) {
+    const firstFive = data.partners.slice(0, 5).map((p: any) => p.name).join(', ')
+    const lastFive = data.partners.slice(-5).map((p: any) => p.name).join(', ')
+    console.log(`📋 First 5 partners: ${firstFive}`)
+    console.log(`📋 Last 5 partners: ${lastFive}`)
+    
+    // test1, test2 있는지 확인
+    const testPartners = data.partners.filter((p: any) => 
+      p.name.toLowerCase().includes('test')
+    )
+    if (testPartners.length > 0) {
+      console.log(`🔍 Test partners found: ${testPartners.map((p: any) => p.name).join(', ')}`)
+    } else {
+      console.log(`⚠️ No test partners found in API response`)
+    }
+  }
+  
   return data
 }
 

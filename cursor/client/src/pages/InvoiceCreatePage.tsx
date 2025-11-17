@@ -128,6 +128,26 @@ export default function InvoiceCreatePage() {
       const response = await invoiceAPI.getPartners(companyId)
       if (response.data.partners) {
         setPartners(response.data.partners)
+        console.log('📋 [Client] Partners loaded:', response.data.partners.length)
+        
+        // test1, test2 확인
+        const testPartners = response.data.partners.filter((p: any) => 
+          p.name.toLowerCase().includes('test')
+        )
+        if (testPartners.length > 0) {
+          console.log('🔍 [Client] Test partners found:', testPartners.map((p: any) => p.name))
+        } else {
+          console.log('⚠️ [Client] No test partners in response')
+        }
+        
+        // 제외 거래처 필터링 확인
+        const filteredCount = response.data.partners.filter((partner: any) => {
+          const isNotExcluded = !excludedPartnerNames.some(excludedName => 
+            partner.name.includes(excludedName)
+          )
+          return isNotExcluded
+        }).length
+        console.log(`📋 [Client] After filtering: ${filteredCount} partners (excluded: ${response.data.partners.length - filteredCount})`)
       }
     } catch (error) {
       console.error('Error loading partners:', error)
