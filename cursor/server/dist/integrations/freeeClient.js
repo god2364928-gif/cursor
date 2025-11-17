@@ -321,16 +321,16 @@ async function getOrCreatePartner(companyId, partnerName) {
         // 1. 기존 거래처 검색 (keyword로 검색)
         const partnersData = await getPartners(companyId, partnerName);
         if (partnersData.partners && partnersData.partners.length > 0) {
-            // 완전 일치하는 거래처 찾기
-            const exactMatch = partnersData.partners.find((p) => p.name === partnerName);
+            // 완전 일치하는 거래처 찾기 (대소문자 무시)
+            const exactMatch = partnersData.partners.find((p) => p.name.toLowerCase() === partnerName.toLowerCase());
             if (exactMatch) {
                 console.log(`✅ Found existing partner: ID=${exactMatch.id}, name=${exactMatch.name}`);
                 return exactMatch.id;
             }
-            // 경칭 제외하고 비교 (御中, 様 등)
-            const partnerNameWithoutTitle = partnerName.replace(/[御中様]+$/, '');
+            // 경칭 제외하고 비교 (御中, 様 등) - 대소문자 무시
+            const partnerNameWithoutTitle = partnerName.replace(/[御中様]+$/, '').toLowerCase();
             const matchWithoutTitle = partnersData.partners.find((p) => {
-                const pNameWithoutTitle = p.name.replace(/[御中様]+$/, '');
+                const pNameWithoutTitle = p.name.replace(/[御中様]+$/, '').toLowerCase();
                 return pNameWithoutTitle === partnerNameWithoutTitle;
             });
             if (matchWithoutTitle) {
@@ -350,16 +350,16 @@ async function getOrCreatePartner(companyId, partnerName) {
             // 모든 거래처 목록 조회 (keyword 없이)
             const allPartnersData = await getPartners(companyId);
             if (allPartnersData.partners && allPartnersData.partners.length > 0) {
-                // 완전 일치 검색
-                const exactMatch = allPartnersData.partners.find((p) => p.name === partnerName);
+                // 완전 일치 검색 (대소문자 무시)
+                const exactMatch = allPartnersData.partners.find((p) => p.name.toLowerCase() === partnerName.toLowerCase());
                 if (exactMatch) {
                     console.log(`✅ Found existing partner on retry: ID=${exactMatch.id}`);
                     return exactMatch.id;
                 }
-                // 경칭 제외하고 검색
-                const partnerNameWithoutTitle = partnerName.replace(/[御中様]+$/, '');
+                // 경칭 제외하고 검색 (대소문자 무시)
+                const partnerNameWithoutTitle = partnerName.replace(/[御中様]+$/, '').toLowerCase();
                 const matchWithoutTitle = allPartnersData.partners.find((p) => {
-                    const pNameWithoutTitle = p.name.replace(/[御中様]+$/, '');
+                    const pNameWithoutTitle = p.name.replace(/[御中様]+$/, '').toLowerCase();
                     return pNameWithoutTitle === partnerNameWithoutTitle;
                 });
                 if (matchWithoutTitle) {
