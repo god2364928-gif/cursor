@@ -290,11 +290,11 @@ export default function InvoiceCreatePage() {
         const a = document.createElement('a')
         a.href = url
         
-        // 파일명 생성: {거래처명}_청구서_{날짜}.pdf
+        // 파일명 생성: {거래처명}_請求書_{날짜}.pdf
         const dateStr = formData.invoice_date.split('T')[0].replace(/-/g, '')
         const partnerName = formData.partner_name || 'unknown'
         const sanitizedName = partnerName.replace(/[\\/:*?"<>|]/g, '_')  // 파일명에 사용 불가능한 문자 제거
-        a.download = `${sanitizedName}_청구서_${dateStr}.pdf`
+        a.download = `${sanitizedName}_請求書_${dateStr}.pdf`
         
         document.body.appendChild(a)
         a.click()
