@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { generateReceiptPdf } from '../utils/pdfGenerator'
+import { sendReceiptNotification } from '../utils/slackClient'
 
 const router = Router()
 
@@ -175,6 +176,27 @@ router.post('/from-invoice', authMiddleware, async (req: AuthRequest, res: Respo
     )
 
     console.log(`✅ Receipt created: db_id=${insertResult.rows[0].id}`)
+
+    // 사용자 이름 조회
+    let userName = '알 수 없음'
+    if (userId) {
+      const userQuery = await pool.query('SELECT name FROM users WHERE id = $1', [userId])
+      if (userQuery.rows.length > 0) {
+        userName = userQuery.rows[0].name
+      }
+    }
+
+    // 슬랙 알림 전송 (비동기, 실패해도 영수증 발급에는 영향 없음)
+    sendReceiptNotification({
+      receipt_number: receiptNumber,
+      partner_name: invoice.partner_name,
+      issue_date: issue_date,
+      total_amount: invoice.total_amount,
+      tax_amount: invoice.tax_amount,
+      user_name: userName,
+    }).catch(error => {
+      console.error('⚠️ Slack notification failed, but receipt was created successfully:', error)
+    })
 
     // PDF를 바로 반환
     res.setHeader('Content-Type', 'application/pdf')

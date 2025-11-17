@@ -4,6 +4,7 @@ const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
 const pdfGenerator_1 = require("../utils/pdfGenerator");
+const slackClient_1 = require("../utils/slackClient");
 const router = (0, express_1.Router)();
 /**
  * freee에서 청구서 상세 정보 가져오기 (품목 포함)
@@ -141,6 +142,25 @@ router.post('/from-invoice', auth_1.authMiddleware, async (req, res) => {
         // 청구서 테이블에 영수증 ID 업데이트
         await db_1.pool.query('UPDATE invoices SET receipt_id = $1 WHERE id = $2', [insertResult.rows[0].id, invoice_id]);
         console.log(`✅ Receipt created: db_id=${insertResult.rows[0].id}`);
+        // 사용자 이름 조회
+        let userName = '알 수 없음';
+        if (userId) {
+            const userQuery = await db_1.pool.query('SELECT name FROM users WHERE id = $1', [userId]);
+            if (userQuery.rows.length > 0) {
+                userName = userQuery.rows[0].name;
+            }
+        }
+        // 슬랙 알림 전송 (비동기, 실패해도 영수증 발급에는 영향 없음)
+        (0, slackClient_1.sendReceiptNotification)({
+            receipt_number: receiptNumber,
+            partner_name: invoice.partner_name,
+            issue_date: issue_date,
+            total_amount: invoice.total_amount,
+            tax_amount: invoice.tax_amount,
+            user_name: userName,
+        }).catch(error => {
+            console.error('⚠️ Slack notification failed, but receipt was created successfully:', error);
+        });
         // PDF를 바로 반환
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="receipt_${receiptNumber}.pdf"`);
