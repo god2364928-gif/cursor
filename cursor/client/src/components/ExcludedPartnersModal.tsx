@@ -2,12 +2,19 @@ import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import { X, Trash2, Plus } from 'lucide-react'
 import api from '../lib/api'
+import { invoiceAPI } from '../lib/api'
 
 interface ExcludedPartner {
   id: number
   partner_name: string
   created_by: string
   created_at: string
+}
+
+interface FreeePartner {
+  id: number
+  name: string
+  code?: string
 }
 
 interface ExcludedPartnersModalProps {
@@ -24,7 +31,10 @@ export default function ExcludedPartnersModal({
   language
 }: ExcludedPartnersModalProps) {
   const [excludedPartners, setExcludedPartners] = useState<ExcludedPartner[]>([])
-  const [newPartnerName, setNewPartnerName] = useState('')
+  const [freeePartners, setFreeePartners] = useState<FreeePartner[]>([])
+  const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null)
+  const [partnerSearchKeyword, setPartnerSearchKeyword] = useState('')
+  const [isLoadingPartners, setIsLoadingPartners] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -32,6 +42,7 @@ export default function ExcludedPartnersModal({
   useEffect(() => {
     if (isOpen) {
       loadExcludedPartners()
+      loadFreeePartners()
     }
   }, [isOpen])
 
@@ -48,16 +59,40 @@ export default function ExcludedPartnersModal({
     }
   }
 
+  const loadFreeePartners = async () => {
+    setIsLoadingPartners(true)
+    try {
+      // 회사 목록 먼저 가져오기
+      const companiesResponse = await invoiceAPI.getCompanies()
+      if (companiesResponse.data.companies && companiesResponse.data.companies.length > 0) {
+        const companyId = companiesResponse.data.companies[0].id
+        // 거래처 목록 가져오기
+        const partnersResponse = await invoiceAPI.getPartners(companyId)
+        if (partnersResponse.data.partners) {
+          setFreeePartners(partnersResponse.data.partners)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading freee partners:', error)
+    } finally {
+      setIsLoadingPartners(false)
+    }
+  }
+
   const handleAdd = async () => {
-    if (!newPartnerName.trim()) {
-      setError(language === 'ja' ? '取引先名を入力してください' : '거래처명을 입력하세요')
+    if (!selectedPartnerId) {
+      setError(language === 'ja' ? '取引先を選択してください' : '거래처를 선택하세요')
       return
     }
 
+    const selectedPartner = freeePartners.find(p => p.id === selectedPartnerId)
+    if (!selectedPartner) return
+
     try {
-      await api.post('/excluded-partners', { partner_name: newPartnerName.trim() })
+      await api.post('/excluded-partners', { partner_name: selectedPartner.name })
       setSuccess(language === 'ja' ? '除外取引先を追加しました' : '제외 거래처를 추가했습니다')
-      setNewPartnerName('')
+      setSelectedPartnerId(null)
+      setPartnerSearchKeyword('')
       await loadExcludedPartners()
       onUpdate() // 부모 컴포넌트에 변경 알림
       setTimeout(() => setSuccess(''), 3000)
@@ -122,23 +157,39 @@ export default function ExcludedPartnersModal({
             <label className="block text-sm font-medium mb-2">
               {language === 'ja' ? '新しい除外取引先を追加' : '새 제외 거래처 추가'}
             </label>
-            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-3">
-              <p className="text-xs text-yellow-800">
-                ⚠️ {language === 'ja' 
-                  ? '文字種に注意: ㈱(合字)と(株)、２(全角)と2(半角)は別の文字です' 
-                  : '문자 형식 주의: ㈱(유니코드 합자)와 (株), ２(전각)와 2(반각)는 다른 문자입니다'}
-              </p>
-            </div>
-            <div className="flex gap-2">
+            <div className="space-y-2">
+              {/* 거래처 검색 */}
               <input
                 type="text"
-                value={newPartnerName}
-                onChange={(e) => setNewPartnerName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-                className="flex-1 border rounded px-3 py-2"
-                placeholder={language === 'ja' ? '取引先名を入力...' : '거래처명 입력...'}
+                value={partnerSearchKeyword}
+                onChange={(e) => setPartnerSearchKeyword(e.target.value)}
+                placeholder={language === 'ja' ? '取引先名で検索...' : '거래처명 검색...'}
+                className="w-full border rounded px-3 py-2"
               />
-              <Button onClick={handleAdd} className="flex items-center gap-2">
+              {/* 거래처 선택 */}
+              <select
+                value={selectedPartnerId || ''}
+                onChange={(e) => setSelectedPartnerId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full border rounded px-3 py-2"
+                disabled={isLoadingPartners}
+              >
+                <option value="">
+                  {isLoadingPartners 
+                    ? (language === 'ja' ? '読み込み中...' : '로딩 중...') 
+                    : (language === 'ja' ? '取引先を選択' : '거래처 선택')}
+                </option>
+                {freeePartners
+                  .filter(partner => 
+                    !partnerSearchKeyword || 
+                    partner.name.toLowerCase().includes(partnerSearchKeyword.toLowerCase())
+                  )
+                  .map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name} {partner.code ? `(${partner.code})` : ''}
+                    </option>
+                  ))}
+              </select>
+              <Button onClick={handleAdd} className="w-full flex items-center justify-center gap-2">
                 <Plus className="w-4 h-4" />
                 {language === 'ja' ? '追加' : '추가'}
               </Button>
