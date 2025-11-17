@@ -51,6 +51,7 @@ export declare function getCompanies(): Promise<any>;
 export declare function getInvoiceTemplates(companyId: number): Promise<any>;
 /**
  * 거래처 목록 조회 (freee会計 API)
+ * 페이지네이션을 사용해서 모든 거래처를 가져옵니다
  */
 export declare function getPartners(companyId: number, keyword?: string): Promise<any>;
 /**
