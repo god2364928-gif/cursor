@@ -122,6 +122,13 @@ export default function ExcludedPartnersModal({
             <label className="block text-sm font-medium mb-2">
               {language === 'ja' ? '新しい除外取引先を追加' : '새 제외 거래처 추가'}
             </label>
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-3">
+              <p className="text-xs text-yellow-800">
+                ⚠️ {language === 'ja' 
+                  ? '文字種に注意: ㈱(合字)と(株)、２(全角)と2(半角)は別の文字です' 
+                  : '문자 형식 주의: ㈱(유니코드 합자)와 (株), ２(전각)와 2(반각)는 다른 문자입니다'}
+              </p>
+            </div>
             <div className="flex gap-2">
               <input
                 type="text"
