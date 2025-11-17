@@ -136,6 +136,12 @@ export default function InvoiceCreatePage() {
     try {
       const response = await invoiceAPI.getPartners(companyId)
       if (response.data.partners) {
+        // 디버깅: 제외 대상 거래처 확인
+        const excludedPartners = response.data.partners.filter((p: any) => 
+          EXCLUDED_PARTNER_NAMES.some(excluded => p.name.includes(excluded))
+        )
+        console.log('🚫 제외된 거래처:', excludedPartners.map((p: any) => p.name))
+        
         setPartners(response.data.partners)
       }
     } catch (error) {
@@ -567,6 +573,11 @@ export default function InvoiceCreatePage() {
                           const isNotExcluded = !EXCLUDED_PARTNER_NAMES.some(excludedName => 
                             partner.name.includes(excludedName)
                           )
+                          
+                          // 디버깅: 제외되지 않은 거래처 확인
+                          if (!isNotExcluded) {
+                            console.log(`⛔ ${partner.name} - 제외됨`)
+                          }
                           
                           return matchesSearch && isNotExcluded
                         })
