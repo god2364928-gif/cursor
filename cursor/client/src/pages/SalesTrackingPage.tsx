@@ -821,91 +821,60 @@ export default function SalesTrackingPage() {
         </div>
       </div>
 
-      {/* 담당자 필터 */}
-      <div className="mb-4">
-        <label className="text-sm text-gray-600 mb-2 block">{t('manager')}</label>
-        <select
-          className="w-full border rounded px-3 py-2 max-w-xs"
-          value={managerFilter}
-          onChange={e => {
-            setManagerFilter(e.target.value)
-            setCurrentPage(1) // 필터 변경 시 첫 페이지로
-          }}
-        >
-          <option value="all">{t('all')}</option>
-          {managerOptions.map(manager => (
-            <option key={manager} value={manager}>{manager}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* 리타겟팅 이동 여부 필터 */}
-      <div className="mb-4">
-        <label className="text-sm text-gray-600 mb-2 block">{t('moveToRetargeting')}</label>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant={movedToRetargetingFilter === 'all' ? 'default' : 'outline'}
-            onClick={() => setMovedToRetargetingFilter('all')}
+      {/* 필터 섹션 - 가로 배치 */}
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* 담당자 필터 */}
+        <div>
+          <label className="text-sm text-gray-600 mb-2 block">{t('manager')}</label>
+          <select
+            className="w-full border rounded px-3 py-2"
+            value={managerFilter}
+            onChange={e => {
+              setManagerFilter(e.target.value)
+              setCurrentPage(1)
+            }}
           >
-            {t('all')}
-          </Button>
-          <Button
-            size="sm"
-            variant={movedToRetargetingFilter === 'moved' ? 'default' : 'outline'}
-            onClick={() => setMovedToRetargetingFilter('moved')}
-          >
-            {t('retargetingMoved')}
-          </Button>
-          <Button
-            size="sm"
-            variant={movedToRetargetingFilter === 'notMoved' ? 'default' : 'outline'}
-            onClick={() => setMovedToRetargetingFilter('notMoved')}
-          >
-            {t('retargetingNotMoved')}
-          </Button>
+            <option value="all">{t('all')}</option>
+            {managerOptions.map(manager => (
+              <option key={manager} value={manager}>{manager}</option>
+            ))}
+          </select>
         </div>
-      </div>
 
-      {/* 진행현황 필터 */}
-      <div className="mb-4">
-        <label className="text-sm text-gray-600 mb-2 block">{t('status')}</label>
-        <div className="flex gap-2 flex-wrap">
-          <Button
-            size="sm"
-            variant={statusFilter === 'all' ? 'default' : 'outline'}
-            onClick={() => setStatusFilter('all')}
+        {/* 리타겟팅 이동 여부 필터 */}
+        <div>
+          <label className="text-sm text-gray-600 mb-2 block">{t('moveToRetargeting')}</label>
+          <select
+            className="w-full border rounded px-3 py-2"
+            value={movedToRetargetingFilter}
+            onChange={e => {
+              setMovedToRetargetingFilter(e.target.value as 'all' | 'moved' | 'notMoved')
+              setCurrentPage(1)
+            }}
           >
-            {t('all')}
-          </Button>
-          <Button
-            size="sm"
-            variant={statusFilter === '未返信' ? 'default' : 'outline'}
-            onClick={() => setStatusFilter('未返信')}
+            <option value="all">{t('all')}</option>
+            <option value="moved">{t('retargetingMoved')}</option>
+            <option value="notMoved">{t('retargetingNotMoved')}</option>
+          </select>
+        </div>
+
+        {/* 진행현황 필터 */}
+        <div>
+          <label className="text-sm text-gray-600 mb-2 block">{t('status')}</label>
+          <select
+            className="w-full border rounded px-3 py-2"
+            value={statusFilter}
+            onChange={e => {
+              setStatusFilter(e.target.value)
+              setCurrentPage(1)
+            }}
           >
-            {t('statusNoReply')}
-          </Button>
-          <Button
-            size="sm"
-            variant={statusFilter === '返信済み' ? 'default' : 'outline'}
-            onClick={() => setStatusFilter('返信済み')}
-          >
-            {t('statusReplied')}
-          </Button>
-          <Button
-            size="sm"
-            variant={statusFilter === '商談中' ? 'default' : 'outline'}
-            onClick={() => setStatusFilter('商談中')}
-          >
-            {t('statusNegotiating')}
-          </Button>
-          <Button
-            size="sm"
-            variant={statusFilter === '契約' ? 'default' : 'outline'}
-            onClick={() => setStatusFilter('契約')}
-          >
-            {t('statusContract')}
-          </Button>
+            <option value="all">{t('all')}</option>
+            <option value="未返信">{t('statusNoReply')}</option>
+            <option value="返信済み">{t('statusReplied')}</option>
+            <option value="商談中">{t('statusNegotiating')}</option>
+            <option value="契約">{t('statusContract')}</option>
+          </select>
         </div>
       </div>
 
