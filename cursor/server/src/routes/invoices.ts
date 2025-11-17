@@ -307,15 +307,15 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
 
     console.log(`📥 [PDF Download] Request for invoice ID: ${id} by user: ${userId}`)
 
-    // DB에서 청구서 조회하여 freee_invoice_id, company_id, due_date 가져오기
-    const result = await pool.query('SELECT freee_invoice_id, company_id, due_date FROM invoices WHERE id = $1', [id])
+    // DB에서 청구서 조회하여 freee_invoice_id, company_id, due_date, memo 가져오기
+    const result = await pool.query('SELECT freee_invoice_id, company_id, due_date, memo FROM invoices WHERE id = $1', [id])
     
     if (result.rows.length === 0) {
       console.error(`❌ Invoice not found in DB: ${id}`)
       return res.status(404).json({ error: 'Invoice not found' })
     }
 
-    const { freee_invoice_id, company_id, due_date } = result.rows[0]
+    const { freee_invoice_id, company_id, due_date, memo } = result.rows[0]
 
     console.log(`📋 Invoice details: freee_id=${freee_invoice_id}, company_id=${company_id}, due_date=${due_date}`)
 
@@ -324,9 +324,9 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
       return res.status(400).json({ error: 'Invoice missing freee information' })
     }
 
-    console.log(`📥 Calling downloadInvoicePdf with company_id=${company_id}, invoice_id=${freee_invoice_id}`)
+    console.log(`📥 Calling downloadInvoicePdf with company_id=${company_id}, invoice_id=${freee_invoice_id}, memo=${memo ? 'present' : 'none'}`)
 
-    const pdfBuffer = await downloadInvoicePdf(Number(company_id), Number(freee_invoice_id), due_date)
+    const pdfBuffer = await downloadInvoicePdf(Number(company_id), Number(freee_invoice_id), due_date, memo)
     
     if (!pdfBuffer || pdfBuffer.length === 0) {
       console.error(`❌ PDF buffer is empty`)
