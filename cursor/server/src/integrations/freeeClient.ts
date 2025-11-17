@@ -559,7 +559,7 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
   }
   
   if (invoiceData.memo) {
-    freeePayload.memo = invoiceData.memo  // 추가: 비고
+    freeePayload.description = invoiceData.memo  // freee 청구서 API는 description 필드 사용
   }
 
   console.log('📤 Sending to freee請求書 API:', JSON.stringify(freeePayload, null, 2))
