@@ -455,6 +455,9 @@ const translations: Record<Language, Translation> = {
     retargetingAlertLastContact: '最終連絡',
     retargetingAlertDaysAgo: '日前',
     retargetingAlertHideToday: '今日は表示しない',
+    
+    // Moved to Retargeting Edit Message
+    movedToRetargetingEditOnlyStatus: '進行状況のみ編集可能です',
   },
   ko: {
     // Navigation
@@ -904,6 +907,9 @@ const translations: Record<Language, Translation> = {
     retargetingAlertLastContact: '마지막 연락',
     retargetingAlertDaysAgo: '일 전',
     retargetingAlertHideToday: '오늘 하루 보지 않기',
+    
+    // Moved to Retargeting Edit Message
+    movedToRetargetingEditOnlyStatus: '진행 현황만 수정할 수 있습니다',
   },
 }
 
