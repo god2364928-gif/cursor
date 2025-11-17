@@ -558,9 +558,7 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
     freeePayload.payment_bank_info = invoiceData.payment_bank_info
   }
   
-  if (invoiceData.memo) {
-    freeePayload.description = invoiceData.memo  // freee 청구서 API는 description 필드 사용
-  }
+  // memo는 freee API에 전달하지 않음 (PDF에만 표시)
 
   console.log('📤 Sending to freee請求書 API:', JSON.stringify(freeePayload, null, 2))
 
@@ -595,8 +593,8 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
  * 청구서 PDF 다운로드 (freee請求書 API)
  * freee 請求書 API는 /reports/ 경로를 사용
  */
-export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string): Promise<Buffer> {
-  console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}`)
+export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string, memoFromDb?: string): Promise<Buffer> {
+  console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}, memo=${memoFromDb ? 'present' : 'none'}`)
 
   const token = await ensureValidToken()
 
@@ -648,6 +646,7 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
       })),
       payment_bank_info: invoice.bank_account_to_transfer || 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
       invoice_registration_number: invoice.template?.invoice_registration_number || 'T5013301050765',
+      memo: memoFromDb || '',  // DB의 memo 사용
     })
 
     console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`)

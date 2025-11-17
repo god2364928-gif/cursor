@@ -444,9 +444,7 @@ async function createInvoice(invoiceData) {
     if (invoiceData.payment_bank_info) {
         freeePayload.payment_bank_info = invoiceData.payment_bank_info;
     }
-    if (invoiceData.memo) {
-        freeePayload.description = invoiceData.memo; // freee 청구서 API는 description 필드 사용
-    }
+    // memo는 freee API에 전달하지 않음 (PDF에만 표시)
     console.log('📤 Sending to freee請求書 API:', JSON.stringify(freeePayload, null, 2));
     const url = `${FREEE_INVOICE_API_BASE}/invoices`;
     const response = await fetch(url, {
@@ -474,8 +472,8 @@ async function createInvoice(invoiceData) {
  * 청구서 PDF 다운로드 (freee請求書 API)
  * freee 請求書 API는 /reports/ 경로를 사용
  */
-async function downloadInvoicePdf(companyId, invoiceId, dueDateFromDb) {
-    console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}`);
+async function downloadInvoicePdf(companyId, invoiceId, dueDateFromDb, memoFromDb) {
+    console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}, memo=${memoFromDb ? 'present' : 'none'}`);
     const token = await ensureValidToken();
     if (!token) {
         throw new Error('No valid access token. Please authenticate first.');
@@ -518,6 +516,7 @@ async function downloadInvoicePdf(companyId, invoiceId, dueDateFromDb) {
             })),
             payment_bank_info: invoice.bank_account_to_transfer || 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
             invoice_registration_number: invoice.template?.invoice_registration_number || 'T5013301050765',
+            memo: memoFromDb || '', // DB의 memo 사용
         });
         console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`);
         return pdfBuffer;
