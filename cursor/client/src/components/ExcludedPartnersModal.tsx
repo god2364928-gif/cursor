@@ -44,7 +44,22 @@ export default function ExcludedPartnersModal({
       loadExcludedPartners()
       loadFreeePartners()
     }
-  }, [isOpen])
+    
+    // ESC 키 처리
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose()
+      }
+    }
+    
+    if (isOpen) {
+      window.addEventListener('keydown', handleEscape)
+    }
+    
+    return () => {
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [isOpen, onClose])
 
   const loadExcludedPartners = async () => {
     setIsLoading(true)
@@ -128,7 +143,15 @@ export default function ExcludedPartnersModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        // 배경 클릭 시에만 닫기 (모달 내부 클릭은 제외)
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
+      }}
+    >
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-bold">
