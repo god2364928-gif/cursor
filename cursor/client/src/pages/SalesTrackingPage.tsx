@@ -961,7 +961,7 @@ export default function SalesTrackingPage() {
             {editingId && records.find(r => r.id === editingId)?.moved_to_retargeting && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded">
                 <p className="text-sm text-yellow-800">
-                  {t('movedToRetargeting')} - 진행 현황만 수정할 수 있습니다
+                  {t('movedToRetargeting')} - {t('movedToRetargetingEditOnlyStatus')}
                 </p>
               </div>
             )}
