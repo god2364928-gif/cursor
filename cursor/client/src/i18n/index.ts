@@ -458,6 +458,10 @@ const translations: Record<Language, Translation> = {
     
     // Moved to Retargeting Edit Message
     movedToRetargetingEditOnlyStatus: '進行状況のみ編集可能です',
+    
+    // Filters
+    retargetingMoved: '移動済み',
+    retargetingNotMoved: '未移動',
   },
   ko: {
     // Navigation
@@ -910,6 +914,10 @@ const translations: Record<Language, Translation> = {
     
     // Moved to Retargeting Edit Message
     movedToRetargetingEditOnlyStatus: '진행 현황만 수정할 수 있습니다',
+    
+    // Filters
+    retargetingMoved: '이동함',
+    retargetingNotMoved: '이동 안함',
   },
 }
 

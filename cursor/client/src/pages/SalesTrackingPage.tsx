@@ -65,6 +65,9 @@ export default function SalesTrackingPage() {
   const [managerFilter, setManagerFilter] = useState<string>('all')
   const [managerOptions, setManagerOptions] = useState<string[]>([])
   const [, setUsers] = useState<any[]>([])
+  // 새로운 필터 상태
+  const [movedToRetargetingFilter, setMovedToRetargetingFilter] = useState<'all' | 'moved' | 'notMoved'>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   // Daily stats state
   const [dailyStart, setDailyStart] = useState<string>('')
   const [dailyEnd, setDailyEnd] = useState<string>('')
@@ -746,10 +749,24 @@ export default function SalesTrackingPage() {
     }
   }
 
-  // 담당자별 필터링
-  const filteredRecords = records.filter(r => 
-    managerFilter === 'all' || r.manager_name === managerFilter
-  )
+  // 담당자별 필터링 및 추가 필터들
+  const filteredRecords = records.filter(r => {
+    // 담당자 필터
+    const managerMatch = managerFilter === 'all' || r.manager_name === managerFilter
+    
+    // 리타겟팅 이동 여부 필터
+    let movedMatch = true
+    if (movedToRetargetingFilter === 'moved') {
+      movedMatch = r.moved_to_retargeting === true
+    } else if (movedToRetargetingFilter === 'notMoved') {
+      movedMatch = !r.moved_to_retargeting
+    }
+    
+    // 진행현황 필터
+    const statusMatch = statusFilter === 'all' || r.status === statusFilter
+    
+    return managerMatch && movedMatch && statusMatch
+  })
   
   // 페이지네이션 계산
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage)
@@ -759,7 +776,7 @@ export default function SalesTrackingPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [managerFilter])
+  }, [managerFilter, movedToRetargetingFilter, statusFilter])
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 pt-8 space-y-6">
@@ -820,6 +837,76 @@ export default function SalesTrackingPage() {
             <option key={manager} value={manager}>{manager}</option>
           ))}
         </select>
+      </div>
+
+      {/* 리타겟팅 이동 여부 필터 */}
+      <div className="mb-4">
+        <label className="text-sm text-gray-600 mb-2 block">{t('moveToRetargeting')}</label>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant={movedToRetargetingFilter === 'all' ? 'default' : 'outline'}
+            onClick={() => setMovedToRetargetingFilter('all')}
+          >
+            {t('all')}
+          </Button>
+          <Button
+            size="sm"
+            variant={movedToRetargetingFilter === 'moved' ? 'default' : 'outline'}
+            onClick={() => setMovedToRetargetingFilter('moved')}
+          >
+            {t('retargetingMoved')}
+          </Button>
+          <Button
+            size="sm"
+            variant={movedToRetargetingFilter === 'notMoved' ? 'default' : 'outline'}
+            onClick={() => setMovedToRetargetingFilter('notMoved')}
+          >
+            {t('retargetingNotMoved')}
+          </Button>
+        </div>
+      </div>
+
+      {/* 진행현황 필터 */}
+      <div className="mb-4">
+        <label className="text-sm text-gray-600 mb-2 block">{t('status')}</label>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant={statusFilter === 'all' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('all')}
+          >
+            {t('all')}
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === '未返信' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('未返信')}
+          >
+            {t('statusNoReply')}
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === '返信済み' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('返信済み')}
+          >
+            {t('statusReplied')}
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === '商談中' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('商談中')}
+          >
+            {t('statusNegotiating')}
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === '契約' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('契約')}
+          >
+            {t('statusContract')}
+          </Button>
+        </div>
       </div>
 
       {/* 검색 및 페이지네이션 */}
