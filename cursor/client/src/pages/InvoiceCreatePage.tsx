@@ -3,7 +3,7 @@ import { invoiceAPI } from '../lib/api'
 import { InvoiceFormData, InvoiceLineItem, FreeeCompany } from '../types'
 import { Button } from '../components/ui/button'
 import { useI18nStore } from '../i18n'
-import { Plus, Trash2, FileText, Download, ArrowLeft, Settings, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, FileText, Download, ArrowLeft, Settings } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import InvoicePreviewModal from '../components/InvoicePreviewModal'
 import ExcludedPartnersModal from '../components/ExcludedPartnersModal'
@@ -551,30 +551,13 @@ export default function InvoiceCreatePage() {
                 ) : (
                   <div className="space-y-2">
                     {/* 거래처 검색 */}
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={partnerSearchKeyword}
-                        onChange={(e) => setPartnerSearchKeyword(e.target.value)}
-                        placeholder={language === 'ja' ? '取引先名で検索...' : '거래처명 검색...'}
-                        className="flex-1 border rounded px-3 py-2"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (selectedCompany) {
-                            loadPartners(selectedCompany)
-                          }
-                        }}
-                        disabled={isLoadingPartners}
-                        className="flex items-center gap-1"
-                      >
-                        <RefreshCw className={`w-4 h-4 ${isLoadingPartners ? 'animate-spin' : ''}`} />
-                        {language === 'ja' ? '更新' : '새로고침'}
-                      </Button>
-                    </div>
+                    <input
+                      type="text"
+                      value={partnerSearchKeyword}
+                      onChange={(e) => setPartnerSearchKeyword(e.target.value)}
+                      placeholder={language === 'ja' ? '取引先名で検索...' : '거래처명 검색...'}
+                      className="w-full border rounded px-3 py-2"
+                    />
                     <select
                       value={selectedPartner || ''}
                       onChange={(e) => {
