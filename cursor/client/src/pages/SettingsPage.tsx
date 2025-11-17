@@ -238,31 +238,33 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* freee 재인증 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <RefreshCw className="w-5 h-5" />
-                freee 재인증
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  freee請求書 API 권한을 추가한 경우, 기존 인증을 초기화하고 다시 인증해야 합니다.
-                </p>
-                <Button 
-                  onClick={handleResetFreeeAuth} 
-                  variant="outline"
-                  disabled={resettingAuth}
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className={`w-4 h-4 ${resettingAuth ? 'animate-spin' : ''}`} />
-                  {resettingAuth ? '초기화 중...' : 'freee 인증 초기화'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* freee 재인증 - 어드민 전용 */}
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <RefreshCw className="w-5 h-5" />
+                  freee 재인증
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    freee請求書 API 권한을 추가한 경우, 기존 인증을 초기화하고 다시 인증해야 합니다.
+                  </p>
+                  <Button 
+                    onClick={handleResetFreeeAuth} 
+                    variant="outline"
+                    disabled={resettingAuth}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${resettingAuth ? 'animate-spin' : ''}`} />
+                    {resettingAuth ? '초기화 중...' : 'freee 인증 초기화'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {isAdmin && (
             <Card>
