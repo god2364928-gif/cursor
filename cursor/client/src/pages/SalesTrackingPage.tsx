@@ -1129,10 +1129,9 @@ export default function SalesTrackingPage() {
                       id={`sales-tracking-record-${record.id}`} 
                       className={`border-b relative group ${
                         record.moved_to_retargeting 
-                          ? 'bg-gray-200 text-gray-500' 
+                          ? 'bg-gray-100 text-gray-600' 
                           : 'hover:bg-gray-50'
                       }`}
-                      style={record.moved_to_retargeting ? { opacity: 0.6 } : undefined}
                     >
                       <td className="px-2 py-1 border-r text-center relative overflow-hidden">
                         {record.moved_to_retargeting && (
@@ -1160,15 +1159,16 @@ export default function SalesTrackingPage() {
                       <td className="px-2 py-1 border-r overflow-hidden line-clamp-2 w-24 max-w-[6rem]" title={!record.moved_to_retargeting ? (record.memo || '') : undefined}>
                         {record.memo || '-'}
                       </td>
-                      <td className="px-2 py-1 text-center overflow-hidden">
+                      <td className="px-2 py-1 text-center">
                         {canEdit(record) && (
-                          <div className="flex gap-1 justify-center">
+                          <div className="flex gap-1 justify-center relative z-10">
                             {/* moved_to_retargeting인 경우에도 수정 버튼 표시 (status만 수정 가능) */}
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => startEdit(record)}
                               title={t('edit')}
+                              className={record.moved_to_retargeting ? 'bg-white hover:bg-gray-50 border border-gray-300' : ''}
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
