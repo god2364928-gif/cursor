@@ -167,11 +167,11 @@ export default function InvoicePage() {
       const a = document.createElement('a')
       a.href = url
       
-      // 파일명 생성: {거래처명}_請求書_{날짜}.pdf
+      // 파일명 생성: {거래처명}_COCOマーケ請求書_{날짜}.pdf
       const dateStr = invoice.invoice_date ? invoice.invoice_date.split('T')[0].replace(/-/g, '') : 'unknown'
       const partnerName = invoice.partner_name || 'unknown'
       const sanitizedName = partnerName.replace(/[\\/:*?"<>|]/g, '_')  // 파일명에 사용 불가능한 문자 제거
-      a.download = `${sanitizedName}_請求書_${dateStr}.pdf`
+      a.download = `${sanitizedName}_COCOマーケ請求書_${dateStr}.pdf`
       
       document.body.appendChild(a)
       a.click()
@@ -200,11 +200,11 @@ export default function InvoicePage() {
       const a = document.createElement('a')
       a.href = url
       
-      // 파일명 생성: {거래처명}_領収書_{날짜}.pdf
+      // 파일명 생성: {거래처명}_COCOマーケ領収書_{날짜}.pdf
       const dateStr = invoice.invoice_date ? invoice.invoice_date.split('T')[0].replace(/-/g, '') : 'unknown'
       const partnerName = invoice.partner_name || 'unknown'
       const sanitizedName = partnerName.replace(/[\\/:*?"<>|]/g, '_')  // 파일명에 사용 불가능한 문자 제거
-      a.download = `${sanitizedName}_領収書_${dateStr}.pdf`
+      a.download = `${sanitizedName}_COCOマーケ領収書_${dateStr}.pdf`
       
       document.body.appendChild(a)
       a.click()
