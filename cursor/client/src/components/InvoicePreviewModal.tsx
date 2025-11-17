@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { Button } from './ui/button'
 import { InvoiceFormData } from '../types'
+import { useEffect } from 'react'
 
 interface InvoicePreviewModalProps {
   isOpen: boolean
@@ -26,6 +27,23 @@ export default function InvoicePreviewModal({
   isSubmitting,
   language,
 }: InvoicePreviewModalProps) {
+  // ESC 키 처리
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose()
+      }
+    }
+    
+    if (isOpen) {
+      window.addEventListener('keydown', handleEscape)
+    }
+    
+    return () => {
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [isOpen, onClose])
+  
   if (!isOpen) return null
 
   // 소계 계산
@@ -44,7 +62,15 @@ export default function InvoicePreviewModal({
   const grandTotal = formData.tax_entry_method === 'inclusive' ? totalSubtotal : totalSubtotal + totalTax
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      onClick={(e) => {
+        // 배경 클릭 시에만 닫기 (모달 내부 클릭은 제외)
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
+      }}
+    >
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* 헤더 */}
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">

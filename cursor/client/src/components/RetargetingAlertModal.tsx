@@ -4,6 +4,7 @@ import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { AlertTriangle, X } from 'lucide-react'
 import { useI18nStore } from '../i18n'
+import { useEffect } from 'react'
 
 interface RetargetingAlertModalProps {
   customers: RetargetingCustomer[]
@@ -15,6 +16,23 @@ interface RetargetingAlertModalProps {
 export default function RetargetingAlertModal({ customers, onClose, onHideToday, userId }: RetargetingAlertModalProps) {
   const navigate = useNavigate()
   const { t } = useI18nStore()
+
+  // ESC 키 처리
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && customers.length > 0) {
+        onClose()
+      }
+    }
+    
+    if (customers.length > 0) {
+      window.addEventListener('keydown', handleEscape)
+    }
+    
+    return () => {
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [customers.length, onClose])
 
   const getDaysSinceLastContact = (lastContactDate: string) => {
     const diff = Date.now() - new Date(lastContactDate).getTime()
@@ -34,7 +52,15 @@ export default function RetargetingAlertModal({ customers, onClose, onHideToday,
   if (customers.length === 0) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        // 배경 클릭 시에만 닫기 (모달 내부 클릭은 제외)
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
+      }}
+    >
       <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col">
         <CardHeader className="flex-shrink-0 border-b">
           <div className="flex items-center justify-between">
