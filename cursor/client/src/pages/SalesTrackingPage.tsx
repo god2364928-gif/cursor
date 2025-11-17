@@ -68,6 +68,7 @@ export default function SalesTrackingPage() {
   // 새로운 필터 상태
   const [movedToRetargetingFilter, setMovedToRetargetingFilter] = useState<'all' | 'moved' | 'notMoved'>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [contactMethodFilter, setContactMethodFilter] = useState<string>('all')
   // Daily stats state
   const [dailyStart, setDailyStart] = useState<string>('')
   const [dailyEnd, setDailyEnd] = useState<string>('')
@@ -765,7 +766,10 @@ export default function SalesTrackingPage() {
     // 진행현황 필터
     const statusMatch = statusFilter === 'all' || r.status === statusFilter
     
-    return managerMatch && movedMatch && statusMatch
+    // 영업방법 필터
+    const contactMethodMatch = contactMethodFilter === 'all' || r.contact_method === contactMethodFilter
+    
+    return managerMatch && movedMatch && statusMatch && contactMethodMatch
   })
   
   // 페이지네이션 계산
@@ -776,7 +780,7 @@ export default function SalesTrackingPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [managerFilter, movedToRetargetingFilter, statusFilter])
+  }, [managerFilter, movedToRetargetingFilter, statusFilter, contactMethodFilter])
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 pt-8 space-y-6">
@@ -822,12 +826,12 @@ export default function SalesTrackingPage() {
       </div>
 
       {/* 필터 섹션 - 가로 배치 */}
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="mb-4 flex flex-wrap items-end gap-4">
         {/* 담당자 필터 */}
         <div>
           <label className="text-sm text-gray-600 mb-2 block">{t('manager')}</label>
           <select
-            className="w-full border rounded px-3 py-2"
+            className="border rounded px-3 py-2 min-w-[150px]"
             value={managerFilter}
             onChange={e => {
               setManagerFilter(e.target.value)
@@ -845,7 +849,7 @@ export default function SalesTrackingPage() {
         <div>
           <label className="text-sm text-gray-600 mb-2 block">{t('moveToRetargeting')}</label>
           <select
-            className="w-full border rounded px-3 py-2"
+            className="border rounded px-3 py-2 min-w-[120px]"
             value={movedToRetargetingFilter}
             onChange={e => {
               setMovedToRetargetingFilter(e.target.value as 'all' | 'moved' | 'notMoved')
@@ -862,7 +866,7 @@ export default function SalesTrackingPage() {
         <div>
           <label className="text-sm text-gray-600 mb-2 block">{t('status')}</label>
           <select
-            className="w-full border rounded px-3 py-2"
+            className="border rounded px-3 py-2 min-w-[120px]"
             value={statusFilter}
             onChange={e => {
               setStatusFilter(e.target.value)
@@ -874,6 +878,26 @@ export default function SalesTrackingPage() {
             <option value="返信済み">{t('statusReplied')}</option>
             <option value="商談中">{t('statusNegotiating')}</option>
             <option value="契約">{t('statusContract')}</option>
+          </select>
+        </div>
+
+        {/* 영업방법 필터 */}
+        <div>
+          <label className="text-sm text-gray-600 mb-2 block">{t('contactMethod')}</label>
+          <select
+            className="border rounded px-3 py-2 min-w-[100px]"
+            value={contactMethodFilter}
+            onChange={e => {
+              setContactMethodFilter(e.target.value)
+              setCurrentPage(1)
+            }}
+          >
+            <option value="all">{t('all')}</option>
+            <option value="電話">{t('contactPhone')}</option>
+            <option value="LINE">{t('contactLINE')}</option>
+            <option value="DM">{t('contactDM')}</option>
+            <option value="メール">{t('contactMail')}</option>
+            <option value="フォーム">{t('contactForm')}</option>
           </select>
         </div>
       </div>
