@@ -255,38 +255,73 @@ async function getInvoiceTemplates(companyId) {
 }
 /**
  * 거래처 목록 조회 (freee会計 API)
+ * 페이지네이션을 사용해서 모든 거래처를 가져옵니다
  */
 async function getPartners(companyId, keyword) {
     const token = await ensureValidToken();
     if (!token) {
         throw new Error('No valid access token.');
     }
-    let url = `${FREEE_API_BASE}/partners?company_id=${companyId}&limit=100`;
+    let allPartners = [];
+    let offset = 0;
+    const limit = 100;
+    let hasMore = true;
+    // keyword가 있으면 페이지네이션 없이 한 번만 요청
     if (keyword) {
-        url += `&keyword=${encodeURIComponent(keyword)}`;
+        const url = `${FREEE_API_BASE}/partners?company_id=${companyId}&limit=${limit}&keyword=${encodeURIComponent(keyword)}`;
+        console.log(`📋 Fetching partners from: ${url}`);
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            console.error(`❌ Partners fetch error: ${response.status}`, text);
+            throw new Error(`freee API error: ${response.status} ${text}`);
+        }
+        const data = await response.json();
+        console.log(`✅ Partners fetched with keyword: ${data.partners?.length || 0} items`);
+        return data;
     }
-    console.log(`📋 Fetching partners from: ${url}`);
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-        },
-    });
-    if (!response.ok) {
-        const text = await response.text();
-        console.error(`❌ Partners fetch error: ${response.status}`, text);
-        throw new Error(`freee API error: ${response.status} ${text}`);
+    // keyword가 없으면 모든 거래처를 페이지네이션으로 가져오기
+    console.log(`📋 Fetching all partners with pagination...`);
+    while (hasMore) {
+        const url = `${FREEE_API_BASE}/partners?company_id=${companyId}&limit=${limit}&offset=${offset}`;
+        console.log(`📋 Fetching page: offset=${offset}, limit=${limit}`);
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            console.error(`❌ Partners fetch error: ${response.status}`, text);
+            throw new Error(`freee API error: ${response.status} ${text}`);
+        }
+        const data = await response.json();
+        const partners = data.partners || [];
+        allPartners = allPartners.concat(partners);
+        console.log(`📋 Fetched ${partners.length} partners (total so far: ${allPartners.length})`);
+        // 더 이상 데이터가 없으면 중단
+        if (partners.length < limit) {
+            hasMore = false;
+        }
+        else {
+            offset += limit;
+        }
     }
-    const data = await response.json();
-    console.log(`✅ Partners fetched: ${data.partners?.length || 0} items`);
+    console.log(`✅ All partners fetched: ${allPartners.length} items`);
     // 처음 5개와 마지막 5개 거래처 이름 출력 (디버깅용)
-    if (data.partners && data.partners.length > 0) {
-        const firstFive = data.partners.slice(0, 5).map((p) => p.name).join(', ');
-        const lastFive = data.partners.slice(-5).map((p) => p.name).join(', ');
+    if (allPartners.length > 0) {
+        const firstFive = allPartners.slice(0, 5).map((p) => p.name).join(', ');
+        const lastFive = allPartners.slice(-5).map((p) => p.name).join(', ');
         console.log(`📋 First 5 partners: ${firstFive}`);
         console.log(`📋 Last 5 partners: ${lastFive}`);
         // test1, test2 있는지 확인
-        const testPartners = data.partners.filter((p) => p.name.toLowerCase().includes('test'));
+        const testPartners = allPartners.filter((p) => p.name.toLowerCase().includes('test'));
         if (testPartners.length > 0) {
             console.log(`🔍 Test partners found: ${testPartners.map((p) => p.name).join(', ')}`);
         }
@@ -294,7 +329,7 @@ async function getPartners(companyId, keyword) {
             console.log(`⚠️ No test partners found in API response`);
         }
     }
-    return data;
+    return { partners: allPartners };
 }
 /**
  * 거래처 생성 (freee会計 API)
