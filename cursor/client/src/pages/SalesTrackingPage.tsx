@@ -443,6 +443,11 @@ export default function SalesTrackingPage() {
       memoNote: record.memo_note || ''
     })
     setShowAddForm(true)
+    
+    // 수정 폼으로 자동 스크롤
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 100)
   }
 
   const cancelEdit = () => {
