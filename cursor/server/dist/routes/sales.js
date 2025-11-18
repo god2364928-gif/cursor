@@ -3,12 +3,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
+const dateValidator_1 = require("../utils/dateValidator");
 const router = (0, express_1.Router)();
 // Get all sales with date filtering
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
         console.log('[SALES API] Fetching sales with dates:', { startDate, endDate });
+        // 날짜 유효성 검증 및 보정
+        const { validatedStartDate, validatedEndDate } = (0, dateValidator_1.validateDateRange)(startDate, endDate);
         // payments 테이블 존재 여부 확인 (없으면 payer_name은 NULL 반환)
         let hasPayments = false;
         try {
@@ -73,9 +76,9 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
       JOIN users u ON s.user_id = u.id
     `;
         const params = [];
-        if (startDate && endDate) {
+        if (validatedStartDate && validatedEndDate) {
             query += ` WHERE s.contract_date >= $1 AND s.contract_date <= $2`;
-            params.push(startDate, endDate);
+            params.push(validatedStartDate, validatedEndDate);
         }
         query += ` ORDER BY s.contract_date DESC`;
         console.log('[SALES API] Query:', query.substring(0, 200) + '...');

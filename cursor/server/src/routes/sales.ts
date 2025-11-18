@@ -1,6 +1,7 @@
 import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { validateDateRange } from '../utils/dateValidator'
 
 const router = Router()
 
@@ -10,6 +11,12 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const { startDate, endDate } = req.query
     
     console.log('[SALES API] Fetching sales with dates:', { startDate, endDate })
+    
+    // 날짜 유효성 검증 및 보정
+    const { validatedStartDate, validatedEndDate } = validateDateRange(
+      startDate as string,
+      endDate as string
+    )
     
     // payments 테이블 존재 여부 확인 (없으면 payer_name은 NULL 반환)
     let hasPayments = false
@@ -78,9 +85,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     
     const params: any[] = []
     
-    if (startDate && endDate) {
+    if (validatedStartDate && validatedEndDate) {
       query += ` WHERE s.contract_date >= $1 AND s.contract_date <= $2`
-      params.push(startDate, endDate)
+      params.push(validatedStartDate, validatedEndDate)
     }
     
     query += ` ORDER BY s.contract_date DESC`
