@@ -329,7 +329,7 @@ export default function AccountingPage() {
       fetchDeposits()
     }
     if (activeTab === 'totalsales') fetchTotalSales()
-  }, [activeTab, nameOptions.length, capitalOffset, totalSalesYear, selectedPayrollYear, selectedPayrollMonth])
+  }, [activeTab, nameOptions.length, capitalOffset, totalSalesYear, selectedPayrollYear, selectedPayrollMonth, startDate, endDate])
 
   // 자동 매칭 다이얼로그가 열릴 때마다 목록 새로고침
   useEffect(() => {
@@ -367,7 +367,13 @@ export default function AccountingPage() {
 
   const fetchTransactions = async () => {
     try {
-      const response = await api.get('/accounting/transactions', { params: { fiscalYear, limit: 500 } })
+      const response = await api.get('/accounting/transactions', { 
+        params: { 
+          startDate, 
+          endDate, 
+          limit: 500 
+        } 
+      })
       setTransactions(response.data)
     } catch (error) {
       console.error('Transactions fetch error:', error)
