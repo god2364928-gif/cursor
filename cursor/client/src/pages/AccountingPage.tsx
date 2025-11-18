@@ -1576,6 +1576,53 @@ export default function AccountingPage() {
     }
   }, [activeTab, paypayStartDate, paypayEndDate, paypayCategoryFilter, paypayNameFilter])
 
+  // ESC 키로 자동 매칭 설정 모달 닫기
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showAutoMatchDialog) {
+        setShowAutoMatchDialog(false)
+        setEditingRule(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showAutoMatchDialog])
+
+  // ESC 키로 직원 추가 모달 닫기
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showAddEmployeeDialog) {
+        setShowAddEmployeeDialog(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showAddEmployeeDialog])
+
+  // ESC 키로 거래내역 CSV 업로드 모달 닫기
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showTransactionUploadDialog) {
+        setShowTransactionUploadDialog(false)
+        setTransactionUploadPreview([])
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showTransactionUploadDialog])
+
+  // ESC 키로 PayPay CSV 업로드 모달 닫기
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showPaypayUploadDialog) {
+        setShowPaypayUploadDialog(false)
+        setPaypayUploadPreview([])
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showPaypayUploadDialog])
+
   const handlePaypayCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -2449,13 +2496,6 @@ export default function AccountingPage() {
                   setEditingRule(null)
                 }
               }}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setShowAutoMatchDialog(false)
-                  setEditingRule(null)
-                }
-              }}
-              tabIndex={-1}
             >
               <Card className="w-full max-w-4xl max-h-[90vh] overflow-auto">
                 <CardHeader>
@@ -3172,12 +3212,6 @@ export default function AccountingPage() {
               setShowAddEmployeeDialog(false)
             }
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setShowAddEmployeeDialog(false)
-            }
-          }}
-          tabIndex={-1}
         >
           <Card className="w-96">
             <CardHeader>
@@ -4204,13 +4238,6 @@ export default function AccountingPage() {
               setTransactionUploadPreview([])
             }
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setShowTransactionUploadDialog(false)
-              setTransactionUploadPreview([])
-            }
-          }}
-          tabIndex={-1}
         >
           <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
             <div className="p-6 border-b sticky top-0 bg-white z-10">
@@ -4305,13 +4332,6 @@ export default function AccountingPage() {
               setPaypayUploadPreview([])
             }
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setShowPaypayUploadDialog(false)
-              setPaypayUploadPreview([])
-            }
-          }}
-          tabIndex={-1}
         >
           <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
             <div className="p-6 border-b sticky top-0 bg-white z-10">
