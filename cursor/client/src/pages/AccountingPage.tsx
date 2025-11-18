@@ -2441,7 +2441,22 @@ export default function AccountingPage() {
 
           {/* 자동 매칭 설정 팝업 */}
           {showAutoMatchDialog && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setShowAutoMatchDialog(false)
+                  setEditingRule(null)
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setShowAutoMatchDialog(false)
+                  setEditingRule(null)
+                }
+              }}
+              tabIndex={-1}
+            >
               <Card className="w-full max-w-4xl max-h-[90vh] overflow-auto">
                 <CardHeader>
                   <CardTitle>{language === 'ja' ? '自動マッチング設定' : '자동 매칭 설정'}</CardTitle>
@@ -3150,7 +3165,20 @@ export default function AccountingPage() {
 
       {/* 직원 추가 다이얼로그 */}
       {showAddEmployeeDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAddEmployeeDialog(false)
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setShowAddEmployeeDialog(false)
+            }
+          }}
+          tabIndex={-1}
+        >
           <Card className="w-96">
             <CardHeader>
               <CardTitle>{language === 'ja' ? '従業員追加' : '직원 추가'}</CardTitle>
@@ -4168,7 +4196,22 @@ export default function AccountingPage() {
 
       {/* 거래내역 CSV 업로드 미리보기 다이얼로그 */}
       {showTransactionUploadDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowTransactionUploadDialog(false)
+              setTransactionUploadPreview([])
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setShowTransactionUploadDialog(false)
+              setTransactionUploadPreview([])
+            }
+          }}
+          tabIndex={-1}
+        >
           <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
             <div className="p-6 border-b sticky top-0 bg-white z-10">
               <div className="flex justify-between items-center">
@@ -4254,7 +4297,22 @@ export default function AccountingPage() {
 
       {/* PayPay CSV 업로드 미리보기 다이얼로그 */}
       {showPaypayUploadDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowPaypayUploadDialog(false)
+              setPaypayUploadPreview([])
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setShowPaypayUploadDialog(false)
+              setPaypayUploadPreview([])
+            }
+          }}
+          tabIndex={-1}
+        >
           <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
             <div className="p-6 border-b sticky top-0 bg-white z-10">
               <div className="flex justify-between items-center">
