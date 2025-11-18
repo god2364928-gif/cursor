@@ -2,6 +2,9 @@
 cursor/.DS_Store
 **/*.DS_Store
 
+# Duplicate/submodule folders
+cursor/cursor/
+
 # SQL dump files
 dev_db_complete_dump.sql
 *.sql.bak

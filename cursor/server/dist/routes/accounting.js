@@ -89,6 +89,45 @@ router.get('/transactions', auth_1.authMiddleware, adminOnly, async (req, res) =
         const { fiscalYear, startDate, endDate, limit = 100, offset = 0 } = req.query;
         const year = fiscalYear ? Number(fiscalYear) : null;
         console.log('GET /transactions query params:', { fiscalYear, startDate, endDate, limit, offset });
+        // 날짜 유효성 검증 및 보정
+        let validatedStartDate = startDate;
+        let validatedEndDate = endDate;
+        if (startDate && typeof startDate === 'string') {
+            const startDateObj = new Date(startDate);
+            if (isNaN(startDateObj.getTime())) {
+                console.warn('Invalid startDate:', startDate);
+                validatedStartDate = '';
+            }
+            else {
+                // 날짜가 유효한지 확인 (예: 2023-11-31은 잘못된 날짜)
+                const [year, month, day] = startDate.split('-').map(Number);
+                const correctedDate = new Date(year, month - 1, day);
+                if (correctedDate.getMonth() !== month - 1 || correctedDate.getDate() !== day) {
+                    // 잘못된 날짜를 해당 월의 마지막 날로 보정
+                    const lastDay = new Date(year, month, 0).getDate();
+                    validatedStartDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                    console.warn(`Invalid startDate ${startDate} corrected to ${validatedStartDate}`);
+                }
+            }
+        }
+        if (endDate && typeof endDate === 'string') {
+            const endDateObj = new Date(endDate);
+            if (isNaN(endDateObj.getTime())) {
+                console.warn('Invalid endDate:', endDate);
+                validatedEndDate = '';
+            }
+            else {
+                // 날짜가 유효한지 확인
+                const [year, month, day] = endDate.split('-').map(Number);
+                const correctedDate = new Date(year, month - 1, day);
+                if (correctedDate.getMonth() !== month - 1 || correctedDate.getDate() !== day) {
+                    // 잘못된 날짜를 해당 월의 마지막 날로 보정
+                    const lastDay = new Date(year, month, 0).getDate();
+                    validatedEndDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                    console.warn(`Invalid endDate ${endDate} corrected to ${validatedEndDate}`);
+                }
+            }
+        }
         let query = `
       SELECT 
         t.id, t.transaction_date, t.transaction_time, t.fiscal_year, t.transaction_type, t.category,
@@ -106,12 +145,12 @@ router.get('/transactions', auth_1.authMiddleware, adminOnly, async (req, res) =
         const params = [];
         const conditions = [];
         // fiscalYear나 startDate/endDate 중 하나만 사용
-        if (startDate && endDate) {
+        if (validatedStartDate && validatedEndDate) {
             // startDate와 endDate로 필터링 (우선순위 높음)
             conditions.push(`t.transaction_date >= $${params.length + 1}`);
-            params.push(startDate);
+            params.push(validatedStartDate);
             conditions.push(`t.transaction_date <= $${params.length + 1}`);
-            params.push(endDate);
+            params.push(validatedEndDate);
         }
         else if (year) {
             // fiscalYear로 필터링
