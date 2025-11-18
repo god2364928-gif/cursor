@@ -88,6 +88,7 @@ router.get('/transactions', auth_1.authMiddleware, adminOnly, async (req, res) =
     try {
         const { fiscalYear, startDate, endDate, limit = 100, offset = 0 } = req.query;
         const year = fiscalYear ? Number(fiscalYear) : null;
+        console.log('GET /transactions query params:', { fiscalYear, startDate, endDate, limit, offset });
         let query = `
       SELECT 
         t.id, t.transaction_date, t.transaction_time, t.fiscal_year, t.transaction_type, t.category,
@@ -122,6 +123,8 @@ router.get('/transactions', auth_1.authMiddleware, adminOnly, async (req, res) =
         }
         query += ` ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         params.push(Number(limit), Number(offset));
+        console.log('Final SQL query:', query);
+        console.log('Query params:', params);
         const result = await db_1.pool.query(query, params);
         const formatDate = (value) => {
             if (!value)
