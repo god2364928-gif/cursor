@@ -427,25 +427,43 @@ export default function AccountingPage() {
            testDate.getDate() === day
   }
 
-  // 날짜 변경 핸들러 (유효한 날짜만 허용)
+  // 날짜 변경 핸들러 (브라우저가 자동 변환한 날짜 감지)
   const handleStartDateChange = (value: string) => {
-    if (!value || isValidDate(value)) {
-      setStartDate(value)
-    } else {
-      alert(language === 'ja' 
-        ? '無効な日付です。正しい日付を入力してください。' 
-        : '유효하지 않은 날짜입니다. 올바른 날짜를 입력해주세요.')
+    // 브라우저가 잘못된 날짜를 자동으로 다음 달로 변환했는지 확인
+    if (value && startDate) {
+      const oldDate = new Date(startDate)
+      const newDate = new Date(value)
+      
+      // 날짜를 변경했는데 월이 바뀌었다면 (예: 11월 31일 → 12월 1일)
+      // 이전 월의 마지막 날로 설정
+      if (oldDate.getMonth() !== newDate.getMonth() && 
+          Math.abs(oldDate.getMonth() - newDate.getMonth()) === 1) {
+        const lastDay = new Date(oldDate.getFullYear(), oldDate.getMonth() + 1, 0)
+        const correctedDate = lastDay.toISOString().split('T')[0]
+        setStartDate(correctedDate)
+        return
+      }
     }
+    setStartDate(value)
   }
 
   const handleEndDateChange = (value: string) => {
-    if (!value || isValidDate(value)) {
-      setEndDate(value)
-    } else {
-      alert(language === 'ja' 
-        ? '無効な日付です。正しい日付を入力してください。' 
-        : '유효하지 않은 날짜입니다. 올바른 날짜를 입력해주세요.')
+    // 브라우저가 잘못된 날짜를 자동으로 다음 달로 변환했는지 확인
+    if (value && endDate) {
+      const oldDate = new Date(endDate)
+      const newDate = new Date(value)
+      
+      // 날짜를 변경했는데 월이 바뀌었다면 (예: 11월 31일 → 12월 1일)
+      // 이전 월의 마지막 날로 설정
+      if (oldDate.getMonth() !== newDate.getMonth() && 
+          Math.abs(oldDate.getMonth() - newDate.getMonth()) === 1) {
+        const lastDay = new Date(oldDate.getFullYear(), oldDate.getMonth() + 1, 0)
+        const correctedDate = lastDay.toISOString().split('T')[0]
+        setEndDate(correctedDate)
+        return
+      }
     }
+    setEndDate(value)
   }
 
   // 날짜 변경 핸들러
