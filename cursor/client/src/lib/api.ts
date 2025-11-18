@@ -108,3 +108,10 @@ export const invoiceAPI = {
     }),
 }
 
+// Auth API functions
+export const authAPI = {
+  // 담당자 일괄 변경
+  bulkChangeManager: (oldManager: string, newManager: string) => 
+    api.post('/auth/bulk-change-manager', { oldManager, newManager }),
+}
+

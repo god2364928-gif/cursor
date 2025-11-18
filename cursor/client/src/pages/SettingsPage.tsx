@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import api, { invoiceAPI } from '../lib/api'
+import api, { invoiceAPI, authAPI } from '../lib/api'
 import { formatDateTime } from '../lib/utils'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
@@ -43,6 +43,12 @@ export default function SettingsPage() {
   })
   const [changingPassword, setChangingPassword] = useState(false)
   const [resettingAuth, setResettingAuth] = useState(false)
+  const [showManagerChange, setShowManagerChange] = useState(false)
+  const [managerChangeData, setManagerChangeData] = useState({
+    oldManager: '',
+    newManager: ''
+  })
+  const [changingManager, setChangingManager] = useState(false)
 
   useEffect(() => {
     if (isAdmin) {
@@ -157,6 +163,32 @@ export default function SettingsPage() {
     }
   }
 
+  const handleManagerChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!managerChangeData.oldManager || !managerChangeData.newManager) {
+      alert('이전 담당자와 새 담당자를 모두 입력해주세요.')
+      return
+    }
+
+    if (!confirm(`"${managerChangeData.oldManager}" → "${managerChangeData.newManager}"\n\n모든 고객, 리타게팅, 영업이력 데이터의 담당자가 변경됩니다.\n계속하시겠습니까?`)) {
+      return
+    }
+
+    setChangingManager(true)
+    try {
+      const response = await authAPI.bulkChangeManager(managerChangeData.oldManager, managerChangeData.newManager)
+      const changes = response.data.changes
+      alert(`담당자 일괄 변경 완료!\n\n고객관리: ${changes.customers}건\n리타게팅: ${changes.retargeting}건\n영업이력: ${changes.salesTracking}건`)
+      setManagerChangeData({ oldManager: '', newManager: '' })
+      setShowManagerChange(false)
+    } catch (error: any) {
+      alert('담당자 변경 실패: ' + (error.response?.data?.message || error.message))
+    } finally {
+      setChangingManager(false)
+    }
+  }
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -262,6 +294,70 @@ export default function SettingsPage() {
                     {resettingAuth ? '초기화 중...' : 'freee 인증 초기화'}
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 담당자 일괄 변경 - 어드민 전용 */}
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle>담당자 일괄 변경</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    직원이 퇴사하거나 이름을 변경했을 때, 모든 데이터의 담당자를 일괄 변경합니다.
+                    <br />
+                    <span className="text-red-600 font-medium">⚠️ 고객관리, 리타게팅, 영업이력의 모든 데이터가 변경됩니다.</span>
+                  </p>
+                  <Button 
+                    onClick={() => setShowManagerChange(!showManagerChange)} 
+                    variant="outline"
+                  >
+                    {showManagerChange ? '취소' : '담당자 일괄 변경'}
+                  </Button>
+                </div>
+                {showManagerChange && (
+                  <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+                    <form onSubmit={handleManagerChange} className="space-y-4">
+                      <div>
+                        <Label htmlFor="oldManager">이전 담당자 이름 *</Label>
+                        <Input
+                          id="oldManager"
+                          value={managerChangeData.oldManager}
+                          onChange={(e) => setManagerChangeData({ ...managerChangeData, oldManager: e.target.value })}
+                          placeholder="예: 石井瞳"
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          띄어쓰기와 대소문자를 정확히 입력해주세요.
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="newManager">새 담당자 이름 *</Label>
+                        <Input
+                          id="newManager"
+                          value={managerChangeData.newManager}
+                          onChange={(e) => setManagerChangeData({ ...managerChangeData, newManager: e.target.value })}
+                          placeholder="예: その他"
+                          required
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="submit" disabled={changingManager} className="bg-orange-600 hover:bg-orange-700">
+                          {changingManager ? '변경 중...' : '일괄 변경 실행'}
+                        </Button>
+                        <Button type="button" variant="ghost" onClick={() => {
+                          setShowManagerChange(false)
+                          setManagerChangeData({ oldManager: '', newManager: '' })
+                        }}>
+                          취소
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
