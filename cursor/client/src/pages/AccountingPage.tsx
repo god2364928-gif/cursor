@@ -144,6 +144,7 @@ const CATEGORY_OPTIONS = [
   { value: '운영비', labelJa: '運営費', labelKo: '운영비' },
   { value: '급여', labelJa: '給与', labelKo: '급여' },
   { value: '월세', labelJa: '家賃', labelKo: '월세' },
+  { value: '세금', labelJa: '税金', labelKo: '세금' },
   { value: '기타', labelJa: 'その他', labelKo: '기타' },
 ]
 
