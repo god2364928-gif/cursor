@@ -202,6 +202,10 @@ export default function AccountingPage() {
   
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set())
+  const [showBulkEditDialog, setShowBulkEditDialog] = useState(false)
+  const [bulkEditCategory, setBulkEditCategory] = useState<string>('')
+  const [bulkEditAssignedUserId, setBulkEditAssignedUserId] = useState<string>('')
   const [employees, setEmployees] = useState<Employee[]>([])
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_payrolls, _setPayrolls] = useState<Payroll[]>([])
@@ -767,6 +771,92 @@ export default function AccountingPage() {
       fetchDashboard()
     } catch (error) {
       console.error('Transaction delete error:', error)
+    }
+  }
+
+  // 일괄 선택/해제
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const filteredTxs = transactions
+        .filter(tx => {
+          // 날짜 필터
+          if (!startDate && !endDate) return true
+          const txDate = tx.transactionDate
+          if (startDate && txDate < startDate) return false
+          if (endDate && txDate > endDate) return false
+          return true
+        })
+        .filter(tx => {
+          // 구분 필터
+          if (transactionTypeFilter !== 'all' && tx.transactionType !== transactionTypeFilter) return false
+          // 카테고리 필터
+          if (categoryFilter !== 'all' && tx.category !== categoryFilter) return false
+          // 이름 필터
+          if (nameFilter !== 'all' && tx.assignedUserId !== nameFilter) return false
+          // 결제 필터
+          if (paymentMethodFilter !== 'all' && tx.paymentMethod !== paymentMethodFilter) return false
+          // 검색 필터 (항목명, 메모)
+          if (searchQuery) {
+            const query = searchQuery.toLowerCase()
+            const itemMatch = tx.itemName?.toLowerCase().includes(query)
+            const memoMatch = tx.memo?.toLowerCase().includes(query)
+            if (!itemMatch && !memoMatch) return false
+          }
+          return true
+        })
+      const allIds = new Set(filteredTxs.map(t => t.id))
+      setSelectedTransactions(allIds)
+    } else {
+      setSelectedTransactions(new Set())
+    }
+  }
+
+  const handleSelectTransaction = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedTransactions)
+    if (checked) {
+      newSelected.add(id)
+    } else {
+      newSelected.delete(id)
+    }
+    setSelectedTransactions(newSelected)
+  }
+
+  // 일괄 변경
+  const handleBulkEdit = async () => {
+    if (selectedTransactions.size === 0) {
+      alert(language === 'ja' ? '項目を選択してください' : '항목을 선택해주세요')
+      return
+    }
+
+    if (!bulkEditCategory && !bulkEditAssignedUserId) {
+      alert(language === 'ja' ? 'カテゴリまたは担当者を選択してください' : '카테고리 또는 담당자를 선택해주세요')
+      return
+    }
+
+    try {
+      const updates: any = {}
+      if (bulkEditCategory) updates.category = bulkEditCategory
+      if (bulkEditAssignedUserId) updates.assignedUserId = bulkEditAssignedUserId
+
+      await api.post('/accounting/transactions/bulk-update', {
+        transactionIds: Array.from(selectedTransactions),
+        updates
+      })
+
+      alert(
+        language === 'ja' 
+          ? `${selectedTransactions.size}件を更新しました` 
+          : `${selectedTransactions.size}건을 업데이트했습니다`
+      )
+      
+      setSelectedTransactions(new Set())
+      setBulkEditCategory('')
+      setBulkEditAssignedUserId('')
+      setShowBulkEditDialog(false)
+      fetchTransactions()
+    } catch (error) {
+      console.error('Bulk update error:', error)
+      alert(language === 'ja' ? '更新に失敗しました' : '업데이트에 실패했습니다')
     }
   }
 
@@ -2328,12 +2418,51 @@ export default function AccountingPage() {
             </Card>
           )}
 
+          {/* 선택한 항목 일괄 변경 버튼 */}
+          {selectedTransactions.size > 0 && (
+            <Card className="mb-4">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">
+                    {language === 'ja' 
+                      ? `${selectedTransactions.size}件選択中` 
+                      : `${selectedTransactions.size}건 선택됨`}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowBulkEditDialog(true)}
+                    >
+                      {language === 'ja' ? '一括編集' : '일괄 변경'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedTransactions(new Set())}
+                    >
+                      {language === 'ja' ? '選択解除' : '선택 해제'}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-3 py-3 text-center" style={{ width: '40px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedTransactions.size > 0 && transactions.length > 0}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          className="cursor-pointer"
+                        />
+                      </th>
                       <th className="px-3 py-3 text-left" style={{ width: '140px' }}>{language === 'ja' ? '日時' : '날짜/시간'}</th>
                       <th className="px-3 py-3 text-center" style={{ width: '60px' }}>{language === 'ja' ? '区分' : '구분'}</th>
                       <th className="px-3 py-3 text-left" style={{ width: '280px' }}>{language === 'ja' ? '項目' : '항목'}</th>
@@ -2346,35 +2475,45 @@ export default function AccountingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions
-                      .filter(tx => {
-                        // 날짜 필터
-                        if (!startDate && !endDate) return true
-                        const txDate = tx.transactionDate
-                        if (startDate && txDate < startDate) return false
-                        if (endDate && txDate > endDate) return false
-                        return true
-                      })
-                      .filter(tx => {
-                        // 구분 필터
-                        if (transactionTypeFilter !== 'all' && tx.transactionType !== transactionTypeFilter) return false
-                        // 카테고리 필터
-                        if (categoryFilter !== 'all' && tx.category !== categoryFilter) return false
-                        // 이름 필터
-                        if (nameFilter !== 'all' && tx.assignedUserId !== nameFilter) return false
-                        // 결제 필터
-                        if (paymentMethodFilter !== 'all' && tx.paymentMethod !== paymentMethodFilter) return false
-                        // 검색 필터 (항목명, 메모)
-                        if (searchQuery) {
-                          const query = searchQuery.toLowerCase()
-                          const itemMatch = tx.itemName?.toLowerCase().includes(query)
-                          const memoMatch = tx.memo?.toLowerCase().includes(query)
-                          if (!itemMatch && !memoMatch) return false
-                        }
-                        return true
-                      })
-                      .map((tx) => (
+                    {(() => {
+                      const filteredTransactions = transactions
+                        .filter(tx => {
+                          // 날짜 필터
+                          if (!startDate && !endDate) return true
+                          const txDate = tx.transactionDate
+                          if (startDate && txDate < startDate) return false
+                          if (endDate && txDate > endDate) return false
+                          return true
+                        })
+                        .filter(tx => {
+                          // 구분 필터
+                          if (transactionTypeFilter !== 'all' && tx.transactionType !== transactionTypeFilter) return false
+                          // 카테고리 필터
+                          if (categoryFilter !== 'all' && tx.category !== categoryFilter) return false
+                          // 이름 필터
+                          if (nameFilter !== 'all' && tx.assignedUserId !== nameFilter) return false
+                          // 결제 필터
+                          if (paymentMethodFilter !== 'all' && tx.paymentMethod !== paymentMethodFilter) return false
+                          // 검색 필터 (항목명, 메모)
+                          if (searchQuery) {
+                            const query = searchQuery.toLowerCase()
+                            const itemMatch = tx.itemName?.toLowerCase().includes(query)
+                            const memoMatch = tx.memo?.toLowerCase().includes(query)
+                            if (!itemMatch && !memoMatch) return false
+                          }
+                          return true
+                        })
+                      
+                      return filteredTransactions.map((tx) => (
                       <tr key={tx.id} className="border-t hover:bg-gray-50">
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedTransactions.has(tx.id)}
+                            onChange={(e) => handleSelectTransaction(tx.id, e.target.checked)}
+                            className="cursor-pointer"
+                          />
+                        </td>
                         <td className="px-3 py-2 text-sm">
                           {tx.transactionTime ? (
                             <>
@@ -2486,12 +2625,90 @@ export default function AccountingPage() {
                           </Button>
                         </td>
                       </tr>
-                    ))}
+                    ))})()}
                   </tbody>
                 </table>
               </div>
             </CardContent>
           </Card>
+
+          {/* 일괄 변경 모달 */}
+          {showBulkEditDialog && (
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setShowBulkEditDialog(false)
+                }
+              }}
+            >
+              <Card className="w-96">
+                <CardHeader>
+                  <CardTitle>{language === 'ja' ? '一括編集' : '일괄 변경'}</CardTitle>
+                  <p className="text-sm text-gray-600">
+                    {language === 'ja' 
+                      ? `${selectedTransactions.size}件の項目を編集します` 
+                      : `${selectedTransactions.size}건의 항목을 변경합니다`}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        {language === 'ja' ? 'カテゴリ' : '카테고리'}
+                      </label>
+                      <select
+                        value={bulkEditCategory}
+                        onChange={(e) => setBulkEditCategory(e.target.value)}
+                        className="w-full border rounded px-3 py-2"
+                      >
+                        <option value="">{language === 'ja' ? '変更しない' : '변경하지 않음'}</option>
+                        {CATEGORY_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {language === 'ja' ? option.labelJa : option.labelKo}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        {language === 'ja' ? '担当者' : '담당자'}
+                      </label>
+                      <select
+                        value={bulkEditAssignedUserId}
+                        onChange={(e) => setBulkEditAssignedUserId(e.target.value)}
+                        className="w-full border rounded px-3 py-2"
+                      >
+                        <option value="">{language === 'ja' ? '変更しない' : '변경하지 않음'}</option>
+                        {nameOptions.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex gap-2 justify-end pt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowBulkEditDialog(false)
+                          setBulkEditCategory('')
+                          setBulkEditAssignedUserId('')
+                        }}
+                      >
+                        {language === 'ja' ? 'キャンセル' : '취소'}
+                      </Button>
+                      <Button onClick={handleBulkEdit}>
+                        {language === 'ja' ? '適用' : '적용'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* 자동 매칭 설정 팝업 */}
           {showAutoMatchDialog && (
