@@ -1131,8 +1131,14 @@ router.get('/capital-balance', authMiddleware, adminOnly, async (req: AuthReques
     
     const countResult = await pool.query(`SELECT COUNT(*) as total FROM capital_balance`)
     
+    // Convert numeric string to number
+    const balances = result.rows.map(row => ({
+      ...row,
+      amount: parseFloat(row.amount) || 0
+    }))
+    
     res.json({
-      data: result.rows,
+      data: balances,
       total: parseInt(countResult.rows[0].total)
     })
   } catch (error) {
@@ -1228,7 +1234,13 @@ router.get('/deposits', authMiddleware, adminOnly, async (req: AuthRequest, res:
        ORDER BY amount DESC`
     )
     
-    res.json(result.rows)
+    // Convert numeric string to number
+    const deposits = result.rows.map(row => ({
+      ...row,
+      amount: parseFloat(row.amount) || 0
+    }))
+    
+    res.json(deposits)
   } catch (error) {
     console.error('Deposits fetch error:', error)
     res.status(500).json({ error: '보증금 조회에 실패했습니다' })
