@@ -337,6 +337,34 @@ router.post('/transactions/bulk-update', auth_1.authMiddleware, adminOnly, async
         res.status(500).json({ error: '일괄 업데이트에 실패했습니다' });
     }
 });
+// Bulk delete transactions (일괄 삭제)
+router.post('/transactions/bulk-delete', auth_1.authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { transactionIds } = req.body;
+        if (!Array.isArray(transactionIds) || transactionIds.length === 0) {
+            return res.status(400).json({ error: '선택된 거래내역이 없습니다' });
+        }
+        let deletedCount = 0;
+        for (const transactionId of transactionIds) {
+            try {
+                await db_1.pool.query(`DELETE FROM accounting_transactions WHERE id = $1`, [transactionId]);
+                deletedCount++;
+            }
+            catch (error) {
+                console.error(`Failed to delete transaction ${transactionId}:`, error);
+            }
+        }
+        res.json({
+            success: true,
+            deleted: deletedCount,
+            message: `${deletedCount}건 삭제 완료`
+        });
+    }
+    catch (error) {
+        console.error('Bulk transaction delete error:', error);
+        res.status(500).json({ error: '일괄 삭제에 실패했습니다' });
+    }
+});
 router.put('/transactions/:id', auth_1.authMiddleware, adminOnly, async (req, res) => {
     try {
         const { id } = req.params;

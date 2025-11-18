@@ -860,6 +860,41 @@ export default function AccountingPage() {
     }
   }
 
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedTransactions.size === 0) {
+      alert(language === 'ja' ? '項目を選択してください' : '항목을 선택해주세요')
+      return
+    }
+
+    if (!confirm(
+      language === 'ja' 
+        ? `選択した${selectedTransactions.size}件を削除しますか？この操作は取り消せません。` 
+        : `선택한 ${selectedTransactions.size}건을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`
+    )) {
+      return
+    }
+
+    try {
+      await api.post('/accounting/transactions/bulk-delete', {
+        transactionIds: Array.from(selectedTransactions)
+      })
+
+      alert(
+        language === 'ja' 
+          ? `${selectedTransactions.size}件を削除しました` 
+          : `${selectedTransactions.size}건을 삭제했습니다`
+      )
+      
+      setSelectedTransactions(new Set())
+      fetchTransactions()
+      fetchDashboard()
+    } catch (error) {
+      console.error('Bulk delete error:', error)
+      alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
+    }
+  }
+
   const handleQuickUpdateTransaction = async (
     id: string,
     updates: { category?: string; assignedUserId?: string | null; memo?: string | null }
@@ -2435,6 +2470,13 @@ export default function AccountingPage() {
                       onClick={() => setShowBulkEditDialog(true)}
                     >
                       {language === 'ja' ? '一括編集' : '일괄 변경'}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleBulkDelete}
+                    >
+                      {language === 'ja' ? '一括削除' : '일괄 삭제'}
                     </Button>
                     <Button
                       variant="ghost"
