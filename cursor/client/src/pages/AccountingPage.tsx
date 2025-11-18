@@ -405,50 +405,46 @@ export default function AccountingPage() {
     return dateString.split('T')[0]
   }
 
-  // 날짜 유효성 검증 및 보정 함수
-  const validateAndCorrectDate = (dateStr: string): string => {
-    if (!dateStr) return dateStr
+  // 날짜 유효성 검증 함수 (잘못된 날짜는 거부)
+  const isValidDate = (dateStr: string): boolean => {
+    if (!dateStr) return false
     
     const parts = dateStr.split('-')
-    if (parts.length !== 3) return dateStr
+    if (parts.length !== 3) return false
     
     const [year, month, day] = parts.map(Number)
     
-    // 날짜가 실제로 유효한지 확인 (예: 2023-11-31은 잘못된 날짜)
-    const correctedDate = new Date(year, month - 1, day)
+    // 기본 범위 체크
+    if (year < 1900 || year > 2100) return false
+    if (month < 1 || month > 12) return false
+    if (day < 1 || day > 31) return false
     
-    if (correctedDate.getMonth() !== month - 1 || correctedDate.getDate() !== day) {
-      // 잘못된 날짜를 해당 월의 마지막 날로 보정
-      const lastDay = new Date(year, month, 0).getDate()
-      const validatedDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-      console.warn(`Invalid date ${dateStr} corrected to ${validatedDate}`)
-      return validatedDate
-    }
+    // 실제 날짜가 유효한지 확인 (예: 2023-11-31은 잘못된 날짜)
+    const testDate = new Date(year, month - 1, day)
     
-    return dateStr
+    return testDate.getFullYear() === year && 
+           testDate.getMonth() === month - 1 && 
+           testDate.getDate() === day
   }
 
-  // 날짜 변경 핸들러
+  // 날짜 변경 핸들러 (유효한 날짜만 허용)
   const handleStartDateChange = (value: string) => {
-    setStartDate(value)
+    if (!value || isValidDate(value)) {
+      setStartDate(value)
+    } else {
+      alert(language === 'ja' 
+        ? '無効な日付です。正しい日付を入力してください。' 
+        : '유효하지 않은 날짜입니다. 올바른 날짜를 입력해주세요.')
+    }
   }
 
   const handleEndDateChange = (value: string) => {
-    setEndDate(value)
-  }
-
-  // 날짜 입력 필드에서 포커스를 잃었을 때 검증
-  const handleStartDateBlur = () => {
-    const correctedDate = validateAndCorrectDate(startDate)
-    if (correctedDate !== startDate) {
-      setStartDate(correctedDate)
-    }
-  }
-
-  const handleEndDateBlur = () => {
-    const correctedDate = validateAndCorrectDate(endDate)
-    if (correctedDate !== endDate) {
-      setEndDate(correctedDate)
+    if (!value || isValidDate(value)) {
+      setEndDate(value)
+    } else {
+      alert(language === 'ja' 
+        ? '無効な日付です。正しい日付を入力してください。' 
+        : '유효하지 않은 날짜입니다. 올바른 날짜를 입력해주세요.')
     }
   }
 
@@ -1989,7 +1985,7 @@ export default function AccountingPage() {
                       type="date"
                       value={startDate}
                       onChange={e => handleStartDateChange(e.target.value)}
-                      onBlur={handleStartDateBlur}
+                      max="2099-12-31"
                       className="border rounded px-3 py-2"
                     />
                   </div>
@@ -2001,7 +1997,7 @@ export default function AccountingPage() {
                       type="date"
                       value={endDate}
                       onChange={e => handleEndDateChange(e.target.value)}
-                      onBlur={handleEndDateBlur}
+                      max="2099-12-31"
                       className="border rounded px-3 py-2"
                     />
                   </div>
@@ -2217,7 +2213,7 @@ export default function AccountingPage() {
                     type="date"
                     value={startDate}
                     onChange={e => handleStartDateChange(e.target.value)}
-                    onBlur={handleStartDateBlur}
+                    max="2099-12-31"
                     className="border rounded px-3 py-2"
                   />
                 </div>
@@ -2229,7 +2225,7 @@ export default function AccountingPage() {
                     type="date"
                     value={endDate}
                     onChange={e => handleEndDateChange(e.target.value)}
-                    onBlur={handleEndDateBlur}
+                    max="2099-12-31"
                     className="border rounded px-3 py-2"
                   />
                 </div>
