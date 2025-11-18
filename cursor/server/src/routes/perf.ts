@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { validateAndCorrectDate } from '../utils/dateValidator'
 
 const router = Router()
 
@@ -37,14 +38,18 @@ router.get('/summary', authMiddleware, async (req: AuthRequest, res: Response) =
       return res.status(400).json({ message: 'month or from/to is required' })
     }
 
+    // 날짜 유효성 검증 및 보정
+    const validatedFrom = validateAndCorrectDate(from)
+    const validatedTo = validateAndCorrectDate(to)
+
     const params: any[] = []
     const where: string[] = []
 
     if (month) {
       where.push("to_char(paid_at, 'YYYY-MM') = $" + (params.push(month)))
     }
-    if (from) where.push('paid_at >= $' + (params.push(from)))
-    if (to) where.push('paid_at <= $' + (params.push(to)))
+    if (validatedFrom) where.push('paid_at >= $' + (params.push(validatedFrom)))
+    if (validatedTo) where.push('paid_at <= $' + (params.push(validatedTo)))
     if (manager) where.push('manager_user_id = $' + (params.push(manager)))
     if (service) where.push('service_id = $' + (params.push(service)))
     if (type) where.push('payment_type_id = $' + (params.push(type)))
@@ -77,10 +82,14 @@ router.get('/list', authMiddleware, async (req: AuthRequest, res: Response) => {
     const page = parseInt((req.query.page as string) || '1', 10)
     const pageSize = parseInt((req.query.pageSize as string) || '20', 10)
 
+    // 날짜 유효성 검증 및 보정
+    const validatedFrom = validateAndCorrectDate(from)
+    const validatedTo = validateAndCorrectDate(to)
+
     const params: any[] = []
     const where: string[] = []
-    if (from) where.push('paid_at >= $' + (params.push(from)))
-    if (to) where.push('paid_at <= $' + (params.push(to)))
+    if (validatedFrom) where.push('paid_at >= $' + (params.push(validatedFrom)))
+    if (validatedTo) where.push('paid_at <= $' + (params.push(validatedTo)))
     if (manager) where.push('manager_user_id = $' + (params.push(manager)))
     if (service) where.push('service_id = $' + (params.push(service)))
     if (type) where.push('payment_type_id = $' + (params.push(type)))

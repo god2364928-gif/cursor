@@ -1,6 +1,7 @@
 import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { validateDateRange } from '../utils/dateValidator'
 
 const router = Router()
 
@@ -16,6 +17,12 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
       return res.status(400).json({ message: 'startDate and endDate are required' })
     }
 
+    // 날짜 유효성 검증 및 보정
+    const { validatedStartDate, validatedEndDate } = validateDateRange(
+      startDate as string,
+      endDate as string
+    )
+
     // 매출 합계 (필터링된 기간) - 매니저 필터 적용
     let salesQuery = `
       SELECT COALESCE(SUM(s.amount), 0) as total_sales
@@ -23,11 +30,11 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
       JOIN users u ON s.user_id = u.id
       WHERE s.contract_date BETWEEN $1 AND $2
     `
-    let salesParams = [startDate, endDate]
+    let salesParams = [validatedStartDate, validatedEndDate]
     
     if (manager && manager !== 'all') {
       salesQuery += ` AND u.name = $3`
-      salesParams.push(manager)
+      salesParams.push(manager as string)
     }
     // manager가 'all'이면 모든 사용자의 매출을 가져옴 (추가 조건 없음)
 
@@ -66,11 +73,11 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
       WHERE s.sales_type = '신규매출'
       AND s.contract_date BETWEEN $1 AND $2
     `
-    let newCustomersParams = [startDate, endDate]
+    let newCustomersParams = [validatedStartDate, validatedEndDate]
     
     if (manager && manager !== 'all') {
       newCustomersQuery += ` AND u.name = $3`
-      newCustomersParams.push(manager)
+      newCustomersParams.push(manager as string)
     }
     // manager가 'all'이면 모든 사용자의 신규매출을 가져옴 (추가 조건 없음)
 

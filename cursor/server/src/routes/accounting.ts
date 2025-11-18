@@ -4,6 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 import multer from 'multer'
 import iconv from 'iconv-lite'
 import { parse } from 'csv-parse/sync'
+import { validateDateRange } from '../utils/dateValidator'
 
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage() })
@@ -110,44 +111,10 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
     console.log('GET /transactions query params:', { fiscalYear, startDate, endDate, limit, offset })
 
     // 날짜 유효성 검증 및 보정
-    let validatedStartDate = startDate as string
-    let validatedEndDate = endDate as string
-
-    if (startDate && typeof startDate === 'string') {
-      const startDateObj = new Date(startDate)
-      if (isNaN(startDateObj.getTime())) {
-        console.warn('Invalid startDate:', startDate)
-        validatedStartDate = ''
-      } else {
-        // 날짜가 유효한지 확인 (예: 2023-11-31은 잘못된 날짜)
-        const [year, month, day] = startDate.split('-').map(Number)
-        const correctedDate = new Date(year, month - 1, day)
-        if (correctedDate.getMonth() !== month - 1 || correctedDate.getDate() !== day) {
-          // 잘못된 날짜를 해당 월의 마지막 날로 보정
-          const lastDay = new Date(year, month, 0).getDate()
-          validatedStartDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-          console.warn(`Invalid startDate ${startDate} corrected to ${validatedStartDate}`)
-        }
-      }
-    }
-
-    if (endDate && typeof endDate === 'string') {
-      const endDateObj = new Date(endDate)
-      if (isNaN(endDateObj.getTime())) {
-        console.warn('Invalid endDate:', endDate)
-        validatedEndDate = ''
-      } else {
-        // 날짜가 유효한지 확인
-        const [year, month, day] = endDate.split('-').map(Number)
-        const correctedDate = new Date(year, month - 1, day)
-        if (correctedDate.getMonth() !== month - 1 || correctedDate.getDate() !== day) {
-          // 잘못된 날짜를 해당 월의 마지막 날로 보정
-          const lastDay = new Date(year, month, 0).getDate()
-          validatedEndDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-          console.warn(`Invalid endDate ${endDate} corrected to ${validatedEndDate}`)
-        }
-      }
-    }
+    const { validatedStartDate, validatedEndDate } = validateDateRange(
+      startDate as string,
+      endDate as string
+    )
 
     let query = `
       SELECT 

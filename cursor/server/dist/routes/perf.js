@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
+const dateValidator_1 = require("../utils/dateValidator");
 const router = (0, express_1.Router)();
 // GET /api/perf/filters  → distinct managers/services/types used in payments
 router.get('/filters', auth_1.authMiddleware, async (_req, res) => {
@@ -32,15 +33,18 @@ router.get('/summary', auth_1.authMiddleware, async (req, res) => {
         if (!month && !from && !to) {
             return res.status(400).json({ message: 'month or from/to is required' });
         }
+        // 날짜 유효성 검증 및 보정
+        const validatedFrom = (0, dateValidator_1.validateAndCorrectDate)(from);
+        const validatedTo = (0, dateValidator_1.validateAndCorrectDate)(to);
         const params = [];
         const where = [];
         if (month) {
             where.push("to_char(paid_at, 'YYYY-MM') = $" + (params.push(month)));
         }
-        if (from)
-            where.push('paid_at >= $' + (params.push(from)));
-        if (to)
-            where.push('paid_at <= $' + (params.push(to)));
+        if (validatedFrom)
+            where.push('paid_at >= $' + (params.push(validatedFrom)));
+        if (validatedTo)
+            where.push('paid_at <= $' + (params.push(validatedTo)));
         if (manager)
             where.push('manager_user_id = $' + (params.push(manager)));
         if (service)
@@ -73,12 +77,15 @@ router.get('/list', auth_1.authMiddleware, async (req, res) => {
         const { from, to, manager, service, type } = req.query;
         const page = parseInt(req.query.page || '1', 10);
         const pageSize = parseInt(req.query.pageSize || '20', 10);
+        // 날짜 유효성 검증 및 보정
+        const validatedFrom = (0, dateValidator_1.validateAndCorrectDate)(from);
+        const validatedTo = (0, dateValidator_1.validateAndCorrectDate)(to);
         const params = [];
         const where = [];
-        if (from)
-            where.push('paid_at >= $' + (params.push(from)));
-        if (to)
-            where.push('paid_at <= $' + (params.push(to)));
+        if (validatedFrom)
+            where.push('paid_at >= $' + (params.push(validatedFrom)));
+        if (validatedTo)
+            where.push('paid_at <= $' + (params.push(validatedTo)));
         if (manager)
             where.push('manager_user_id = $' + (params.push(manager)));
         if (service)

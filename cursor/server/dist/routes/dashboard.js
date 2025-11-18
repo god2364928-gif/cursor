@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
+const dateValidator_1 = require("../utils/dateValidator");
 const router = (0, express_1.Router)();
 // Get dashboard stats
 router.get('/stats', auth_1.authMiddleware, async (req, res) => {
@@ -13,6 +14,8 @@ router.get('/stats', auth_1.authMiddleware, async (req, res) => {
         if (!startDate || !endDate) {
             return res.status(400).json({ message: 'startDate and endDate are required' });
         }
+        // 날짜 유효성 검증 및 보정
+        const { validatedStartDate, validatedEndDate } = (0, dateValidator_1.validateDateRange)(startDate, endDate);
         // 매출 합계 (필터링된 기간) - 매니저 필터 적용
         let salesQuery = `
       SELECT COALESCE(SUM(s.amount), 0) as total_sales
@@ -20,7 +23,7 @@ router.get('/stats', auth_1.authMiddleware, async (req, res) => {
       JOIN users u ON s.user_id = u.id
       WHERE s.contract_date BETWEEN $1 AND $2
     `;
-        let salesParams = [startDate, endDate];
+        let salesParams = [validatedStartDate, validatedEndDate];
         if (manager && manager !== 'all') {
             salesQuery += ` AND u.name = $3`;
             salesParams.push(manager);
@@ -56,7 +59,7 @@ router.get('/stats', auth_1.authMiddleware, async (req, res) => {
       WHERE s.sales_type = '신규매출'
       AND s.contract_date BETWEEN $1 AND $2
     `;
-        let newCustomersParams = [startDate, endDate];
+        let newCustomersParams = [validatedStartDate, validatedEndDate];
         if (manager && manager !== 'all') {
             newCustomersQuery += ` AND u.name = $3`;
             newCustomersParams.push(manager);
