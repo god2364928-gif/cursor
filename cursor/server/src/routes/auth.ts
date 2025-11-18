@@ -345,4 +345,63 @@ router.put('/change-password', authMiddleware, async (req: AuthRequest, res: Res
   }
 })
 
+// Bulk change manager name across all tables (admin only)
+router.post('/bulk-change-manager', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    // Check if user is admin
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' })
+    }
+
+    const { oldManager, newManager } = req.body
+
+    if (!oldManager || !newManager) {
+      return res.status(400).json({ message: 'Both oldManager and newManager are required' })
+    }
+
+    // First, get counts of records that will be affected
+    const customersCount = await pool.query(
+      'SELECT COUNT(*) as count FROM customers WHERE manager = $1',
+      [oldManager]
+    )
+    const retargetingCount = await pool.query(
+      'SELECT COUNT(*) as count FROM retargeting_customers WHERE manager = $1',
+      [oldManager]
+    )
+    const salesTrackingCount = await pool.query(
+      'SELECT COUNT(*) as count FROM sales_tracking WHERE manager_name = $1',
+      [oldManager]
+    )
+
+    // Update all tables
+    await pool.query(
+      'UPDATE customers SET manager = $1 WHERE manager = $2',
+      [newManager, oldManager]
+    )
+    
+    await pool.query(
+      'UPDATE retargeting_customers SET manager = $1 WHERE manager = $2',
+      [newManager, oldManager]
+    )
+    
+    await pool.query(
+      'UPDATE sales_tracking SET manager_name = $1 WHERE manager_name = $2',
+      [newManager, oldManager]
+    )
+
+    res.json({
+      success: true,
+      message: '담당자 일괄 변경 완료',
+      changes: {
+        customers: parseInt(customersCount.rows[0].count),
+        retargeting: parseInt(retargetingCount.rows[0].count),
+        salesTracking: parseInt(salesTrackingCount.rows[0].count)
+      }
+    })
+  } catch (error) {
+    console.error('Error bulk changing manager:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
 export default router
