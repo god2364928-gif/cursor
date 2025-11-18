@@ -430,13 +430,26 @@ export default function AccountingPage() {
 
   // 날짜 변경 핸들러
   const handleStartDateChange = (value: string) => {
-    const correctedDate = validateAndCorrectDate(value)
-    setStartDate(correctedDate)
+    setStartDate(value)
   }
 
   const handleEndDateChange = (value: string) => {
-    const correctedDate = validateAndCorrectDate(value)
-    setEndDate(correctedDate)
+    setEndDate(value)
+  }
+
+  // 날짜 입력 필드에서 포커스를 잃었을 때 검증
+  const handleStartDateBlur = () => {
+    const correctedDate = validateAndCorrectDate(startDate)
+    if (correctedDate !== startDate) {
+      setStartDate(correctedDate)
+    }
+  }
+
+  const handleEndDateBlur = () => {
+    const correctedDate = validateAndCorrectDate(endDate)
+    if (correctedDate !== endDate) {
+      setEndDate(correctedDate)
+    }
   }
 
   // 날짜 변경 핸들러
@@ -1976,6 +1989,7 @@ export default function AccountingPage() {
                       type="date"
                       value={startDate}
                       onChange={e => handleStartDateChange(e.target.value)}
+                      onBlur={handleStartDateBlur}
                       className="border rounded px-3 py-2"
                     />
                   </div>
@@ -1987,6 +2001,7 @@ export default function AccountingPage() {
                       type="date"
                       value={endDate}
                       onChange={e => handleEndDateChange(e.target.value)}
+                      onBlur={handleEndDateBlur}
                       className="border rounded px-3 py-2"
                     />
                   </div>
@@ -2202,6 +2217,7 @@ export default function AccountingPage() {
                     type="date"
                     value={startDate}
                     onChange={e => handleStartDateChange(e.target.value)}
+                    onBlur={handleStartDateBlur}
                     className="border rounded px-3 py-2"
                   />
                 </div>
@@ -2213,6 +2229,7 @@ export default function AccountingPage() {
                     type="date"
                     value={endDate}
                     onChange={e => handleEndDateChange(e.target.value)}
+                    onBlur={handleEndDateBlur}
                     className="border rounded px-3 py-2"
                   />
                 </div>
