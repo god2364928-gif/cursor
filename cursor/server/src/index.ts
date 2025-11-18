@@ -24,6 +24,7 @@ import monthlyPayrollRoutes from './routes/monthlyPayroll'
 import invoicesRoutes from './routes/invoices'
 import receiptsRoutes from './routes/receipts'
 import excludedPartnersRoutes from './routes/excludedPartners'
+import lineUploadRoutes from './routes/lineUpload'
 import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking } from './migrations/autoMigrate'
 
@@ -107,6 +108,7 @@ app.use('/api/monthly-payroll', monthlyPayrollRoutes)
 app.use('/api/invoices', invoicesRoutes)
 app.use('/api/receipts', receiptsRoutes)
 app.use('/api/excluded-partners', excludedPartnersRoutes)
+app.use('/api/line-upload', lineUploadRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
