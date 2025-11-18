@@ -405,6 +405,40 @@ export default function AccountingPage() {
     return dateString.split('T')[0]
   }
 
+  // 날짜 유효성 검증 및 보정 함수
+  const validateAndCorrectDate = (dateStr: string): string => {
+    if (!dateStr) return dateStr
+    
+    const parts = dateStr.split('-')
+    if (parts.length !== 3) return dateStr
+    
+    const [year, month, day] = parts.map(Number)
+    
+    // 날짜가 실제로 유효한지 확인 (예: 2023-11-31은 잘못된 날짜)
+    const correctedDate = new Date(year, month - 1, day)
+    
+    if (correctedDate.getMonth() !== month - 1 || correctedDate.getDate() !== day) {
+      // 잘못된 날짜를 해당 월의 마지막 날로 보정
+      const lastDay = new Date(year, month, 0).getDate()
+      const validatedDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+      console.warn(`Invalid date ${dateStr} corrected to ${validatedDate}`)
+      return validatedDate
+    }
+    
+    return dateStr
+  }
+
+  // 날짜 변경 핸들러
+  const handleStartDateChange = (value: string) => {
+    const correctedDate = validateAndCorrectDate(value)
+    setStartDate(correctedDate)
+  }
+
+  const handleEndDateChange = (value: string) => {
+    const correctedDate = validateAndCorrectDate(value)
+    setEndDate(correctedDate)
+  }
+
   // 날짜 변경 핸들러
   const handlePreviousMonth = () => {
     // 현재 startDate를 기준으로 이전 달 계산
@@ -1941,7 +1975,7 @@ export default function AccountingPage() {
                     <input
                       type="date"
                       value={startDate}
-                      onChange={e => setStartDate(e.target.value)}
+                      onChange={e => handleStartDateChange(e.target.value)}
                       className="border rounded px-3 py-2"
                     />
                   </div>
@@ -1952,7 +1986,7 @@ export default function AccountingPage() {
                     <input
                       type="date"
                       value={endDate}
-                      onChange={e => setEndDate(e.target.value)}
+                      onChange={e => handleEndDateChange(e.target.value)}
                       className="border rounded px-3 py-2"
                     />
                   </div>
@@ -2167,7 +2201,7 @@ export default function AccountingPage() {
                   <input
                     type="date"
                     value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
+                    onChange={e => handleStartDateChange(e.target.value)}
                     className="border rounded px-3 py-2"
                   />
                 </div>
@@ -2178,7 +2212,7 @@ export default function AccountingPage() {
                   <input
                     type="date"
                     value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
+                    onChange={e => handleEndDateChange(e.target.value)}
                     className="border rounded px-3 py-2"
                   />
                 </div>
