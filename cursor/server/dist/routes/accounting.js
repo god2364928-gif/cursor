@@ -86,7 +86,7 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
 // ========== 거래내역 (Transactions) ==========
 router.get('/transactions', auth_1.authMiddleware, adminOnly, async (req, res) => {
     try {
-        const { fiscalYear, limit = 100, offset = 0 } = req.query;
+        const { fiscalYear, startDate, endDate, limit = 100, offset = 0 } = req.query;
         const year = fiscalYear ? Number(fiscalYear) : null;
         let query = `
       SELECT 
@@ -103,9 +103,22 @@ router.get('/transactions', auth_1.authMiddleware, adminOnly, async (req, res) =
       LEFT JOIN users u ON t.assigned_user_id = u.id
     `;
         const params = [];
-        if (year) {
-            query += ` WHERE t.fiscal_year = $1`;
+        const conditions = [];
+        // fiscalYear나 startDate/endDate 중 하나만 사용
+        if (startDate && endDate) {
+            // startDate와 endDate로 필터링 (우선순위 높음)
+            conditions.push(`t.transaction_date >= $${params.length + 1}`);
+            params.push(startDate);
+            conditions.push(`t.transaction_date <= $${params.length + 1}`);
+            params.push(endDate);
+        }
+        else if (year) {
+            // fiscalYear로 필터링
+            conditions.push(`t.fiscal_year = $${params.length + 1}`);
             params.push(year);
+        }
+        if (conditions.length > 0) {
+            query += ` WHERE ${conditions.join(' AND ')}`;
         }
         query += ` ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         params.push(Number(limit), Number(offset));
