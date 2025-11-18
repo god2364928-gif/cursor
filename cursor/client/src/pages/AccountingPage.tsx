@@ -407,10 +407,11 @@ export default function AccountingPage() {
 
   // 날짜 변경 핸들러
   const handlePreviousMonth = () => {
-    const now = new Date()
-    now.setMonth(now.getMonth() - 1)
-    const year = now.getFullYear()
-    const month = now.getMonth()
+    // 현재 startDate를 기준으로 이전 달 계산
+    const currentDate = new Date(startDate)
+    currentDate.setMonth(currentDate.getMonth() - 1)
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
     const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
     const lastDay = new Date(year, month + 1, 0)
     const lastDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
@@ -429,10 +430,11 @@ export default function AccountingPage() {
   }
 
   const handleNextMonth = () => {
-    const now = new Date()
-    now.setMonth(now.getMonth() + 1)
-    const year = now.getFullYear()
-    const month = now.getMonth()
+    // 현재 startDate를 기준으로 다음 달 계산
+    const currentDate = new Date(startDate)
+    currentDate.setMonth(currentDate.getMonth() + 1)
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
     const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
     const lastDay = new Date(year, month + 1, 0)
     const lastDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
