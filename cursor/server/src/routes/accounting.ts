@@ -366,6 +366,65 @@ router.post('/transactions/bulk', authMiddleware, adminOnly, async (req: AuthReq
   }
 })
 
+// Bulk update transactions (일괄 변경)
+router.post('/transactions/bulk-update', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { transactionIds, updates } = req.body
+    
+    if (!Array.isArray(transactionIds) || transactionIds.length === 0) {
+      return res.status(400).json({ error: '선택된 거래내역이 없습니다' })
+    }
+    
+    if (!updates || (Object.keys(updates).length === 0)) {
+      return res.status(400).json({ error: '변경할 내용이 없습니다' })
+    }
+    
+    const { category, assignedUserId } = updates
+    
+    let updatedCount = 0
+    
+    for (const transactionId of transactionIds) {
+      try {
+        // 기존 데이터 조회
+        const existingResult = await pool.query(
+          `SELECT * FROM accounting_transactions WHERE id = $1`,
+          [transactionId]
+        )
+        
+        if (existingResult.rows.length === 0) continue
+        
+        const existing = existingResult.rows[0]
+        
+        // 업데이트할 필드 결정
+        const newCategory = category || existing.category
+        const newAssignedUserId = assignedUserId !== undefined ? assignedUserId : existing.assigned_user_id
+        
+        // 업데이트 실행
+        await pool.query(
+          `UPDATE accounting_transactions 
+           SET category = $1, 
+               assigned_user_id = $2
+           WHERE id = $3`,
+          [newCategory, newAssignedUserId, transactionId]
+        )
+        
+        updatedCount++
+      } catch (error) {
+        console.error(`Failed to update transaction ${transactionId}:`, error)
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      updated: updatedCount,
+      message: `${updatedCount}건 업데이트 완료`
+    })
+  } catch (error) {
+    console.error('Bulk transaction update error:', error)
+    res.status(500).json({ error: '일괄 업데이트에 실패했습니다' })
+  }
+})
+
 router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
