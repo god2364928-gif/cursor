@@ -1944,7 +1944,7 @@ export default function AccountingPage() {
                             {language === 'ja' ? '保証金合計' : '보증금 합계'}
                           </p>
                           <span className="text-sm font-bold text-green-600">
-                            {formatCurrency(deposits.reduce((sum, d) => sum + (d.amount || 0), 0))}
+                            {formatCurrency(deposits.reduce((sum, d) => sum + (Number(d.amount) || 0), 0))}
                           </span>
                         </div>
                       </div>
@@ -1957,8 +1957,8 @@ export default function AccountingPage() {
                           </p>
                           <span className="text-lg font-bold text-purple-600">
                             {formatCurrency(
-                              (capitalBalances[0]?.amount || 0) + 
-                              deposits.reduce((sum, d) => sum + (d.amount || 0), 0)
+                              (Number(capitalBalances[0]?.amount) || 0) + 
+                              deposits.reduce((sum, d) => sum + (Number(d.amount) || 0), 0)
                             )}
                           </span>
                         </div>

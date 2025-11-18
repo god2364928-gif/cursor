@@ -914,8 +914,13 @@ router.get('/capital-balance', auth_1.authMiddleware, adminOnly, async (req, res
        ORDER BY balance_date DESC
        LIMIT $1 OFFSET $2`, [limit, offset]);
         const countResult = await db_1.pool.query(`SELECT COUNT(*) as total FROM capital_balance`);
+        // Convert numeric string to number
+        const balances = result.rows.map(row => ({
+            ...row,
+            amount: parseFloat(row.amount) || 0
+        }));
         res.json({
-            data: result.rows,
+            data: balances,
             total: parseInt(countResult.rows[0].total)
         });
     }
@@ -995,7 +1000,12 @@ router.get('/deposits', auth_1.authMiddleware, adminOnly, async (req, res) => {
         const result = await db_1.pool.query(`SELECT id, item_name, amount, note, created_at, updated_at
        FROM deposits
        ORDER BY amount DESC`);
-        res.json(result.rows);
+        // Convert numeric string to number
+        const deposits = result.rows.map(row => ({
+            ...row,
+            amount: parseFloat(row.amount) || 0
+        }));
+        res.json(deposits);
     }
     catch (error) {
         console.error('Deposits fetch error:', error);
