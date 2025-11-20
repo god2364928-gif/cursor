@@ -90,6 +90,15 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
        WHERE transaction_date BETWEEN $1 AND $2 AND transaction_type = '출금'
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
        ORDER BY month`, [twelveMonthsAgoStr, nowStr]);
+        // 월별 카테고리별 지출 (최근 12개월)
+        const monthlyExpensesByCategoryResult = await db_1.pool.query(`SELECT 
+        TO_CHAR(transaction_date, 'YYYY-MM') as month,
+        category,
+        COALESCE(SUM(amount), 0) as total
+       FROM accounting_transactions
+       WHERE transaction_date BETWEEN $1 AND $2 AND transaction_type = '출금'
+       GROUP BY TO_CHAR(transaction_date, 'YYYY-MM'), category
+       ORDER BY month, category`, [twelveMonthsAgoStr, nowStr]);
         const totalSales = Number(salesResult.rows[0]?.total_sales || 0);
         const salesByCategory = salesByCategoryResult.rows.reduce((acc, row) => {
             acc[row.category] = Number(row.total);
@@ -121,6 +130,14 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
             expenses: expensesByMonth[month] || 0,
             profit: (salesByMonth[month] || 0) - (expensesByMonth[month] || 0)
         }));
+        // 월별 카테고리별 지출 데이터 변환
+        const monthlyExpensesByCategory = monthlyExpensesByCategoryResult.rows.reduce((acc, row) => {
+            if (!acc[row.month]) {
+                acc[row.month] = {};
+            }
+            acc[row.month][row.category] = Number(row.total);
+            return acc;
+        }, {});
         res.json({
             fiscalYear: year,
             totalSales,
@@ -133,7 +150,8 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
                 accountType: r.account_type,
                 balance: Number(r.current_balance),
             })),
-            monthlyData
+            monthlyData,
+            monthlyExpensesByCategory
         });
     }
     catch (error) {
