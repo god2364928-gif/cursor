@@ -31,16 +31,31 @@ router.post('/verify-password', authMiddleware, adminOnly, async (req: AuthReque
 // ========== 대시보드 요약 ==========
 router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
-    const { fiscalYear } = req.query
+    const { fiscalYear, startDate, endDate } = req.query
     const year = fiscalYear ? Number(fiscalYear) : new Date().getMonth() >= 9 ? new Date().getFullYear() + 1 : new Date().getFullYear()
+
+    // 날짜 필터 사용 (startDate, endDate가 있으면 사용, 없으면 회계연도 사용)
+    let dateCondition = ''
+    let dateParams: any[] = []
+    
+    if (startDate && endDate) {
+      dateCondition = 'transaction_date BETWEEN $1 AND $2'
+      dateParams = [startDate, endDate]
+    } else {
+      // 회계연도로 필터링
+      const fiscalStartDate = `${year - 1}-10-01`
+      const fiscalEndDate = `${year}-09-30`
+      dateCondition = 'transaction_date BETWEEN $1 AND $2'
+      dateParams = [fiscalStartDate, fiscalEndDate]
+    }
 
     // 매출 합계
     const salesResult = await pool.query(
       `SELECT 
         COALESCE(SUM(amount), 0) as total_sales
        FROM accounting_transactions
-       WHERE fiscal_year = $1 AND category IN ('셀마플', '코코마케')`,
-      [year]
+       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케')`,
+      dateParams
     )
 
     // 지출 합계
@@ -49,9 +64,9 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
         category,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE fiscal_year = $1 AND transaction_type = '출금'
+       WHERE ${dateCondition} AND transaction_type = '출금'
        GROUP BY category`,
-      [year]
+      dateParams
     )
 
     // 계좌 잔액
@@ -67,10 +82,10 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
         TO_CHAR(transaction_date, 'YYYY-MM') as month,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE fiscal_year = $1 AND category = '매출'
+       WHERE ${dateCondition} AND category = '매출'
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
        ORDER BY month`,
-      [year]
+      dateParams
     )
 
     const totalSales = Number(salesResult.rows[0]?.total_sales || 0)
