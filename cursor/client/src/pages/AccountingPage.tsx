@@ -24,6 +24,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  Legend,
 } from 'recharts'
 
 interface DashboardData {
@@ -40,6 +41,12 @@ interface DashboardData {
   monthlySales: Array<{
     month: string
     amount: number
+  }>
+  monthlyData?: Array<{
+    month: string
+    sales: number
+    expenses: number
+    profit: number
   }>
 }
 
@@ -1199,6 +1206,26 @@ export default function AccountingPage() {
     })
   }
 
+  // 월별 데이터 가져오기 (거래내역 기반)
+  const getMonthlyTransactionData = () => {
+    if (!dashboard?.monthlyData) return []
+    
+    return dashboard.monthlyData.map((data: any) => {
+      // YYYY-MM 형식을 표시용으로 변환
+      const [year, month] = data.month.split('-')
+      const monthName = language === 'ja' 
+        ? `${year}年${parseInt(month)}月` 
+        : `${year}년 ${parseInt(month)}월`
+      
+      return {
+        month: monthName,
+        sales: data.sales,
+        expenses: data.expenses,
+        profit: data.profit
+      }
+    })
+  }
+
   const handleTotalSalesCellClick = (month: number, paymentMethod: string, isFee: boolean) => {
     if (!isAdmin) return
     const currentValue = getTotalSalesValue(month, paymentMethod, isFee)
@@ -2113,15 +2140,15 @@ export default function AccountingPage() {
               {/* Monthly Sales Chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>{language === 'ja' ? '月別売上推移（全体売上基準）' : '월별 매출 추이 (전체매출 기반)'}</CardTitle>
+                  <CardTitle>{language === 'ja' ? '月別推移（取引履歴基準）' : '월별 추이 (거래내역 기반)'}</CardTitle>
                   <p className="text-sm text-gray-500 mt-1">
-                    {language === 'ja' ? '※最近12ヶ月' : '※ 최근 12개월'}
+                    {language === 'ja' ? '※選択期間' : '※ 선택 기간'}
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width="100%" height={350}>
                     <LineChart 
-                      data={getMonthlySalesFromTotalSales()}
+                      data={getMonthlyTransactionData()}
                       margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
@@ -2138,7 +2165,19 @@ export default function AccountingPage() {
                         tickFormatter={(value) => `¥${(value / 10000).toFixed(0)}万`}
                       />
                       <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                      <Line type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={2} />
+                      <Legend 
+                        verticalAlign="top" 
+                        height={36}
+                        formatter={(value) => {
+                          if (value === 'sales') return language === 'ja' ? '総売上' : '총매출'
+                          if (value === 'expenses') return language === 'ja' ? '総支出' : '총지출'
+                          if (value === 'profit') return language === 'ja' ? '純利益' : '순이익'
+                          return value
+                        }}
+                      />
+                      <Line type="monotone" dataKey="sales" name="sales" stroke="#10b981" strokeWidth={2} />
+                      <Line type="monotone" dataKey="expenses" name="expenses" stroke="#ef4444" strokeWidth={2} />
+                      <Line type="monotone" dataKey="profit" name="profit" stroke="#3b82f6" strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
