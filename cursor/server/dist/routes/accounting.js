@@ -62,12 +62,20 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
         const accountsResult = await db_1.pool.query(`SELECT account_name, account_type, current_balance
        FROM accounting_capital
        ORDER BY account_type, account_name`);
-        // 월별 매출 추이
+        // 월별 매출 추이 (거래내역 기반)
         const monthlySalesResult = await db_1.pool.query(`SELECT 
         TO_CHAR(transaction_date, 'YYYY-MM') as month,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE ${dateCondition} AND category = '매출'
+       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케')
+       GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
+       ORDER BY month`, dateParams);
+        // 월별 지출 추이 (거래내역 기반)
+        const monthlyExpensesResult = await db_1.pool.query(`SELECT 
+        TO_CHAR(transaction_date, 'YYYY-MM') as month,
+        COALESCE(SUM(amount), 0) as total
+       FROM accounting_transactions
+       WHERE ${dateCondition} AND transaction_type = '출금'
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
        ORDER BY month`, dateParams);
         const totalSales = Number(salesResult.rows[0]?.total_sales || 0);
@@ -76,6 +84,27 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
             return acc;
         }, {});
         const totalExpenses = Object.values(expensesByCategory).reduce((sum, val) => sum + val, 0);
+        // 월별 데이터를 맵으로 변환
+        const salesByMonth = monthlySalesResult.rows.reduce((acc, row) => {
+            acc[row.month] = Number(row.total);
+            return acc;
+        }, {});
+        const expensesByMonth = monthlyExpensesResult.rows.reduce((acc, row) => {
+            acc[row.month] = Number(row.total);
+            return acc;
+        }, {});
+        // 모든 월 목록 생성
+        const allMonths = new Set([
+            ...Object.keys(salesByMonth),
+            ...Object.keys(expensesByMonth)
+        ]);
+        // 월별 데이터 통합
+        const monthlyData = Array.from(allMonths).sort().map(month => ({
+            month,
+            sales: salesByMonth[month] || 0,
+            expenses: expensesByMonth[month] || 0,
+            profit: (salesByMonth[month] || 0) - (expensesByMonth[month] || 0)
+        }));
         res.json({
             fiscalYear: year,
             totalSales,
@@ -87,10 +116,7 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
                 accountType: r.account_type,
                 balance: Number(r.current_balance),
             })),
-            monthlySales: monthlySalesResult.rows.map((r) => ({
-                month: r.month,
-                amount: Number(r.total),
-            })),
+            monthlyData
         });
     }
     catch (error) {
