@@ -69,22 +69,27 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
         const accountsResult = await db_1.pool.query(`SELECT account_name, account_type, current_balance
        FROM accounting_capital
        ORDER BY account_type, account_name`);
-        // 월별 매출 추이 (거래내역 기반)
+        // 최근 12개월 계산
+        const now = new Date();
+        const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        const twelveMonthsAgoStr = twelveMonthsAgo.toISOString().split('T')[0];
+        const nowStr = now.toISOString().split('T')[0];
+        // 월별 매출 추이 (거래내역 기반 - 최근 12개월)
         const monthlySalesResult = await db_1.pool.query(`SELECT 
         TO_CHAR(transaction_date, 'YYYY-MM') as month,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케')
+       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케')
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
-       ORDER BY month`, dateParams);
-        // 월별 지출 추이 (거래내역 기반)
+       ORDER BY month`, [twelveMonthsAgoStr, nowStr]);
+        // 월별 지출 추이 (거래내역 기반 - 최근 12개월)
         const monthlyExpensesResult = await db_1.pool.query(`SELECT 
         TO_CHAR(transaction_date, 'YYYY-MM') as month,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE ${dateCondition} AND transaction_type = '출금'
+       WHERE transaction_date BETWEEN $1 AND $2 AND transaction_type = '출금'
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
-       ORDER BY month`, dateParams);
+       ORDER BY month`, [twelveMonthsAgoStr, nowStr]);
         const totalSales = Number(salesResult.rows[0]?.total_sales || 0);
         const salesByCategory = salesByCategoryResult.rows.reduce((acc, row) => {
             acc[row.category] = Number(row.total);
