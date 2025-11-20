@@ -2201,7 +2201,7 @@ export default function AccountingPage() {
                           return value
                         }}
                       />
-                      <Line type="monotone" dataKey="totalSalesAmount" name="totalSalesAmount" stroke="#059669" strokeWidth={4} />
+                      <Line type="monotone" dataKey="totalSalesAmount" name="totalSalesAmount" stroke="#f59e0b" strokeWidth={4} />
                       <Line type="monotone" dataKey="sales" name="sales" stroke="#10b981" strokeWidth={2} />
                       <Line type="monotone" dataKey="expenses" name="expenses" stroke="#ef4444" strokeWidth={2} />
                       <Line type="monotone" dataKey="profit" name="profit" stroke="#3b82f6" strokeWidth={2} />
