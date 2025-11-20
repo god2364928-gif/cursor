@@ -3082,10 +3082,6 @@ export default function AccountingPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '契約開始日' : '계약 시작일'}</label>
-                    <Input type="date" name="contractStartDate" defaultValue={formatDateOnly(editingEmployee?.contractStartDate || editingEmployee?.contract_start_date)} />
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '契約終了日' : '계약 종료일'}</label>
                     <Input type="date" name="contractEndDate" defaultValue={formatDateOnly(editingEmployee?.contractEndDate || editingEmployee?.contract_end_date)} />
                   </div>
@@ -3104,10 +3100,6 @@ export default function AccountingPage() {
                       name="monthlyTransportationCost"
                       defaultValue={editingEmployee?.monthlyTransportationCost ? String(editingEmployee.monthlyTransportationCost) : editingEmployee?.monthly_transportation_cost ? String(editingEmployee.monthly_transportation_cost) : ''}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">{language === 'ja' ? '交通費開始日' : '교통비 시작일'}</label>
-                    <Input type="date" name="transportationStartDate" defaultValue={formatDateOnly(editingEmployee?.transportationStartDate || editingEmployee?.transportation_start_date)} />
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium mb-1">{language === 'ja' ? '履歴' : '히스토리'}</label>
@@ -4787,10 +4779,6 @@ export default function AccountingPage() {
                     <p className="font-medium">{selectedEmployee.martId || selectedEmployee.mart_id || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">{language === 'ja' ? '契約開始日' : '계약 시작일'}</p>
-                    <p className="font-medium">{((selectedEmployee.contractStartDate || selectedEmployee.contract_start_date) || '').split('T')[0] || '-'}</p>
-                  </div>
-                  <div>
                     <p className="text-gray-600">{language === 'ja' ? '契約終了日' : '계약 종료일'}</p>
                     <p className="font-medium">{((selectedEmployee.contractEndDate || selectedEmployee.contract_end_date) || '').split('T')[0] || '-'}</p>
                   </div>
@@ -4801,10 +4789,6 @@ export default function AccountingPage() {
                   <div>
                     <p className="text-gray-600">{language === 'ja' ? '月交通費' : '월 교통비'}</p>
                     <p className="font-medium">{(selectedEmployee.monthlyTransportationCost || selectedEmployee.monthly_transportation_cost) ? formatCurrency((selectedEmployee.monthlyTransportationCost || selectedEmployee.monthly_transportation_cost) as number) : '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">{language === 'ja' ? '交通費開始日' : '교통비 시작일'}</p>
-                    <p className="font-medium">{((selectedEmployee.transportationStartDate || selectedEmployee.transportation_start_date) || '').split('T')[0] || '-'}</p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-gray-600">{language === 'ja' ? '履歴' : '히스토리'}</p>
@@ -4903,6 +4887,72 @@ export default function AccountingPage() {
                     </div>
                     <div className="space-y-1">
                       {employeeFiles.filter(f => f.fileCategory === '이력서').map(file => (
+                        <div key={file.id} className="flex justify-between items-center p-2 border rounded text-sm">
+                          <span className="truncate">{file.originalName}</span>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => handleDownloadEmployeeFile(file.id, file.originalName)}>
+                              {language === 'ja' ? 'DL' : '다운로드'}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteEmployeeFile(file.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 병원진단서 */}
+                  <div>
+                    <h4 className="font-semibold mb-2">{language === 'ja' ? '病院診断書' : '병원진단서'}</h4>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handleUploadEmployeeFile('병원진단서', file)
+                            e.target.value = ''
+                          }
+                        }}
+                        disabled={uploadingFile}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      {employeeFiles.filter(f => f.fileCategory === '병원진단서').map(file => (
+                        <div key={file.id} className="flex justify-between items-center p-2 border rounded text-sm">
+                          <span className="truncate">{file.originalName}</span>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => handleDownloadEmployeeFile(file.id, file.originalName)}>
+                              {language === 'ja' ? 'DL' : '다운로드'}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteEmployeeFile(file.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 교통비 영수증 */}
+                  <div>
+                    <h4 className="font-semibold mb-2">{language === 'ja' ? '交通費領収書' : '교통비 영수증'}</h4>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handleUploadEmployeeFile('교통비영수증', file)
+                            e.target.value = ''
+                          }
+                        }}
+                        disabled={uploadingFile}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      {employeeFiles.filter(f => f.fileCategory === '교통비영수증').map(file => (
                         <div key={file.id} className="flex justify-between items-center p-2 border rounded text-sm">
                           <span className="truncate">{file.originalName}</span>
                           <div className="flex gap-1">
