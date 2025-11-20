@@ -130,6 +130,19 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
       [twelveMonthsAgoStr, nowStr]
     )
 
+    // 월별 카테고리별 매출 (최근 12개월)
+    const monthlySalesByCategoryResult = await pool.query(
+      `SELECT 
+        TO_CHAR(transaction_date, 'YYYY-MM') as month,
+        category,
+        COALESCE(SUM(amount), 0) as total
+       FROM accounting_transactions
+       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케')
+       GROUP BY TO_CHAR(transaction_date, 'YYYY-MM'), category
+       ORDER BY month, category`,
+      [twelveMonthsAgoStr, nowStr]
+    )
+
     const totalSales = Number(salesResult.rows[0]?.total_sales || 0)
     
     const salesByCategory = salesByCategoryResult.rows.reduce((acc: any, row: any) => {
@@ -177,6 +190,15 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
       return acc
     }, {})
 
+    // 월별 카테고리별 매출 데이터 변환
+    const monthlySalesByCategory = monthlySalesByCategoryResult.rows.reduce((acc: any, row: any) => {
+      if (!acc[row.month]) {
+        acc[row.month] = {}
+      }
+      acc[row.month][row.category] = Number(row.total)
+      return acc
+    }, {})
+
     res.json({
       fiscalYear: year,
       totalSales,
@@ -190,7 +212,8 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
         balance: Number(r.current_balance),
       })),
       monthlyData,
-      monthlyExpensesByCategory
+      monthlyExpensesByCategory,
+      monthlySalesByCategory
     })
   } catch (error) {
     console.error('Dashboard summary error:', error)
