@@ -135,6 +135,17 @@ router.put('/users/:id', auth_1.authMiddleware, async (req, res) => {
         if (password) {
             hashedPassword = await bcryptjs_1.default.hash(password, 10);
         }
+        // role이 전달되지 않은 경우 기존 값을 유지하기 위해 현재 사용자 정보 조회
+        let finalRole = role;
+        if (role === undefined || role === null) {
+            const currentUserResult = await db_1.pool.query('SELECT role FROM users WHERE id = $1', [id]);
+            if (currentUserResult.rows.length > 0) {
+                finalRole = currentUserResult.rows[0].role;
+            }
+            else {
+                finalRole = 'user'; // 사용자가 없는 경우 기본값
+            }
+        }
         // Update user
         let result;
         if (hashedPassword) {
@@ -145,7 +156,7 @@ router.put('/users/:id', auth_1.authMiddleware, async (req, res) => {
           transportation_route = $14, monthly_transportation_cost = $15,
           transportation_start_date = $16, transportation_details = $17
          WHERE id = $18 RETURNING *`, [
-                name, email, hashedPassword, toNullIfEmpty(team), role || 'user',
+                name, email, hashedPassword, toNullIfEmpty(team), finalRole,
                 toNullIfEmpty(department), toNullIfEmpty(position), toNullIfEmpty(employmentStatus), toNullIfEmpty(baseSalary),
                 toNullIfEmpty(hireDate), toNullIfEmpty(contractStartDate), toNullIfEmpty(contractEndDate), toNullIfEmpty(martId),
                 toNullIfEmpty(transportationRoute), toNullIfEmpty(monthlyTransportationCost),
@@ -161,7 +172,7 @@ router.put('/users/:id', auth_1.authMiddleware, async (req, res) => {
           transportation_route = $13, monthly_transportation_cost = $14,
           transportation_start_date = $15, transportation_details = $16
          WHERE id = $17 RETURNING *`, [
-                name, email, toNullIfEmpty(team), role || 'user',
+                name, email, toNullIfEmpty(team), finalRole,
                 toNullIfEmpty(department), toNullIfEmpty(position), toNullIfEmpty(employmentStatus), toNullIfEmpty(baseSalary),
                 toNullIfEmpty(hireDate), toNullIfEmpty(contractStartDate), toNullIfEmpty(contractEndDate), toNullIfEmpty(martId),
                 toNullIfEmpty(transportationRoute), toNullIfEmpty(monthlyTransportationCost),
