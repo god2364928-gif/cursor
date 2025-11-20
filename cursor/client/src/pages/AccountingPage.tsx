@@ -1286,9 +1286,14 @@ export default function AccountingPage() {
     })
     
     // 선택된 카테고리가 없으면 모든 카테고리 표시
-    const categoriesToShow = selectedExpenseCategories.length > 0 
-      ? selectedExpenseCategories 
-      : Array.from(allCategories)
+    let categoriesToShow: string[]
+    if (selectedExpenseCategories.length === 0) {
+      categoriesToShow = Array.from(allCategories)
+    } else if (selectedExpenseCategories.includes('__NONE__')) {
+      categoriesToShow = []
+    } else {
+      categoriesToShow = selectedExpenseCategories
+    }
     
     // 월별 데이터 구성
     return Object.entries(monthlyData).map(([month, categories]: [string, any]) => {
@@ -1319,9 +1324,14 @@ export default function AccountingPage() {
     })
     
     // 선택된 카테고리가 없으면 모든 카테고리 표시
-    const categoriesToShow = selectedSalesCategories.length > 0 
-      ? selectedSalesCategories 
-      : Array.from(allCategories)
+    let categoriesToShow: string[]
+    if (selectedSalesCategories.length === 0) {
+      categoriesToShow = Array.from(allCategories)
+    } else if (selectedSalesCategories.includes('__NONE__')) {
+      categoriesToShow = []
+    } else {
+      categoriesToShow = selectedSalesCategories
+    }
     
     // 월별 데이터 구성
     return Object.entries(monthlyData).map(([month, categories]: [string, any]) => {
@@ -1385,6 +1395,10 @@ export default function AccountingPage() {
   const getVisibleMonthlyLines = () => {
     if (selectedMonthlyLines.length === 0) {
       return getAvailableMonthlyLines()
+    }
+    // '__NONE__'이 포함되어 있으면 아무것도 표시하지 않음
+    if (selectedMonthlyLines.includes('__NONE__')) {
+      return []
     }
     return getAvailableMonthlyLines().filter(line => selectedMonthlyLines.includes(line.key))
   }
@@ -2330,7 +2344,7 @@ export default function AccountingPage() {
                           {language === 'ja' ? '全て選択' : '전체 선택'}
                         </button>
                         <button
-                          onClick={() => setSelectedMonthlyLines(getAvailableMonthlyLines().map(l => l.key))}
+                          onClick={() => setSelectedMonthlyLines(['__NONE__'])}
                           className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
                         >
                           {language === 'ja' ? '全て解除' : '전체 해제'}
@@ -2341,13 +2355,20 @@ export default function AccountingPage() {
                           <label key={line.key} className="inline-flex items-center cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={selectedMonthlyLines.length === 0 || selectedMonthlyLines.includes(line.key)}
+                              checked={
+                                selectedMonthlyLines.length === 0 || 
+                                (selectedMonthlyLines.includes(line.key) && !selectedMonthlyLines.includes('__NONE__'))
+                              }
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   if (selectedMonthlyLines.length === 0) {
-                                    // 전체 선택 상태에서 하나를 체크 해제하면, 나머지만 선택
+                                    // 전체 선택 상태에서 하나를 해제하려는 경우, 나머지만 선택
                                     setSelectedMonthlyLines(getAvailableMonthlyLines().map(l => l.key).filter(k => k !== line.key))
+                                  } else if (selectedMonthlyLines.includes('__NONE__')) {
+                                    // 전체 해제 상태에서 하나를 선택
+                                    setSelectedMonthlyLines([line.key])
                                   } else {
+                                    // 일부 선택 상태에서 추가
                                     setSelectedMonthlyLines([...selectedMonthlyLines, line.key])
                                   }
                                 } else {
@@ -2355,7 +2376,9 @@ export default function AccountingPage() {
                                     // 전체 선택 상태에서 하나를 해제하면, 해당 항목을 제외한 모든 항목 선택
                                     setSelectedMonthlyLines(getAvailableMonthlyLines().map(l => l.key).filter(k => k !== line.key))
                                   } else {
-                                    setSelectedMonthlyLines(selectedMonthlyLines.filter(l => l !== line.key))
+                                    const newSelection = selectedMonthlyLines.filter(l => l !== line.key)
+                                    // 모든 항목이 해제되면 전체 해제 상태로
+                                    setSelectedMonthlyLines(newSelection.length === 0 ? ['__NONE__'] : newSelection)
                                   }
                                 }
                               }}
@@ -2438,7 +2461,7 @@ export default function AccountingPage() {
                           {language === 'ja' ? '全て選択' : '전체 선택'}
                         </button>
                         <button
-                          onClick={() => setSelectedSalesCategories(getAvailableSalesCategories())}
+                          onClick={() => setSelectedSalesCategories(['__NONE__'])}
                           className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
                         >
                           {language === 'ja' ? '全て解除' : '전체 해제'}
@@ -2449,13 +2472,20 @@ export default function AccountingPage() {
                           <label key={category} className="inline-flex items-center cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={selectedSalesCategories.length === 0 || selectedSalesCategories.includes(category)}
+                              checked={
+                                selectedSalesCategories.length === 0 || 
+                                (selectedSalesCategories.includes(category) && !selectedSalesCategories.includes('__NONE__'))
+                              }
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   if (selectedSalesCategories.length === 0) {
-                                    // 전체 선택 상태에서 하나를 체크 해제하면, 나머지만 선택
+                                    // 전체 선택 상태에서 하나를 해제하려는 경우, 나머지만 선택
                                     setSelectedSalesCategories(getAvailableSalesCategories().filter(c => c !== category))
+                                  } else if (selectedSalesCategories.includes('__NONE__')) {
+                                    // 전체 해제 상태에서 하나를 선택
+                                    setSelectedSalesCategories([category])
                                   } else {
+                                    // 일부 선택 상태에서 추가
                                     setSelectedSalesCategories([...selectedSalesCategories, category])
                                   }
                                 } else {
@@ -2463,7 +2493,9 @@ export default function AccountingPage() {
                                     // 전체 선택 상태에서 하나를 해제하면, 해당 항목을 제외한 모든 항목 선택
                                     setSelectedSalesCategories(getAvailableSalesCategories().filter(c => c !== category))
                                   } else {
-                                    setSelectedSalesCategories(selectedSalesCategories.filter(c => c !== category))
+                                    const newSelection = selectedSalesCategories.filter(c => c !== category)
+                                    // 모든 항목이 해제되면 전체 해제 상태로
+                                    setSelectedSalesCategories(newSelection.length === 0 ? ['__NONE__'] : newSelection)
                                   }
                                 }
                               }}
@@ -2495,7 +2527,12 @@ export default function AccountingPage() {
                         />
                         <Tooltip formatter={(value: number) => formatCurrency(value)} />
                         <Legend />
-                        {(selectedSalesCategories.length > 0 ? selectedSalesCategories : getAvailableSalesCategories()).map((category, index) => (
+                        {(selectedSalesCategories.length === 0 
+                          ? getAvailableSalesCategories() 
+                          : selectedSalesCategories.includes('__NONE__') 
+                            ? [] 
+                            : selectedSalesCategories
+                        ).map((category, index) => (
                           <Line 
                             key={category} 
                             type="monotone"
@@ -2541,7 +2578,7 @@ export default function AccountingPage() {
                           {language === 'ja' ? '全て選択' : '전체 선택'}
                         </button>
                         <button
-                          onClick={() => setSelectedExpenseCategories(getAvailableExpenseCategories())}
+                          onClick={() => setSelectedExpenseCategories(['__NONE__'])}
                           className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
                         >
                           {language === 'ja' ? '全て解除' : '전체 해제'}
@@ -2552,13 +2589,20 @@ export default function AccountingPage() {
                           <label key={category} className="inline-flex items-center cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={selectedExpenseCategories.length === 0 || selectedExpenseCategories.includes(category)}
+                              checked={
+                                selectedExpenseCategories.length === 0 || 
+                                (selectedExpenseCategories.includes(category) && !selectedExpenseCategories.includes('__NONE__'))
+                              }
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   if (selectedExpenseCategories.length === 0) {
-                                    // 전체 선택 상태에서 하나를 체크 해제하면, 나머지만 선택
+                                    // 전체 선택 상태에서 하나를 해제하려는 경우, 나머지만 선택
                                     setSelectedExpenseCategories(getAvailableExpenseCategories().filter(c => c !== category))
+                                  } else if (selectedExpenseCategories.includes('__NONE__')) {
+                                    // 전체 해제 상태에서 하나를 선택
+                                    setSelectedExpenseCategories([category])
                                   } else {
+                                    // 일부 선택 상태에서 추가
                                     setSelectedExpenseCategories([...selectedExpenseCategories, category])
                                   }
                                 } else {
@@ -2566,7 +2610,9 @@ export default function AccountingPage() {
                                     // 전체 선택 상태에서 하나를 해제하면, 해당 항목을 제외한 모든 항목 선택
                                     setSelectedExpenseCategories(getAvailableExpenseCategories().filter(c => c !== category))
                                   } else {
-                                    setSelectedExpenseCategories(selectedExpenseCategories.filter(c => c !== category))
+                                    const newSelection = selectedExpenseCategories.filter(c => c !== category)
+                                    // 모든 항목이 해제되면 전체 해제 상태로
+                                    setSelectedExpenseCategories(newSelection.length === 0 ? ['__NONE__'] : newSelection)
                                   }
                                 }
                               }}
@@ -2598,7 +2644,12 @@ export default function AccountingPage() {
                         />
                         <Tooltip formatter={(value: number) => formatCurrency(value)} />
                         <Legend />
-                        {(selectedExpenseCategories.length > 0 ? selectedExpenseCategories : getAvailableExpenseCategories()).map((category, index) => (
+                        {(selectedExpenseCategories.length === 0 
+                          ? getAvailableExpenseCategories() 
+                          : selectedExpenseCategories.includes('__NONE__') 
+                            ? [] 
+                            : selectedExpenseCategories
+                        ).map((category, index) => (
                           <Line 
                             key={category} 
                             type="monotone"
