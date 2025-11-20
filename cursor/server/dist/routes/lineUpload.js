@@ -54,8 +54,24 @@ router.post('/', auth_1.authMiddleware, upload.single('file'), async (req, res) 
                 return res.status(400).json({ message: 'Failed to decode file. Please ensure it is a valid text file.' });
             }
         }
+        // DEBUG: 업로드된 내용 로그
+        console.log('\n====== LINE UPLOAD DEBUG ======');
+        console.log('Category:', category);
+        console.log('Content length:', text.length);
+        console.log('Content preview (first 500 chars):');
+        console.log(text.substring(0, 500));
+        console.log('===============================\n');
         // LINE 대화 파싱
         const parsed = (0, lineParser_1.parseLineChat)(text);
+        // DEBUG: 파싱 결과 로그
+        console.log('====== PARSE RESULT ======');
+        console.log('Messages count:', parsed.messages.length);
+        console.log('Participants:', parsed.participants);
+        console.log('Date range:', parsed.dateRange);
+        if (parsed.messages.length > 0) {
+            console.log('First 3 messages:', parsed.messages.slice(0, 3));
+        }
+        console.log('==========================\n');
         if (parsed.messages.length === 0) {
             return res.status(400).json({ message: 'No messages found in the file. Please check the file format.' });
         }
