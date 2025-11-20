@@ -275,7 +275,6 @@ export default function AccountingPage() {
   const [showAddEmployeeDialog, setShowAddEmployeeDialog] = useState<boolean>(false)
 
   useEffect(() => {
-    fetchDashboard()
     fetchTotalSales() // 대시보드 탭에서도 전체매출 데이터 로드
     // 대시보드 탭에서도 자본금 데이터 로드
     if (activeTab === 'dashboard') {
@@ -319,6 +318,9 @@ export default function AccountingPage() {
   }, [])
 
   useEffect(() => {
+    if (activeTab === 'dashboard') {
+      fetchDashboard()
+    }
     if (activeTab === 'transactions') {
       fetchTransactions()
       if (nameOptions.length === 0) {
@@ -362,7 +364,13 @@ export default function AccountingPage() {
 
   const fetchDashboard = async () => {
     try {
-      const response = await api.get('/accounting/dashboard', { params: { fiscalYear } })
+      const response = await api.get('/accounting/dashboard', { 
+        params: { 
+          fiscalYear,
+          startDate,
+          endDate
+        } 
+      })
       setDashboard(response.data)
     } catch (error) {
       console.error('Dashboard fetch error:', error)
