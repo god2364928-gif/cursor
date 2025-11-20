@@ -87,28 +87,34 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
        ORDER BY account_type, account_name`
     )
 
-    // 월별 매출 추이 (거래내역 기반)
+    // 최근 12개월 계산
+    const now = new Date()
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1)
+    const twelveMonthsAgoStr = twelveMonthsAgo.toISOString().split('T')[0]
+    const nowStr = now.toISOString().split('T')[0]
+
+    // 월별 매출 추이 (거래내역 기반 - 최근 12개월)
     const monthlySalesResult = await pool.query(
       `SELECT 
         TO_CHAR(transaction_date, 'YYYY-MM') as month,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케')
+       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케')
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
        ORDER BY month`,
-      dateParams
+      [twelveMonthsAgoStr, nowStr]
     )
 
-    // 월별 지출 추이 (거래내역 기반)
+    // 월별 지출 추이 (거래내역 기반 - 최근 12개월)
     const monthlyExpensesResult = await pool.query(
       `SELECT 
         TO_CHAR(transaction_date, 'YYYY-MM') as month,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE ${dateCondition} AND transaction_type = '출금'
+       WHERE transaction_date BETWEEN $1 AND $2 AND transaction_type = '출금'
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
        ORDER BY month`,
-      dateParams
+      [twelveMonthsAgoStr, nowStr]
     )
 
     const totalSales = Number(salesResult.rows[0]?.total_sales || 0)
