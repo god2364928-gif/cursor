@@ -504,7 +504,7 @@ router.post('/:id/extend', authMiddleware, async (req: AuthRequest, res: Respons
     )
     
     // Add history entry
-    const content = `계약 1개월 연장 (${formattedOldDate} → ${newExpirationDate})`
+    const content = `契約1ヶ月延長 (${formattedOldDate} → ${newExpirationDate})`
     await pool.query(
       'INSERT INTO customer_history (customer_id, user_id, type, content) VALUES ($1, $2, $3, $4)',
       [id, req.user?.id, 'contract_extended', content]

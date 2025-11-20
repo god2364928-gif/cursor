@@ -421,7 +421,7 @@ router.post('/:id/extend', auth_1.authMiddleware, async (req, res) => {
         // Update expiration date
         await db_1.pool.query('UPDATE customers SET contract_expiration_date = $1 WHERE id = $2', [newExpirationDate, id]);
         // Add history entry
-        const content = `계약 1개월 연장 (${formattedOldDate} → ${newExpirationDate})`;
+        const content = `契約1ヶ月延長 (${formattedOldDate} → ${newExpirationDate})`;
         await db_1.pool.query('INSERT INTO customer_history (customer_id, user_id, type, content) VALUES ($1, $2, $3, $4)', [id, req.user?.id, 'contract_extended', content]);
         res.json({ success: true, newExpirationDate });
     }

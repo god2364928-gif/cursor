@@ -309,7 +309,7 @@ export default function CustomersPage() {
   }
   
   const handleDeleteCustomer = async (id: string) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return
+    if (!confirm('本当に削除しますか？')) return
     
     try {
       await api.delete(`/customers/${id}`)
@@ -370,10 +370,13 @@ export default function CustomersPage() {
   
   const handleExtend = async () => {
     if (!selectedCustomer) return
-    if (!confirm('계약을 1개월 연장하시겠습니까?')) return
+    if (!confirm('契約を1ヶ月延長しますか？')) return
     
     try {
-      await api.post(`/customers/${selectedCustomer.id}/extend`)
+      const response = await api.post(`/customers/${selectedCustomer.id}/extend`)
+      // 고객 목록과 상세 정보 다시 불러오기
+      fetchCustomers()
+      fetchCustomerDetail(selectedCustomer.id)
       fetchHistory(selectedCustomer.id, abortControllerRef.current?.signal)
       showToast(t('contractExtended'), 'success')
     } catch (error: any) {
@@ -421,7 +424,7 @@ export default function CustomersPage() {
 
   const handleDeleteHistory = async (historyId: string) => {
     if (!selectedCustomer) return
-    if (!confirm('정말로 이 히스토리를 삭제하시겠습니까?')) return
+    if (!confirm('本当にこの履歴を削除しますか？')) return
     
     try {
       await api.delete(`/customers/${selectedCustomer.id}/history/${historyId}`)
@@ -530,7 +533,7 @@ export default function CustomersPage() {
 
   const handleDeleteFile = async (fileId: string) => {
     if (!selectedCustomer) return
-    if (!confirm('정말로 이 파일을 삭제하시겠습니까?')) return
+    if (!confirm('本当にこのファイルを削除しますか？')) return
     
     try {
       await api.delete(`/customers/${selectedCustomer.id}/files/${fileId}`)
@@ -569,7 +572,7 @@ export default function CustomersPage() {
       })
     } catch (error) {
       console.error('Failed to toggle history pin:', error)
-      showToast('히스토리 고정 상태 변경에 실패했습니다', 'error')
+      showToast('履歴のピン状態の変更に失敗しました', 'error')
     }
   }
 
@@ -1150,7 +1153,7 @@ export default function CustomersPage() {
                               navigator.clipboard.writeText(instagram)
                               // 토스트 메시지 표시
                               const toast = document.createElement('div')
-                              toast.textContent = '복사되었습니다'
+                              toast.textContent = 'コピーしました'
                               toast.className = 'fixed top-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm z-50 opacity-90'
                               document.body.appendChild(toast)
                               setTimeout(() => {
