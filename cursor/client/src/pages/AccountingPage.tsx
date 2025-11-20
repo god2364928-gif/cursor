@@ -2309,9 +2309,9 @@ export default function AccountingPage() {
                   <div className="flex justify-between items-center">
                     <div>
                       <CardTitle>{language === 'ja' ? '月別推移' : '월별 추이'}</CardTitle>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {language === 'ja' ? '※最近12ヶ月' : '※ 최근 12개월'}
-                      </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {language === 'ja' ? '※最近12ヶ月' : '※ 최근 12개월'}
+                  </p>
                     </div>
                     <Button variant="ghost" size="sm">
                       {expandedCharts.monthly ? '▼' : '▶'}
@@ -2319,59 +2319,73 @@ export default function AccountingPage() {
                   </div>
                 </CardHeader>
                 {expandedCharts.monthly && (
-                  <CardContent>
+                <CardContent>
                     {/* 라인 선택 */}
-                    <div className="mb-4 flex flex-wrap gap-2">
-                      {getAvailableMonthlyLines().map(line => (
-                        <label key={line.key} className="inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedMonthlyLines.length === 0 || selectedMonthlyLines.includes(line.key)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                if (selectedMonthlyLines.length === 0) {
-                                  setSelectedMonthlyLines([line.key])
-                                } else {
-                                  setSelectedMonthlyLines([...selectedMonthlyLines, line.key])
-                                }
-                              } else {
-                                setSelectedMonthlyLines(selectedMonthlyLines.filter(l => l !== line.key))
-                              }
-                            }}
-                            className="mr-1"
-                          />
-                          <span className="text-sm">{line.name}</span>
-                        </label>
-                      ))}
-                      {selectedMonthlyLines.length > 0 && (
+                    <div className="mb-4">
+                      <div className="flex gap-2 mb-2">
                         <button
                           onClick={() => setSelectedMonthlyLines([])}
-                          className="text-xs text-blue-600 hover:text-blue-800 underline ml-2"
+                          className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                         >
-                          {language === 'ja' ? '全て表示' : '전체 표시'}
+                          {language === 'ja' ? '全て選択' : '전체 선택'}
                         </button>
-                      )}
+                        <button
+                          onClick={() => setSelectedMonthlyLines(getAvailableMonthlyLines().map(l => l.key))}
+                          className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                        >
+                          {language === 'ja' ? '全て解除' : '전체 해제'}
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {getAvailableMonthlyLines().map(line => (
+                          <label key={line.key} className="inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedMonthlyLines.length === 0 || selectedMonthlyLines.includes(line.key)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  if (selectedMonthlyLines.length === 0) {
+                                    // 전체 선택 상태에서 하나를 체크 해제하면, 나머지만 선택
+                                    setSelectedMonthlyLines(getAvailableMonthlyLines().map(l => l.key).filter(k => k !== line.key))
+                                  } else {
+                                    setSelectedMonthlyLines([...selectedMonthlyLines, line.key])
+                                  }
+                                } else {
+                                  if (selectedMonthlyLines.length === 0) {
+                                    // 전체 선택 상태에서 하나를 해제하면, 해당 항목을 제외한 모든 항목 선택
+                                    setSelectedMonthlyLines(getAvailableMonthlyLines().map(l => l.key).filter(k => k !== line.key))
+                                  } else {
+                                    setSelectedMonthlyLines(selectedMonthlyLines.filter(l => l !== line.key))
+                                  }
+                                }
+                              }}
+                              className="mr-1"
+                            />
+                            <span className="text-sm">{line.name}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
 
                     <ResponsiveContainer width="100%" height={400}>
-                      <LineChart 
+                    <LineChart 
                         data={getCombinedMonthlyData()}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="month" 
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                          interval={0}
-                          style={{ fontSize: '11px' }}
-                        />
-                        <YAxis 
-                          width={80}
-                          tickFormatter={(value) => `¥${(value / 10000).toFixed(0)}万`}
-                        />
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="month" 
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                        interval={0}
+                        style={{ fontSize: '11px' }}
+                      />
+                      <YAxis 
+                        width={80}
+                        tickFormatter={(value) => `¥${(value / 10000).toFixed(0)}万`}
+                      />
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
                         <Legend verticalAlign="top" height={36} />
                         {getVisibleMonthlyLines().map(line => (
                           <Line 
@@ -2388,9 +2402,9 @@ export default function AccountingPage() {
                             strokeWidth={line.key === 'totalSalesAmount' ? 4 : 2}
                           />
                         ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </CardContent>
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
                 )}
               </Card>
 
@@ -2415,36 +2429,50 @@ export default function AccountingPage() {
                 {expandedCharts.salesByCategory && (
                   <CardContent>
                     {/* 카테고리 선택 */}
-                    <div className="mb-4 flex flex-wrap gap-2">
-                      {getAvailableSalesCategories().map(category => (
-                        <label key={category} className="inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedSalesCategories.length === 0 || selectedSalesCategories.includes(category)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                if (selectedSalesCategories.length === 0) {
-                                  setSelectedSalesCategories([category])
-                                } else {
-                                  setSelectedSalesCategories([...selectedSalesCategories, category])
-                                }
-                              } else {
-                                setSelectedSalesCategories(selectedSalesCategories.filter(c => c !== category))
-                              }
-                            }}
-                            className="mr-1"
-                          />
-                          <span className="text-sm">{category}</span>
-                        </label>
-                      ))}
-                      {selectedSalesCategories.length > 0 && (
+                    <div className="mb-4">
+                      <div className="flex gap-2 mb-2">
                         <button
                           onClick={() => setSelectedSalesCategories([])}
-                          className="text-xs text-blue-600 hover:text-blue-800 underline ml-2"
+                          className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                         >
-                          {language === 'ja' ? '全て表示' : '전체 표시'}
+                          {language === 'ja' ? '全て選択' : '전체 선택'}
                         </button>
-                      )}
+                        <button
+                          onClick={() => setSelectedSalesCategories(getAvailableSalesCategories())}
+                          className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                        >
+                          {language === 'ja' ? '全て解除' : '전체 해제'}
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {getAvailableSalesCategories().map(category => (
+                          <label key={category} className="inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedSalesCategories.length === 0 || selectedSalesCategories.includes(category)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  if (selectedSalesCategories.length === 0) {
+                                    // 전체 선택 상태에서 하나를 체크 해제하면, 나머지만 선택
+                                    setSelectedSalesCategories(getAvailableSalesCategories().filter(c => c !== category))
+                                  } else {
+                                    setSelectedSalesCategories([...selectedSalesCategories, category])
+                                  }
+                                } else {
+                                  if (selectedSalesCategories.length === 0) {
+                                    // 전체 선택 상태에서 하나를 해제하면, 해당 항목을 제외한 모든 항목 선택
+                                    setSelectedSalesCategories(getAvailableSalesCategories().filter(c => c !== category))
+                                  } else {
+                                    setSelectedSalesCategories(selectedSalesCategories.filter(c => c !== category))
+                                  }
+                                }
+                              }}
+                              className="mr-1"
+                            />
+                            <span className="text-sm">{category}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
 
                     <ResponsiveContainer width="100%" height={400}>
@@ -2504,36 +2532,50 @@ export default function AccountingPage() {
                 {expandedCharts.expensesByCategory && (
                   <CardContent>
                     {/* 카테고리 선택 */}
-                    <div className="mb-4 flex flex-wrap gap-2">
-                      {getAvailableExpenseCategories().map(category => (
-                        <label key={category} className="inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedExpenseCategories.length === 0 || selectedExpenseCategories.includes(category)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                if (selectedExpenseCategories.length === 0) {
-                                  setSelectedExpenseCategories([category])
-                                } else {
-                                  setSelectedExpenseCategories([...selectedExpenseCategories, category])
-                                }
-                              } else {
-                                setSelectedExpenseCategories(selectedExpenseCategories.filter(c => c !== category))
-                              }
-                            }}
-                            className="mr-1"
-                          />
-                          <span className="text-sm">{category}</span>
-                        </label>
-                      ))}
-                      {selectedExpenseCategories.length > 0 && (
+                    <div className="mb-4">
+                      <div className="flex gap-2 mb-2">
                         <button
                           onClick={() => setSelectedExpenseCategories([])}
-                          className="text-xs text-blue-600 hover:text-blue-800 underline ml-2"
+                          className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                         >
-                          {language === 'ja' ? '全て表示' : '전체 표시'}
+                          {language === 'ja' ? '全て選択' : '전체 선택'}
                         </button>
-                      )}
+                        <button
+                          onClick={() => setSelectedExpenseCategories(getAvailableExpenseCategories())}
+                          className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                        >
+                          {language === 'ja' ? '全て解除' : '전체 해제'}
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {getAvailableExpenseCategories().map(category => (
+                          <label key={category} className="inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedExpenseCategories.length === 0 || selectedExpenseCategories.includes(category)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  if (selectedExpenseCategories.length === 0) {
+                                    // 전체 선택 상태에서 하나를 체크 해제하면, 나머지만 선택
+                                    setSelectedExpenseCategories(getAvailableExpenseCategories().filter(c => c !== category))
+                                  } else {
+                                    setSelectedExpenseCategories([...selectedExpenseCategories, category])
+                                  }
+                                } else {
+                                  if (selectedExpenseCategories.length === 0) {
+                                    // 전체 선택 상태에서 하나를 해제하면, 해당 항목을 제외한 모든 항목 선택
+                                    setSelectedExpenseCategories(getAvailableExpenseCategories().filter(c => c !== category))
+                                  } else {
+                                    setSelectedExpenseCategories(selectedExpenseCategories.filter(c => c !== category))
+                                  }
+                                }
+                              }}
+                              className="mr-1"
+                            />
+                            <span className="text-sm">{category}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
 
                     <ResponsiveContainer width="100%" height={400}>
@@ -5342,72 +5384,6 @@ export default function AccountingPage() {
                     </div>
                     <div className="space-y-1">
                       {employeeFiles.filter(f => f.fileCategory === '이력서').map(file => (
-                        <div key={file.id} className="flex justify-between items-center p-2 border rounded text-sm">
-                          <span className="truncate">{file.originalName}</span>
-                          <div className="flex gap-1">
-                            <Button size="sm" variant="outline" onClick={() => handleDownloadEmployeeFile(file.id, file.originalName)}>
-                              {language === 'ja' ? 'DL' : '다운로드'}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteEmployeeFile(file.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 병원진단서 */}
-                  <div>
-                    <h4 className="font-semibold mb-2">{language === 'ja' ? '病院診断書' : '병원진단서'}</h4>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Input
-                        type="file"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            handleUploadEmployeeFile('병원진단서', file)
-                            e.target.value = ''
-                          }
-                        }}
-                        disabled={uploadingFile}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      {employeeFiles.filter(f => f.fileCategory === '병원진단서').map(file => (
-                        <div key={file.id} className="flex justify-between items-center p-2 border rounded text-sm">
-                          <span className="truncate">{file.originalName}</span>
-                          <div className="flex gap-1">
-                            <Button size="sm" variant="outline" onClick={() => handleDownloadEmployeeFile(file.id, file.originalName)}>
-                              {language === 'ja' ? 'DL' : '다운로드'}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteEmployeeFile(file.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 교통비 영수증 */}
-                  <div>
-                    <h4 className="font-semibold mb-2">{language === 'ja' ? '交通費領収書' : '교통비 영수증'}</h4>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Input
-                        type="file"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            handleUploadEmployeeFile('교통비영수증', file)
-                            e.target.value = ''
-                          }
-                        }}
-                        disabled={uploadingFile}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      {employeeFiles.filter(f => f.fileCategory === '교통비영수증').map(file => (
                         <div key={file.id} className="flex justify-between items-center p-2 border rounded text-sm">
                           <span className="truncate">{file.originalName}</span>
                           <div className="flex gap-1">
