@@ -20,8 +20,6 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  BarChart,
-  Bar,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -52,6 +50,7 @@ interface DashboardData {
     profit: number
   }>
   monthlyExpensesByCategory?: Record<string, Record<string, number>>
+  monthlySalesByCategory?: Record<string, Record<string, number>>
 }
 
 interface Transaction {
@@ -243,6 +242,23 @@ export default function AccountingPage() {
 
   // 카테고리별 지출 필터
   const [selectedExpenseCategories, setSelectedExpenseCategories] = useState<string[]>([])
+  
+  // 카테고리별 매출 필터
+  const [selectedSalesCategories, setSelectedSalesCategories] = useState<string[]>([])
+  
+  // 월별 추이 라인 선택
+  const [selectedMonthlyLines, setSelectedMonthlyLines] = useState<string[]>([])
+  
+  // 그래프 접기/펼치기 상태
+  const [expandedCharts, setExpandedCharts] = useState<{
+    monthly: boolean
+    salesByCategory: boolean
+    expensesByCategory: boolean
+  }>({
+    monthly: false,
+    salesByCategory: false,
+    expensesByCategory: false
+  })
 
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
@@ -1290,12 +1306,56 @@ export default function AccountingPage() {
     })
   }
 
+  // 카테고리별 매출 데이터 가져오기
+  const getSalesByCategoryData = () => {
+    if (!dashboard?.monthlySalesByCategory) return []
+    
+    const monthlyData = dashboard.monthlySalesByCategory
+    const allCategories = new Set<string>()
+    
+    // 모든 카테고리 수집
+    Object.values(monthlyData).forEach((categories: any) => {
+      Object.keys(categories).forEach(category => allCategories.add(category))
+    })
+    
+    // 선택된 카테고리가 없으면 모든 카테고리 표시
+    const categoriesToShow = selectedSalesCategories.length > 0 
+      ? selectedSalesCategories 
+      : Array.from(allCategories)
+    
+    // 월별 데이터 구성
+    return Object.entries(monthlyData).map(([month, categories]: [string, any]) => {
+      const [year, monthNum] = month.split('-')
+      const monthName = language === 'ja' 
+        ? `${year}年${parseInt(monthNum)}月` 
+        : `${year}년 ${parseInt(monthNum)}월`
+      
+      const data: any = { month: monthName }
+      categoriesToShow.forEach(category => {
+        data[category] = categories[category] || 0
+      })
+      
+      return data
+    })
+  }
+
   // 사용 가능한 카테고리 목록
   const getAvailableExpenseCategories = () => {
     if (!dashboard?.monthlyExpensesByCategory) return []
     
     const categories = new Set<string>()
     Object.values(dashboard.monthlyExpensesByCategory).forEach((monthCategories: any) => {
+      Object.keys(monthCategories).forEach(category => categories.add(category))
+    })
+    
+    return Array.from(categories).sort()
+  }
+
+  const getAvailableSalesCategories = () => {
+    if (!dashboard?.monthlySalesByCategory) return []
+    
+    const categories = new Set<string>()
+    Object.values(dashboard.monthlySalesByCategory).forEach((monthCategories: any) => {
       Object.keys(monthCategories).forEach(category => categories.add(category))
     })
     
@@ -1309,6 +1369,24 @@ export default function AccountingPage() {
       '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
     ]
     return colors[index % colors.length]
+  }
+
+  // 월별 추이에서 사용 가능한 라인 목록
+  const getAvailableMonthlyLines = () => {
+    return [
+      { key: 'totalSalesAmount', name: language === 'ja' ? '売上高（全体売上）' : '매출액 (전체매출)' },
+      { key: 'sales', name: language === 'ja' ? '総売上（取引履歴）' : '총매출 (거래내역)' },
+      { key: 'expenses', name: language === 'ja' ? '総支出（取引履歴）' : '총지출 (거래내역)' },
+      { key: 'profit', name: language === 'ja' ? '純利益（取引履歴）' : '순이익 (거래내역)' }
+    ]
+  }
+
+  // 선택된 라인이 없으면 모든 라인 표시
+  const getVisibleMonthlyLines = () => {
+    if (selectedMonthlyLines.length === 0) {
+      return getAvailableMonthlyLines()
+    }
+    return getAvailableMonthlyLines().filter(line => selectedMonthlyLines.includes(line.key))
   }
 
   const handleTotalSalesCellClick = (month: number, paymentMethod: string, isFee: boolean) => {
@@ -2222,146 +2300,276 @@ export default function AccountingPage() {
                 </Card>
               </div>
 
-              {/* Combined Monthly Chart */}
+              {/* Combined Monthly Chart - Collapsible */}
               <Card>
-                <CardHeader>
-                  <CardTitle>{language === 'ja' ? '月別推移' : '월별 추이'}</CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {language === 'ja' ? '※最近12ヶ月' : '※ 최근 12개월'}
-                  </p>
+                <CardHeader 
+                  className="cursor-pointer hover:bg-gray-50" 
+                  onClick={() => setExpandedCharts(prev => ({ ...prev, monthly: !prev.monthly }))}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>{language === 'ja' ? '月別推移' : '월별 추이'}</CardTitle>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {language === 'ja' ? '※最近12ヶ月' : '※ 최근 12개월'}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      {expandedCharts.monthly ? '▼' : '▶'}
+                    </Button>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <LineChart 
-                      data={getCombinedMonthlyData()}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="month" 
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                        interval={0}
-                        style={{ fontSize: '11px' }}
-                      />
-                      <YAxis 
-                        width={80}
-                        tickFormatter={(value) => `¥${(value / 10000).toFixed(0)}万`}
-                      />
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                      <Legend 
-                        verticalAlign="top" 
-                        height={36}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="totalSalesAmount" 
-                        name={language === 'ja' ? '売上高（全体売上）' : '매출액 (전체매출)'} 
-                        stroke="#f59e0b" 
-                        strokeWidth={4} 
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="sales" 
-                        name={language === 'ja' ? '総売上（取引履歴）' : '총매출 (거래내역)'} 
-                        stroke="#10b981" 
-                        strokeWidth={2} 
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="expenses" 
-                        name={language === 'ja' ? '総支出（取引履歴）' : '총지출 (거래내역)'} 
-                        stroke="#ef4444" 
-                        strokeWidth={2} 
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="profit" 
-                        name={language === 'ja' ? '純利益（取引履歴）' : '순이익 (거래내역)'} 
-                        stroke="#3b82f6" 
-                        strokeWidth={2} 
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
+                {expandedCharts.monthly && (
+                  <CardContent>
+                    {/* 라인 선택 */}
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      {getAvailableMonthlyLines().map(line => (
+                        <label key={line.key} className="inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedMonthlyLines.length === 0 || selectedMonthlyLines.includes(line.key)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                if (selectedMonthlyLines.length === 0) {
+                                  setSelectedMonthlyLines([line.key])
+                                } else {
+                                  setSelectedMonthlyLines([...selectedMonthlyLines, line.key])
+                                }
+                              } else {
+                                setSelectedMonthlyLines(selectedMonthlyLines.filter(l => l !== line.key))
+                              }
+                            }}
+                            className="mr-1"
+                          />
+                          <span className="text-sm">{line.name}</span>
+                        </label>
+                      ))}
+                      {selectedMonthlyLines.length > 0 && (
+                        <button
+                          onClick={() => setSelectedMonthlyLines([])}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline ml-2"
+                        >
+                          {language === 'ja' ? '全て表示' : '전체 표시'}
+                        </button>
+                      )}
+                    </div>
+
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart 
+                        data={getCombinedMonthlyData()}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="month" 
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          interval={0}
+                          style={{ fontSize: '11px' }}
+                        />
+                        <YAxis 
+                          width={80}
+                          tickFormatter={(value) => `¥${(value / 10000).toFixed(0)}万`}
+                        />
+                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        <Legend verticalAlign="top" height={36} />
+                        {getVisibleMonthlyLines().map(line => (
+                          <Line 
+                            key={line.key}
+                            type="monotone" 
+                            dataKey={line.key} 
+                            name={line.name}
+                            stroke={
+                              line.key === 'totalSalesAmount' ? '#f59e0b' :
+                              line.key === 'sales' ? '#10b981' :
+                              line.key === 'expenses' ? '#ef4444' :
+                              '#3b82f6'
+                            }
+                            strokeWidth={line.key === 'totalSalesAmount' ? 4 : 2}
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                )}
               </Card>
 
-              {/* Category Expenses Chart */}
+              {/* Category Sales Chart - Collapsible */}
               <Card>
-                <CardHeader>
-                  <CardTitle>{language === 'ja' ? 'カテゴリ別支出推移' : '카테고리별 지출 추이'}</CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {language === 'ja' ? '※最近12ヶ月' : '※ 최근 12개월'}
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  {/* 카테고리 선택 */}
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    {getAvailableExpenseCategories().map(category => (
-                      <label key={category} className="inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedExpenseCategories.length === 0 || selectedExpenseCategories.includes(category)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              if (selectedExpenseCategories.length === 0) {
-                                // 전체 선택 상태에서 하나를 체크하면 그것만 선택
-                                setSelectedExpenseCategories([category])
-                              } else {
-                                setSelectedExpenseCategories([...selectedExpenseCategories, category])
-                              }
-                            } else {
-                              const newSelected = selectedExpenseCategories.filter(c => c !== category)
-                              setSelectedExpenseCategories(newSelected)
-                            }
-                          }}
-                          className="mr-1"
-                        />
-                        <span className="text-sm">{category}</span>
-                      </label>
-                    ))}
-                    {selectedExpenseCategories.length > 0 && (
-                      <button
-                        onClick={() => setSelectedExpenseCategories([])}
-                        className="text-xs text-blue-600 hover:text-blue-800 underline ml-2"
-                      >
-                        {language === 'ja' ? '全て表示' : '전체 표시'}
-                      </button>
-                    )}
+                <CardHeader 
+                  className="cursor-pointer hover:bg-gray-50" 
+                  onClick={() => setExpandedCharts(prev => ({ ...prev, salesByCategory: !prev.salesByCategory }))}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>{language === 'ja' ? 'カテゴリ別売上推移' : '카테고리별 매출 추이'}</CardTitle>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {language === 'ja' ? '※最近12ヶ月' : '※ 최근 12개월'}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      {expandedCharts.salesByCategory ? '▼' : '▶'}
+                    </Button>
                   </div>
-
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart 
-                      data={getExpensesByCategoryData()}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="month" 
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                        interval={0}
-                        style={{ fontSize: '11px' }}
-                      />
-                      <YAxis 
-                        width={80}
-                        tickFormatter={(value) => `¥${(value / 10000).toFixed(0)}万`}
-                      />
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                      <Legend />
-                      {(selectedExpenseCategories.length > 0 ? selectedExpenseCategories : getAvailableExpenseCategories()).map((category, index) => (
-                        <Bar 
-                          key={category} 
-                          dataKey={category} 
-                          fill={getCategoryColor(category, index)}
-                          name={category}
-                        />
+                </CardHeader>
+                {expandedCharts.salesByCategory && (
+                  <CardContent>
+                    {/* 카테고리 선택 */}
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      {getAvailableSalesCategories().map(category => (
+                        <label key={category} className="inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedSalesCategories.length === 0 || selectedSalesCategories.includes(category)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                if (selectedSalesCategories.length === 0) {
+                                  setSelectedSalesCategories([category])
+                                } else {
+                                  setSelectedSalesCategories([...selectedSalesCategories, category])
+                                }
+                              } else {
+                                setSelectedSalesCategories(selectedSalesCategories.filter(c => c !== category))
+                              }
+                            }}
+                            className="mr-1"
+                          />
+                          <span className="text-sm">{category}</span>
+                        </label>
                       ))}
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
+                      {selectedSalesCategories.length > 0 && (
+                        <button
+                          onClick={() => setSelectedSalesCategories([])}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline ml-2"
+                        >
+                          {language === 'ja' ? '全て表示' : '전체 표시'}
+                        </button>
+                      )}
+                    </div>
+
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart 
+                        data={getSalesByCategoryData()}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="month" 
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          interval={0}
+                          style={{ fontSize: '11px' }}
+                        />
+                        <YAxis 
+                          width={80}
+                          tickFormatter={(value) => `¥${(value / 10000).toFixed(0)}万`}
+                        />
+                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        <Legend />
+                        {(selectedSalesCategories.length > 0 ? selectedSalesCategories : getAvailableSalesCategories()).map((category, index) => (
+                          <Line 
+                            key={category} 
+                            type="monotone"
+                            dataKey={category} 
+                            stroke={getCategoryColor(category, index)}
+                            strokeWidth={2}
+                            name={category}
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Category Expenses Chart - Collapsible */}
+              <Card>
+                <CardHeader 
+                  className="cursor-pointer hover:bg-gray-50" 
+                  onClick={() => setExpandedCharts(prev => ({ ...prev, expensesByCategory: !prev.expensesByCategory }))}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>{language === 'ja' ? 'カテゴリ別支出推移' : '카테고리별 지출 추이'}</CardTitle>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {language === 'ja' ? '※最近12ヶ月' : '※ 최근 12개월'}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      {expandedCharts.expensesByCategory ? '▼' : '▶'}
+                    </Button>
+                  </div>
+                </CardHeader>
+                {expandedCharts.expensesByCategory && (
+                  <CardContent>
+                    {/* 카테고리 선택 */}
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      {getAvailableExpenseCategories().map(category => (
+                        <label key={category} className="inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedExpenseCategories.length === 0 || selectedExpenseCategories.includes(category)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                if (selectedExpenseCategories.length === 0) {
+                                  setSelectedExpenseCategories([category])
+                                } else {
+                                  setSelectedExpenseCategories([...selectedExpenseCategories, category])
+                                }
+                              } else {
+                                setSelectedExpenseCategories(selectedExpenseCategories.filter(c => c !== category))
+                              }
+                            }}
+                            className="mr-1"
+                          />
+                          <span className="text-sm">{category}</span>
+                        </label>
+                      ))}
+                      {selectedExpenseCategories.length > 0 && (
+                        <button
+                          onClick={() => setSelectedExpenseCategories([])}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline ml-2"
+                        >
+                          {language === 'ja' ? '全て表示' : '전체 표시'}
+                        </button>
+                      )}
+                    </div>
+
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart 
+                        data={getExpensesByCategoryData()}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="month" 
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          interval={0}
+                          style={{ fontSize: '11px' }}
+                        />
+                        <YAxis 
+                          width={80}
+                          tickFormatter={(value) => `¥${(value / 10000).toFixed(0)}万`}
+                        />
+                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        <Legend />
+                        {(selectedExpenseCategories.length > 0 ? selectedExpenseCategories : getAvailableExpenseCategories()).map((category, index) => (
+                          <Line 
+                            key={category} 
+                            type="monotone"
+                            dataKey={category} 
+                            stroke={getCategoryColor(category, index)}
+                            strokeWidth={2}
+                            name={category}
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                )}
               </Card>
 
               {/* Sales & Expense Breakdown */}
