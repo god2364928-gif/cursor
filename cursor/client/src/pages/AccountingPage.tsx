@@ -20,6 +20,8 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  BarChart,
+  Bar,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -49,6 +51,7 @@ interface DashboardData {
     expenses: number
     profit: number
   }>
+  monthlyExpensesByCategory?: Record<string, Record<string, number>>
 }
 
 interface Transaction {
@@ -237,6 +240,9 @@ export default function AccountingPage() {
 
   // 직원 필터
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState<string>('입사중')
+
+  // 카테고리별 지출 필터
+  const [selectedExpenseCategories, setSelectedExpenseCategories] = useState<string[]>([])
 
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEmployeeForm, setShowEmployeeForm] = useState(false)
@@ -1251,6 +1257,60 @@ export default function AccountingPage() {
     return combined
   }
 
+  // 카테고리별 지출 데이터 가져오기
+  const getExpensesByCategoryData = () => {
+    if (!dashboard?.monthlyExpensesByCategory) return []
+    
+    const monthlyData = dashboard.monthlyExpensesByCategory
+    const allCategories = new Set<string>()
+    
+    // 모든 카테고리 수집
+    Object.values(monthlyData).forEach((categories: any) => {
+      Object.keys(categories).forEach(category => allCategories.add(category))
+    })
+    
+    // 선택된 카테고리가 없으면 모든 카테고리 표시
+    const categoriesToShow = selectedExpenseCategories.length > 0 
+      ? selectedExpenseCategories 
+      : Array.from(allCategories)
+    
+    // 월별 데이터 구성
+    return Object.entries(monthlyData).map(([month, categories]: [string, any]) => {
+      const [year, monthNum] = month.split('-')
+      const monthName = language === 'ja' 
+        ? `${year}年${parseInt(monthNum)}月` 
+        : `${year}년 ${parseInt(monthNum)}월`
+      
+      const data: any = { month: monthName }
+      categoriesToShow.forEach(category => {
+        data[category] = categories[category] || 0
+      })
+      
+      return data
+    })
+  }
+
+  // 사용 가능한 카테고리 목록
+  const getAvailableExpenseCategories = () => {
+    if (!dashboard?.monthlyExpensesByCategory) return []
+    
+    const categories = new Set<string>()
+    Object.values(dashboard.monthlyExpensesByCategory).forEach((monthCategories: any) => {
+      Object.keys(monthCategories).forEach(category => categories.add(category))
+    })
+    
+    return Array.from(categories).sort()
+  }
+
+  // 카테고리별 색상 지정
+  const getCategoryColor = (category: string, index: number) => {
+    const colors = [
+      '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6',
+      '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
+    ]
+    return colors[index % colors.length]
+  }
+
   const handleTotalSalesCellClick = (month: number, paymentMethod: string, isFee: boolean) => {
     if (!isAdmin) return
     const currentValue = getTotalSalesValue(month, paymentMethod, isFee)
@@ -2193,19 +2253,113 @@ export default function AccountingPage() {
                       <Legend 
                         verticalAlign="top" 
                         height={36}
-                        formatter={(value) => {
-                          if (value === 'totalSalesAmount') return language === 'ja' ? '売上高（全体売上）' : '매출액 (전체매출)'
-                          if (value === 'sales') return language === 'ja' ? '総売上（取引履歴）' : '총매출 (거래내역)'
-                          if (value === 'expenses') return language === 'ja' ? '総支出（取引履歴）' : '총지출 (거래내역)'
-                          if (value === 'profit') return language === 'ja' ? '純利益（取引履歴）' : '순이익 (거래내역)'
-                          return value
-                        }}
                       />
-                      <Line type="monotone" dataKey="totalSalesAmount" name="totalSalesAmount" stroke="#f59e0b" strokeWidth={4} />
-                      <Line type="monotone" dataKey="sales" name="sales" stroke="#10b981" strokeWidth={2} />
-                      <Line type="monotone" dataKey="expenses" name="expenses" stroke="#ef4444" strokeWidth={2} />
-                      <Line type="monotone" dataKey="profit" name="profit" stroke="#3b82f6" strokeWidth={2} />
+                      <Line 
+                        type="monotone" 
+                        dataKey="totalSalesAmount" 
+                        name={language === 'ja' ? '売上高（全体売上）' : '매출액 (전체매출)'} 
+                        stroke="#f59e0b" 
+                        strokeWidth={4} 
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="sales" 
+                        name={language === 'ja' ? '総売上（取引履歴）' : '총매출 (거래내역)'} 
+                        stroke="#10b981" 
+                        strokeWidth={2} 
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="expenses" 
+                        name={language === 'ja' ? '総支出（取引履歴）' : '총지출 (거래내역)'} 
+                        stroke="#ef4444" 
+                        strokeWidth={2} 
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="profit" 
+                        name={language === 'ja' ? '純利益（取引履歴）' : '순이익 (거래내역)'} 
+                        stroke="#3b82f6" 
+                        strokeWidth={2} 
+                      />
                     </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Category Expenses Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>{language === 'ja' ? 'カテゴリ別支出推移' : '카테고리별 지출 추이'}</CardTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {language === 'ja' ? '※最近12ヶ月' : '※ 최근 12개월'}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {/* 카테고리 선택 */}
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {getAvailableExpenseCategories().map(category => (
+                      <label key={category} className="inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedExpenseCategories.length === 0 || selectedExpenseCategories.includes(category)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              if (selectedExpenseCategories.length === 0) {
+                                // 전체 선택 상태에서 하나를 체크하면 그것만 선택
+                                setSelectedExpenseCategories([category])
+                              } else {
+                                setSelectedExpenseCategories([...selectedExpenseCategories, category])
+                              }
+                            } else {
+                              const newSelected = selectedExpenseCategories.filter(c => c !== category)
+                              setSelectedExpenseCategories(newSelected)
+                            }
+                          }}
+                          className="mr-1"
+                        />
+                        <span className="text-sm">{category}</span>
+                      </label>
+                    ))}
+                    {selectedExpenseCategories.length > 0 && (
+                      <button
+                        onClick={() => setSelectedExpenseCategories([])}
+                        className="text-xs text-blue-600 hover:text-blue-800 underline ml-2"
+                      >
+                        {language === 'ja' ? '全て表示' : '전체 표시'}
+                      </button>
+                    )}
+                  </div>
+
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart 
+                      data={getExpensesByCategoryData()}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="month" 
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                        interval={0}
+                        style={{ fontSize: '11px' }}
+                      />
+                      <YAxis 
+                        width={80}
+                        tickFormatter={(value) => `¥${(value / 10000).toFixed(0)}万`}
+                      />
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Legend />
+                      {(selectedExpenseCategories.length > 0 ? selectedExpenseCategories : getAvailableExpenseCategories()).map((category, index) => (
+                        <Bar 
+                          key={category} 
+                          dataKey={category} 
+                          fill={getCategoryColor(category, index)}
+                          name={category}
+                        />
+                      ))}
+                    </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
