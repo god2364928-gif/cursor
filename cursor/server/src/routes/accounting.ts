@@ -58,6 +58,17 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
       dateParams
     )
 
+    // 매출 카테고리별
+    const salesByCategoryResult = await pool.query(
+      `SELECT 
+        category,
+        COALESCE(SUM(amount), 0) as total
+       FROM accounting_transactions
+       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케')
+       GROUP BY category`,
+      dateParams
+    )
+
     // 지출 합계
     const expensesResult = await pool.query(
       `SELECT 
@@ -101,6 +112,12 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
     )
 
     const totalSales = Number(salesResult.rows[0]?.total_sales || 0)
+    
+    const salesByCategory = salesByCategoryResult.rows.reduce((acc: any, row: any) => {
+      acc[row.category] = Number(row.total)
+      return acc
+    }, {})
+    
     const expensesByCategory = expensesResult.rows.reduce((acc: any, row: any) => {
       acc[row.category] = Number(row.total)
       return acc
@@ -137,6 +154,7 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
       totalSales,
       totalExpenses,
       netProfit: totalSales - totalExpenses,
+      salesByCategory,
       expensesByCategory,
       accounts: accountsResult.rows.map((r: any) => ({
         accountName: r.account_name,

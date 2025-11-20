@@ -32,6 +32,7 @@ interface DashboardData {
   totalSales: number
   totalExpenses: number
   netProfit: number
+  salesByCategory: Record<string, number>
   expensesByCategory: Record<string, number>
   accounts: Array<{
     accountName: string
@@ -2183,8 +2184,27 @@ export default function AccountingPage() {
                 </CardContent>
               </Card>
 
-              {/* Expense Breakdown */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Sales & Expense Breakdown */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{language === 'ja' ? 'カテゴリ別売上' : '카테고리별 매출'}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {dashboard.salesByCategory && Object.entries(dashboard.salesByCategory).map(([category, amount]) => (
+                        <div key={category} className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">{category}</span>
+                          <span className="text-sm font-bold text-emerald-600">{formatCurrency(amount)}</span>
+                        </div>
+                      ))}
+                      {(!dashboard.salesByCategory || Object.keys(dashboard.salesByCategory).length === 0) && (
+                        <p className="text-sm text-gray-500">{language === 'ja' ? 'データがありません' : '데이터가 없습니다'}</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardHeader>
                     <CardTitle>{language === 'ja' ? 'カテゴリ別支出' : '카테고리별 지출'}</CardTitle>
@@ -2194,7 +2214,7 @@ export default function AccountingPage() {
                       {Object.entries(dashboard.expensesByCategory).map(([category, amount]) => (
                         <div key={category} className="flex justify-between items-center">
                           <span className="text-sm font-medium text-gray-700">{category}</span>
-                          <span className="text-sm font-bold text-gray-900">{formatCurrency(amount)}</span>
+                          <span className="text-sm font-bold text-red-600">{formatCurrency(amount)}</span>
                         </div>
                       ))}
                     </div>
