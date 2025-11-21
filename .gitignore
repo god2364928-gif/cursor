@@ -32,7 +32,6 @@ node_modules/
 
 # Build outputs
 dist/
-!cursor/server/dist/
 build/
 
 # IDE
@@ -47,9 +46,10 @@ RAILWAY-DB-INFO.md
 verify_*.py
 parse_*.py
 
-# Explicitly include important guides
-!RAILWAY-TROUBLESHOOTING-FINAL.md
-!DEPLOYMENT-GUIDE.md
+# Distribution packages (LINE Auto Upload)
+LINE_Auto_Upload_Deploy/
+LINE_Auto_Upload.spec
+*.spec
 
 # Python
 .venv/
