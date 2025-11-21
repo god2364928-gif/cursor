@@ -6,7 +6,6 @@ cmds = [
   'echo "=== Railway Build Start ==="',
   'echo "Node version: $(node --version)"',
   'echo "NPM version: $(npm --version)"',
-  'cd cursor/server',
   'rm -rf node_modules dist',
   'npm ci --prefer-offline --no-audit',
   'npm run build',
@@ -17,4 +16,4 @@ cmds = [
 ]
 
 [start]
-cmd = 'cd cursor/server && node dist/index.js'
+cmd = 'node dist/index.js'
