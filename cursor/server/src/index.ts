@@ -188,3 +188,4 @@ process.on('unhandledRejection', (reason, promise) => {
 // - Optimized Railway build configuration
 // - Enforced clean build (no cache)
 // Deploy: 2025-11-14 16:14:28 - Manual redeploy
+// Deploy: 2025-11-22 08:26:33 - 프로젝트 정리 후 재배포
