@@ -244,7 +244,8 @@ git push origin main
 
 ## 📚 참고 문서
 
-- [DEPLOYMENT-WORKFLOW.md](./DEPLOYMENT-WORKFLOW.md) - 전체 배포 프로세스
-- [DEPLOYMENT-GUIDE.md](./DEPLOYMENT-GUIDE.md) - Vercel/Railway 설정
-- [PROBLEM-ANALYSIS.md](./PROBLEM-ANALYSIS.md) - 과거 문제 분석
+- Railway 대시보드: https://railway.app
+- Vercel 대시보드: https://vercel.com
+- 서버 코드: `cursor/server/`
+- 클라이언트 코드: `cursor/client/`
 

@@ -84,3 +84,7 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
 
 export default router
 
+
+
+
+

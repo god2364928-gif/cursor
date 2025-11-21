@@ -39,8 +39,9 @@ export function parseLineChat(text: string): ParsedLineChat {
   // 午前 6:00	既読	よろしければ、月曜日にパスワードを共有いただく形で問題ございません。
   
   for (const line of lines) {
-    // 날짜 라인 감지 (YYYY.MM.DD 또는 YYYY/MM/DD 또는 MM月DD日)
-    const dateMatch = line.match(/(\d{4})[\.\/](\d{1,2})[\.\/](\d{1,2})|(\d{1,2})月(\d{1,2})日/)
+    // 날짜 라인 감지
+    // 형식: "2025.11.06 수요일" 또는 "2024.11.17(일)" 또는 "11月17日"
+    const dateMatch = line.match(/(\d{4})[\.\/](\d{1,2})[\.\/](\d{1,2})\s*[가-힣\(\)]*|(\d{1,2})月(\d{1,2})日/)
     if (dateMatch) {
       if (dateMatch[1]) {
         // YYYY.MM.DD 형식
@@ -54,7 +55,38 @@ export function parseLineChat(text: string): ParsedLineChat {
     }
     
     // 메시지 라인 파싱
-    // 형식: "오전 10:25	홍길동	안녕하세요" 또는 "午前 6:00	既読	メッセージ"
+    // Ctrl+C 복사 형식: "10:25 제주자전도 안녕하세요" (공백 구분, 오전/오후 없음)
+    // 파일 내보내기 형식: "오전 10:25	홍길동	안녕하세요" (탭 구분, 오전/오후 있음)
+    
+    // 1) 시간:분 형식으로 시작하는 라인 (Ctrl+C 형식)
+    const ctrlCMatch = line.match(/^(\d{1,2}:\d{2})\s+(.+)$/)
+    if (ctrlCMatch && currentDate) {
+      const [, time, rest] = ctrlCMatch
+      // rest는 "이름 메시지" 형태
+      // 첫 단어를 이름으로, 나머지를 메시지로 간주
+      const spaceIndex = rest.indexOf(' ')
+      if (spaceIndex > 0) {
+        const sender = rest.substring(0, spaceIndex)
+        const message = rest.substring(spaceIndex + 1)
+        messages.push({
+          date: currentDate,
+          time: time.trim(),
+          sender: sender.trim(),
+          message: message.trim()
+        })
+      } else {
+        // 공백이 없으면 전체를 메시지로
+        messages.push({
+          date: currentDate,
+          time: time.trim(),
+          sender: '알 수 없음',
+          message: rest.trim()
+        })
+      }
+      continue
+    }
+    
+    // 2) 오전/오후 포함 형식 (파일 내보내기 형식)
     const messageMatch = line.match(/^([오전오후午前午後]\s*\d{1,2}:\d{2})\s+(.+?)\s+(.+)$/)
     if (messageMatch && currentDate) {
       const [, time, sender, message] = messageMatch
@@ -64,17 +96,18 @@ export function parseLineChat(text: string): ParsedLineChat {
         sender: sender.trim(),
         message: message.trim()
       })
-    } else {
-      // 탭으로 구분된 경우
-      const parts = line.split('\t')
-      if (parts.length >= 3 && currentDate) {
-        messages.push({
-          date: currentDate,
-          time: parts[0].trim(),
-          sender: parts[1].trim(),
-          message: parts.slice(2).join(' ').trim()
-        })
-      }
+      continue
+    }
+    
+    // 3) 탭으로 구분된 경우 (파일 내보내기 형식)
+    const parts = line.split('\t')
+    if (parts.length >= 3 && currentDate) {
+      messages.push({
+        date: currentDate,
+        time: parts[0].trim(),
+        sender: parts[1].trim(),
+        message: parts.slice(2).join(' ').trim()
+      })
     }
   }
   
@@ -233,4 +266,5 @@ export function formatChatForHistory(parsed: ParsedLineChat): string {
   
   return formatted
 }
+
 

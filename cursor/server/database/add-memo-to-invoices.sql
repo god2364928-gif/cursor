@@ -5,3 +5,7 @@ ADD COLUMN IF NOT EXISTS memo TEXT;
 
 COMMENT ON COLUMN invoices.memo IS '청구서 비고 (備考)';
 
+
+
+
+
