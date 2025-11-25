@@ -94,3 +94,4 @@ def test_simple_insights_localized_messages():
 
 
 
+
