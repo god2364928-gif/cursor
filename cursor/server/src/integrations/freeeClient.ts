@@ -655,8 +655,8 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
  * 청구서 PDF 다운로드 (freee請求書 API)
  * freee 請求書 API는 /reports/ 경로를 사용
  */
-export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string, memoFromDb?: string): Promise<Buffer> {
-  console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}, memo=${memoFromDb ? 'present' : 'none'}`)
+export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string, memoFromDb?: string, paymentBankInfoFromDb?: string): Promise<Buffer> {
+  console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}, memo=${memoFromDb ? 'present' : 'none'}, payment_info=${paymentBankInfoFromDb ? 'custom' : 'default'}`)
 
   const token = await ensureValidToken()
 
@@ -689,6 +689,12 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
   console.log(`📄 Step 2: Generating PDF from invoice data...`)
 
   try {
+    // DB의 payment_bank_info 우선 사용, 없으면 기본값
+    const defaultPaymentInfo = 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー'
+    const paymentInfo = paymentBankInfoFromDb || invoice.bank_account_to_transfer || defaultPaymentInfo
+    
+    console.log(`💳 Using payment info: ${paymentInfo.substring(0, 30)}...`)
+
     const pdfBuffer = await generateInvoicePdf({
       invoice_number: invoice.invoice_number,
       company_name: invoice.company_name || '株式会社ホットセラー',
@@ -706,7 +712,7 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
         unit_price: parseFloat(line.unit_price),
         tax_rate: line.tax_rate,
       })),
-      payment_bank_info: invoice.bank_account_to_transfer || 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー',
+      payment_bank_info: paymentInfo,  // DB의 payment_bank_info 사용
       invoice_registration_number: invoice.template?.invoice_registration_number || 'T5013301050765',
       memo: memoFromDb || '',  // DB의 memo 사용
     })
