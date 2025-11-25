@@ -4,13 +4,12 @@ nixPkgs = ['nodejs-18_x']
 [phases.install]
 cmds = [
   'echo "📦 Installing dependencies..."',
-  'npm ci --omit=dev --prefer-offline --no-audit --progress=false'
+  'npm ci --prefer-offline --no-audit'
 ]
 
 [phases.build]
 cmds = [
   'echo "🔨 Building application..."',
-  'npm install --no-save typescript tsx @types/node @types/express @types/cors @types/jsonwebtoken @types/bcryptjs @types/pg @types/multer @types/pdfkit',
   'npm run build',
   'test -f dist/index.js || (echo "❌ Build failed: dist/index.js not found" && exit 1)',
   'echo "✅ Build completed"'
