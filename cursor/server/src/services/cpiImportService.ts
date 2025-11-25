@@ -10,6 +10,18 @@ function toDateString(isoLike: string): string {
   return i > 0 ? isoLike.slice(0, i) : isoLike.slice(0, 10)
 }
 
+// CPI 담당자 이름을 시스템 사용자 이름으로 매핑
+// CPI에서 사용하는 이름과 CRM에서 사용하는 실제 이름이 다를 경우 여기에 추가
+function mapCpiNameToSystemName(cpiName: string): string {
+  const nameMapping: Record<string, string> = {
+    'JEYI': '金帝利',
+    // 필요시 다른 매핑 추가:
+    // 'CPI이름': '시스템이름',
+  }
+  
+  return nameMapping[cpiName] || cpiName
+}
+
 export async function importRecentCalls(since: Date, until: Date): Promise<{ inserted: number; updated: number; skipped: number }> {
   const startDate = toDateString(since.toISOString())
   const endDate = toDateString(until.toISOString())
@@ -51,8 +63,11 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
         }
       }
 
-      const managerName = r.username?.trim()
-      if (!managerName) { skipped++; continue }
+      const rawManagerName = r.username?.trim()
+      if (!rawManagerName) { skipped++; continue }
+      
+      // CPI 이름을 시스템 이름으로 변환 (예: JEYI → 金帝利)
+      const managerName = mapCpiNameToSystemName(rawManagerName)
 
       const userResult = await pool.query('SELECT id FROM users WHERE name = $1 LIMIT 1', [managerName])
       if (userResult.rowCount === 0) {
