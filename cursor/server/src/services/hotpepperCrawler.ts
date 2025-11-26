@@ -29,6 +29,16 @@ async function crawlRestaurantDetail(page: any, shop_url: string): Promise<Crawl
       waitUntil: 'networkidle2',
       timeout: 30000 
     })
+    
+    // 페이지 하단까지 스크롤 (동적 콘텐츠 로드 위해)
+    await page.evaluate(`
+      (() => {
+        window.scrollTo(0, document.body.scrollHeight);
+      })()
+    `)
+    
+    // 스크롤 후 콘텐츠 로드 대기
+    await new Promise(resolve => setTimeout(resolve, 2000))
 
     // 1. 전화번호 수집
     try {
@@ -75,50 +85,29 @@ async function crawlRestaurantDetail(page: any, shop_url: string): Promise<Crawl
 
     // 2. 공식 홈페이지 수집
     try {
-      // "お店のホームページ：https://..." 형식으로 페이지 내 텍스트에서 추출
-      const homepageResult = await page.evaluate(`
+      // DOM 선택자로 <a> 태그에서 직접 추출
+      const homepage = await page.evaluate(`
         (() => {
-          const bodyText = document.body.innerText;
+          // <a> 태그 중에서 "お店のホームページ" 텍스ト를 포함한 것 찾기
+          const links = Array.from(document.querySelectorAll('a'));
           
-          // 디버깅: "お店のホームページ" 텍스트가 있는지 확인
-          const hasHomepageText = bodyText.includes('お店のホームページ');
-          const has公式HP = bodyText.includes('公式HP');
-          
-          // "お店のホームページ" 또는 "公式HP" 텍스트가 포함된 줄 찾기
-          const lines = bodyText.split('\\n');
-          let foundLine = null;
-          
-          for (const line of lines) {
-            if (line.includes('お店のホームページ') || line.includes('公式HP')) {
-              foundLine = line;
-              // URL 패턴 찾기 (https:// 또는 http://로 시작)
-              const urlMatch = line.match(/(https?:\\/\\/[^\\s、。，）)\\n]+)/);
-              if (urlMatch && urlMatch[1]) {
-                const url = urlMatch[1].trim();
-                // HotPepper 자체 URL은 제외
-                if (!url.includes('hotpepper.jp')) {
-                  return {
-                    success: true,
-                    url: url,
-                    debug: { hasHomepageText, has公式HP, foundLine }
-                  };
-                }
+          for (const link of links) {
+            const text = link.textContent || '';
+            if (text.includes('お店のホームページ') || text.includes('公式HP')) {
+              const url = link.href;
+              // HotPepper 자체 URL은 제외
+              if (url && !url.includes('hotpepper.jp')) {
+                return url;
               }
             }
           }
           
-          return {
-            success: false,
-            url: null,
-            debug: { hasHomepageText, has公式HP, foundLine }
-          };
+          return null;
         })()
       `)
 
-      console.log(`    🔍 디버그: ${JSON.stringify(homepageResult.debug)}`)
-      
-      if (homepageResult.success && homepageResult.url) {
-        result.official_homepage = homepageResult.url
+      if (homepage) {
+        result.official_homepage = homepage
         console.log(`    ✅ 공식 홈페이지: ${result.official_homepage}`)
       } else {
         console.log(`    ℹ️  공식 홈페이지 없음`)
