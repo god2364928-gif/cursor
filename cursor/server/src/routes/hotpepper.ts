@@ -2,8 +2,7 @@ import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { searchRestaurants, AREA_CODES, formatRestaurantForDB } from '../integrations/hotpepperClient'
-import { spawn } from 'child_process'
-import path from 'path'
+import { crawlHotpepperDetails } from '../services/hotpepperCrawler'
 
 const router = Router()
 
@@ -342,6 +341,7 @@ router.get('/areas', authMiddleware, async (req: AuthRequest, res: Response) => 
 router.post('/crawl-details', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { batch_size } = req.body
+    const batchSize = batch_size || 20
     
     // 크롤링 대상 확인
     const countResult = await pool.query(`
@@ -363,52 +363,23 @@ router.post('/crawl-details', authMiddleware, async (req: AuthRequest, res: Resp
       })
     }
     
-    // Python 스크립트 경로
-    const scriptPath = path.join(__dirname, '../../../scripts/hotpepper_crawler.py')
+    console.log(`🚀 Starting Puppeteer crawler for ${totalCount} restaurants (batch: ${batchSize})...`)
     
-    console.log(`🚀 Starting crawler for ${totalCount} restaurants...`)
-    console.log(`📂 Script path: ${scriptPath}`)
+    // 백그라운드에서 크롤링 실행
+    crawlHotpepperDetails(batchSize)
+      .then(result => {
+        console.log(`✅ Crawler completed: ${result.success} success, ${result.error} errors`)
+      })
+      .catch(error => {
+        console.error(`❌ Crawler error:`, error)
+      })
     
-    // 환경 변수 설정
-    const env = {
-      ...process.env,
-      CRAWL_BATCH_SIZE: String(batch_size || 20)
-    }
-    
-    // Python 스크립트 실행
-    const pythonProcess = spawn('python3', [scriptPath], {
-      env,
-      cwd: path.join(__dirname, '../../..')
-    })
-    
-    let stdout = ''
-    let stderr = ''
-    
-    pythonProcess.stdout.on('data', (data) => {
-      const output = data.toString()
-      stdout += output
-      console.log(output)
-    })
-    
-    pythonProcess.stderr.on('data', (data) => {
-      const output = data.toString()
-      stderr += output
-      console.error(output)
-    })
-    
-    pythonProcess.on('close', (code) => {
-      if (code === 0) {
-        console.log('✅ Crawler completed successfully')
-      } else {
-        console.error(`❌ Crawler exited with code ${code}`)
-      }
-    })
-    
-    // 즉시 응답 반환 (백그라운드에서 실행)
+    // 즉시 응답 반환
     res.json({
       success: true,
       message: '크롤링이 시작되었습니다',
       total: totalCount,
+      batch_size: batchSize,
       status: 'running'
     })
     
