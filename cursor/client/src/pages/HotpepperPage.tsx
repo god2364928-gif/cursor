@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardContent } from '../components/ui/card'
 import { useToast } from '../components/ui/toast'
-import { Search, Trash2, ExternalLink, Phone, MapPin, DollarSign, MessageSquare, Loader2 } from 'lucide-react'
+import { Search, Trash2, ExternalLink, Phone, MapPin, DollarSign, MessageSquare, Loader2, Globe, Clock, Calendar } from 'lucide-react'
 
 interface HotpepperRestaurant {
   id: string
@@ -272,125 +272,116 @@ export default function HotpepperPage() {
               <p className="text-sm mt-2">위에서 검색하여 맛집을 저장해보세요</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-4 py-3 text-left">
-                      <input
-                        type="checkbox"
-                        checked={selectedRestaurants.size === restaurants.length && restaurants.length > 0}
-                        onChange={toggleSelectAll}
-                        className="rounded"
-                      />
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가게명</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">전화번호</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">주소</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">평균 예산</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">홍보 문구</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">검색 정보</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">수집 일시</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">작업</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {restaurants.map((restaurant) => (
-                    <tr key={restaurant.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {restaurants.map((restaurant) => (
+                <Card key={restaurant.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-0">
+                    <div className="flex flex-col h-full">
+                      {/* 상단 체크박스와 삭제 버튼 */}
+                      <div className="flex items-center justify-between p-3 border-b bg-gray-50">
                         <input
                           type="checkbox"
                           checked={selectedRestaurants.has(restaurant.id)}
                           onChange={() => toggleSelect(restaurant.id)}
-                          className="rounded"
+                          className="rounded w-4 h-4"
                         />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{restaurant.name}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {restaurant.tel ? (
-                          <div className="flex items-center gap-1 text-sm">
-                            <Phone className="w-3 h-3" />
-                            {restaurant.tel}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 text-sm max-w-xs">
-                          <MapPin className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate" title={restaurant.address}>
-                            {restaurant.address}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {restaurant.budget_average ? (
-                          <div className="flex items-center gap-1 text-sm">
-                            <DollarSign className="w-3 h-3" />
-                            {restaurant.budget_average}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {restaurant.catch_phrase ? (
-                          <div className="flex items-center gap-1 text-sm max-w-xs">
-                            <MessageSquare className="w-3 h-3 flex-shrink-0" />
-                            <span className="truncate" title={restaurant.catch_phrase}>
-                              {restaurant.catch_phrase}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm">
-                          {restaurant.search_area && (
-                            <div className="text-blue-600">
-                              지역: {areas.find(a => a.code === restaurant.search_area)?.name_ko || restaurant.search_area}
+                        <button
+                          onClick={() => handleDelete(restaurant.id)}
+                          className="text-red-600 hover:text-red-800 p-1.5 hover:bg-red-50 rounded"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="p-4">
+                        {/* 가게명 */}
+                        <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2">
+                          {restaurant.name}
+                        </h3>
+
+                        {/* 주요 정보 */}
+                        <div className="space-y-2.5 mb-4">
+                          {/* 전화번호 */}
+                          {restaurant.tel && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Phone className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                              <a 
+                                href={`tel:${restaurant.tel}`}
+                                className="text-blue-600 hover:underline font-medium"
+                              >
+                                {restaurant.tel}
+                              </a>
                             </div>
+                          )}
+
+                          {/* 홈페이지 URL */}
+                          {restaurant.shop_url && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Globe className="w-4 h-4 text-green-600 flex-shrink-0" />
+                              <a
+                                href={restaurant.shop_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-600 hover:underline font-medium truncate"
+                              >
+                                핫페퍼에서 보기
+                              </a>
+                            </div>
+                          )}
+
+                          {/* 주소 */}
+                          <div className="flex items-start gap-2 text-sm text-gray-700">
+                            <MapPin className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">{restaurant.address}</span>
+                          </div>
+
+                          {/* 평균 예산 */}
+                          {restaurant.budget_average && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <DollarSign className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                              <span className="text-gray-700 font-medium">{restaurant.budget_average}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 홍보 문구 */}
+                        {restaurant.catch_phrase && (
+                          <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-3">
+                            <p className="text-sm text-gray-700 line-clamp-2">
+                              💬 {restaurant.catch_phrase}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* 검색 정보 */}
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {restaurant.search_area && (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              📍 {areas.find(a => a.code === restaurant.search_area)?.name_ko || restaurant.search_area}
+                            </span>
                           )}
                           {restaurant.search_keyword && (
-                            <div className="text-green-600">
-                              키워드: {restaurant.search_keyword}
-                            </div>
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              🔍 {restaurant.search_keyword}
+                            </span>
                           )}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {new Date(restaurant.collected_at).toLocaleDateString('ko-KR')}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          {restaurant.shop_url && (
-                            <a
-                              href={restaurant.shop_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800"
-                              title="핫페퍼에서 보기"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          )}
-                          <button
-                            onClick={() => handleDelete(restaurant.id)}
-                            className="text-red-600 hover:text-red-800"
-                            title="삭제"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+
+                        {/* 수집 일시 */}
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 pt-2 border-t">
+                          <Calendar className="w-3.5 h-3.5" />
+                          수집: {new Date(restaurant.collected_at).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </CardContent>
