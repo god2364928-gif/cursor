@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer'
+import puppeteer from 'puppeteer-core'
+import chromium from '@sparticuz/chromium'
 
 interface InvoiceData {
   invoice_number: string
@@ -655,9 +656,11 @@ function generateInvoiceHtml(data: InvoiceData): string {
 export async function generateInvoicePdf(invoiceData: InvoiceData): Promise<Buffer> {
   const html = generateInvoiceHtml(invoiceData)
 
+  const executablePath = await chromium.executablePath()
   const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: chromium.args,
+    executablePath,
+    headless: chromium.headless,
   })
 
   try {
@@ -688,9 +691,11 @@ export async function generateInvoicePdf(invoiceData: InvoiceData): Promise<Buff
 export async function generateReceiptPdf(receiptData: ReceiptData): Promise<Buffer> {
   const html = generateReceiptHtml(receiptData)
 
+  const executablePath = await chromium.executablePath()
   const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: chromium.args,
+    executablePath,
+    headless: chromium.headless,
   })
 
   try {
