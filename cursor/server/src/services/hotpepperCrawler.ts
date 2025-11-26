@@ -80,20 +80,18 @@ async function crawlRestaurantDetail(page: any, shop_url: string): Promise<Crawl
         (() => {
           const bodyText = document.body.innerText;
           
-          // "お店のホームページ" 텍스트 다음의 URL 찾기
-          const patterns = [
-            /お店のホームページ[：:\\s]+(https?:\\/\\/[^\\s]+)/i,
-            /公式HP[：:\\s]+(https?:\\/\\/[^\\s]+)/i,
-            /ホームページ[：:\\s]+(https?:\\/\\/[^\\s]+)/i
-          ];
-          
-          for (const pattern of patterns) {
-            const match = bodyText.match(pattern);
-            if (match && match[1]) {
-              const url = match[1].replace(/[、。，\\s]+$/, '');
-              // HotPepper 자체 URL은 제외
-              if (!url.includes('hotpepper.jp')) {
-                return url;
+          // "お店のホームページ" 또는 "公式HP" 텍스트가 포함된 줄 찾기
+          const lines = bodyText.split('\\n');
+          for (const line of lines) {
+            if (line.includes('お店のホームページ') || line.includes('公式HP')) {
+              // URL 패턴 찾기 (https:// 또는 http://로 시작)
+              const urlMatch = line.match(/(https?:\\/\\/[^\\s、。，）)]+)/);
+              if (urlMatch && urlMatch[1]) {
+                const url = urlMatch[1].trim();
+                // HotPepper 자체 URL은 제외
+                if (!url.includes('hotpepper.jp')) {
+                  return url;
+                }
               }
             }
           }
