@@ -32,56 +32,41 @@ async function crawlRestaurantDetail(page: any, shop_url: string): Promise<Crawl
 
     // 1. 전화번호 수집
     try {
-      // "電話番号を表示する" 버튼 찾기 및 클릭
-      const telButtonSelectors = [
-        'a:has-text("電話番号を表示")',
-        'a.telView',
-        'button:has-text("電話番号を表示")',
-        '.shopTel a:has-text("表示")'
-      ]
-
-      let buttonClicked = false
-      for (const selector of telButtonSelectors) {
-        try {
-          const button = await page.$(selector)
-          if (button) {
-            console.log(`    📞 전화번호 버튼 발견, 클릭...`)
-            await button.click()
-            buttonClicked = true
-            await page.waitForTimeout(1000)
-            break
+      // "電話番号を表示する" 링크 찾기 및 클릭
+      const buttonFound = await page.evaluate(`
+        (() => {
+          const links = Array.from(document.querySelectorAll('a'));
+          const telButton = links.find(link => link.textContent?.includes('電話番号を表示'));
+          if (telButton) {
+            telButton.click();
+            return true;
           }
-        } catch (e) {
-          continue
+          return false;
+        })()
+      `)
+
+      if (buttonFound) {
+        console.log(`    📞 전화번호 버튼 클릭 완료, 대기 중...`)
+        await page.waitForTimeout(1500)  // 전화번호 표시 대기
+
+        // 클릭 후 나타나는 전화번호 추출
+        const telText = await page.evaluate(`
+          (() => {
+            const bodyText = document.body.innerText;
+            const telPattern = /\\d{2,4}-\\d{2,4}-\\d{4}/;
+            const match = bodyText.match(telPattern);
+            return match ? match[0] : null;
+          })()
+        `)
+
+        if (telText) {
+          result.tel = telText
+          console.log(`    ✅ 전화번호: ${result.tel}`)
+        } else {
+          console.log(`    ⚠️  전화번호를 찾을 수 없습니다`)
         }
-      }
-
-      // 전화번호 추출
-      const telSelectors = [
-        'span.telView',
-        '.tel span',
-        '.shopTel span',
-        '#telView'
-      ]
-
-      for (const selector of telSelectors) {
-        try {
-          const telElement = await page.$(selector)
-          if (telElement) {
-            const telText = await page.evaluate((el: any) => el.textContent, telElement)
-            if (telText && telText.trim().length > 5) {
-              result.tel = telText.trim()
-              console.log(`    ✅ 전화번호: ${result.tel}`)
-              break
-            }
-          }
-        } catch (e) {
-          continue
-        }
-      }
-
-      if (!result.tel) {
-        console.log(`    ⚠️  전화번호를 찾을 수 없습니다`)
+      } else {
+        console.log(`    ⚠️  전화번호 버튼을 찾을 수 없습니다`)
       }
 
     } catch (error) {
@@ -90,31 +75,37 @@ async function crawlRestaurantDetail(page: any, shop_url: string): Promise<Crawl
 
     // 2. 공식 홈페이지 수집
     try {
-      const homepageSelectors = [
-        'th:has-text("お店のホームページ") + td a',
-        'dt:has-text("お店のホームページ") + dd a',
-        'th:has-text("公式HP") + td a',
-        'a[href*="http"]:has-text("HP")'
-      ]
-
-      for (const selector of homepageSelectors) {
-        try {
-          const homepageElement = await page.$(selector)
-          if (homepageElement) {
-            const href = await page.evaluate((el: any) => el.href, homepageElement)
-            // HotPepper 자체 URL은 제외
-            if (href && !href.includes('hotpepper.jp')) {
-              result.official_homepage = href
-              console.log(`    ✅ 공식 홈페이지: ${result.official_homepage}`)
-              break
+      // "お店のホームページ：https://..." 형식으로 페이지 내 텍스트에서 추출
+      const homepage = await page.evaluate(`
+        (() => {
+          const bodyText = document.body.innerText;
+          
+          // "お店のホームページ" 텍스트 다음의 URL 찾기
+          const patterns = [
+            /お店のホームページ[：:\\s]+(https?:\\/\\/[^\\s]+)/i,
+            /公式HP[：:\\s]+(https?:\\/\\/[^\\s]+)/i,
+            /ホームページ[：:\\s]+(https?:\\/\\/[^\\s]+)/i
+          ];
+          
+          for (const pattern of patterns) {
+            const match = bodyText.match(pattern);
+            if (match && match[1]) {
+              const url = match[1].replace(/[、。，\\s]+$/, '');
+              // HotPepper 자체 URL은 제외
+              if (!url.includes('hotpepper.jp')) {
+                return url;
+              }
             }
           }
-        } catch (e) {
-          continue
-        }
-      }
+          
+          return null;
+        })()
+      `)
 
-      if (!result.official_homepage) {
+      if (homepage) {
+        result.official_homepage = homepage
+        console.log(`    ✅ 공식 홈페이지: ${result.official_homepage}`)
+      } else {
         console.log(`    ℹ️  공식 홈페이지 없음`)
       }
 
