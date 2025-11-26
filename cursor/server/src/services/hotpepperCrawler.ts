@@ -43,44 +43,43 @@ async function crawlRestaurantDetail(page: any, shop_url: string): Promise<Crawl
     // 최종 콘텐츠 로드 대기
     await new Promise(resolve => setTimeout(resolve, 2000))
 
-    // 1. 전화번호 수집
+    // 1. 전화번호 수집 (전화번호 페이지로 이동)
     try {
-      // "電話番号を表示する" 링크 찾기 및 클릭
-      const buttonFound = await page.evaluate(`
+      // shop_url에서 /tel/ 페이지 URL 생성
+      const telPageUrl = shop_url.replace(/\/$/, '') + '/tel/'
+      
+      console.log(`    📞 전화번호 페이지로 이동: ${telPageUrl}`)
+      await page.goto(telPageUrl, { 
+        waitUntil: 'domcontentloaded',
+        timeout: 30000 
+      })
+      
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // 전화번호 추출 (페이지에 직접 표시됨)
+      const telText = await page.evaluate(`
         (() => {
-          const links = Array.from(document.querySelectorAll('a'));
-          const telButton = links.find(link => link.textContent?.includes('電話番号を表示'));
-          if (telButton) {
-            telButton.click();
-            return true;
-          }
-          return false;
+          const bodyText = document.body.innerText;
+          const telPattern = /\\d{2,4}-\\d{2,4}-\\d{4}/;
+          const match = bodyText.match(telPattern);
+          return match ? match[0] : null;
         })()
       `)
 
-      if (buttonFound) {
-        console.log(`    📞 전화번호 버튼 클릭 완료, 대기 중...`)
-        await new Promise(resolve => setTimeout(resolve, 1500))  // 전화번호 표시 대기
-
-        // 클릭 후 나타나는 전화번호 추출
-        const telText = await page.evaluate(`
-          (() => {
-            const bodyText = document.body.innerText;
-            const telPattern = /\\d{2,4}-\\d{2,4}-\\d{4}/;
-            const match = bodyText.match(telPattern);
-            return match ? match[0] : null;
-          })()
-        `)
-
-        if (telText) {
-          result.tel = telText
-          console.log(`    ✅ 전화번호: ${result.tel}`)
-        } else {
-          console.log(`    ⚠️  전화번호를 찾을 수 없습니다`)
-        }
+      if (telText) {
+        result.tel = telText
+        console.log(`    ✅ 전화번호: ${result.tel}`)
       } else {
-        console.log(`    ⚠️  전화번호 버튼을 찾을 수 없습니다`)
+        console.log(`    ⚠️  전화번호를 찾을 수 없습니다`)
       }
+      
+      // 원래 페이지로 돌아가기
+      console.log(`    ↩️  원래 페이지로 복귀: ${shop_url}`)
+      await page.goto(shop_url, { 
+        waitUntil: 'domcontentloaded',
+        timeout: 30000 
+      })
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
     } catch (error) {
       console.log(`    ❌ 전화번호 크롤링 에러: ${error}`)
