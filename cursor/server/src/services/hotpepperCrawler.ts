@@ -47,7 +47,7 @@ async function crawlRestaurantDetail(page: any, shop_url: string): Promise<Crawl
 
       if (buttonFound) {
         console.log(`    📞 전화번호 버튼 클릭 완료, 대기 중...`)
-        await page.waitForTimeout(1500)  // 전화번호 표시 대기
+        await new Promise(resolve => setTimeout(resolve, 1500))  // 전화번호 표시 대기
 
         // 클릭 후 나타나는 전화번호 추출
         const telText = await page.evaluate(`
