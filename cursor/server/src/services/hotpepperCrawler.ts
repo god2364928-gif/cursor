@@ -30,14 +30,17 @@ async function crawlRestaurantDetail(page: any, shop_url: string): Promise<Crawl
       timeout: 30000 
     })
     
-    // 페이지 하단까지 스크롤 (동적 콘텐츠 로드 위해)
-    await page.evaluate(`
-      (() => {
-        window.scrollTo(0, document.body.scrollHeight);
-      })()
-    `)
+    // 페이지 하단까지 여러 번 스크롤 (동적 콘텐츠 로드 위해)
+    for (let i = 0; i < 3; i++) {
+      await page.evaluate(`
+        (() => {
+          window.scrollTo(0, document.body.scrollHeight);
+        })()
+      `)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
     
-    // 스크롤 후 콘텐츠 로드 대기
+    // 최종 콘텐츠 로드 대기
     await new Promise(resolve => setTimeout(resolve, 2000))
 
     // 1. 전화번호 수집
