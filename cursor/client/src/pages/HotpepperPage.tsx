@@ -16,6 +16,7 @@ interface HotpepperRestaurant {
   budget_average?: string
   catch_phrase?: string
   shop_url?: string
+  official_homepage?: string
   search_keyword?: string
   search_area?: string
   notes?: string
@@ -41,11 +42,14 @@ export default function HotpepperPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [searchFilter, setSearchFilter] = useState('')
   const [totalCount, setTotalCount] = useState(0)
+  const [isCrawling, setIsCrawling] = useState(false)
+  const [crawlStatus, setCrawlStatus] = useState<any>(null)
 
   // 지역 목록 로드
   useEffect(() => {
     loadAreas()
     loadRestaurants()
+    loadCrawlStatus()
   }, [])
 
   const loadAreas = async () => {
@@ -165,6 +169,57 @@ export default function HotpepperPage() {
     setSelectedRestaurants(newSet)
   }
 
+  const loadCrawlStatus = async () => {
+    try {
+      const response = await api.get('/hotpepper/crawl-status')
+      setCrawlStatus(response.data)
+    } catch (error) {
+      console.error('크롤링 상태 로드 실패:', error)
+    }
+  }
+
+  const handleStartCrawl = async () => {
+    if (!confirm('전화번호와 공식 홈페이지를 크롤링하시겠습니까?\n\n몇 분이 소요될 수 있습니다.')) {
+      return
+    }
+
+    try {
+      setIsCrawling(true)
+      const response = await api.post('/hotpepper/crawl-details', {
+        batch_size: 20
+      })
+
+      if (response.data.success) {
+        showToast(
+          `크롤링이 시작되었습니다. 총 ${response.data.total}개 레스토랑 처리 예정`,
+          'success'
+        )
+        
+        // 30초마다 상태 업데이트
+        const interval = setInterval(async () => {
+          await loadCrawlStatus()
+          await loadRestaurants()
+        }, 30000)
+
+        // 5분 후 자동 정지
+        setTimeout(() => {
+          clearInterval(interval)
+          setIsCrawling(false)
+          loadCrawlStatus()
+          loadRestaurants()
+          showToast('크롤링이 완료되었습니다', 'success')
+        }, 300000)
+      }
+    } catch (error: any) {
+      console.error('크롤링 시작 실패:', error)
+      showToast(
+        error.response?.data?.message || '크롤링 시작에 실패했습니다',
+        'error'
+      )
+      setIsCrawling(false)
+    }
+  }
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
@@ -234,31 +289,73 @@ export default function HotpepperPage() {
       {/* 저장된 맛집 목록 */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-4">
-              <h2 className="text-xl font-semibold">저장된 맛집 목록</h2>
-              <span className="text-sm text-gray-500">총 {totalCount}개</span>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                placeholder="가게명, 주소로 검색..."
-                className="w-64"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') loadRestaurants()
-                }}
-              />
-              <Button onClick={loadRestaurants} variant="outline">
-                <Search className="w-4 h-4" />
-              </Button>
-              {selectedRestaurants.size > 0 && (
-                <Button onClick={handleBulkDelete} variant="destructive">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  선택 삭제 ({selectedRestaurants.size})
+          <div className="space-y-4 mb-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-semibold">저장된 맛집 목록</h2>
+                <span className="text-sm text-gray-500">총 {totalCount}개</span>
+                {crawlStatus && (
+                  <span className="text-sm text-blue-600">
+                    📞 전화번호: {crawlStatus.with_tel}개 ({crawlStatus.completion_rate}%)
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  placeholder="가게명, 주소로 검색..."
+                  className="w-64"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') loadRestaurants()
+                  }}
+                />
+                <Button onClick={loadRestaurants} variant="outline">
+                  <Search className="w-4 h-4" />
                 </Button>
-              )}
+                {selectedRestaurants.size > 0 && (
+                  <Button onClick={handleBulkDelete} variant="destructive">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    선택 삭제 ({selectedRestaurants.size})
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {crawlStatus && crawlStatus.without_tel > 0 && (
+              <div className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="text-yellow-600">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-yellow-900">
+                      {crawlStatus.without_tel}개 레스토랑의 전화번호가 없습니다
+                    </p>
+                    <p className="text-xs text-yellow-700">
+                      크롤링을 실행하면 HotPepper 상세 페이지에서 전화번호와 공식 홈페이지를 수집합니다
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleStartCrawl}
+                  disabled={isCrawling}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  {isCrawling ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      크롤링 중...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4 mr-2" />
+                      전화번호 수집 시작
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
 
           {isLoading ? (
@@ -315,15 +412,30 @@ export default function HotpepperPage() {
                             </div>
                           )}
 
-                          {/* 홈페이지 URL */}
-                          {restaurant.shop_url && (
+                          {/* 공식 홈페이지 */}
+                          {restaurant.official_homepage && (
                             <div className="flex items-center gap-2 text-sm">
                               <Globe className="w-4 h-4 text-green-600 flex-shrink-0" />
+                              <a
+                                href={restaurant.official_homepage}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-600 hover:underline font-medium truncate"
+                              >
+                                공식 홈페이지
+                              </a>
+                            </div>
+                          )}
+
+                          {/* 핫페퍼 URL */}
+                          {restaurant.shop_url && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <ExternalLink className="w-4 h-4 text-orange-600 flex-shrink-0" />
                               <a
                                 href={restaurant.shop_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-green-600 hover:underline font-medium truncate"
+                                className="text-orange-600 hover:underline font-medium truncate"
                               >
                                 핫페퍼에서 보기
                               </a>

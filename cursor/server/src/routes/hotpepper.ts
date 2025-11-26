@@ -2,6 +2,8 @@ import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { searchRestaurants, AREA_CODES, formatRestaurantForDB } from '../integrations/hotpepperClient'
+import { spawn } from 'child_process'
+import path from 'path'
 
 const router = Router()
 
@@ -329,6 +331,142 @@ router.get('/areas', authMiddleware, async (req: AuthRequest, res: Response) => 
     })
   } catch (error) {
     console.error('Error fetching areas:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+/**
+ * 크롤링 실행 - 전화번호 및 공식 홈페이지 수집
+ * POST /api/hotpepper/crawl-details
+ */
+router.post('/crawl-details', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { batch_size } = req.body
+    
+    // 크롤링 대상 확인
+    const countResult = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM hotpepper_restaurants
+      WHERE shop_url IS NOT NULL
+        AND (tel IS NULL OR tel = '')
+        AND is_deleted = false
+    `)
+    
+    const totalCount = parseInt(countResult.rows[0].count)
+    
+    if (totalCount === 0) {
+      return res.json({
+        success: true,
+        message: '크롤링할 레스토랑이 없습니다',
+        total: 0,
+        processed: 0
+      })
+    }
+    
+    // Python 스크립트 경로
+    const scriptPath = path.join(__dirname, '../../../scripts/hotpepper_crawler.py')
+    
+    console.log(`🚀 Starting crawler for ${totalCount} restaurants...`)
+    console.log(`📂 Script path: ${scriptPath}`)
+    
+    // 환경 변수 설정
+    const env = {
+      ...process.env,
+      CRAWL_BATCH_SIZE: String(batch_size || 20)
+    }
+    
+    // Python 스크립트 실행
+    const pythonProcess = spawn('python3', [scriptPath], {
+      env,
+      cwd: path.join(__dirname, '../../..')
+    })
+    
+    let stdout = ''
+    let stderr = ''
+    
+    pythonProcess.stdout.on('data', (data) => {
+      const output = data.toString()
+      stdout += output
+      console.log(output)
+    })
+    
+    pythonProcess.stderr.on('data', (data) => {
+      const output = data.toString()
+      stderr += output
+      console.error(output)
+    })
+    
+    pythonProcess.on('close', (code) => {
+      if (code === 0) {
+        console.log('✅ Crawler completed successfully')
+      } else {
+        console.error(`❌ Crawler exited with code ${code}`)
+      }
+    })
+    
+    // 즉시 응답 반환 (백그라운드에서 실행)
+    res.json({
+      success: true,
+      message: '크롤링이 시작되었습니다',
+      total: totalCount,
+      status: 'running'
+    })
+    
+  } catch (error: any) {
+    console.error('Error starting crawler:', error)
+    res.status(500).json({ 
+      success: false,
+      message: error.message || 'Internal server error' 
+    })
+  }
+})
+
+/**
+ * 크롤링 진행 상황 조회
+ * GET /api/hotpepper/crawl-status
+ */
+router.get('/crawl-status', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    // 전화번호가 있는 레코드 수
+    const withTelResult = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM hotpepper_restaurants
+      WHERE tel IS NOT NULL AND tel != ''
+        AND is_deleted = false
+    `)
+    
+    // 전화번호가 없는 레코드 수
+    const withoutTelResult = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM hotpepper_restaurants
+      WHERE (tel IS NULL OR tel = '')
+        AND shop_url IS NOT NULL
+        AND is_deleted = false
+    `)
+    
+    // 공식 홈페이지가 있는 레코드 수
+    const withHomepageResult = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM hotpepper_restaurants
+      WHERE official_homepage IS NOT NULL AND official_homepage != ''
+        AND is_deleted = false
+    `)
+    
+    const withTel = parseInt(withTelResult.rows[0].count)
+    const withoutTel = parseInt(withoutTelResult.rows[0].count)
+    const withHomepage = parseInt(withHomepageResult.rows[0].count)
+    const total = withTel + withoutTel
+    
+    res.json({
+      total,
+      with_tel: withTel,
+      without_tel: withoutTel,
+      with_homepage: withHomepage,
+      completion_rate: total > 0 ? Math.round((withTel / total) * 100) : 0
+    })
+    
+  } catch (error) {
+    console.error('Error fetching crawl status:', error)
     res.status(500).json({ message: 'Internal server error' })
   }
 })
