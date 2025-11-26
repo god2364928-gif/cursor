@@ -25,8 +25,10 @@ import invoicesRoutes from './routes/invoices'
 import receiptsRoutes from './routes/receipts'
 import excludedPartnersRoutes from './routes/excludedPartners'
 import lineUploadRoutes from './routes/lineUpload'
+import hotpepperRoutes from './routes/hotpepper'
+import recruitRoutes from './routes/recruit'
 import { importRecentCalls } from './services/cpiImportService'
-import { autoMigrateSalesTracking } from './migrations/autoMigrate'
+import { autoMigrateSalesTracking, autoMigrateHotpepper } from './migrations/autoMigrate'
 
 dotenv.config()
 
@@ -109,6 +111,8 @@ app.use('/api/invoices', invoicesRoutes)
 app.use('/api/receipts', receiptsRoutes)
 app.use('/api/excluded-partners', excludedPartnersRoutes)
 app.use('/api/line-upload', lineUploadRoutes)
+app.use('/api/hotpepper', hotpepperRoutes)  // 하위 호환성 유지
+app.use('/api/recruit', recruitRoutes)       // 통합 API
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -129,6 +133,7 @@ app.get('/api/test/customers', async (req, res) => {
 async function startServer() {
   // 자동 마이그레이션 실행
   await autoMigrateSalesTracking()
+  await autoMigrateHotpepper()
   
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`)

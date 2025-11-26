@@ -16,6 +16,7 @@ import {
   Languages,
   Calculator,
   FileText,
+  UtensilsCrossed,
 } from 'lucide-react'
 import { Button } from './ui/button'
 
@@ -26,6 +27,7 @@ const navigation = [
   { name: 'salesTracking', href: '/sales-tracking', icon: History },
   { name: 'sales', href: '/sales', icon: BarChart3 },
   { name: 'invoices', href: '/invoices', icon: FileText },
+  { name: 'hotpepper', href: '/hotpepper', icon: UtensilsCrossed },
   { name: 'settings', href: '/settings', icon: Settings },
   { name: 'accountOptimization', href: '/settings/account-optimization', icon: Gauge, nested: true },
   { name: 'keywordAnalysisMenu', href: '/settings/keyword-analysis', icon: TrendingUp, nested: true },
