@@ -106,6 +106,10 @@ export const invoiceAPI = {
     api.get(`/invoices/${invoiceDbId}/pdf`, { 
       responseType: 'blob' 
     }),
+  
+  // 청구서 취소
+  cancelInvoice: (invoiceDbId: string | number) => 
+    api.post(`/invoices/${invoiceDbId}/cancel`),
 }
 
 // Auth API functions

@@ -13,6 +13,7 @@ import {
   FreeeInvoiceRequest,
 } from '../integrations/freeeClient'
 import { pool } from '../db'
+import { sendInvoiceCancelNotification } from '../utils/slackClient'
 
 const router = Router()
 
@@ -165,9 +166,13 @@ router.get('/list', authMiddleware, async (req: AuthRequest, res: Response) => {
         i.user_id as issued_by_user_id,
         u.name as issued_by_user_name,
         i.receipt_id,
+        i.is_cancelled,
+        i.cancelled_at,
+        cu.name as cancelled_by_user_name,
         i.created_at
       FROM invoices i
       LEFT JOIN users u ON i.user_id = u.id
+      LEFT JOIN users cu ON i.cancelled_by_user_id = cu.id
       ORDER BY i.created_at DESC
     `)
 
@@ -296,6 +301,96 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
     }
     
     res.status(500).json({ error: error.message || 'Failed to create invoice' })
+  }
+})
+
+/**
+ * 청구서 취소
+ */
+router.post('/:id/cancel', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const userId = req.user?.id
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' })
+    }
+
+    console.log(`🗑️ [Cancel Invoice] Request for invoice ID: ${id} by user: ${userId}`)
+
+    // 1. 청구서 조회
+    const result = await pool.query(
+      `SELECT i.*, u.name as user_name 
+       FROM invoices i 
+       LEFT JOIN users u ON i.user_id = u.id 
+       WHERE i.id = $1`,
+      [id]
+    )
+
+    if (result.rows.length === 0) {
+      console.error(`❌ Invoice not found: ${id}`)
+      return res.status(404).json({ error: 'Invoice not found' })
+    }
+
+    const invoice = result.rows[0]
+
+    // 2. 발급자 확인
+    if (invoice.user_id !== userId) {
+      console.error(`❌ Unauthorized: User ${userId} attempted to cancel invoice created by ${invoice.user_id}`)
+      return res.status(403).json({ error: 'Only the invoice issuer can cancel the invoice' })
+    }
+
+    // 3. 이미 취소되었는지 확인
+    if (invoice.is_cancelled) {
+      console.error(`❌ Invoice already cancelled: ${id}`)
+      return res.status(400).json({ error: 'Invoice is already cancelled' })
+    }
+
+    // 4. 영수증이 발급되었는지 확인
+    if (invoice.receipt_id) {
+      console.error(`❌ Cannot cancel invoice with receipt: ${id}`)
+      return res.status(400).json({ error: 'Cannot cancel invoice that has a receipt issued' })
+    }
+
+    // 5. DB 업데이트
+    const cancelledAt = new Date()
+    await pool.query(
+      `UPDATE invoices 
+       SET is_cancelled = true, 
+           cancelled_at = $1, 
+           cancelled_by_user_id = $2 
+       WHERE id = $3`,
+      [cancelledAt, userId, id]
+    )
+
+    console.log(`✅ Invoice cancelled: ${id} by user ${userId}`)
+
+    // 6. 사용자 이름 조회
+    const userResult = await pool.query('SELECT name FROM users WHERE id = $1', [userId])
+    const userName = userResult.rows[0]?.name || '알 수 없음'
+
+    // 7. 슬랙 알림 전송 (비동기, 실패해도 취소에는 영향 없음)
+    sendInvoiceCancelNotification({
+      invoice_number: invoice.invoice_number || String(invoice.freee_invoice_id),
+      partner_name: invoice.partner_name,
+      invoice_date: invoice.invoice_date,
+      total_amount: invoice.total_amount,
+      tax_amount: invoice.tax_amount,
+      user_name: userName,
+      cancelled_at: cancelledAt.toISOString(),
+    }).catch(error => {
+      console.error('⚠️ Slack notification failed, but invoice was cancelled successfully:', error)
+    })
+
+    // 8. 성공 응답
+    res.json({
+      success: true,
+      message: 'Invoice cancelled successfully',
+      cancelled_at: cancelledAt.toISOString(),
+    })
+  } catch (error: any) {
+    console.error('❌ Error cancelling invoice:', error)
+    res.status(500).json({ error: error.message || 'Failed to cancel invoice' })
   }
 })
 
