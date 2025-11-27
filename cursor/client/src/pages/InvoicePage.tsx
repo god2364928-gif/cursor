@@ -3,8 +3,74 @@ import api, { invoiceAPI } from '../lib/api'
 import { FreeeInvoice } from '../types'
 import { Button } from '../components/ui/button'
 import { useI18nStore } from '../i18n'
-import { FileText, Plus, Download } from 'lucide-react'
+import { FileText, Plus, Download, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../store/authStore'
+
+// 청구서 취소 확인 모달 컴포넌트
+function CancelConfirmModal({
+  invoice,
+  onClose,
+  onConfirm,
+  language,
+}: {
+  invoice: FreeeInvoice | null
+  onClose: () => void
+  onConfirm: () => void
+  language: string
+}) {
+  if (!invoice) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-xl font-bold mb-4 text-red-600">
+          {language === 'ja' ? '請求書のキャンセル' : '청구서 취소'}
+        </h2>
+
+        <div className="mb-6">
+          <p className="mb-4">
+            {language === 'ja' 
+              ? 'この請求書をキャンセルしますか？' 
+              : '이 청구서를 취소하시겠습니까?'}
+          </p>
+          
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-4">
+            <p className="text-sm text-yellow-800">
+              {language === 'ja' 
+                ? '⚠️ キャンセルした請求書は元に戻せません。' 
+                : '⚠️ 취소한 청구서는 복구할 수 없습니다.'}
+            </p>
+          </div>
+
+          <div className="bg-gray-50 p-3 rounded text-sm">
+            <div className="mb-2">
+              <span className="text-gray-600">{language === 'ja' ? '取引先' : '거래처'}:</span>
+              <span className="ml-2 font-medium">{invoice.partner_name}</span>
+            </div>
+            <div>
+              <span className="text-gray-600">{language === 'ja' ? '金額' : '금액'}:</span>
+              <span className="ml-2 font-medium">¥{invoice.total_amount.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <Button type="button" variant="outline" onClick={onClose}>
+            {language === 'ja' ? 'いいえ' : '아니오'}
+          </Button>
+          <Button 
+            type="button" 
+            onClick={onConfirm}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            {language === 'ja' ? 'はい、キャンセルする' : '예, 취소합니다'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // 영수증 발급 모달 컴포넌트
 function ReceiptModal({ 
@@ -135,10 +201,12 @@ function ReceiptModal({
 export default function InvoicePage() {
   const navigate = useNavigate()
   const { language } = useI18nStore()
+  const { user } = useAuthStore()
   const [invoices, setInvoices] = useState<FreeeInvoice[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedInvoiceForReceipt, setSelectedInvoiceForReceipt] = useState<FreeeInvoice | null>(null)
+  const [selectedInvoiceForCancel, setSelectedInvoiceForCancel] = useState<FreeeInvoice | null>(null)
 
   useEffect(() => {
     loadInvoices()
@@ -229,6 +297,35 @@ export default function InvoicePage() {
     return `¥${amount.toLocaleString()}`
   }
 
+  const handleCancelInvoice = async () => {
+    if (!selectedInvoiceForCancel) return
+
+    try {
+      await invoiceAPI.cancelInvoice(selectedInvoiceForCancel.id)
+      
+      // 목록 새로고침
+      await loadInvoices()
+      
+      setSelectedInvoiceForCancel(null)
+      setError('')
+    } catch (error: any) {
+      console.error('Error cancelling invoice:', error)
+      const errorMsg = error.response?.data?.error || (language === 'ja' ? '請求書のキャンセルに失敗しました' : '청구서 취소 실패')
+      setError(errorMsg)
+      setSelectedInvoiceForCancel(null)
+    }
+  }
+
+  const canCancelInvoice = (invoice: FreeeInvoice): boolean => {
+    // 이미 취소된 경우
+    if (invoice.is_cancelled) return false
+    // 영수증이 발급된 경우
+    if (invoice.receipt_id) return false
+    // 발급자가 아닌 경우
+    if (invoice.issued_by_user_id !== user?.id) return false
+    return true
+  }
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -296,6 +393,9 @@ export default function InvoicePage() {
                       {language === 'ja' ? '発行日' : '발행일'}
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-gray-700">
+                      {language === 'ja' ? '状態' : '상태'}
+                    </th>
+                    <th className="text-center py-3 px-4 font-medium text-gray-700">
                       {language === 'ja' ? '操作' : '작업'}
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-gray-700">
@@ -305,7 +405,10 @@ export default function InvoicePage() {
                 </thead>
                 <tbody>
                   {invoices.map((invoice) => (
-                    <tr key={invoice.id} className="border-b hover:bg-gray-50">
+                    <tr 
+                      key={invoice.id} 
+                      className={`border-b hover:bg-gray-50 ${invoice.is_cancelled ? 'opacity-50 bg-gray-50' : ''}`}
+                    >
                       <td className="py-3 px-4">
                         <span className="font-mono text-sm">#{invoice.freee_invoice_id}</span>
                       </td>
@@ -335,16 +438,40 @@ export default function InvoicePage() {
                       <td className="py-3 px-4 text-sm text-gray-500">
                         {formatDate(invoice.created_at)}
                       </td>
+                      <td className="py-3 px-4 text-center">
+                        {invoice.is_cancelled ? (
+                          <div className="inline-flex items-center px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-medium">
+                            {language === 'ja' ? 'キャンセル済' : '취소됨'}
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+                            {language === 'ja' ? '有効' : '유효'}
+                          </div>
+                        )}
+                      </td>
                       <td className="py-3 px-4">
-                        <Button
-                          onClick={() => handleDownloadPdf(invoice)}
-                          variant="ghost"
-                          size="sm"
-                          className="flex items-center gap-1"
-                        >
-                          <Download className="w-4 h-4" />
-                          PDF
-                        </Button>
+                        <div className="flex items-center gap-2 justify-center">
+                          <Button
+                            onClick={() => handleDownloadPdf(invoice)}
+                            variant="ghost"
+                            size="sm"
+                            className="flex items-center gap-1"
+                          >
+                            <Download className="w-4 h-4" />
+                            PDF
+                          </Button>
+                          {canCancelInvoice(invoice) && (
+                            <Button
+                              onClick={() => setSelectedInvoiceForCancel(invoice)}
+                              variant="ghost"
+                              size="sm"
+                              className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="w-4 h-4" />
+                              {language === 'ja' ? 'キャンセル' : '취소'}
+                            </Button>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-center">
                         {invoice.receipt_id ? (
@@ -357,6 +484,10 @@ export default function InvoicePage() {
                             <Download className="w-4 h-4" />
                             {language === 'ja' ? '領収書PDF' : '영수증 PDF'}
                           </Button>
+                        ) : invoice.is_cancelled ? (
+                          <span className="text-xs text-gray-400">
+                            {language === 'ja' ? '発行不可' : '발급 불가'}
+                          </span>
                         ) : (
                           <Button
                             onClick={() => setSelectedInvoiceForReceipt(invoice)}
@@ -381,6 +512,16 @@ export default function InvoicePage() {
         <ReceiptModal
           invoice={selectedInvoiceForReceipt}
           onClose={() => setSelectedInvoiceForReceipt(null)}
+          language={language}
+        />
+      )}
+
+      {/* 청구서 취소 확인 모달 */}
+      {selectedInvoiceForCancel && (
+        <CancelConfirmModal
+          invoice={selectedInvoiceForCancel}
+          onClose={() => setSelectedInvoiceForCancel(null)}
+          onConfirm={handleCancelInvoice}
           language={language}
         />
       )}

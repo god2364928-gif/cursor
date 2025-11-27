@@ -238,6 +238,9 @@ export interface FreeeInvoice {
   issued_by_user_id: string
   issued_by_user_name: string
   receipt_id?: string  // 영수증 ID (발급된 경우)
+  is_cancelled?: boolean  // 청구서 취소 여부
+  cancelled_at?: string  // 청구서 취소 일시
+  cancelled_by_user_name?: string  // 청구서를 취소한 사용자 이름
   created_at: string
   items: Array<{
     id: number

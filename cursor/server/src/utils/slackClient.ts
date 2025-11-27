@@ -122,6 +122,120 @@ export async function sendReceiptNotification(receiptData: {
 }
 
 /**
+ * 청구서 취소 알림을 슬랙으로 전송
+ */
+export async function sendInvoiceCancelNotification(invoiceData: {
+  invoice_number: string
+  partner_name: string
+  invoice_date: string
+  total_amount: number
+  tax_amount: number
+  user_name?: string
+  cancelled_at: string
+}): Promise<boolean> {
+  const client = getSlackClient()
+
+  if (!client) {
+    console.log('⚠️ Slack client not available, skipping notification')
+    return false
+  }
+
+  try {
+    const { invoice_number, partner_name, invoice_date, total_amount, tax_amount, user_name, cancelled_at } = invoiceData
+
+    // 세전 금액 계산
+    const amountExcludingTax = total_amount - tax_amount
+
+    // 금액을 읽기 쉽게 포맷팅 (콤마 추가)
+    const formatAmount = (amount: number) => {
+      return amount.toLocaleString('ja-JP')
+    }
+
+    // 취소 일시 포맷팅
+    const formatDateTime = (dateStr: string) => {
+      const date = new Date(dateStr)
+      return date.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Tokyo'
+      })
+    }
+
+    // 슬랙 메시지 구성
+    const message = {
+      channel: SLACK_CHANNEL_ID,
+      text: `⚠️ 청구서가 취소되었습니다`,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '⚠️ 청구서 취소',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*청구서 번호:*\n${invoice_number}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*청구일:*\n${invoice_date}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*거래처:*\n${partner_name}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*취소자:*\n${user_name || '알 수 없음'}`
+            }
+          ]
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*세전 금액:*\n¥${formatAmount(amountExcludingTax)}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*세액 (10%):*\n¥${formatAmount(tax_amount)}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*총 금액:*\n¥${formatAmount(total_amount)}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*취소 일시:*\n${formatDateTime(cancelled_at)}`
+            }
+          ]
+        },
+        {
+          type: 'divider'
+        }
+      ]
+    }
+
+    await client.chat.postMessage(message)
+
+    console.log(`✅ Slack notification sent for cancelled invoice ${invoice_number}`)
+    return true
+  } catch (error: any) {
+    console.error('❌ Failed to send Slack notification:', error.message)
+    return false
+  }
+}
+
+/**
  * 슬랙 연결 테스트
  */
 export async function testSlackConnection(): Promise<boolean> {
