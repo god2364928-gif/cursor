@@ -214,7 +214,11 @@ export default function InvoiceCreatePage() {
     
     // 세액 자동 계산 (품목별 세율 적용)
     if (field === 'unit_price' || field === 'quantity' || field === 'tax_rate') {
-      const unitPrice = field === 'unit_price' ? (typeof value === 'string' ? (value === '' ? 0 : Number(value)) : Number(value)) : (typeof newItems[index].unit_price === 'string' ? 0 : newItems[index].unit_price)
+      const unitPrice = field === 'unit_price' 
+        ? (typeof value === 'string' ? (value === '' ? 0 : Number(value)) : Number(value))
+        : (typeof newItems[index].unit_price === 'string' 
+          ? (newItems[index].unit_price === '' ? 0 : Number(newItems[index].unit_price))
+          : newItems[index].unit_price)
       const quantity = field === 'quantity' ? Number(value) : newItems[index].quantity
       const taxRate = field === 'tax_rate' ? Number(value) : newItems[index].tax_rate
       newItems[index].tax = Math.floor(unitPrice * quantity * (taxRate / 100))
