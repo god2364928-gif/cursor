@@ -45,7 +45,8 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         user_id,
         created_at,
         updated_at,
-        moved_to_retargeting`;
+        moved_to_retargeting,
+        restaurant_id`;
         let orderClause = '';
         if (search) {
             query += `,

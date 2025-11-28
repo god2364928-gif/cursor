@@ -167,9 +167,14 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     // 담당자 필터
     if (assignee_id) {
-      conditions.push(`r.assignee_id = $${paramIndex}`)
-      params.push(assignee_id)
-      paramIndex++
+      if (assignee_id === 'none') {
+        // Filter for restaurants with no assignee
+        conditions.push('r.assignee_id IS NULL')
+      } else {
+        conditions.push(`r.assignee_id = $${paramIndex}`)
+        params.push(assignee_id)
+        paramIndex++
+      }
     }
 
     // 가게명 검색
@@ -405,12 +410,69 @@ router.post('/:id/sales-activity', authMiddleware, async (req: AuthRequest, res:
       })
     }
 
-    // 영업 이력 등록
+    // 가게 정보 조회
+    const restaurantResult = await pool.query(`
+      SELECT name, prefecture, genres, tel_original, tel_confirmed, instagram
+      FROM restaurants
+      WHERE id = $1
+    `, [id])
+
+    if (restaurantResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Restaurant not found' })
+    }
+
+    const restaurant = restaurantResult.rows[0]
+    
+    // 영업 방법 매핑 (form/phone/instagram/line -> 日本語)
+    const contactMethodMap: Record<string, string> = {
+      'form': 'フォーム',
+      'phone': '電話',
+      'instagram': 'DM',
+      'line': 'LINE'
+    }
+    const contactMethodJa = contactMethodMap[contact_method] || contact_method
+
+    // 전화번호 (기존 전화번호 우선)
+    const phoneNumber = restaurant.tel_original || restaurant.tel_confirmed || ''
+    
+    // 인스타그램 ID 추출 (URL에서 추출)
+    let instagramId = ''
+    if (restaurant.instagram) {
+      // instagram URL에서 ID 추출: https://www.instagram.com/user_id/ -> user_id
+      const match = restaurant.instagram.match(/instagram\.com\/([^/?]+)/)
+      instagramId = match ? match[1] : restaurant.instagram
+    }
+
+    // 영업 이력 등록 (sales_activities 테이블)
     const activityResult = await pool.query(`
       INSERT INTO sales_activities (restaurant_id, user_id, user_name, contact_method, notes)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id, created_at
     `, [id, userId, userName, contact_method, notes || null])
+
+    // 영업 이력 등록 (sales_tracking 테이블) - 담당자가 본인으로 지정됨
+    const today = new Date().toISOString().split('T')[0]
+    const occurredAt = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    
+    await pool.query(`
+      INSERT INTO sales_tracking (
+        date, occurred_at, manager_name, company_name, account_id, customer_name,
+        industry, contact_method, status, phone, memo, user_id, restaurant_id
+      ) VALUES ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10, $11, $12)
+    `, [
+      today,                              // date
+      occurredAt,                         // occurred_at
+      userName,                           // manager_name (담당자)
+      restaurant.name,                    // company_name (상호)
+      instagramId,                        // account_id (인스타그램 ID)
+      '飲食店',                            // industry (업종 - 음식점)
+      contactMethodJa,                    // contact_method (영업 방법)
+      '未返信',                            // status (진행현황 - 미회신)
+      phoneNumber,                        // phone (전화번호)
+      notes || null,                      // memo
+      userId,                             // user_id
+      id                                  // restaurant_id (리쿠르트 레코드 참조)
+    ])
 
     // 가게 상태 업데이트
     await pool.query(`

@@ -54,8 +54,19 @@ interface Stats {
   status_contacted: number
 }
 
-// Region labels for display
-const REGION_LABELS: Record<string, string> = {
+// Region labels for display (language-aware)
+const REGION_LABELS_JA: Record<string, string> = {
+  '北海道': '北海道',
+  '東北': '東北',
+  '関東': '関東',
+  '中部': '中部',
+  '近畿': '近畿',
+  '中国': '中国',
+  '四国': '四国',
+  '九州・沖縄': '九州・沖縄'
+}
+
+const REGION_LABELS_KO: Record<string, string> = {
   '北海道': '홋카이도',
   '東北': '도호쿠',
   '関東': '간토',
@@ -68,7 +79,10 @@ const REGION_LABELS: Record<string, string> = {
 
 export default function HotpepperPage() {
   const { showToast } = useToast()
-  const { t } = useI18nStore()
+  const { t, language } = useI18nStore()
+  
+  // Get region labels based on current language
+  const REGION_LABELS = language === 'ja' ? REGION_LABELS_JA : REGION_LABELS_KO
 
   // Data states
   const [prefectures, setPrefectures] = useState<Prefectures>({})
@@ -82,7 +96,7 @@ export default function HotpepperPage() {
   const [selectedPrefecture, setSelectedPrefecture] = useState<string>('')
   const [selectedArea, setSelectedArea] = useState<string>('')
   const [selectedGenre, setSelectedGenre] = useState<string>('')
-  const [selectedAssignee, setSelectedAssignee] = useState<string>('')
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('none') // Default to "no assignee"
   const [searchQuery, setSearchQuery] = useState('')
   const [showUnusable, setShowUnusable] = useState(false)
 
@@ -106,11 +120,13 @@ export default function HotpepperPage() {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(null)
   const [salesActivityTarget, setSalesActivityTarget] = useState<{ id: number; name: string } | null>(null)
 
-  // Load prefectures on mount
+  // Load prefectures on mount and set default to Hokkaido
   useEffect(() => {
     loadPrefectures()
     loadGenres()
     loadUsers()
+    // Set default prefecture to Hokkaido
+    setSelectedPrefecture('北海道')
   }, [])
 
   // Close prefecture dropdown when clicking outside
@@ -176,7 +192,9 @@ export default function HotpepperPage() {
   const loadUsers = async () => {
     try {
       const response = await api.get('/auth/users')
-      setUsers(response.data || [])
+      // Only show marketers in assignee filter
+      const marketers = (response.data || []).filter((user: User & { role?: string }) => user.role === 'marketer')
+      setUsers(marketers)
     } catch (error) {
       console.error('Failed to load users:', error)
     }
@@ -204,12 +222,12 @@ export default function HotpepperPage() {
           prefecture: selectedPrefecture,
           area: selectedArea || undefined,
           genre: selectedGenre || undefined,
-          assignee_id: selectedAssignee || undefined,
+          assignee_id: selectedAssignee === 'none' ? 'none' : (selectedAssignee || undefined),
           has_original_phone: hasOriginalPhone || undefined,
           has_homepage: hasHomepage || undefined,
           can_contact: canContact || undefined,
           has_instagram: hasInstagram || undefined,
-          show_unusable: showUnusable || undefined,
+          show_unusable: showUnusable ? 'true' : undefined,
           search: searchQuery || undefined,
           page,
           limit: 50
@@ -509,6 +527,7 @@ export default function HotpepperPage() {
                   className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
                   <option value="">{t('allAssignees')}</option>
+                  <option value="none">{t('noAssignee')}</option>
                   {users.map(user => (
                     <option key={user.id} value={user.id}>{user.name}</option>
                   ))}

@@ -7,8 +7,9 @@ import { useToast } from '../components/ui/toast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Plus, Edit, Trash2, X, BarChart3, Search, ArrowRight } from 'lucide-react'
+import { Plus, Edit, Trash2, X, BarChart3, Search, ArrowRight, Eye, UtensilsCrossed } from 'lucide-react'
 import GlobalSearch from '../components/GlobalSearch'
+import RestaurantDrawer from '../components/RestaurantDrawer'
 
 interface SalesTrackingRecord {
   id: string
@@ -28,6 +29,7 @@ interface SalesTrackingRecord {
   created_at: string
   updated_at: string
   moved_to_retargeting?: boolean
+  restaurant_id?: number // Reference to restaurants table for records from Recruit search
 }
 
 const PAGE_SIZE = 500
@@ -90,6 +92,9 @@ export default function SalesTrackingPage() {
   const [showBulkMemoForm, setShowBulkMemoForm] = useState(false)
   const [bulkMemo, setBulkMemo] = useState('')
   const [updatingBulkMemo, setUpdatingBulkMemo] = useState(false)
+  
+  // 리쿠르트 음식점 상세 보기
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -1191,19 +1196,20 @@ export default function SalesTrackingPage() {
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('contactMethod')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-20">{t('status')}</th>
                   <th className="px-2 py-2 text-left font-medium border-r w-24 max-w-[6rem]">{t('memo')}</th>
+                  <th className="px-2 py-2 text-center font-medium border-r w-12">{t('detail')}</th>
                   <th className="px-2 py-2 text-center font-medium w-20">{t('actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={12} className="px-4 py-8 text-center text-gray-500">
                       {t('loading')}
                     </td>
                   </tr>
                 ) : filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={12} className="px-4 py-8 text-center text-gray-500">
                       {t('noData')}
                     </td>
                   </tr>
@@ -1243,6 +1249,21 @@ export default function SalesTrackingPage() {
                       <td className="px-2 py-1 border-r truncate overflow-hidden">{translateStatusLabel(record.status as any)}</td>
                       <td className="px-2 py-1 border-r overflow-hidden line-clamp-2 w-24 max-w-[6rem]" title={!record.moved_to_retargeting ? (record.memo || '') : undefined}>
                         {record.memo || '-'}
+                      </td>
+                      <td className="px-2 py-1 border-r text-center">
+                        {record.restaurant_id ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedRestaurantId(record.restaurant_id!)}
+                            title={t('storeDetail')}
+                            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                          >
+                            <UtensilsCrossed className="h-3 w-3" />
+                          </Button>
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
                       </td>
                       <td className="px-2 py-1 text-center">
                         {canEdit(record) && (
@@ -1573,6 +1594,15 @@ export default function SalesTrackingPage() {
       )}
         </CardContent>
       </Card>
+
+      {/* Restaurant Drawer - for records from Recruit search */}
+      {selectedRestaurantId && (
+        <RestaurantDrawer
+          restaurantId={selectedRestaurantId}
+          onClose={() => setSelectedRestaurantId(null)}
+          onUpdate={() => fetchRecords(false, 0)}
+        />
+      )}
     </div>
   )
 }
