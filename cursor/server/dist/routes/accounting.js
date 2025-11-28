@@ -10,6 +10,7 @@ const multer_1 = __importDefault(require("multer"));
 const iconv_lite_1 = __importDefault(require("iconv-lite"));
 const sync_1 = require("csv-parse/sync");
 const dateValidator_1 = require("../utils/dateValidator");
+const jstDateHelper_1 = require("../utils/jstDateHelper");
 const router = (0, express_1.Router)();
 const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 // Admin 권한 체크 미들웨어
@@ -69,11 +70,11 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
         const accountsResult = await db_1.pool.query(`SELECT account_name, account_type, current_balance
        FROM accounting_capital
        ORDER BY account_type, account_name`);
-        // 최근 12개월 계산
+        // 최근 12개월 계산 (JST 기준)
         const now = new Date();
+        const nowStr = (0, jstDateHelper_1.toJSTDateString)(now);
         const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-        const twelveMonthsAgoStr = twelveMonthsAgo.toISOString().split('T')[0];
-        const nowStr = now.toISOString().split('T')[0];
+        const twelveMonthsAgoStr = (0, jstDateHelper_1.toJSTDateString)(twelveMonthsAgo);
         // 월별 매출 추이 (거래내역 기반 - 최근 12개월)
         const monthlySalesResult = await db_1.pool.query(`SELECT 
         TO_CHAR(transaction_date, 'YYYY-MM') as month,
@@ -313,7 +314,7 @@ router.post('/transactions', auth_1.authMiddleware, adminOnly, async (req, res) 
         const salesCategories = ['셀마플', '코코마케'];
         if (transactionType === '입금' && salesCategories.includes(category)) {
             const fiscalYear = transaction.fiscal_year;
-            const month = new Date(transactionDate).toISOString().slice(0, 7) + '-01';
+            const month = (0, jstDateHelper_1.toJSTDateString)(new Date(transactionDate)).slice(0, 7) + '-01';
             await db_1.pool.query(`INSERT INTO accounting_sales (fiscal_year, transaction_month, channel, sales_category, total_amount)
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT DO NOTHING`, [fiscalYear, month, normalizedPaymentMethod, category, amount]);
@@ -368,7 +369,7 @@ router.post('/transactions/bulk', auth_1.authMiddleware, adminOnly, async (req, 
                 const salesCategories = ['셀마플', '코코마케'];
                 if (transactionType === '입금' && salesCategories.includes(category)) {
                     const fiscalYear = transaction.fiscal_year;
-                    const month = new Date(transactionDate).toISOString().slice(0, 7) + '-01';
+                    const month = (0, jstDateHelper_1.toJSTDateString)(new Date(transactionDate)).slice(0, 7) + '-01';
                     await db_1.pool.query(`INSERT INTO accounting_sales (fiscal_year, transaction_month, channel, sales_category, total_amount)
              VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT DO NOTHING`, [fiscalYear, month, normalizedPaymentMethod, category, amount]);

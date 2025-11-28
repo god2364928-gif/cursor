@@ -1,23 +1,9 @@
 import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { toJSTTimestampString, toJSTDateString } from '../utils/jstDateHelper'
 
 const router = Router()
-
-// Convert to JST (Japan Standard Time, UTC+9)
-const toJSTTimestampString = (input: Date) => {
-  const utc = input.getTime() + input.getTimezoneOffset() * 60000
-  const jst = new Date(utc + 9 * 60 * 60 * 1000)
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${jst.getUTCFullYear()}-${pad(jst.getUTCMonth() + 1)}-${pad(jst.getUTCDate())} ${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}:${pad(jst.getUTCSeconds())}`
-}
-
-const toJSTDateString = (input: Date) => {
-  const utc = input.getTime() + input.getTimezoneOffset() * 60000
-  const jst = new Date(utc + 9 * 60 * 60 * 1000)
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${jst.getUTCFullYear()}-${pad(jst.getUTCMonth() + 1)}-${pad(jst.getUTCDate())}`
-}
 
 // 일본 47개 도도부현 (지방별 그룹화)
 const PREFECTURES = {
