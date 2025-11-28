@@ -55,7 +55,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         user_id,
         created_at,
         updated_at,
-        moved_to_retargeting`
+        moved_to_retargeting,
+        restaurant_id`
 
     let orderClause = ''
 
