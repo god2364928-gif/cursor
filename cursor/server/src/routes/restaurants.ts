@@ -102,6 +102,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       show_unusable,
       search,
       status,
+      assignee_id,
       page = '1',
       limit = '50'
     } = req.query
@@ -161,6 +162,13 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     if (status) {
       conditions.push(`status = $${paramIndex}`)
       params.push(status)
+      paramIndex++
+    }
+
+    // 담당자 필터
+    if (assignee_id) {
+      conditions.push(`r.assignee_id = $${paramIndex}`)
+      params.push(assignee_id)
       paramIndex++
     }
 
