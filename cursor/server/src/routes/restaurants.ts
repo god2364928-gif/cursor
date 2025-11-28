@@ -4,6 +4,21 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 
 const router = Router()
 
+// Convert to JST (Japan Standard Time, UTC+9)
+const toJSTTimestampString = (input: Date) => {
+  const utc = input.getTime() + input.getTimezoneOffset() * 60000
+  const jst = new Date(utc + 9 * 60 * 60 * 1000)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${jst.getUTCFullYear()}-${pad(jst.getUTCMonth() + 1)}-${pad(jst.getUTCDate())} ${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}:${pad(jst.getUTCSeconds())}`
+}
+
+const toJSTDateString = (input: Date) => {
+  const utc = input.getTime() + input.getTimezoneOffset() * 60000
+  const jst = new Date(utc + 9 * 60 * 60 * 1000)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${jst.getUTCFullYear()}-${pad(jst.getUTCMonth() + 1)}-${pad(jst.getUTCDate())}`
+}
+
 // 일본 47개 도도부현 (지방별 그룹화)
 const PREFECTURES = {
   '北海道': ['北海道'],
@@ -451,8 +466,9 @@ router.post('/:id/sales-activity', authMiddleware, async (req: AuthRequest, res:
     `, [id, userId, userName, contact_method, notes || null])
 
     // 영업 이력 등록 (sales_tracking 테이블) - 담당자가 본인으로 지정됨
-    const today = new Date().toISOString().split('T')[0]
-    const occurredAt = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    const now = new Date()
+    const today = toJSTDateString(now)
+    const occurredAt = toJSTTimestampString(now)
     
     await pool.query(`
       INSERT INTO sales_tracking (
