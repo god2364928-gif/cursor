@@ -49,7 +49,7 @@ export default function InvoiceCreatePage() {
     memo: '',
   })
 
-  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'paypay'>('bank')
+  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'paypay' | 'paypal'>('bank')
 
   // 자사 정보 (고정값)
   const companyInfo = {
@@ -228,17 +228,22 @@ export default function InvoiceCreatePage() {
   }
 
   // 송금처 변경 핸들러
-  const handlePaymentMethodChange = (method: 'bank' | 'paypay') => {
+  const handlePaymentMethodChange = (method: 'bank' | 'paypay' | 'paypal') => {
     setPaymentMethod(method)
     if (method === 'bank') {
       setFormData({
         ...formData,
         payment_bank_info: 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー'
       })
-    } else {
+    } else if (method === 'paypay') {
       setFormData({
         ...formData,
         payment_bank_info: 'PayPayアカウント名：株式会社ホットセラー\nPayPayID：hotseller_jp'
+      })
+    } else {
+      setFormData({
+        ...formData,
+        payment_bank_info: 'PayPal（決済リンク別途ご案内）'
       })
     }
   }
@@ -317,6 +322,7 @@ export default function InvoiceCreatePage() {
       const response = await invoiceAPI.createInvoice({
         company_id: selectedCompany!,
         partner_id: selectedPartner || undefined,  // 선택된 거래처 ID
+        payment_method: paymentMethod,  // 결제 방식 (bank/paypay/paypal)
         ...formData,
         line_items: processedLineItems,
       })
@@ -677,6 +683,14 @@ export default function InvoiceCreatePage() {
               >
                 <div className="text-sm">PayPayアカウント</div>
                 <div className="text-xs opacity-80">株式会社ホットセラー</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePaymentMethodChange('paypal')}
+                className={`flex-1 px-4 py-2 rounded border text-left ${paymentMethod === 'paypal' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
+              >
+                <div className="text-sm">{language === 'ja' ? 'カード決済' : '카드결제'}</div>
+                <div className="text-xs opacity-80">PayPal</div>
               </button>
             </div>
           </div>

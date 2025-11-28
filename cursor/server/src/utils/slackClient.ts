@@ -245,6 +245,126 @@ export async function sendInvoiceCancelNotification(invoiceData: {
 }
 
 /**
+ * 카드결제(PayPal) 청구서 발행 알림을 日本_領収書 슬랙 채널로 전송
+ */
+export async function sendPaypalInvoiceNotification(invoiceData: {
+  invoice_number: string
+  partner_name: string
+  invoice_date: string
+  due_date: string
+  total_amount: number
+  tax_amount: number
+  user_name?: string
+}): Promise<boolean> {
+  const client = getSlackClient()
+
+  if (!client) {
+    console.log('⚠️ Slack client not available, skipping notification')
+    return false
+  }
+
+  try {
+    const { invoice_number, partner_name, invoice_date, due_date, total_amount, tax_amount, user_name } = invoiceData
+
+    // 세전 금액 계산
+    const amountExcludingTax = total_amount - tax_amount
+
+    // 금액을 읽기 쉽게 포맷팅 (콤마 추가)
+    const formatAmount = (amount: number) => {
+      return amount.toLocaleString('ja-JP')
+    }
+
+    // 날짜 포맷팅 (YYYY/MM/DD)
+    const formatDate = (dateStr: string) => {
+      if (!dateStr) return '-'
+      const date = new Date(dateStr)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}/${month}/${day}`
+    }
+
+    // 슬랙 메시지 구성
+    const message = {
+      channel: SLACK_CHANNEL_ID,
+      text: `💳 카드결제(PayPal) 청구서가 발행되었습니다`,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '💳 카드결제(PayPal) 청구서 발행',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*청구서 번호:*\n${invoice_number}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*청구일:*\n${formatDate(invoice_date)}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*거래처:*\n${partner_name}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*발급자:*\n${user_name || '알 수 없음'}`
+            }
+          ]
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*세전 금액:*\n¥${formatAmount(amountExcludingTax)}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*세액:*\n¥${formatAmount(tax_amount)}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*총 금액:*\n¥${formatAmount(total_amount)}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*입금기한:*\n${formatDate(due_date)}`
+            }
+          ]
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: '📌 결제링크를 거래처에 별도 안내해 주세요'
+            }
+          ]
+        },
+        {
+          type: 'divider'
+        }
+      ]
+    }
+
+    await client.chat.postMessage(message)
+
+    console.log(`✅ Slack notification sent for PayPal invoice ${invoice_number}`)
+    return true
+  } catch (error: any) {
+    console.error('❌ Failed to send Slack notification:', error.message)
+    return false
+  }
+}
+
+/**
  * 슬랙 연결 테스트
  */
 export async function testSlackConnection(): Promise<boolean> {
