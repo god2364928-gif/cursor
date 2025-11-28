@@ -17,7 +17,7 @@ router.get('/sales', async (req, res) => {
   try {
     const { startDate, endDate, category, name } = req.query
 
-    let query = 'SELECT * FROM paypay_sales WHERE 1=1'
+    let query = `SELECT id, TO_CHAR(date, 'YYYY-MM-DD HH24:MI:SS') as date, category, user_id, name, receipt_number, amount, memo, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at FROM paypay_sales WHERE 1=1`
     const params: any[] = []
     let paramCount = 1
 
@@ -69,7 +69,7 @@ router.post('/sales', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO paypay_sales (date, category, user_id, name, receipt_number, amount, memo)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
+       RETURNING id, TO_CHAR(date, 'YYYY-MM-DD HH24:MI:SS') as date, category, user_id, name, receipt_number, amount, memo, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at`,
       [date, mappedCategory, user_id || null, name, receipt_number || null, amount, memo || null]
     )
 
@@ -119,7 +119,7 @@ router.get('/expenses', async (req, res) => {
   try {
     const { startDate, endDate } = req.query
 
-    let query = 'SELECT * FROM paypay_expenses WHERE 1=1'
+    let query = `SELECT id, TO_CHAR(date, 'YYYY-MM-DD HH24:MI:SS') as date, item, amount, memo, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at FROM paypay_expenses WHERE 1=1`
     const params: any[] = []
     let paramCount = 1
 
@@ -153,7 +153,7 @@ router.post('/expenses', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO paypay_expenses (date, item, amount, memo)
        VALUES ($1, $2, $3, $4)
-       RETURNING *`,
+       RETURNING id, TO_CHAR(date, 'YYYY-MM-DD HH24:MI:SS') as date, item, amount, memo, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at`,
       [date, item, amount, memo || null]
     )
 
@@ -174,7 +174,7 @@ router.put('/expenses/:id', async (req, res) => {
       `UPDATE paypay_expenses
        SET date = $1, item = $2, amount = $3, memo = $4
        WHERE id = $5
-       RETURNING *`,
+       RETURNING id, TO_CHAR(date, 'YYYY-MM-DD HH24:MI:SS') as date, item, amount, memo, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at`,
       [date, item, amount, memo, id]
     )
 
@@ -220,7 +220,7 @@ router.put('/sales/:id', async (req, res) => {
       `UPDATE paypay_sales
        SET memo = $1
        WHERE id = $2
-       RETURNING *`,
+       RETURNING id, TO_CHAR(date, 'YYYY-MM-DD HH24:MI:SS') as date, category, user_id, name, receipt_number, amount, memo, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at`,
       [memo, id]
     )
 

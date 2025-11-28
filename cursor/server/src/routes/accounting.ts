@@ -5,6 +5,7 @@ import multer from 'multer'
 import iconv from 'iconv-lite'
 import { parse } from 'csv-parse/sync'
 import { validateDateRange } from '../utils/dateValidator'
+import { toJSTDateString, toJSTTimestampString, getJSTTodayString } from '../utils/jstDateHelper'
 
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage() })
@@ -87,11 +88,11 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
        ORDER BY account_type, account_name`
     )
 
-    // 최근 12개월 계산
+    // 최근 12개월 계산 (JST 기준)
     const now = new Date()
+    const nowStr = toJSTDateString(now)
     const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1)
-    const twelveMonthsAgoStr = twelveMonthsAgo.toISOString().split('T')[0]
-    const nowStr = now.toISOString().split('T')[0]
+    const twelveMonthsAgoStr = toJSTDateString(twelveMonthsAgo)
 
     // 월별 매출 추이 (거래내역 기반 - 최근 12개월)
     const monthlySalesResult = await pool.query(
@@ -384,7 +385,7 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
     const salesCategories = ['셀마플', '코코마케']
     if (transactionType === '입금' && salesCategories.includes(category)) {
       const fiscalYear = transaction.fiscal_year
-      const month = new Date(transactionDate).toISOString().slice(0, 7) + '-01'
+      const month = toJSTDateString(new Date(transactionDate)).slice(0, 7) + '-01'
       
       await pool.query(
         `INSERT INTO accounting_sales (fiscal_year, transaction_month, channel, sales_category, total_amount)
@@ -468,7 +469,7 @@ router.post('/transactions/bulk', authMiddleware, adminOnly, async (req: AuthReq
         const salesCategories = ['셀마플', '코코마케']
         if (transactionType === '입금' && salesCategories.includes(category)) {
           const fiscalYear = transaction.fiscal_year
-          const month = new Date(transactionDate).toISOString().slice(0, 7) + '-01'
+          const month = toJSTDateString(new Date(transactionDate)).slice(0, 7) + '-01'
           
           await pool.query(
             `INSERT INTO accounting_sales (fiscal_year, transaction_month, channel, sales_category, total_amount)
