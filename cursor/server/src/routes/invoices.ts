@@ -13,7 +13,7 @@ import {
   FreeeInvoiceRequest,
 } from '../integrations/freeeClient'
 import { pool } from '../db'
-import { sendInvoiceCancelNotification } from '../utils/slackClient'
+import { sendInvoiceCancelNotification, sendPaypalInvoiceNotification } from '../utils/slackClient'
 
 const router = Router()
 
@@ -199,6 +199,7 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
       tax_entry_method,
       line_items,
       payment_bank_info,
+      payment_method,  // 추가: 결제 방식 (bank/paypay/paypal)
       memo,  // 추가: 비고
     } = req.body
 
@@ -285,7 +286,22 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
 
     const dbInvoiceId = insertResult.rows[0].id
     
-    console.log(`✅ Invoice created: freee_id=${invoiceId}, db_id=${dbInvoiceId}, partner=${partner_name}, user=${userName}`)
+    console.log(`✅ Invoice created: freee_id=${invoiceId}, db_id=${dbInvoiceId}, partner=${partner_name}, user=${userName}, payment_method=${payment_method}`)
+
+    // 카드결제(PayPal) 청구서인 경우 日本_領収書 슬랙 채널에 알림 전송
+    if (payment_method === 'paypal') {
+      sendPaypalInvoiceNotification({
+        invoice_number: result.invoice.invoice_number || String(invoiceId),
+        partner_name: partner_name + (partner_title || ''),
+        invoice_date,
+        due_date,
+        total_amount: totalAmount,
+        tax_amount: taxAmount,
+        user_name: userName,
+      }).catch(error => {
+        console.error('⚠️ Slack notification failed, but invoice was created successfully:', error)
+      })
+    }
     
     res.json({
       success: true,
