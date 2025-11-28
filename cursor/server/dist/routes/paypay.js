@@ -25,7 +25,10 @@ router.get('/sales', async (req, res) => {
         }
         if (endDate) {
             query += ` AND date <= $${paramCount}`;
-            params.push(endDate);
+            // endDate가 날짜만 있는 경우 (YYYY-MM-DD) 해당 날짜의 끝까지 포함
+            const endDateStr = String(endDate);
+            const endDateValue = endDateStr.length === 10 ? `${endDateStr} 23:59:59` : endDateStr;
+            params.push(endDateValue);
             paramCount++;
         }
         if (category) {
@@ -107,7 +110,10 @@ router.get('/expenses', async (req, res) => {
         }
         if (endDate) {
             query += ` AND date <= $${paramCount}`;
-            params.push(endDate);
+            // endDate가 날짜만 있는 경우 (YYYY-MM-DD) 해당 날짜의 끝까지 포함
+            const endDateStr = String(endDate);
+            const endDateValue = endDateStr.length === 10 ? `${endDateStr} 23:59:59` : endDateStr;
+            params.push(endDateValue);
             paramCount++;
         }
         query += ' ORDER BY date DESC';
