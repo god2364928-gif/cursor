@@ -1,15 +1,22 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import api from '../lib/api'
 import { useToast } from '../components/ui/toast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import RestaurantDrawer from '../components/RestaurantDrawer'
 import SalesActivityModal from '../components/SalesActivityModal'
+import { useI18nStore } from '../i18n'
 import { 
   Search, Phone, Globe, Instagram, Mail, ChevronRight, 
   Loader2, Copy, ExternalLink, ChevronDown, X, AlertTriangle,
   Users, Filter, RefreshCw
 } from 'lucide-react'
+
+// User type for assignee filter
+interface User {
+  id: string
+  name: string
+}
 
 // Types
 interface Restaurant {
@@ -61,6 +68,7 @@ const REGION_LABELS: Record<string, string> = {
 
 export default function HotpepperPage() {
   const { showToast } = useToast()
+  const { t } = useI18nStore()
 
   // Data states
   const [prefectures, setPrefectures] = useState<Prefectures>({})
@@ -68,11 +76,13 @@ export default function HotpepperPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [areas, setAreas] = useState<string[]>([])
   const [genres, setGenres] = useState<string[]>([])
+  const [users, setUsers] = useState<User[]>([])
 
   // Filter states
   const [selectedPrefecture, setSelectedPrefecture] = useState<string>('')
   const [selectedArea, setSelectedArea] = useState<string>('')
   const [selectedGenre, setSelectedGenre] = useState<string>('')
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [showUnusable, setShowUnusable] = useState(false)
 
@@ -88,6 +98,9 @@ export default function HotpepperPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
   const [expandedRegion, setExpandedRegion] = useState<string | null>(null)
+  
+  // Ref for prefecture dropdown (to detect outside click)
+  const prefectureDropdownRef = useRef<HTMLDivElement>(null)
 
   // Modal states
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(null)
@@ -97,7 +110,25 @@ export default function HotpepperPage() {
   useEffect(() => {
     loadPrefectures()
     loadGenres()
+    loadUsers()
   }, [])
+
+  // Close prefecture dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (prefectureDropdownRef.current && !prefectureDropdownRef.current.contains(event.target as Node)) {
+        setExpandedRegion(null)
+      }
+    }
+
+    if (expandedRegion) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [expandedRegion])
 
   // Load restaurants when filters change
   useEffect(() => {
@@ -110,7 +141,7 @@ export default function HotpepperPage() {
       setAreas([])
       setStats(null)
     }
-  }, [selectedPrefecture, selectedArea, selectedGenre, hasOriginalPhone, hasHomepage, canContact, hasInstagram, showUnusable, page])
+  }, [selectedPrefecture, selectedArea, selectedGenre, selectedAssignee, hasOriginalPhone, hasHomepage, canContact, hasInstagram, showUnusable, page])
 
   const loadPrefectures = async () => {
     try {
@@ -142,6 +173,15 @@ export default function HotpepperPage() {
     }
   }
 
+  const loadUsers = async () => {
+    try {
+      const response = await api.get('/auth/users')
+      setUsers(response.data || [])
+    } catch (error) {
+      console.error('Failed to load users:', error)
+    }
+  }
+
   const loadStats = async () => {
     if (!selectedPrefecture) return
     try {
@@ -164,6 +204,7 @@ export default function HotpepperPage() {
           prefecture: selectedPrefecture,
           area: selectedArea || undefined,
           genre: selectedGenre || undefined,
+          assignee_id: selectedAssignee || undefined,
           has_original_phone: hasOriginalPhone || undefined,
           has_homepage: hasHomepage || undefined,
           can_contact: canContact || undefined,
@@ -180,7 +221,7 @@ export default function HotpepperPage() {
       setTotalPages(response.data.totalPages)
     } catch (error) {
       console.error('Failed to load restaurants:', error)
-      showToast('데이터를 불러오는데 실패했습니다', 'error')
+      showToast(t('failedToLoadData'), 'error')
     } finally {
       setIsLoading(false)
     }
@@ -201,8 +242,8 @@ export default function HotpepperPage() {
 
   const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text)
-    showToast('전화번호가 복사되었습니다', 'success')
-  }, [showToast])
+    showToast(t('phoneCopied'), 'success')
+  }, [showToast, t])
 
   const handleRefresh = () => {
     loadRestaurants()
@@ -212,6 +253,7 @@ export default function HotpepperPage() {
   const clearFilters = () => {
     setSelectedArea('')
     setSelectedGenre('')
+    setSelectedAssignee('')
     setSearchQuery('')
     setHasOriginalPhone(false)
     setHasHomepage(false)
@@ -224,6 +266,7 @@ export default function HotpepperPage() {
   const activeFiltersCount = [
     selectedArea,
     selectedGenre,
+    selectedAssignee,
     searchQuery,
     hasOriginalPhone,
     hasHomepage,
@@ -238,25 +281,25 @@ export default function HotpepperPage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 mb-2">
-            🍜 음식점 영업 CRM
+            {t('restaurantCrmTitle')}
           </h1>
           <p className="text-slate-600">
-            일본 전역 67만개 음식점 데이터 기반 영업 관리 시스템
+            {t('restaurantCrmSubtitle')}
           </p>
         </div>
 
         {/* Prefecture Selector */}
         <div className="bg-white rounded-2xl shadow-sm border p-4 lg:p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-800">도도부현 선택</h2>
+            <h2 className="text-lg font-semibold text-slate-800">{t('prefectureSelect')}</h2>
             {selectedPrefecture && (
               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                {selectedPrefecture} 선택됨
+                {selectedPrefecture} {t('selected')}
               </span>
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          <div ref={prefectureDropdownRef} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
             {Object.entries(prefectures).map(([region, prefs]) => (
               <div key={region} className="relative">
                 <button
@@ -309,31 +352,31 @@ export default function HotpepperPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
                 <div className="bg-white rounded-xl p-4 shadow-sm border">
                   <p className="text-2xl font-bold text-slate-800">{stats.total.toLocaleString()}</p>
-                  <p className="text-xs text-slate-500">전체</p>
+                  <p className="text-xs text-slate-500">{t('all')}</p>
                 </div>
                 <div className="bg-orange-50 rounded-xl p-4 shadow-sm border border-orange-100">
                   <p className="text-2xl font-bold text-orange-600">{stats.with_original_phone.toLocaleString()}</p>
-                  <p className="text-xs text-orange-600/70">📞 기존 전화번호</p>
+                  <p className="text-xs text-orange-600/70">📞 {t('withOriginalPhone')}</p>
                 </div>
                 <div className="bg-green-50 rounded-xl p-4 shadow-sm border border-green-100">
                   <p className="text-2xl font-bold text-green-600">{stats.with_homepage.toLocaleString()}</p>
-                  <p className="text-xs text-green-600/70">🏠 홈페이지</p>
+                  <p className="text-xs text-green-600/70">🏠 {t('homepage')}</p>
                 </div>
                 <div className="bg-purple-50 rounded-xl p-4 shadow-sm border border-purple-100">
                   <p className="text-2xl font-bold text-purple-600">{stats.contactable.toLocaleString()}</p>
-                  <p className="text-xs text-purple-600/70">📧 문의 가능</p>
+                  <p className="text-xs text-purple-600/70">📧 {t('canContact')}</p>
                 </div>
                 <div className="bg-pink-50 rounded-xl p-4 shadow-sm border border-pink-100">
                   <p className="text-2xl font-bold text-pink-600">{stats.with_instagram.toLocaleString()}</p>
-                  <p className="text-xs text-pink-600/70">📷 인스타그램</p>
+                  <p className="text-xs text-pink-600/70">📷 {t('instagram')}</p>
                 </div>
                 <div className="bg-blue-50 rounded-xl p-4 shadow-sm border border-blue-100">
                   <p className="text-2xl font-bold text-blue-600">{stats.status_new.toLocaleString()}</p>
-                  <p className="text-xs text-blue-600/70">🆕 신규</p>
+                  <p className="text-xs text-blue-600/70">🆕 {t('statusNew')}</p>
                 </div>
                 <div className="bg-emerald-50 rounded-xl p-4 shadow-sm border border-emerald-100">
                   <p className="text-2xl font-bold text-emerald-600">{stats.status_contacted.toLocaleString()}</p>
-                  <p className="text-xs text-emerald-600/70">✅ 영업 진행</p>
+                  <p className="text-xs text-emerald-600/70">✅ {t('statusInSales')}</p>
                 </div>
               </div>
             )}
@@ -343,7 +386,7 @@ export default function HotpepperPage() {
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <h3 className="font-semibold text-slate-800 flex items-center gap-2">
                   <Filter className="w-4 h-4" />
-                  필터
+                  {t('filter')}
                 </h3>
                 {activeFiltersCount > 0 && (
                   <button
@@ -351,7 +394,7 @@ export default function HotpepperPage() {
                     className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
                   >
                     <X className="w-3 h-3" />
-                    필터 초기화 ({activeFiltersCount})
+                    {t('clearFilters')} ({activeFiltersCount})
                   </button>
                 )}
               </div>
@@ -369,7 +412,7 @@ export default function HotpepperPage() {
                   `}
                 >
                   <Phone className="w-4 h-4" />
-                  📞 전화번호(중요)
+                  {t('phoneImportant')}
                 </button>
                 <button
                   onClick={() => setHasHomepage(!hasHomepage)}
@@ -382,7 +425,7 @@ export default function HotpepperPage() {
                   `}
                 >
                   <Globe className="w-4 h-4" />
-                  🏠 홈페이지 있음
+                  {t('hasHomepage')}
                 </button>
                 <button
                   onClick={() => setCanContact(!canContact)}
@@ -395,7 +438,7 @@ export default function HotpepperPage() {
                   `}
                 >
                   <Mail className="w-4 h-4" />
-                  📧 문의 가능
+                  📧 {t('canContact')}
                 </button>
                 <button
                   onClick={() => setHasInstagram(!hasInstagram)}
@@ -408,7 +451,7 @@ export default function HotpepperPage() {
                   `}
                 >
                   <Instagram className="w-4 h-4" />
-                  📷 인스타그램 있음
+                  {t('hasInstagram')}
                 </button>
                 <button
                   onClick={() => setShowUnusable(!showUnusable)}
@@ -421,19 +464,19 @@ export default function HotpepperPage() {
                   `}
                 >
                   <AlertTriangle className="w-4 h-4" />
-                  쓸 수 없는 가게 포함
+                  {t('includeUnusable')}
                 </button>
               </div>
 
               {/* Search & Dropdowns */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="가게명 검색..."
+                    placeholder={t('searchStoreName')}
                     className="pl-10"
                   />
                 </div>
@@ -443,7 +486,7 @@ export default function HotpepperPage() {
                   onChange={(e) => { setSelectedArea(e.target.value); setPage(1); }}
                   className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
-                  <option value="">전체 지역</option>
+                  <option value="">{t('allAreas')}</option>
                   {areas.map(area => (
                     <option key={area} value={area}>{area}</option>
                   ))}
@@ -454,16 +497,27 @@ export default function HotpepperPage() {
                   onChange={(e) => { setSelectedGenre(e.target.value); setPage(1); }}
                   className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
-                  <option value="">전체 장르</option>
+                  <option value="">{t('allGenres')}</option>
                   {genres.map(genre => (
                     <option key={genre} value={genre}>{genre}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedAssignee}
+                  onChange={(e) => { setSelectedAssignee(e.target.value); setPage(1); }}
+                  className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">{t('allAssignees')}</option>
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>{user.name}</option>
                   ))}
                 </select>
 
                 <div className="flex gap-2">
                   <Button onClick={handleSearch} className="flex-1">
                     <Search className="w-4 h-4 mr-2" />
-                    검색
+                    {t('search')}
                   </Button>
                   <Button onClick={handleRefresh} variant="outline">
                     <RefreshCw className="w-4 h-4" />
@@ -477,11 +531,11 @@ export default function HotpepperPage() {
               {/* Results Header */}
               <div className="flex items-center justify-between p-4 border-b bg-slate-50">
                 <div className="flex items-center gap-3">
-                  <h3 className="font-semibold text-slate-800">검색 결과</h3>
-                  <span className="text-sm text-slate-500">{total.toLocaleString()}개</span>
+                  <h3 className="font-semibold text-slate-800">{t('searchResults')}</h3>
+                  <span className="text-sm text-slate-500">{total.toLocaleString()}{t('items')}</span>
                 </div>
                 <div className="text-sm text-slate-500">
-                  페이지 {page} / {totalPages}
+                  {t('page')} {page} / {totalPages}
                 </div>
               </div>
 
@@ -493,19 +547,19 @@ export default function HotpepperPage() {
               ) : restaurants.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-500">
                   <Search className="w-12 h-12 mb-4 opacity-30" />
-                  <p>{selectedPrefecture ? '검색 결과가 없습니다' : '도도부현을 선택해주세요'}</p>
+                  <p>{selectedPrefecture ? t('noSearchResults') : t('selectPrefecture')}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-slate-50 text-sm text-slate-600">
                       <tr>
-                        <th className="text-left px-4 py-3 font-medium">가게명</th>
-                        <th className="text-left px-4 py-3 font-medium">전화번호</th>
-                        <th className="text-center px-4 py-3 font-medium">링크</th>
-                        <th className="text-center px-4 py-3 font-medium">상태</th>
-                        <th className="text-center px-4 py-3 font-medium">담당자</th>
-                        <th className="text-center px-4 py-3 font-medium">영업</th>
+                        <th className="text-left px-4 py-3 font-medium">{t('storeName')}</th>
+                        <th className="text-left px-4 py-3 font-medium">{t('phoneNumber')}</th>
+                        <th className="text-center px-4 py-3 font-medium">{t('link')}</th>
+                        <th className="text-center px-4 py-3 font-medium">{t('statusLabel')}</th>
+                        <th className="text-center px-4 py-3 font-medium">{t('assignee')}</th>
+                        <th className="text-center px-4 py-3 font-medium">{t('salesAction')}</th>
                         <th className="text-center px-4 py-3 font-medium w-12"></th>
                       </tr>
                     </thead>
@@ -542,7 +596,7 @@ export default function HotpepperPage() {
                                 className="flex items-center gap-2 group"
                               >
                                 <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded">
-                                  중요
+                                  {t('important')}
                                 </span>
                                 <span className="font-mono text-sm group-hover:text-blue-600">
                                   {restaurant.tel_original}
@@ -626,9 +680,9 @@ export default function HotpepperPage() {
                               ${restaurant.status === 'contacted' ? 'bg-blue-100 text-blue-700' : ''}
                               ${restaurant.status === 'contracted' ? 'bg-green-100 text-green-700' : ''}
                             `}>
-                              {restaurant.status === 'new' && '신규'}
-                              {restaurant.status === 'contacted' && '영업 진행'}
-                              {restaurant.status === 'contracted' && '계약 완료'}
+                              {restaurant.status === 'new' && t('statusNew')}
+                              {restaurant.status === 'contacted' && t('statusInSales')}
+                              {restaurant.status === 'contracted' && t('statusContracted')}
                             </span>
                             {restaurant.activity_count > 0 && (
                               <span className="ml-1 text-xs text-slate-400">
@@ -657,7 +711,7 @@ export default function HotpepperPage() {
                               onClick={() => setSalesActivityTarget({ id: restaurant.id, name: restaurant.name })}
                               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             >
-                              영업하기
+                              {t('doSales')}
                             </Button>
                           </td>
 
@@ -686,7 +740,7 @@ export default function HotpepperPage() {
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
                   >
-                    이전
+                    {t('previous')}
                   </Button>
                   
                   <div className="flex items-center gap-1">
@@ -725,7 +779,7 @@ export default function HotpepperPage() {
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                   >
-                    다음
+                    {t('next')}
                   </Button>
                 </div>
               )}
@@ -738,10 +792,10 @@ export default function HotpepperPage() {
           <div className="bg-white rounded-2xl shadow-sm border p-12 text-center">
             <div className="text-6xl mb-4">🗾</div>
             <h3 className="text-xl font-semibold text-slate-800 mb-2">
-              도도부현을 선택해주세요
+              {t('selectPrefecture')}
             </h3>
             <p className="text-slate-500">
-              위에서 지역을 선택하면 해당 지역의 음식점 목록이 표시됩니다
+              {t('selectPrefectureDesc')}
             </p>
           </div>
         )}
