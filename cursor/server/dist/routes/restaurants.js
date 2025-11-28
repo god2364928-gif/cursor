@@ -85,7 +85,7 @@ router.get('/genres', auth_1.authMiddleware, async (req, res) => {
  */
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
-        const { prefecture, area, genre, has_original_phone, has_homepage, can_contact, has_instagram, show_unusable, search, status, page = '1', limit = '50' } = req.query;
+        const { prefecture, area, genre, has_original_phone, has_homepage, can_contact, has_instagram, show_unusable, search, status, assignee_id, page = '1', limit = '50' } = req.query;
         // 기본 조건
         const conditions = [];
         const params = [];
@@ -132,6 +132,12 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         if (status) {
             conditions.push(`status = $${paramIndex}`);
             params.push(status);
+            paramIndex++;
+        }
+        // 담당자 필터
+        if (assignee_id) {
+            conditions.push(`r.assignee_id = $${paramIndex}`);
+            params.push(assignee_id);
             paramIndex++;
         }
         // 가게명 검색
