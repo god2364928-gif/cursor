@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useI18nStore } from '../i18n'
 import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
@@ -911,6 +911,47 @@ export default function AccountingPage() {
       setSelectedTransactions(new Set())
     }
   }
+
+  // 필터링된 거래내역과 입금/출금 합계 계산
+  const filteredTransactionsSummary = useMemo(() => {
+    const filtered = transactions
+      .filter(tx => {
+        // 날짜 필터
+        if (!startDate && !endDate) return true
+        const txDate = tx.transactionDate
+        if (startDate && txDate < startDate) return false
+        if (endDate && txDate > endDate) return false
+        return true
+      })
+      .filter(tx => {
+        // 구분 필터
+        if (transactionTypeFilter !== 'all' && tx.transactionType !== transactionTypeFilter) return false
+        // 카테고리 필터
+        if (categoryFilter !== 'all' && tx.category !== categoryFilter) return false
+        // 이름 필터
+        if (nameFilter !== 'all' && tx.assignedUserId !== nameFilter) return false
+        // 결제 필터
+        if (paymentMethodFilter !== 'all' && tx.paymentMethod !== paymentMethodFilter) return false
+        // 검색 필터 (항목명, 메모)
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase()
+          const itemMatch = tx.itemName?.toLowerCase().includes(query)
+          const memoMatch = tx.memo?.toLowerCase().includes(query)
+          if (!itemMatch && !memoMatch) return false
+        }
+        return true
+      })
+    
+    const incomeTotal = filtered
+      .filter(tx => tx.transactionType === '입금')
+      .reduce((sum, tx) => sum + tx.amount, 0)
+    
+    const expenseTotal = filtered
+      .filter(tx => tx.transactionType === '출금')
+      .reduce((sum, tx) => sum + tx.amount, 0)
+    
+    return { filtered, incomeTotal, expenseTotal }
+  }, [transactions, startDate, endDate, transactionTypeFilter, categoryFilter, nameFilter, paymentMethodFilter, searchQuery])
 
   const handleSelectTransaction = (id: string, checked: boolean) => {
     const newSelected = new Set(selectedTransactions)
@@ -3105,6 +3146,36 @@ export default function AccountingPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* 입금/출금 합계 표시 */}
+          <div className="flex gap-4 mb-4">
+            <Card className="flex-1">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-emerald-100">
+                    <TrendingUp className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">{language === 'ja' ? '入金合計' : '입금합계'}</div>
+                    <div className="text-xl font-bold text-emerald-600">{formatCurrency(filteredTransactionsSummary.incomeTotal)}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="flex-1">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-red-100">
+                    <TrendingDown className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500">{language === 'ja' ? '出金合計' : '출금합계'}</div>
+                    <div className="text-xl font-bold text-red-600">{formatCurrency(filteredTransactionsSummary.expenseTotal)}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <Card>
             <CardContent className="p-0">
