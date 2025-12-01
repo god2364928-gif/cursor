@@ -55,7 +55,7 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
       `SELECT 
         COALESCE(SUM(amount), 0) as total_sales
        FROM accounting_transactions
-       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케')`,
+       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'`,
       dateParams
     )
 
@@ -65,7 +65,7 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
         category,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케')
+       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
        GROUP BY category`,
       dateParams
     )
@@ -100,7 +100,7 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
         TO_CHAR(transaction_date, 'YYYY-MM') as month,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케')
+       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
        ORDER BY month`,
       [twelveMonthsAgoStr, nowStr]
@@ -138,7 +138,7 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
         category,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케')
+       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM'), category
        ORDER BY month, category`,
       [twelveMonthsAgoStr, nowStr]
