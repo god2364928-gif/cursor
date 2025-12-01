@@ -40,7 +40,7 @@ router.put('/update', auth_1.authMiddleware, adminOnly, async (req, res) => {
             return res.status(400).json({ message: '필수 파라미터가 누락되었습니다' });
         }
         // 허용된 필드만 업데이트
-        const allowedFields = ['base_salary', 'coconala', 'bonus', 'incentive', 'business_trip', 'other', 'notes'];
+        const allowedFields = ['base_salary', 'coconala', 'bonus', 'incentive', 'business_trip', 'rent', 'other', 'notes'];
         if (!allowedFields.includes(field)) {
             return res.status(400).json({ message: '허용되지 않은 필드입니다' });
         }
@@ -53,7 +53,7 @@ router.put('/update', auth_1.authMiddleware, adminOnly, async (req, res) => {
          WHERE id = $2`, [value || 0, id]);
             // 업데이트된 값을 포함하여 합계 재계산
             await db_1.pool.query(`UPDATE monthly_payroll 
-         SET total = COALESCE(base_salary, 0) + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0)
+         SET total = COALESCE(base_salary, 0) + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(rent, 0) + COALESCE(other, 0)
          WHERE id = $1`, [id]);
         }
         else {
@@ -76,8 +76,8 @@ router.post('/add-employee', auth_1.authMiddleware, adminOnly, async (req, res) 
             return res.status(400).json({ message: '필수 파라미터가 누락되었습니다' });
         }
         await db_1.pool.query(`INSERT INTO monthly_payroll 
-       (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
-       VALUES ($1, $2, $3, 0, 0, 0, 0, 0, 0, 0)
+       (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, rent, other, total)
+       VALUES ($1, $2, $3, 0, 0, 0, 0, 0, 0, 0, 0)
        ON CONFLICT (fiscal_year, month, employee_name) DO NOTHING`, [fiscalYear, month, employeeName]);
         res.json({ success: true, message: '직원이 추가되었습니다' });
     }
@@ -159,7 +159,7 @@ router.post('/generate', auth_1.authMiddleware, adminOnly, async (req, res) => {
                 console.log(`[급여 자동생성] 기존 데이터 업데이트: ${employee.name} (${oldBaseSalary} -> ${baseSalary})`);
                 await db_1.pool.query(`UPDATE monthly_payroll 
            SET base_salary = $1, 
-               total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
+               total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(rent, 0) + COALESCE(other, 0),
                updated_at = CURRENT_TIMESTAMP
            WHERE fiscal_year = $2 AND month = $3 AND employee_name = $4`, [baseSalary, fiscalYear, month, employee.name]);
                 updatedCount++;
@@ -168,8 +168,8 @@ router.post('/generate', auth_1.authMiddleware, adminOnly, async (req, res) => {
                 // 기존 데이터가 없으면 새로 생성
                 console.log(`[급여 자동생성] 신규 생성: ${employee.name} (기본급: ${baseSalary})`);
                 await db_1.pool.query(`INSERT INTO monthly_payroll 
-           (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
-           VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, $4)`, [fiscalYear, month, employee.name, baseSalary]);
+           (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, rent, other, total)
+           VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, 0, $4)`, [fiscalYear, month, employee.name, baseSalary]);
                 createdCount++;
             }
         }
@@ -208,7 +208,7 @@ router.post('/fix-base-salary', auth_1.authMiddleware, adminOnly, async (req, re
             // 해당 연도/월의 데이터가 있고 기본급이 0이거나 잘못된 경우 업데이트
             const result = await db_1.pool.query(`UPDATE monthly_payroll 
          SET base_salary = $1,
-             total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
+             total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(rent, 0) + COALESCE(other, 0),
              updated_at = CURRENT_TIMESTAMP
          WHERE fiscal_year = $2 AND month = $3 AND employee_name = $4
            AND (base_salary IS NULL OR base_salary = 0 OR base_salary != $1)`, [baseSalary, fiscalYear, month, employee.name]);
