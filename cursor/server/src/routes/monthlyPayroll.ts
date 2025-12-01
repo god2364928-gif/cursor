@@ -52,7 +52,7 @@ router.put('/update', authMiddleware, adminOnly, async (req: AuthRequest, res: R
     }
     
     // 허용된 필드만 업데이트
-    const allowedFields = ['base_salary', 'coconala', 'bonus', 'incentive', 'business_trip', 'other', 'notes']
+    const allowedFields = ['base_salary', 'coconala', 'bonus', 'incentive', 'business_trip', 'rent', 'other', 'notes']
     if (!allowedFields.includes(field)) {
       return res.status(400).json({ message: '허용되지 않은 필드입니다' })
     }
@@ -71,7 +71,7 @@ router.put('/update', authMiddleware, adminOnly, async (req: AuthRequest, res: R
       // 업데이트된 값을 포함하여 합계 재계산
       await pool.query(
         `UPDATE monthly_payroll 
-         SET total = COALESCE(base_salary, 0) + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0)
+         SET total = COALESCE(base_salary, 0) + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(rent, 0) + COALESCE(other, 0)
          WHERE id = $1`,
         [id]
       )
@@ -102,8 +102,8 @@ router.post('/add-employee', authMiddleware, adminOnly, async (req: AuthRequest,
     
     await pool.query(
       `INSERT INTO monthly_payroll 
-       (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
-       VALUES ($1, $2, $3, 0, 0, 0, 0, 0, 0, 0)
+       (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, rent, other, total)
+       VALUES ($1, $2, $3, 0, 0, 0, 0, 0, 0, 0, 0)
        ON CONFLICT (fiscal_year, month, employee_name) DO NOTHING`,
       [fiscalYear, month, employeeName]
     )
@@ -214,7 +214,7 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
         await pool.query(
           `UPDATE monthly_payroll 
            SET base_salary = $1, 
-               total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
+               total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(rent, 0) + COALESCE(other, 0),
                updated_at = CURRENT_TIMESTAMP
            WHERE fiscal_year = $2 AND month = $3 AND employee_name = $4`,
           [baseSalary, fiscalYear, month, employee.name]
@@ -226,8 +226,8 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
         
         await pool.query(
           `INSERT INTO monthly_payroll 
-           (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, other, total)
-           VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, $4)`,
+           (fiscal_year, month, employee_name, base_salary, coconala, bonus, incentive, business_trip, rent, other, total)
+           VALUES ($1, $2, $3, $4, 0, 0, 0, 0, 0, 0, $4)`,
           [fiscalYear, month, employee.name, baseSalary]
         )
         createdCount++
@@ -278,7 +278,7 @@ router.post('/fix-base-salary', authMiddleware, adminOnly, async (req: AuthReque
       const result = await pool.query(
         `UPDATE monthly_payroll 
          SET base_salary = $1,
-             total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(other, 0),
+             total = $1 + COALESCE(coconala, 0) + COALESCE(bonus, 0) + COALESCE(incentive, 0) + COALESCE(business_trip, 0) + COALESCE(rent, 0) + COALESCE(other, 0),
              updated_at = CURRENT_TIMESTAMP
          WHERE fiscal_year = $2 AND month = $3 AND employee_name = $4
            AND (base_salary IS NULL OR base_salary = 0 OR base_salary != $1)`,
