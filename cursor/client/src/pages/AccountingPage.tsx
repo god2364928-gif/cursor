@@ -3905,6 +3905,7 @@ export default function AccountingPage() {
                       <th className="px-4 py-3 text-right">{language === 'ja' ? '賞与金' : '상여금'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? 'インセンティブ' : '인센티브'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? '出張費' : '출장비'}</th>
+                      <th className="px-4 py-3 text-right">{language === 'ja' ? '家賃' : '집세'}</th>
                       <th className="px-4 py-3 text-right">{language === 'ja' ? 'その他' : '기타'}</th>
                       <th className="px-4 py-3 text-right font-semibold bg-green-50">{language === 'ja' ? 'インセンティブ合計' : '인센티브 합계'}</th>
                       <th className="px-4 py-3 text-left">{language === 'ja' ? '備考' : '비고'}</th>
@@ -3920,6 +3921,7 @@ export default function AccountingPage() {
                       const isEditingBonus = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'bonus'
                       const isEditingIncentive = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'incentive'
                       const isEditingBusinessTrip = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'business_trip'
+                      const isEditingRent = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'rent'
                       const isEditingOther = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'other'
                       const isEditingNotes = editingPayrollCell?.id === row.id && editingPayrollCell?.field === 'notes'
 
@@ -4049,6 +4051,30 @@ export default function AccountingPage() {
                           </td>
                           <td 
                             className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
+                            onClick={() => handlePayrollCellClick(row.id, 'rent', row.rent)}
+                          >
+                            {isEditingRent ? (
+                              <input
+                                type="number"
+                                step="1"
+                                value={editingPayrollValue}
+                                onChange={(e) => setEditingPayrollValue(e.target.value)}
+                                onFocus={(e) => e.target.select()}
+                                onBlur={handlePayrollCellSave}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handlePayrollCellSave()
+                                  if (e.key === 'Escape') handlePayrollCellCancel()
+                                  if (e.key === '.' || e.key === ',') e.preventDefault()
+                                }}
+                                autoFocus
+                                className="w-full text-right border rounded px-1"
+                              />
+                            ) : (
+                              formatCurrency(row.rent || 0)
+                            )}
+                          </td>
+                          <td 
+                            className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50"
                             onClick={() => handlePayrollCellClick(row.id, 'other', row.other)}
                           >
                             {isEditingOther ? (
@@ -4077,6 +4103,7 @@ export default function AccountingPage() {
                               (parseFloat(row.bonus) || 0) +
                               (parseFloat(row.incentive) || 0) +
                               (parseFloat(row.business_trip) || 0) +
+                              (parseFloat(row.rent) || 0) +
                               (parseFloat(row.other) || 0)
                             )}
                           </td>
@@ -4126,6 +4153,7 @@ export default function AccountingPage() {
                       <td className="px-4 py-3 text-right"></td>
                       <td className="px-4 py-3 text-right"></td>
                       <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right"></td>
                       <td className="px-4 py-3 text-right bg-green-100">
                         {formatCurrency(
                           monthlyPayrollData.reduce((sum, r) => 
@@ -4134,6 +4162,7 @@ export default function AccountingPage() {
                             (parseFloat(r.bonus) || 0) +
                             (parseFloat(r.incentive) || 0) +
                             (parseFloat(r.business_trip) || 0) +
+                            (parseFloat(r.rent) || 0) +
                             (parseFloat(r.other) || 0), 0
                           )
                         )}
