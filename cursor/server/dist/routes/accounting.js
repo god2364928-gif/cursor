@@ -51,13 +51,13 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
         const salesResult = await db_1.pool.query(`SELECT 
         COALESCE(SUM(amount), 0) as total_sales
        FROM accounting_transactions
-       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케')`, dateParams);
+       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'`, dateParams);
         // 매출 카테고리별
         const salesByCategoryResult = await db_1.pool.query(`SELECT 
         category,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케')
+       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
        GROUP BY category`, dateParams);
         // 지출 합계
         const expensesResult = await db_1.pool.query(`SELECT 
@@ -80,7 +80,7 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
         TO_CHAR(transaction_date, 'YYYY-MM') as month,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케')
+       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
        ORDER BY month`, [twelveMonthsAgoStr, nowStr]);
         // 월별 지출 추이 (거래내역 기반 - 최근 12개월)
@@ -106,7 +106,7 @@ router.get('/dashboard', auth_1.authMiddleware, adminOnly, async (req, res) => {
         category,
         COALESCE(SUM(amount), 0) as total
        FROM accounting_transactions
-       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케')
+       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
        GROUP BY TO_CHAR(transaction_date, 'YYYY-MM'), category
        ORDER BY month, category`, [twelveMonthsAgoStr, nowStr]);
         const totalSales = Number(salesResult.rows[0]?.total_sales || 0);
