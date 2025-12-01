@@ -3878,11 +3878,12 @@ export default function AccountingPage() {
             <CardContent>
               <div className="flex gap-2">
                 <textarea
-                  className="flex-1 border rounded px-3 py-2 text-sm"
-                  rows={3}
+                  className="flex-1 border rounded px-3 py-2 text-sm resize-none"
+                  rows={Math.min(15, Math.max(3, (monthlyPayrollHistory?.split('\n').length || 0) + 1))}
                   value={monthlyPayrollHistory}
                   onChange={(e) => setMonthlyPayrollHistory(e.target.value)}
                   placeholder={language === 'ja' ? '履歴を入力...' : '히스토리를 입력...'}
+                  style={{ maxHeight: '400px', overflowY: 'auto' }}
                 />
                 <Button onClick={handleSavePayrollHistory} size="sm">
                   {language === 'ja' ? '保存' : '저장'}
