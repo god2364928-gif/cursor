@@ -308,6 +308,33 @@ function generateInvoiceHtml(data) {
             return dateStr;
         }
     };
+    // 세율별 금액 계산
+    const taxRateGroups = {};
+    data.lines.forEach((line) => {
+        const lineSubtotal = line.quantity * line.unit_price;
+        const taxRate = line.tax_rate || 10; // 기본값 10%
+        const lineTax = Math.floor(lineSubtotal * taxRate / 100); // 세금 계산 (소수점 버림)
+        if (!taxRateGroups[taxRate]) {
+            taxRateGroups[taxRate] = { subtotal: 0, tax: 0 };
+        }
+        taxRateGroups[taxRate].subtotal += lineSubtotal;
+        taxRateGroups[taxRate].tax += lineTax;
+    });
+    // 세율별 내역 HTML 생성 (10%, 8% 순서)
+    const taxRates = Object.keys(taxRateGroups).map(Number).sort((a, b) => b - a); // 내림차순
+    const summaryRowsHtml = taxRates.map((rate, index) => {
+        const group = taxRateGroups[rate];
+        const prefix = index === 0 ? '内訳　　' : '　　　　';
+        return `
+    <div class="summary-row">
+      <span class="label">${prefix}${rate}%対象(税抜)</span>
+      <span class="value">${group.subtotal.toLocaleString()}円</span>
+    </div>
+    <div class="summary-row">
+      <span class="label">　　　　${rate}%消費税</span>
+      <span class="value">${group.tax.toLocaleString()}円</span>
+    </div>`;
+    }).join('');
     const emptyRows = Math.max(0, 10 - data.lines.length);
     const emptyRowsHtml = Array(emptyRows)
         .fill('<tr><td style="height: 18px;">&nbsp;</td><td></td><td></td><td></td></tr>')
@@ -589,14 +616,7 @@ function generateInvoiceHtml(data) {
   </table>
 
   <div class="summary-box">
-    <div class="summary-row">
-      <span class="label">内訳　　10%対象(税抜)</span>
-      <span class="value">${data.amount_excluding_tax.toLocaleString()}円</span>
-    </div>
-    <div class="summary-row">
-      <span class="label">　　　　10%消費税</span>
-      <span class="value">${data.amount_tax.toLocaleString()}円</span>
-    </div>
+    ${summaryRowsHtml}
   </div>
 
   <div class="remarks">
