@@ -308,18 +308,22 @@ function generateInvoiceHtml(data) {
             return dateStr;
         }
     };
-    // 세율별 금액 계산
+    // 세율별 금액 계산 (프론트엔드와 동일한 방식: Math.floor 사용)
     const taxRateGroups = {};
     data.lines.forEach((line) => {
         const lineSubtotal = line.quantity * line.unit_price;
         const taxRate = line.tax_rate || 10; // 기본값 10%
-        const lineTax = Math.floor(lineSubtotal * taxRate / 100); // 세금 계산 (소수점 버림)
+        const lineTax = Math.floor(lineSubtotal * taxRate / 100); // 세금 계산 (소수점 버림) - 프론트엔드와 동일
         if (!taxRateGroups[taxRate]) {
             taxRateGroups[taxRate] = { subtotal: 0, tax: 0 };
         }
         taxRateGroups[taxRate].subtotal += lineSubtotal;
         taxRateGroups[taxRate].tax += lineTax;
     });
+    // 총 소계와 총 세금 계산 (프론트엔드와 동일하게 계산)
+    const calculatedSubtotal = Object.values(taxRateGroups).reduce((sum, g) => sum + g.subtotal, 0);
+    const calculatedTax = Object.values(taxRateGroups).reduce((sum, g) => sum + g.tax, 0);
+    const calculatedTotal = calculatedSubtotal + calculatedTax;
     // 세율별 내역 HTML 생성 (10%, 8% 순서)
     const taxRates = Object.keys(taxRateGroups).map(Number).sort((a, b) => b - a); // 내림차순
     const summaryRowsHtml = taxRates.map((rate, index) => {
@@ -576,9 +580,9 @@ function generateInvoiceHtml(data) {
       <td class="total-label" style="width: 50%;">請求金額</td>
     </tr>
     <tr>
-      <td>${data.amount_excluding_tax.toLocaleString()}円</td>
-      <td>${data.amount_tax.toLocaleString()}円</td>
-      <td class="total-value">${data.total_amount.toLocaleString()}円</td>
+      <td>${calculatedSubtotal.toLocaleString()}円</td>
+      <td>${calculatedTax.toLocaleString()}円</td>
+      <td class="total-value">${calculatedTotal.toLocaleString()}円</td>
     </tr>
   </table>
 
