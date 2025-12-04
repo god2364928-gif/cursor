@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import api from '../lib/api'
+import { useI18nStore } from '../i18n'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { X, Users } from 'lucide-react'
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export default function BulkAssignModal({ assignees, onClose, onSuccess }: Props) {
+  const { t } = useI18nStore()
   const [selectedAssignee, setSelectedAssignee] = useState<string>('')
   const [count, setCount] = useState<number>(250)
   const [loading, setLoading] = useState(false)
@@ -24,12 +26,12 @@ export default function BulkAssignModal({ assignees, onClose, onSuccess }: Props
 
   const handleSubmit = async () => {
     if (!selectedAssignee) {
-      setError('담당자를 선택해주세요')
+      setError(t('selectAssigneePlaceholder'))
       return
     }
 
     if (count < 1 || count > 1000) {
-      setError('배정 수량은 1~1000 사이로 입력해주세요')
+      setError(t('assignCountRange'))
       return
     }
 
@@ -46,7 +48,7 @@ export default function BulkAssignModal({ assignees, onClose, onSuccess }: Props
         onSuccess()
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || '배정 중 오류가 발생했습니다')
+      setError(err.response?.data?.message || t('error'))
     } finally {
       setLoading(false)
     }
@@ -62,8 +64,8 @@ export default function BulkAssignModal({ assignees, onClose, onSuccess }: Props
               <Users className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">일괄 배정</h2>
-              <p className="text-sm text-gray-500">미배정 데이터를 담당자에게 배정합니다</p>
+              <h2 className="text-lg font-semibold text-gray-900">{t('bulkAssignTitle')}</h2>
+              <p className="text-sm text-gray-500">{t('bulkAssignDesc')}</p>
             </div>
           </div>
           <button
@@ -79,14 +81,14 @@ export default function BulkAssignModal({ assignees, onClose, onSuccess }: Props
           {/* Assignee Select */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              담당자 선택
+              {t('selectAssignee')}
             </label>
             <select
               value={selectedAssignee}
               onChange={(e) => setSelectedAssignee(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
-              <option value="">담당자를 선택하세요</option>
+              <option value="">{t('selectAssigneePlaceholder')}</option>
               {assignees.map(a => (
                 <option key={a.id} value={a.id}>
                   {a.name} {a.team ? `(${a.team})` : ''}
@@ -98,7 +100,7 @@ export default function BulkAssignModal({ assignees, onClose, onSuccess }: Props
           {/* Count Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              배정 수량
+              {t('assignCount')}
             </label>
             <Input
               type="number"
@@ -109,7 +111,7 @@ export default function BulkAssignModal({ assignees, onClose, onSuccess }: Props
               className="text-center text-lg font-semibold"
             />
             <p className="text-xs text-gray-500 mt-1">
-              미배정 상태인 데이터 중 입력한 수량만큼 자동으로 배정됩니다
+              {t('assignCountHint')}
             </p>
           </div>
 
@@ -124,10 +126,10 @@ export default function BulkAssignModal({ assignees, onClose, onSuccess }: Props
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50 rounded-b-xl">
           <Button variant="outline" onClick={onClose} disabled={loading}>
-            취소
+            {t('cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? '배정 중...' : `${count}개 배정하기`}
+            {loading ? t('assigning') : `${count}${t('assignButton')}`}
           </Button>
         </div>
       </div>
