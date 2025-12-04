@@ -391,7 +391,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 })
 
 /**
- * 담당자 목록 조회 (배정용)
+ * 담당자 목록 조회 (배정용) - 마케터만
  * GET /api/inquiry-leads/assignees
  */
 router.get('/assignees', authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -399,7 +399,7 @@ router.get('/assignees', authMiddleware, async (req: AuthRequest, res: Response)
     const result = await pool.query(`
       SELECT id, name, team 
       FROM users 
-      WHERE role != 'admin'
+      WHERE role = 'marketer'
       ORDER BY name
     `)
 

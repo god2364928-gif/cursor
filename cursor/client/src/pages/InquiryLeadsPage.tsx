@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
+import { useI18nStore } from '../i18n'
 import { useToast } from '../components/ui/toast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -57,18 +58,21 @@ interface Pagination {
   totalPages: number
 }
 
-const STATUS_OPTIONS = [
-  { value: 'PENDING', label: '대기중', color: 'bg-gray-100 text-gray-700' },
-  { value: 'IN_PROGRESS', label: '진행중', color: 'bg-blue-100 text-blue-700' },
-  { value: 'COMPLETED', label: '완료', color: 'bg-green-100 text-green-700' },
-  { value: 'NO_SITE', label: '홈페이지 없음', color: 'bg-orange-100 text-orange-700' },
-  { value: 'NO_FORM', label: '문의하기 없음', color: 'bg-yellow-100 text-yellow-700' },
-  { value: 'ETC', label: '기타', color: 'bg-purple-100 text-purple-700' }
+const getStatusOptions = (t: (key: string) => string) => [
+  { value: 'PENDING', label: t('statusPending'), color: 'bg-gray-100 text-gray-700' },
+  { value: 'IN_PROGRESS', label: t('statusInProgress'), color: 'bg-blue-100 text-blue-700' },
+  { value: 'COMPLETED', label: t('statusCompleted'), color: 'bg-green-100 text-green-700' },
+  { value: 'NO_SITE', label: t('statusNoSite'), color: 'bg-orange-100 text-orange-700' },
+  { value: 'NO_FORM', label: t('statusNoForm'), color: 'bg-yellow-100 text-yellow-700' },
+  { value: 'ETC', label: t('statusEtc'), color: 'bg-purple-100 text-purple-700' }
 ]
 
 export default function InquiryLeadsPage() {
   const user = useAuthStore((state) => state.user)
+  const { t } = useI18nStore()
   const { showToast } = useToast()
+  
+  const STATUS_OPTIONS = getStatusOptions(t)
 
   // Data states
   const [leads, setLeads] = useState<InquiryLead[]>([])
@@ -116,7 +120,7 @@ export default function InquiryLeadsPage() {
       setPagination(response.data.pagination)
     } catch (error) {
       console.error('Failed to fetch leads:', error)
-      showToast('데이터를 불러오는데 실패했습니다', 'error')
+      showToast(t('dataLoadFailed'), 'error')
     } finally {
       setLoading(false)
     }
@@ -166,10 +170,10 @@ export default function InquiryLeadsPage() {
         lead.id === id ? { ...lead, status } : lead
       ))
       fetchStats()
-      showToast('상태가 업데이트되었습니다', 'success')
+      showToast(t('statusUpdated'), 'success')
     } catch (error) {
       console.error('Failed to update status:', error)
-      showToast('상태 업데이트에 실패했습니다', 'error')
+      showToast(t('statusUpdateFailed'), 'error')
     }
   }
 
@@ -182,7 +186,7 @@ export default function InquiryLeadsPage() {
       ))
     } catch (error) {
       console.error('Failed to update memo:', error)
-      showToast('메모 업데이트에 실패했습니다', 'error')
+      showToast(t('memoUpdateFailed'), 'error')
     }
   }
 
@@ -197,13 +201,13 @@ export default function InquiryLeadsPage() {
       formData.append('file', file)
 
       const response = await api.post('/inquiry-leads/import', formData)
-      showToast(`${response.data.inserted}개 데이터 등록 완료 (${response.data.skipped}개 스킵)`, 'success')
+      showToast(`${response.data.inserted}${t('csvUploadSuccess').replace('{skipped}', response.data.skipped)}`, 'success')
       fetchStats()
       fetchLeads()
       fetchPrefectures()
     } catch (error) {
       console.error('Failed to upload CSV:', error)
-      showToast('CSV 업로드에 실패했습니다', 'error')
+      showToast(t('csvUploadFailed'), 'error')
     } finally {
       setUploading(false)
       e.target.value = ''
@@ -215,7 +219,7 @@ export default function InquiryLeadsPage() {
     setShowBulkAssignModal(false)
     fetchStats()
     fetchLeads()
-    showToast('배정이 완료되었습니다', 'success')
+    showToast(t('assignCompleted'), 'success')
   }
 
   // Toggle select all
@@ -256,8 +260,8 @@ export default function InquiryLeadsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">문의 배정</h1>
-          <p className="text-gray-500 mt-1">홈페이지 문의가 있는 가게 데이터를 담당자별로 배정하고 관리합니다</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('inquiryLeadsTitle')}</h1>
+          <p className="text-gray-500 mt-1">{t('inquiryLeadsSubtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           <label className="cursor-pointer">
@@ -271,13 +275,13 @@ export default function InquiryLeadsPage() {
             <Button variant="outline" disabled={uploading} asChild>
               <span>
                 <Upload className="w-4 h-4 mr-2" />
-                {uploading ? '업로드 중...' : 'CSV 업로드'}
+                {uploading ? t('uploadingCsv') : t('csvUpload')}
               </span>
             </Button>
           </label>
           <Button onClick={() => setShowBulkAssignModal(true)}>
             <Users className="w-4 h-4 mr-2" />
-            일괄 배정
+            {t('bulkAssign')}
           </Button>
         </div>
       </div>
@@ -288,7 +292,7 @@ export default function InquiryLeadsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500 mb-1">전체 데이터</p>
+                <p className="text-sm text-gray-500 mb-1">{t('totalData')}</p>
                 <p className="text-3xl font-bold text-gray-900">{stats?.total.toLocaleString() || 0}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -302,7 +306,7 @@ export default function InquiryLeadsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500 mb-1">미배정</p>
+                <p className="text-sm text-gray-500 mb-1">{t('unassigned')}</p>
                 <p className="text-3xl font-bold text-orange-600">{stats?.unassigned.toLocaleString() || 0}</p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -316,7 +320,7 @@ export default function InquiryLeadsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500 mb-1">금주 완료</p>
+                <p className="text-sm text-gray-500 mb-1">{t('completedThisWeek')}</p>
                 <p className="text-3xl font-bold text-green-600">{stats?.completedThisWeek.toLocaleString() || 0}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -330,7 +334,7 @@ export default function InquiryLeadsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500 mb-1">진행률</p>
+                <p className="text-sm text-gray-500 mb-1">{t('progressRate')}</p>
                 <p className="text-3xl font-bold text-indigo-600">{stats?.progressRate || 0}%</p>
               </div>
               <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
@@ -345,7 +349,7 @@ export default function InquiryLeadsPage() {
       {stats?.assigneeStats && stats.assigneeStats.length > 0 && (
         <Card className="mb-6">
           <CardContent className="p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">담당자별 금주 진행 현황</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">{t('assigneeWeeklyProgress')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {stats.assigneeStats.map(assignee => (
                 <div key={assignee.id} className="bg-gray-50 rounded-lg p-4">
@@ -377,7 +381,7 @@ export default function InquiryLeadsPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="가게명 검색..."
+                placeholder={t('searchStoreName')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -390,8 +394,8 @@ export default function InquiryLeadsPage() {
               onChange={(e) => setAssigneeFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">모든 담당자</option>
-              <option value="unassigned">미배정</option>
+              <option value="">{t('allAssignees')}</option>
+              <option value="unassigned">{t('unassignedFilter')}</option>
               {assignees.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
@@ -403,7 +407,7 @@ export default function InquiryLeadsPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">모든 상태</option>
+              <option value="">{t('allStatuses')}</option>
               {STATUS_OPTIONS.map(s => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
@@ -415,7 +419,7 @@ export default function InquiryLeadsPage() {
               onChange={(e) => setPrefectureFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">모든 지역</option>
+              <option value="">{t('allRegions')}</option>
               {prefectures.map(p => (
                 <option key={p} value={p}>{p}</option>
               ))}
@@ -439,35 +443,34 @@ export default function InquiryLeadsPage() {
                       className="rounded border-gray-300"
                     />
                   </th>
-                  <th className="p-4 text-left text-sm font-medium text-gray-600">가게명 / 장르</th>
-                  <th className="p-4 text-left text-sm font-medium text-gray-600">지역</th>
-                  <th className="p-4 text-center text-sm font-medium text-gray-600">홈페이지</th>
-                  <th className="p-4 text-left text-sm font-medium text-gray-600">담당자</th>
-                  <th className="p-4 text-left text-sm font-medium text-gray-600">상태</th>
-                  <th className="p-4 text-left text-sm font-medium text-gray-600">비고</th>
+                  <th className="p-4 text-left text-sm font-medium text-gray-600">{t('storeNameGenre')}</th>
+                  <th className="p-4 text-left text-sm font-medium text-gray-600">{t('regionColumn')}</th>
+                  <th className="p-4 text-center text-sm font-medium text-gray-600">{t('homepageColumn')}</th>
+                  <th className="p-4 text-left text-sm font-medium text-gray-600">{t('assigneeColumn')}</th>
+                  <th className="p-4 text-left text-sm font-medium text-gray-600">{t('statusColumn')}</th>
+                  <th className="p-4 text-left text-sm font-medium text-gray-600">{t('noteColumn')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-gray-500">
-                      로딩 중...
+                      {t('loadingData')}
                     </td>
                   </tr>
                 ) : leads.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-gray-500">
-                      데이터가 없습니다
+                      {t('noDataFound')}
                     </td>
                   </tr>
                 ) : (
                   leads.map(lead => (
                     <tr 
                       key={lead.id} 
-                      className="border-b hover:bg-gray-50 cursor-pointer"
-                      onClick={() => lead.url && openUrl(lead.url)}
+                      className="border-b hover:bg-gray-50"
                     >
-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                      <td className="p-4">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(lead.id)}
@@ -487,7 +490,7 @@ export default function InquiryLeadsPage() {
                           <p className="text-sm text-gray-500">{lead.region}</p>
                         </div>
                       </td>
-                      <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="p-4 text-center">
                         {lead.url ? (
                           <button
                             onClick={() => openUrl(lead.url)}
@@ -502,10 +505,10 @@ export default function InquiryLeadsPage() {
                       </td>
                       <td className="p-4">
                         <span className={`px-2 py-1 rounded text-sm ${lead.assigneeName ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {lead.assigneeName || '미배정'}
+                          {lead.assigneeName || t('unassigned')}
                         </span>
                       </td>
-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                      <td className="p-4">
                         <select
                           value={lead.status}
                           onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
@@ -516,7 +519,7 @@ export default function InquiryLeadsPage() {
                           ))}
                         </select>
                       </td>
-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                      <td className="p-4">
                         <Input
                           value={lead.memo || ''}
                           onChange={(e) => {
@@ -526,7 +529,7 @@ export default function InquiryLeadsPage() {
                             ))
                           }}
                           onBlur={(e) => updateLeadMemo(lead.id, e.target.value)}
-                          placeholder="메모 입력..."
+                          placeholder={t('enterMemo')}
                           className="text-sm h-8"
                         />
                       </td>
@@ -541,7 +544,10 @@ export default function InquiryLeadsPage() {
           {pagination.totalPages > 1 && (
             <div className="flex items-center justify-between p-4 border-t">
               <p className="text-sm text-gray-500">
-                총 {pagination.total.toLocaleString()}개 중 {((pagination.page - 1) * pagination.limit) + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)}개 표시
+                {t('displayingOf')
+                  .replace('{total}', pagination.total.toLocaleString())
+                  .replace('{start}', String(((pagination.page - 1) * pagination.limit) + 1))
+                  .replace('{end}', String(Math.min(pagination.page * pagination.limit, pagination.total)))}
               </p>
               <div className="flex items-center gap-2">
                 <Button
