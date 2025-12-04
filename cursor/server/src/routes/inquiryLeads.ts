@@ -166,6 +166,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         u.name as assignee_name,
         il.status,
         il.memo,
+        il.sent_date,
         il.assigned_at,
         il.created_at,
         il.updated_at
@@ -191,6 +192,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         assigneeName: row.assignee_name,
         status: row.status,
         memo: row.memo,
+        sentDate: row.sent_date,
         assignedAt: row.assigned_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at
@@ -356,6 +358,12 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
     if (status !== undefined) {
       updates.push(`status = $${paramIndex++}`)
       params.push(status)
+      
+      // 완료 상태(완료/홈페이지없음/문의하기없음/기타)로 변경 시 전송날짜 기록
+      const completedStatuses = ['COMPLETED', 'NO_SITE', 'NO_FORM', 'ETC']
+      if (completedStatuses.includes(status)) {
+        updates.push(`sent_date = CURRENT_DATE`)
+      }
     }
 
     if (assigneeId !== undefined) {
