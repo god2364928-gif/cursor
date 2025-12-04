@@ -32,10 +32,10 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
     )
     const unassigned = parseInt(unassignedResult.rows[0].count)
 
-    // 금주 완료 수 (이번 주 월요일부터)
+    // 금주 완료 수 (이번 주 월요일부터) - 완료/홈페이지없음/문의하기없음/기타 모두 포함
     const weekStartResult = await pool.query(`
       SELECT COUNT(*) FROM inquiry_leads 
-      WHERE status = 'COMPLETED' 
+      WHERE status IN ('COMPLETED', 'NO_SITE', 'NO_FORM', 'ETC')
       AND updated_at >= date_trunc('week', CURRENT_TIMESTAMP)
     `)
     const completedThisWeek = parseInt(weekStartResult.rows[0].count)
