@@ -293,11 +293,11 @@ router.post('/bulk-assign', authMiddleware, async (req: AuthRequest, res: Respon
       return res.status(404).json({ message: 'User not found' })
     }
 
-    // 미배정 데이터 중 count개 가져오기
+    // 미배정 데이터 중 count개 랜덤으로 가져오기
     const leadsResult = await pool.query(`
       SELECT id FROM inquiry_leads 
       WHERE assignee_id IS NULL AND status = 'PENDING'
-      ORDER BY created_at ASC
+      ORDER BY RANDOM()
       LIMIT $1
     `, [count])
 
