@@ -30,6 +30,7 @@ interface InquiryLead {
   assigneeName: string | null
   status: string
   memo: string | null
+  sentDate: string | null
   assignedAt: string | null
   createdAt: string
   updatedAt: string
@@ -171,8 +172,10 @@ export default function InquiryLeadsPage() {
   const updateLeadStatus = async (id: string, status: string) => {
     try {
       await api.put(`/inquiry-leads/${id}`, { status })
+      const completedStatuses = ['COMPLETED', 'NO_SITE', 'NO_FORM', 'ETC']
+      const newSentDate = completedStatuses.includes(status) ? new Date().toISOString().split('T')[0] : null
       setLeads(prev => prev.map(lead => 
-        lead.id === id ? { ...lead, status } : lead
+        lead.id === id ? { ...lead, status, sentDate: completedStatuses.includes(status) ? newSentDate : lead.sentDate } : lead
       ))
       fetchStats()
       showToast(t('statusUpdated'), 'success')
@@ -453,19 +456,20 @@ export default function InquiryLeadsPage() {
                   <th className="p-4 text-center text-sm font-medium text-gray-600">{t('homepageColumn')}</th>
                   <th className="p-4 text-left text-sm font-medium text-gray-600">{t('assigneeColumn')}</th>
                   <th className="p-4 text-left text-sm font-medium text-gray-600">{t('statusColumn')}</th>
+                  <th className="p-4 text-center text-sm font-medium text-gray-600">{t('sentDateColumn')}</th>
                   <th className="p-4 text-left text-sm font-medium text-gray-600">{t('noteColumn')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                    <td colSpan={8} className="p-8 text-center text-gray-500">
                       {t('loadingData')}
                     </td>
                   </tr>
                 ) : leads.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                    <td colSpan={8} className="p-8 text-center text-gray-500">
                       {t('noDataFound')}
                     </td>
                   </tr>
@@ -523,6 +527,9 @@ export default function InquiryLeadsPage() {
                             <option key={s.value} value={s.value}>{s.label}</option>
                           ))}
                         </select>
+                      </td>
+                      <td className="p-4 text-center text-sm text-gray-600">
+                        {lead.sentDate ? new Date(lead.sentDate).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }) : '-'}
                       </td>
                       <td className="p-4">
                         <Input
