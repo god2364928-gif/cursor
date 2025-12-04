@@ -132,8 +132,8 @@ export default function InquiryLeadsPage() {
       const response = await api.get('/inquiry-leads/assignees?marketersOnly=true')
       setAssignees(response.data)
       
-      // 매니저인 경우 담당자 필터를 본인으로 기본 설정
-      if (user?.role === 'manager' && user?.id) {
+      // 매니저 또는 마케터인 경우 담당자 필터를 본인으로 기본 설정
+      if ((user?.role === 'manager' || user?.role === 'marketer') && user?.id) {
         setAssigneeFilter(user.id)
       }
     } catch (error) {
