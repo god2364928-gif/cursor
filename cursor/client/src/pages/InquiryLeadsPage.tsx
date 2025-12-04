@@ -131,10 +131,15 @@ export default function InquiryLeadsPage() {
     try {
       const response = await api.get('/inquiry-leads/assignees')
       setAssignees(response.data)
+      
+      // 매니저인 경우 담당자 필터를 본인으로 기본 설정
+      if (user?.role === 'manager' && user?.id) {
+        setAssigneeFilter(user.id)
+      }
     } catch (error) {
       console.error('Failed to fetch assignees:', error)
     }
-  }, [])
+  }, [user])
 
   // Fetch prefectures
   const fetchPrefectures = useCallback(async () => {
@@ -578,7 +583,6 @@ export default function InquiryLeadsPage() {
       {/* Bulk Assign Modal */}
       {showBulkAssignModal && (
         <BulkAssignModal
-          assignees={assignees}
           onClose={() => setShowBulkAssignModal(false)}
           onSuccess={handleBulkAssignSuccess}
         />
