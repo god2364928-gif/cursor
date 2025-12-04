@@ -14,6 +14,7 @@ import AccountingPage from './pages/AccountingPage'
 import InvoicePage from './pages/InvoicePage'
 import InvoiceCreatePage from './pages/InvoiceCreatePage'
 import HotpepperPage from './pages/HotpepperPage'
+import InquiryLeadsPage from './pages/InquiryLeadsPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token)
@@ -45,6 +46,7 @@ function App() {
           <Route path="settings/keyword-analysis" element={<KeywordAnalysisPage />} />
           <Route path="accounting" element={<AccountingPage />} />
           <Route path="hotpepper" element={<HotpepperPage />} />
+          <Route path="inquiry-leads" element={<InquiryLeadsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

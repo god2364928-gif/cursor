@@ -17,6 +17,7 @@ import {
   Calculator,
   FileText,
   UtensilsCrossed,
+  ClipboardList,
 } from 'lucide-react'
 import { Button } from './ui/button'
 
@@ -26,6 +27,7 @@ const navigation = [
   { name: 'retargeting', href: '/retargeting', icon: Target },
   { name: 'salesTracking', href: '/sales-tracking', icon: History },
   { name: 'hotpepper', href: '/hotpepper', icon: UtensilsCrossed },
+  { name: 'inquiryLeads', href: '/inquiry-leads', icon: ClipboardList },
   { name: 'sales', href: '/sales', icon: BarChart3 },
   { name: 'invoices', href: '/invoices', icon: FileText },
   { name: 'settings', href: '/settings', icon: Settings },

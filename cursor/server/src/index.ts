@@ -28,6 +28,7 @@ import lineUploadRoutes from './routes/lineUpload'
 import hotpepperRoutes from './routes/hotpepper'
 import recruitRoutes from './routes/recruit'
 import restaurantsRoutes from './routes/restaurants'
+import inquiryLeadsRoutes from './routes/inquiryLeads'
 import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking, autoMigrateHotpepper } from './migrations/autoMigrate'
 
@@ -115,6 +116,7 @@ app.use('/api/line-upload', lineUploadRoutes)
 app.use('/api/hotpepper', hotpepperRoutes)  // 하위 호환성 유지
 app.use('/api/recruit', recruitRoutes)       // 통합 API
 app.use('/api/restaurants', restaurantsRoutes) // 음식점 CRM
+app.use('/api/inquiry-leads', inquiryLeadsRoutes) // 문의 배정 시스템
 
 // Health check
 app.get('/api/health', (req, res) => {

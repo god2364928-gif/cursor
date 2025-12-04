@@ -198,8 +198,16 @@ router.post('/create', auth_1.authMiddleware, async (req, res) => {
             throw new Error('Failed to create invoice in freee');
         }
         const invoiceId = result.invoice.id;
-        const totalAmount = result.invoice.total_amount || 0;
-        const taxAmount = result.invoice.amount_tax || 0; // freee請求書 API는 amount_tax 사용
+        // 프론트엔드와 동일한 방식으로 금액 계산 (Math.floor 사용)
+        const subtotal = line_items.reduce((sum, item) => {
+            const unitPrice = Number(item.unit_price) || 0;
+            const quantity = Number(item.quantity) || 0;
+            return sum + (unitPrice * quantity);
+        }, 0);
+        const taxAmount = line_items.reduce((sum, item) => {
+            return sum + (Number(item.tax) || 0); // 프론트엔드에서 이미 Math.floor로 계산된 값
+        }, 0);
+        const totalAmount = tax_entry_method === 'inclusive' ? subtotal : subtotal + taxAmount;
         // 사용자 정보 조회
         const userResult = await db_1.pool.query('SELECT name FROM users WHERE id = $1', [req.user.id]);
         const userName = userResult.rows[0]?.name || '알 수 없음';
