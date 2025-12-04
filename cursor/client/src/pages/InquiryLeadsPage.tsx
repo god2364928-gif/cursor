@@ -483,9 +483,9 @@ export default function InquiryLeadsPage() {
                           className="rounded border-gray-300"
                         />
                       </td>
-                      <td className="p-4">
+                      <td className="p-4" style={{ maxWidth: '280px' }}>
                         <div>
-                          <p className="font-medium text-gray-900">{lead.storeName}</p>
+                          <p className="font-medium text-gray-900 break-words">{lead.storeName}</p>
                           <p className="text-sm text-gray-500">{lead.genre}</p>
                         </div>
                       </td>
