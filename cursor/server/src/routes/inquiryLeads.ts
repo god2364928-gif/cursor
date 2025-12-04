@@ -362,7 +362,8 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       if (assigneeId === null) {
         updates.push(`assignee_id = NULL, assigned_at = NULL`)
       } else {
-        updates.push(`assignee_id = $${paramIndex++}, assigned_at = COALESCE(assigned_at, CURRENT_TIMESTAMP)`)
+        // 담당자가 배정되면 상태도 자동으로 진행중으로 변경
+        updates.push(`assignee_id = $${paramIndex++}, assigned_at = COALESCE(assigned_at, CURRENT_TIMESTAMP), status = 'IN_PROGRESS'`)
         params.push(assigneeId)
       }
     }
