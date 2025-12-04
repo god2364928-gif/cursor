@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
 import { Button } from './ui/button'
@@ -12,17 +12,30 @@ interface Assignee {
 }
 
 interface Props {
-  assignees: Assignee[]
   onClose: () => void
   onSuccess: () => void
 }
 
-export default function BulkAssignModal({ assignees, onClose, onSuccess }: Props) {
+export default function BulkAssignModal({ onClose, onSuccess }: Props) {
   const { t } = useI18nStore()
+  const [marketers, setMarketers] = useState<Assignee[]>([])
   const [selectedAssignee, setSelectedAssignee] = useState<string>('')
   const [count, setCount] = useState<number>(250)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // 마케터만 조회
+  useEffect(() => {
+    const fetchMarketers = async () => {
+      try {
+        const response = await api.get('/inquiry-leads/assignees?marketersOnly=true')
+        setMarketers(response.data)
+      } catch (err) {
+        console.error('Failed to fetch marketers:', err)
+      }
+    }
+    fetchMarketers()
+  }, [])
 
   const handleSubmit = async () => {
     if (!selectedAssignee) {
@@ -89,7 +102,7 @@ export default function BulkAssignModal({ assignees, onClose, onSuccess }: Props
               className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               <option value="">{t('selectAssigneePlaceholder')}</option>
-              {assignees.map(a => (
+              {marketers.map(a => (
                 <option key={a.id} value={a.id}>
                   {a.name} {a.team ? `(${a.team})` : ''}
                 </option>
