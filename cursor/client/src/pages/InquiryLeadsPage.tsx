@@ -126,10 +126,10 @@ export default function InquiryLeadsPage() {
     }
   }, [assigneeFilter, statusFilter, prefectureFilter, searchQuery, showToast])
 
-  // Fetch assignees
+  // Fetch assignees (마케터만)
   const fetchAssignees = useCallback(async () => {
     try {
-      const response = await api.get('/inquiry-leads/assignees')
+      const response = await api.get('/inquiry-leads/assignees?marketersOnly=true')
       setAssignees(response.data)
       
       // 매니저인 경우 담당자 필터를 본인으로 기본 설정
