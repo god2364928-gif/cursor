@@ -11,7 +11,7 @@ import { useToast } from '../components/ui/toast'
 import { Phone, PhoneOff, MessageSquare, FileText, Target, ExternalLink, Copy, Pin, PinOff, Trash2, FileIcon, Download } from 'lucide-react'
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
 
-const RETARGETING_TARGET = 200
+const RETARGETING_TARGET = 500
 
 export default function RetargetingPage() {
   const { t, language } = useI18nStore()
