@@ -381,14 +381,14 @@ export default function DashboardPage() {
                           {personalStats.find(stat => stat.manager === user?.name)?.manager}
                         </h3>
                         <span className="text-lg font-bold text-blue-600">
-                          {personalStats.find(stat => stat.manager === user?.name)?.total} / 200
+                          {personalStats.find(stat => stat.manager === user?.name)?.total} / 500
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-4">
                         <div
                           className="bg-blue-600 h-4 rounded-full transition-all"
                           style={{ 
-                            width: `${Math.min(100, (personalStats.find(stat => stat.manager === user?.name)?.total / 200) * 100)}%` 
+                            width: `${Math.min(100, (personalStats.find(stat => stat.manager === user?.name)?.total / 500) * 100)}%` 
                           }}
                         />
                       </div>
@@ -404,13 +404,13 @@ export default function DashboardPage() {
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium text-gray-700">{stat.manager}</span>
                             <span className="text-sm font-semibold text-gray-600">
-                              {stat.total} / 200
+                              {stat.total} / 500
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
                               className="bg-gray-500 h-2 rounded-full transition-all"
-                              style={{ width: `${Math.min(100, (stat.total / 200) * 100)}%` }}
+                              style={{ width: `${Math.min(100, (stat.total / 500) * 100)}%` }}
                             />
                           </div>
                         </div>
