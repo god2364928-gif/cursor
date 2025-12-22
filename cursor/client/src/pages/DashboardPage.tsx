@@ -191,6 +191,13 @@ export default function DashboardPage() {
     { name: '연장 매출', value: performanceData.salesBreakdown.renewalSales, color: COLORS.renewalRevenue }
   ]
 
+  // 리타겟팅 연락 주기 차트 데이터
+  const retargetingCycleData = [
+    { name: '주기 미도래', value: performanceData.retargetingAlert.upcoming, fill: '#10b981' },
+    { name: '이번 주 예정', value: performanceData.retargetingAlert.dueThisWeek, fill: '#f59e0b' },
+    { name: '연락 지연', value: performanceData.retargetingAlert.overdue, fill: '#ef4444' }
+  ]
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -200,8 +207,8 @@ export default function DashboardPage() {
         </div>
 
         {/* 기간 필터 */}
-        <Card>
-          <CardContent className="p-4">
+          <Card>
+            <CardContent className="p-4">
             <div className="space-y-4">
               {/* 탭 선택 */}
               <div className="flex gap-2">
@@ -276,7 +283,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Top Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
           {/* 총 매출액 */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -310,25 +317,25 @@ export default function DashboardPage() {
 
           {/* 예상 파이프라인 (신규) */}
           <Card className="bg-blue-50 border-blue-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-blue-700">예상 파이프라인</CardTitle>
               <TrendingUp className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
+              </CardHeader>
+              <CardContent>
               <div className="text-2xl font-bold text-blue-900">
                 {formatNumber(performanceData.summary.potentialRevenue)}원
               </div>
               <p className="text-xs text-blue-600 mt-1">현재 진행 중인 상담 기준</p>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
           {/* 계약률 */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">계약률</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
+              </CardHeader>
+              <CardContent>
               <div className="text-2xl font-bold">
                 {performanceData.summary.contractRate.toFixed(1)}%
               </div>
@@ -353,8 +360,8 @@ export default function DashboardPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 계약 {performanceData.summary.contractCount}건 / 활동 {performanceData.summary.totalActivities}건
               </p>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
           {/* 총 활동량 */}
           <Card>
@@ -374,27 +381,43 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* 미배정 문의 */}
-          <Card className={performanceData.summary.unassignedInquiries > 0 ? 'border-red-300 bg-red-50' : ''}>
+          {/* 연락 주기 도래 (신규) */}
+          <Card className={performanceData.retargetingAlert.overdue > 0 ? 'border-orange-300 bg-orange-50' : ''}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">미배정 문의</CardTitle>
-              <AlertCircle className={`h-4 w-4 ${performanceData.summary.unassignedInquiries > 0 ? 'text-red-500' : 'text-muted-foreground'}`} />
+              <CardTitle className="text-sm font-medium">연락 주기 도래</CardTitle>
+              <Users className={`h-4 w-4 ${performanceData.retargetingAlert.overdue > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
             </CardHeader>
             <CardContent>
+              <div className="text-2xl font-bold">
+                {performanceData.retargetingAlert.overdue + performanceData.retargetingAlert.dueThisWeek}건
+              </div>
+              <p className="text-xs text-orange-600 mt-1">
+                지연 {performanceData.retargetingAlert.overdue}건 / 이번 주 {performanceData.retargetingAlert.dueThisWeek}건
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 미배정 문의 */}
+          <Card className={performanceData.summary.unassignedInquiries > 0 ? 'border-red-300 bg-red-50' : ''}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">미배정 문의</CardTitle>
+              <AlertCircle className={`h-4 w-4 ${performanceData.summary.unassignedInquiries > 0 ? 'text-red-500' : 'text-muted-foreground'}`} />
+              </CardHeader>
+              <CardContent>
               <div className={`text-2xl font-bold ${performanceData.summary.unassignedInquiries > 0 ? 'text-red-600' : ''}`}>
                 {formatNumber(performanceData.summary.unassignedInquiries)}건
-              </div>
+                  </div>
               {performanceData.summary.unassignedInquiries > 0 && (
                 <p className="text-xs text-red-600 mt-1 font-medium">
                   확인 필요
                 </p>
               )}
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
 
         {/* Middle Charts */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           {/* 활동량 비교 막대 차트 */}
           <Card>
             <CardHeader>
@@ -447,6 +470,35 @@ export default function DashboardPage() {
               </ResponsiveContainer>
               <div className="mt-4 text-center text-sm text-muted-foreground">
                 <div>총 매출: {formatNumber(performanceData.summary.totalSales)}원</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 리타겟팅 연락 주기 현황 (신규) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>리타겟팅 연락 주기</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={retargetingCycleData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" width={100} />
+                  <Tooltip />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {retargetingCycleData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="mt-4 text-center text-xs text-muted-foreground">
+                <div className="text-orange-600 font-medium">
+                  {performanceData.retargetingAlert.overdue > 0 
+                    ? `⚠️ ${performanceData.retargetingAlert.overdue}명에게 즉시 연락 필요` 
+                    : '✓ 모든 고객 관리 중'}
+                </div>
               </div>
             </CardContent>
           </Card>
