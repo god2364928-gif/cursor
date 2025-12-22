@@ -40,25 +40,10 @@ const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
 const nullSafe_1 = require("../utils/nullSafe");
+const dateHelper_1 = require("../utils/dateHelper");
 const multer_1 = __importDefault(require("multer"));
 const XLSX = __importStar(require("xlsx"));
 const sync_1 = require("csv-parse/sync");
-// Date 객체를 한국 시간대(KST)의 YYYY-MM-DD 문자열로 변환하는 헬퍼 함수
-const toKSTDateString = (date) => {
-    if (!date)
-        return null;
-    const d = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(d.getTime()))
-        return null; // 유효하지 않은 날짜
-    const offset = d.getTimezoneOffset() * 60 * 1000;
-    const kstOffset = 9 * 60 * 60 * 1000;
-    const kstTime = d.getTime() + offset + kstOffset;
-    const kstDate = new Date(kstTime);
-    const year = kstDate.getFullYear();
-    const month = (kstDate.getMonth() + 1).toString().padStart(2, '0');
-    const day = kstDate.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
 const router = (0, express_1.Router)();
 // Helper function to decode file name
 const decodeFileName = (fileName) => {
@@ -103,7 +88,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
             homepage: row.homepage,
             instagram: row.instagram,
             mainKeywords: row.main_keywords || [],
-            registeredAt: toKSTDateString(row.registered_at)
+            registeredAt: (0, dateHelper_1.toKSTDateString)(row.registered_at)
         }));
         res.json(customers);
     }
@@ -140,12 +125,12 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
             managerTeam: customer.manager_team,
             status: customer.status,
             contractHistoryCategory: customer.contract_history_category,
-            lastContactDate: toKSTDateString(customer.last_contact_date),
+            lastContactDate: (0, dateHelper_1.toKSTDateString)(customer.last_contact_date),
             memo: customer.memo,
             homepage: customer.homepage,
             instagram: customer.instagram,
             mainKeywords: customer.main_keywords || [],
-            registeredAt: toKSTDateString(customer.registered_at)
+            registeredAt: (0, dateHelper_1.toKSTDateString)(customer.registered_at)
         };
         res.json(camelCaseCustomer);
     }
@@ -175,13 +160,13 @@ router.get('/:id', auth_1.authMiddleware, async (req, res) => {
             managerTeam: customer.manager_team,
             status: customer.status,
             contractHistoryCategory: customer.contract_history_category,
-            nextContactDate: toKSTDateString(customer.next_contact_date),
-            lastContactDate: toKSTDateString(customer.last_contact_date),
+            nextContactDate: (0, dateHelper_1.toKSTDateString)(customer.next_contact_date),
+            lastContactDate: (0, dateHelper_1.toKSTDateString)(customer.last_contact_date),
             memo: customer.memo,
             homepage: customer.homepage,
             instagram: customer.instagram,
             mainKeywords: customer.main_keywords || [],
-            registeredAt: toKSTDateString(customer.registered_at)
+            registeredAt: (0, dateHelper_1.toKSTDateString)(customer.registered_at)
         };
         res.json(camelCaseCustomer);
     }

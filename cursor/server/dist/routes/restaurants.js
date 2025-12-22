@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
-const jstDateHelper_1 = require("../utils/jstDateHelper");
+const dateHelper_1 = require("../utils/dateHelper");
 const router = (0, express_1.Router)();
 // 일본 47개 도도부현 (지방별 그룹화)
 const PREFECTURES = {
@@ -389,8 +389,8 @@ router.post('/:id/sales-activity', auth_1.authMiddleware, async (req, res) => {
     `, [id, userId, userName, contact_method, notes || null]);
         // 영업 이력 등록 (sales_tracking 테이블) - 담당자가 본인으로 지정됨
         const now = new Date();
-        const today = (0, jstDateHelper_1.toJSTDateString)(now);
-        const occurredAt = (0, jstDateHelper_1.toJSTTimestampString)(now);
+        const today = (0, dateHelper_1.toJSTDateString)(now);
+        const occurredAt = (0, dateHelper_1.toJSTTimestampString)(now);
         await db_1.pool.query(`
       INSERT INTO sales_tracking (
         date, occurred_at, manager_name, company_name, account_id, customer_name,
