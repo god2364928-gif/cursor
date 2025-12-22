@@ -2,26 +2,10 @@ import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { safeString, safeStringWithLength, firstValidString, formatPhoneNumber } from '../utils/nullSafe'
+import { toKSTDateString } from '../utils/dateHelper'
 import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { parse as parseCsvSync } from 'csv-parse/sync'
-
-// Date 객체를 한국 시간대(KST)의 YYYY-MM-DD 문자열로 변환하는 헬퍼 함수
-const toKSTDateString = (date: Date | string | null | undefined): string | null => {
-  if (!date) return null;
-  const d = typeof date === 'string' ? new Date(date) : date;
-  if (isNaN(d.getTime())) return null; // 유효하지 않은 날짜
-
-  const offset = d.getTimezoneOffset() * 60 * 1000; 
-  const kstOffset = 9 * 60 * 60 * 1000; 
-  const kstTime = d.getTime() + offset + kstOffset; 
-  const kstDate = new Date(kstTime);
-
-  const year = kstDate.getFullYear();
-  const month = (kstDate.getMonth() + 1).toString().padStart(2, '0');
-  const day = kstDate.getDate().toString().padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const router = Router()
 

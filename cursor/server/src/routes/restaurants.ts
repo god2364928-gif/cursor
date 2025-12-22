@@ -1,7 +1,7 @@
 import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
-import { toJSTTimestampString, toJSTDateString } from '../utils/jstDateHelper'
+import { toJSTTimestampString, toJSTDateString } from '../utils/dateHelper'
 
 const router = Router()
 
