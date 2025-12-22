@@ -25,7 +25,65 @@ router.get('/:fiscalYear', authMiddleware, adminOnly, async (req: AuthRequest, r
       [fiscalYear]
     )
     
-    res.json(result.rows)
+    // 월별로 그룹화하여 클라이언트가 기대하는 형식으로 변환
+    const monthlyData = new Map<number, any>()
+    
+    for (const row of result.rows) {
+      const month = row.month
+      if (!monthlyData.has(month)) {
+        monthlyData.set(month, {
+          id: `${fiscalYear}-${month}`,
+          month: month,
+          bank_transfer: 0,
+          bank_transfer_fee: 0,
+          paypay: 0,
+          paypay_fee: 0,
+          paypal: 0,
+          paypal_fee: 0,
+          stripe: 0,
+          stripe_fee: 0,
+        })
+      }
+      
+      const monthData = monthlyData.get(month)
+      const amount = parseFloat(row.amount) || 0
+      const isFee = row.is_fee
+      const paymentMethod = row.payment_method
+      
+      // 결제수단별로 매핑
+      if (paymentMethod === '口座振込') {
+        if (isFee) {
+          monthData.bank_transfer_fee += amount
+        } else {
+          monthData.bank_transfer += amount
+        }
+      } else if (paymentMethod === 'PayPay') {
+        if (isFee) {
+          monthData.paypay_fee += amount
+        } else {
+          monthData.paypay += amount
+        }
+      } else if (paymentMethod === 'PayPal') {
+        if (isFee) {
+          monthData.paypal_fee += amount
+        } else {
+          monthData.paypal += amount
+        }
+      } else if (paymentMethod === 'strip' || paymentMethod === 'strip1') {
+        // strip과 strip1을 합쳐서 stripe로
+        if (isFee) {
+          monthData.stripe_fee += amount
+        } else {
+          monthData.stripe += amount
+        }
+      }
+      // ココナラ는 무시 (클라이언트에 표시 안함)
+    }
+    
+    // Map을 배열로 변환하고 월 순서대로 정렬
+    const response = Array.from(monthlyData.values()).sort((a, b) => a.month - b.month)
+    
+    res.json(response)
   } catch (error) {
     console.error('Error fetching total sales:', error)
     res.status(500).json({ error: '전체매출 조회 실패' })
