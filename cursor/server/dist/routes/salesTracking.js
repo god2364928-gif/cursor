@@ -4,13 +4,8 @@ const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
 const nullSafe_1 = require("../utils/nullSafe");
+const dateHelper_1 = require("../utils/dateHelper");
 const router = (0, express_1.Router)();
-const toSeoulTimestampString = (input) => {
-    const utc = input.getTime() + input.getTimezoneOffset() * 60000;
-    const seoul = new Date(utc + 9 * 60 * 60 * 1000);
-    const pad = (n) => n.toString().padStart(2, '0');
-    return `${seoul.getUTCFullYear()}-${pad(seoul.getUTCMonth() + 1)}-${pad(seoul.getUTCDate())} ${pad(seoul.getUTCHours())}:${pad(seoul.getUTCMinutes())}:${pad(seoul.getUTCSeconds())}`;
-};
 // Get all sales tracking records (with search)
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
@@ -125,7 +120,7 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Date, manager name, and status are required' });
         }
         const occurredAt = new Date();
-        const occurredAtStr = toSeoulTimestampString(new Date());
+        const occurredAtStr = (0, dateHelper_1.toSeoulTimestampString)(new Date());
         const result = await db_1.pool.query(`INSERT INTO sales_tracking (
         date, occurred_at, manager_name, company_name, account_id, customer_name, industry,
         contact_method, status, contact_person, phone, memo, memo_note, user_id

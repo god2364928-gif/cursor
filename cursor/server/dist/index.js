@@ -21,9 +21,9 @@ const globalSearch_1 = __importDefault(require("./routes/globalSearch"));
 const integrations_1 = __importDefault(require("./routes/integrations"));
 const accountOptimization_1 = __importDefault(require("./routes/accountOptimization"));
 const keywordAnalysis_1 = __importDefault(require("./routes/keywordAnalysis"));
-const accounting_1 = __importDefault(require("./routes/accounting"));
+const index_1 = __importDefault(require("./routes/accounting/index"));
 const paypay_1 = __importDefault(require("./routes/paypay"));
-const totalSales_1 = __importDefault(require("./routes/totalSales"));
+const totalSales_1 = __importDefault(require("./routes/accounting/totalSales"));
 const monthlyPayroll_1 = __importDefault(require("./routes/monthlyPayroll"));
 const invoices_1 = __importDefault(require("./routes/invoices"));
 const receipts_1 = __importDefault(require("./routes/receipts"));
@@ -63,7 +63,7 @@ if (process.env.NODE_ENV === 'production' || true) {
     }
 }
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 // Middleware
 const corsOptions = {
     origin: function (origin, callback) {
@@ -103,7 +103,7 @@ app.use('/api/global-search', globalSearch_1.default);
 app.use('/api/integrations', integrations_1.default);
 app.use('/api/account-optimization', accountOptimization_1.default);
 app.use('/api/keyword-analysis', keywordAnalysis_1.default);
-app.use('/api/accounting', accounting_1.default);
+app.use('/api/accounting', index_1.default);
 app.use('/api/paypay', paypay_1.default);
 app.use('/api/total-sales', totalSales_1.default);
 app.use('/api/monthly-payroll', monthlyPayroll_1.default);
