@@ -336,5 +336,316 @@ router.get('/monthly-sales', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+// Get performance stats for the new dashboard
+router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { startDate, endDate, manager } = req.query;
+        if (!startDate || !endDate) {
+            return res.status(400).json({ message: 'startDate and endDate are required' });
+        }
+        // 날짜 유효성 검증 및 보정
+        const { validatedStartDate, validatedEndDate } = (0, dateValidator_1.validateDateRange)(startDate, endDate);
+        console.log('[Performance Stats] Request:', { startDate: validatedStartDate, endDate: validatedEndDate, manager });
+        // === 1. 활동량 집계 ===
+        // 1-1. 신규 영업 활동량: inquiry_leads (assigned_at 기준) + customer_history (신규 고객)
+        let newSalesActivityQuery = `
+      SELECT COUNT(*) as count FROM (
+        -- 문의 배정 건수
+        SELECT il.id 
+        FROM inquiry_leads il
+        LEFT JOIN users u ON il.assignee_id = u.id
+        WHERE il.assigned_at BETWEEN $1 AND $2
+        AND il.status IN ('IN_PROGRESS', 'COMPLETED')
+        ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+        
+        UNION ALL
+        
+        -- 신규 고객 히스토리 건수
+        SELECT ch.id
+        FROM customer_history ch
+        JOIN customers c ON ch.customer_id = c.id
+        LEFT JOIN users u ON ch.user_id = u.id
+        WHERE ch.created_at BETWEEN $1 AND $2
+        AND c.status NOT IN ('契約中', '購入', '계약중')
+        ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+      ) AS new_activities
+    `;
+        const newSalesParams = manager && manager !== 'all'
+            ? [validatedStartDate, validatedEndDate, manager]
+            : [validatedStartDate, validatedEndDate];
+        // 1-2. 리타겟팅 영업 활동량: retargeting_history (created_at 기준)
+        let retargetingActivityQuery = `
+      SELECT COUNT(*) as count
+      FROM retargeting_history rh
+      LEFT JOIN users u ON rh.user_id = u.id
+      WHERE rh.created_at BETWEEN $1 AND $2
+      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+    `;
+        const retargetingParams = manager && manager !== 'all'
+            ? [validatedStartDate, validatedEndDate, manager]
+            : [validatedStartDate, validatedEndDate];
+        // 1-3. 기존 고객 관리 활동량: customer_history (계약중 고객 대상)
+        let existingCustomerActivityQuery = `
+      SELECT COUNT(*) as count
+      FROM customer_history ch
+      JOIN customers c ON ch.customer_id = c.id
+      LEFT JOIN users u ON ch.user_id = u.id
+      WHERE ch.created_at BETWEEN $1 AND $2
+      AND (
+        TRIM(c.status) IN ('契約中', '購入', '계약중')
+        OR c.status ILIKE '%契約中%'
+        OR c.status ILIKE '%購入%'
+        OR c.status ILIKE '%계약%'
+      )
+      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+    `;
+        const existingParams = manager && manager !== 'all'
+            ? [validatedStartDate, validatedEndDate, manager]
+            : [validatedStartDate, validatedEndDate];
+        // === 2. 매출 집계 ===
+        // 2-1. 총 매출 및 신규/연장 구분
+        let salesQuery = `
+      SELECT 
+        COALESCE(SUM(s.amount), 0) as total_sales,
+        COALESCE(SUM(CASE WHEN s.sales_type = '신규매출' THEN s.amount ELSE 0 END), 0) as new_sales,
+        COALESCE(SUM(CASE WHEN s.sales_type = '연장매출' THEN s.amount ELSE 0 END), 0) as renewal_sales,
+        COUNT(CASE WHEN s.sales_type IN ('신규매출', '연장매출') THEN 1 END) as contract_count
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.contract_date BETWEEN $1 AND $2
+      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+    `;
+        const salesParams = manager && manager !== 'all'
+            ? [validatedStartDate, validatedEndDate, manager]
+            : [validatedStartDate, validatedEndDate];
+        // 2-2. 미배정 문의 건수
+        const unassignedQuery = `
+      SELECT COUNT(*) as count
+      FROM inquiry_leads
+      WHERE status = 'PENDING' AND assignee_id IS NULL
+    `;
+        // === 3. 전월/전주 대비 데이터 (비교용) ===
+        const dateRange = new Date(validatedEndDate).getTime() - new Date(validatedStartDate).getTime();
+        const daysDiff = Math.ceil(dateRange / (1000 * 60 * 60 * 24));
+        const prevStartDate = new Date(new Date(validatedStartDate).getTime() - daysDiff * 24 * 60 * 60 * 1000)
+            .toISOString().split('T')[0];
+        const prevEndDate = new Date(new Date(validatedEndDate).getTime() - daysDiff * 24 * 60 * 60 * 1000)
+            .toISOString().split('T')[0];
+        let prevSalesQuery = `
+      SELECT 
+        COALESCE(SUM(s.amount), 0) as total_sales,
+        COUNT(CASE WHEN s.sales_type IN ('신규매출', '연장매출') THEN 1 END) as contract_count
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.contract_date BETWEEN $1 AND $2
+      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+    `;
+        const prevSalesParams = manager && manager !== 'all'
+            ? [prevStartDate, prevEndDate, manager]
+            : [prevStartDate, prevEndDate];
+        // 병렬 쿼리 실행
+        const [newSalesResult, retargetingResult, existingResult, salesResult, unassignedResult, prevSalesResult] = await Promise.all([
+            db_1.pool.query(newSalesActivityQuery, newSalesParams),
+            db_1.pool.query(retargetingActivityQuery, retargetingParams),
+            db_1.pool.query(existingCustomerActivityQuery, existingParams),
+            db_1.pool.query(salesQuery, salesParams),
+            db_1.pool.query(unassignedQuery),
+            db_1.pool.query(prevSalesQuery, prevSalesParams)
+        ]);
+        const newSalesActivity = parseInt(newSalesResult.rows[0]?.count || '0');
+        const retargetingActivity = parseInt(retargetingResult.rows[0]?.count || '0');
+        const existingActivity = parseInt(existingResult.rows[0]?.count || '0');
+        const totalActivities = newSalesActivity + retargetingActivity + existingActivity;
+        const totalSales = parseInt(salesResult.rows[0]?.total_sales || '0');
+        const newSales = parseInt(salesResult.rows[0]?.new_sales || '0');
+        const renewalSales = parseInt(salesResult.rows[0]?.renewal_sales || '0');
+        const contractCount = parseInt(salesResult.rows[0]?.contract_count || '0');
+        const unassignedInquiries = parseInt(unassignedResult.rows[0]?.count || '0');
+        const prevTotalSales = parseInt(prevSalesResult.rows[0]?.total_sales || '0');
+        const prevContractCount = parseInt(prevSalesResult.rows[0]?.contract_count || '0');
+        // 증감률 계산
+        const salesChange = prevTotalSales > 0
+            ? ((totalSales - prevTotalSales) / prevTotalSales) * 100
+            : 0;
+        const prevTotalActivitiesQuery = `
+      SELECT COUNT(*) as count FROM (
+        SELECT il.id FROM inquiry_leads il
+        LEFT JOIN users u ON il.assignee_id = u.id
+        WHERE il.assigned_at BETWEEN $1 AND $2
+        AND il.status IN ('IN_PROGRESS', 'COMPLETED')
+        ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+        
+        UNION ALL
+        
+        SELECT ch.id FROM customer_history ch
+        JOIN customers c ON ch.customer_id = c.id
+        LEFT JOIN users u ON ch.user_id = u.id
+        WHERE ch.created_at BETWEEN $1 AND $2
+        AND c.status NOT IN ('契約中', '購入', '계약중')
+        ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+        
+        UNION ALL
+        
+        SELECT rh.id FROM retargeting_history rh
+        LEFT JOIN users u ON rh.user_id = u.id
+        WHERE rh.created_at BETWEEN $1 AND $2
+        ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+        
+        UNION ALL
+        
+        SELECT ch.id FROM customer_history ch
+        JOIN customers c ON ch.customer_id = c.id
+        LEFT JOIN users u ON ch.user_id = u.id
+        WHERE ch.created_at BETWEEN $1 AND $2
+        AND (TRIM(c.status) IN ('契約中', '購入', '계약중') OR c.status ILIKE '%契約中%' OR c.status ILIKE '%購入%' OR c.status ILIKE '%계약%')
+        ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+      ) AS prev_activities
+    `;
+        const prevActivityParams = manager && manager !== 'all'
+            ? [prevStartDate, prevEndDate, manager]
+            : [prevStartDate, prevEndDate];
+        const prevActivityResult = await db_1.pool.query(prevTotalActivitiesQuery, prevActivityParams);
+        const prevTotalActivities = parseInt(prevActivityResult.rows[0]?.count || '0');
+        const prevContractRate = prevTotalActivities > 0
+            ? (prevContractCount / prevTotalActivities) * 100
+            : 0;
+        const currentContractRate = totalActivities > 0
+            ? (contractCount / totalActivities) * 100
+            : 0;
+        const contractRateChange = currentContractRate - prevContractRate;
+        // === 4. 담당자별 성과 집계 ===
+        let managerStatsQuery = `
+      WITH manager_activities AS (
+        -- 신규 영업 활동
+        SELECT 
+          u.name as manager_name,
+          COUNT(*) as new_contacts
+        FROM (
+          SELECT il.id, u.id as user_id
+          FROM inquiry_leads il
+          LEFT JOIN users u ON il.assignee_id = u.id
+          WHERE il.assigned_at BETWEEN $1 AND $2
+          AND il.status IN ('IN_PROGRESS', 'COMPLETED')
+          AND u.name IS NOT NULL
+          
+          UNION ALL
+          
+          SELECT ch.id, u.id as user_id
+          FROM customer_history ch
+          JOIN customers c ON ch.customer_id = c.id
+          LEFT JOIN users u ON ch.user_id = u.id
+          WHERE ch.created_at BETWEEN $1 AND $2
+          AND c.status NOT IN ('契約中', '購入', '계약중')
+          AND u.name IS NOT NULL
+        ) AS new_act
+        JOIN users u ON new_act.user_id = u.id
+        GROUP BY u.name
+      ),
+      retargeting_activities AS (
+        -- 리타겟팅 활동
+        SELECT 
+          u.name as manager_name,
+          COUNT(*) as retargeting_contacts
+        FROM retargeting_history rh
+        LEFT JOIN users u ON rh.user_id = u.id
+        WHERE rh.created_at BETWEEN $1 AND $2
+        AND u.name IS NOT NULL
+        GROUP BY u.name
+      ),
+      existing_activities AS (
+        -- 기존 고객 관리
+        SELECT 
+          u.name as manager_name,
+          COUNT(*) as existing_contacts
+        FROM customer_history ch
+        JOIN customers c ON ch.customer_id = c.id
+        LEFT JOIN users u ON ch.user_id = u.id
+        WHERE ch.created_at BETWEEN $1 AND $2
+        AND (TRIM(c.status) IN ('契約中', '購入', '계약중') OR c.status ILIKE '%契約中%' OR c.status ILIKE '%購入%' OR c.status ILIKE '%계약%')
+        AND u.name IS NOT NULL
+        GROUP BY u.name
+      ),
+      manager_sales AS (
+        -- 매출 및 계약 건수
+        SELECT 
+          u.name as manager_name,
+          COUNT(CASE WHEN s.sales_type IN ('신규매출', '연장매출') THEN 1 END) as contract_count,
+          COALESCE(SUM(s.amount), 0) as total_sales
+        FROM sales s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.contract_date BETWEEN $1 AND $2
+        AND u.name IS NOT NULL
+        GROUP BY u.name
+      )
+      SELECT 
+        COALESCE(ma.manager_name, ra.manager_name, ea.manager_name, ms.manager_name) as manager_name,
+        COALESCE(ma.new_contacts, 0) as new_contacts,
+        COALESCE(ra.retargeting_contacts, 0) as retargeting_contacts,
+        COALESCE(ea.existing_contacts, 0) as existing_contacts,
+        COALESCE(ms.contract_count, 0) as contract_count,
+        COALESCE(ms.total_sales, 0) as total_sales
+      FROM manager_activities ma
+      FULL OUTER JOIN retargeting_activities ra ON ma.manager_name = ra.manager_name
+      FULL OUTER JOIN existing_activities ea ON COALESCE(ma.manager_name, ra.manager_name) = ea.manager_name
+      FULL OUTER JOIN manager_sales ms ON COALESCE(ma.manager_name, ra.manager_name, ea.manager_name) = ms.manager_name
+      WHERE COALESCE(ma.manager_name, ra.manager_name, ea.manager_name, ms.manager_name) IS NOT NULL
+      ${manager && manager !== 'all' ? `AND COALESCE(ma.manager_name, ra.manager_name, ea.manager_name, ms.manager_name) = $3` : ''}
+      ORDER BY total_sales DESC
+    `;
+        const managerStatsParams = manager && manager !== 'all'
+            ? [validatedStartDate, validatedEndDate, manager]
+            : [validatedStartDate, validatedEndDate];
+        const managerStatsResult = await db_1.pool.query(managerStatsQuery, managerStatsParams);
+        const managerStats = managerStatsResult.rows.map(row => {
+            const totalContacts = parseInt(row.new_contacts) + parseInt(row.retargeting_contacts) + parseInt(row.existing_contacts);
+            const contractRate = totalContacts > 0
+                ? (parseInt(row.contract_count) / totalContacts) * 100
+                : 0;
+            return {
+                managerName: row.manager_name,
+                newContacts: parseInt(row.new_contacts),
+                retargetingContacts: parseInt(row.retargeting_contacts),
+                existingContacts: parseInt(row.existing_contacts),
+                contractCount: parseInt(row.contract_count),
+                totalSales: parseInt(row.total_sales),
+                contractRate: Math.round(contractRate * 100) / 100
+            };
+        });
+        const response = {
+            summary: {
+                totalSales,
+                contractCount,
+                totalActivities,
+                contractRate: Math.round(currentContractRate * 100) / 100,
+                unassignedInquiries,
+                comparedToPrevious: {
+                    salesChange: Math.round(salesChange * 100) / 100,
+                    contractRateChange: Math.round(contractRateChange * 100) / 100
+                }
+            },
+            activities: {
+                newSales: newSalesActivity,
+                retargeting: retargetingActivity,
+                existingCustomer: existingActivity
+            },
+            salesBreakdown: {
+                newSales,
+                renewalSales
+            },
+            managerStats
+        };
+        console.log('[Performance Stats] Response summary:', {
+            totalActivities,
+            contractCount,
+            contractRate: response.summary.contractRate,
+            managerCount: managerStats.length
+        });
+        res.json(response);
+    }
+    catch (error) {
+        console.error('Error fetching performance stats:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=dashboard.js.map
