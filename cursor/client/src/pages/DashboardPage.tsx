@@ -155,6 +155,13 @@ export default function DashboardPage() {
     }
   }
 
+  // 저성과자 지원 핸들러
+  const handleSupport = (managerName: string) => {
+    // 문의 배정 페이지로 이동하거나 알림 보내기
+    alert(`${managerName}님에게 피드백을 전송하거나 미배정 문의를 할당하세요.`)
+    // 실제 구현: window.location.href = '/inquiry-leads'
+  }
+
   if (loading && !performanceData) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -269,7 +276,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Top Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           {/* 총 매출액 */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -298,6 +305,20 @@ export default function DashboardPage() {
                 )}
                 <span className="text-muted-foreground ml-1">전 기간 대비</span>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* 예상 파이프라인 (신규) */}
+          <Card className="bg-blue-50 border-blue-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-blue-700">예상 파이프라인</CardTitle>
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-900">
+                {formatNumber(performanceData.summary.potentialRevenue)}원
+              </div>
+              <p className="text-xs text-blue-600 mt-1">현재 진행 중인 상담 기준</p>
             </CardContent>
           </Card>
 
@@ -456,6 +477,7 @@ export default function DashboardPage() {
                 <tbody className="divide-y">
                   {performanceData.managerStats.map((stat) => {
                     const isLowPerformance = stat.contractRate < 5
+                    const totalContacts = stat.newContacts + stat.retargetingContacts + stat.existingContacts
                     return (
                       <tr 
                         key={stat.managerName}
@@ -468,8 +490,18 @@ export default function DashboardPage() {
                         <td className="px-4 py-3 text-right font-medium">{stat.contractCount}</td>
                         <td className="px-4 py-3 text-right font-medium">{formatNumber(stat.totalSales)}원</td>
                         <td className={`px-4 py-3 text-right font-bold ${isLowPerformance ? 'text-red-600' : 'text-green-600'}`}>
-                          {stat.contractRate.toFixed(1)}%
-                          {isLowPerformance && <span className="ml-2 text-xs">⚠️</span>}
+                          <div className="flex items-center justify-end gap-2">
+                            <span>{stat.contractRate.toFixed(1)}%</span>
+                            {isLowPerformance && totalContacts > 0 && (
+                              <button
+                                onClick={() => handleSupport(stat.managerName)}
+                                className="h-6 w-6 flex items-center justify-center rounded hover:bg-red-100 transition-colors"
+                                title="피드백 보내기 또는 지원"
+                              >
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )

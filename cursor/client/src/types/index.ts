@@ -255,6 +255,7 @@ export interface FreeeInvoice {
 export interface PerformanceStats {
   summary: {
     totalSales: number
+    potentialRevenue: number  // 파이프라인 가치 추가
     contractCount: number
     totalActivities: number
     contractRate: number
