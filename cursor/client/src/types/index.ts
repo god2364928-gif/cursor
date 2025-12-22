@@ -251,3 +251,38 @@ export interface FreeeInvoice {
   }>
 }
 
+// Performance Dashboard Types
+export interface PerformanceStats {
+  summary: {
+    totalSales: number
+    contractCount: number
+    totalActivities: number
+    contractRate: number
+    unassignedInquiries: number
+    comparedToPrevious: {
+      salesChange: number
+      contractRateChange: number
+    }
+  }
+  activities: {
+    newSales: number
+    retargeting: number
+    existingCustomer: number
+  }
+  salesBreakdown: {
+    newSales: number
+    renewalSales: number
+  }
+  managerStats: ManagerPerformance[]
+}
+
+export interface ManagerPerformance {
+  managerName: string
+  newContacts: number
+  retargetingContacts: number
+  existingContacts: number
+  contractCount: number
+  totalSales: number
+  contractRate: number
+}
+

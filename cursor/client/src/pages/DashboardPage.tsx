@@ -1,149 +1,76 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useAuthStore } from '../store/authStore'
+import { useI18nStore } from '../i18n'
 import api from '../lib/api'
-import { DashboardStats, MonthlySales, SalesTrendData, RetargetingCustomer } from '../types'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { PerformanceStats, User } from '../types'
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { formatNumber } from '../lib/utils'
-import { Users, Phone, MessageSquare, Wallet, Target } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { useI18nStore } from '../i18n'
-import { useAuthStore } from '../store/authStore'
-import RetargetingAlertModal from '../components/RetargetingAlertModal'
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  Target, 
+  Activity, 
+  AlertCircle,
+  Users,
+  ArrowUpRight,
+  ArrowDownRight
+} from 'lucide-react'
+import { 
+  BarChart, 
+  Bar, 
+  PieChart, 
+  Pie, 
+  Cell, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts'
+import { format, subDays, subWeeks, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
+
+type PeriodType = 'weekly' | 'monthly' | 'custom'
+
+const COLORS = {
+  newSales: '#3b82f6',      // 파랑
+  retargeting: '#a855f7',   // 보라
+  existing: '#10b981',      // 초록
+  newRevenue: '#3b82f6',    // 신규 매출
+  renewalRevenue: '#f59e0b' // 연장 매출
+}
 
 export default function DashboardPage() {
   const { t } = useI18nStore()
   const user = useAuthStore((state) => state.user)
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false)
+  
+  const [periodType, setPeriodType] = useState<PeriodType>('monthly')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [monthlySales, setMonthlySales] = useState<MonthlySales[] | SalesTrendData | null>(null)
-  const [currentBaseMonth, setCurrentBaseMonth] = useState<number>(new Date().getMonth())
-  const [personalStats, setPersonalStats] = useState<any[]>([])
-  const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
-  const [users, setUsers] = useState<any[]>([])
-  const [alertCustomers, setAlertCustomers] = useState<RetargetingCustomer[]>([])
-  const [showAlertModal, setShowAlertModal] = useState(false)
+  const [managerFilter, setManagerFilter] = useState<string>('all')
+  const [users, setUsers] = useState<User[]>([])
+  const [performanceData, setPerformanceData] = useState<PerformanceStats | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // 초기 날짜 설정 (이번 달 1일 ~ 오늘)
+  // 날짜 초기 설정
   useEffect(() => {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = now.getMonth() // 0-11 (0=Jan, 9=Oct)
-    
-    // 이번 달의 첫째 날
-    const firstDayString = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    
-    // 오늘 날짜
-    const todayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    
-    console.log('Initial date setting (current month):', { year, month, firstDayString, todayString })
-    setStartDate(firstDayString)
-    setEndDate(todayString)
-    setCurrentBaseMonth(month) // Initialize base month to current month
-  }, [])
-
-  const handlePreviousMonth = () => {
-    const now = new Date()
-    const year = now.getFullYear()
-    
-    // 현재 기준 월에서 한 달 빼기
-    const newBaseMonth = currentBaseMonth - 1
-    setCurrentBaseMonth(newBaseMonth)
-    
-    // 음수가 되면 이전 년도로 넘어가기
-    let targetYear = year
-    let targetMonth = newBaseMonth
-    if (newBaseMonth < 0) {
-      targetYear = year - 1
-      targetMonth = 11 // 12월
+    const today = new Date()
+    if (periodType === 'weekly') {
+      const weekStart = startOfWeek(today, { weekStartsOn: 1 }) // 월요일 시작
+      const weekEnd = endOfWeek(today, { weekStartsOn: 1 })
+      setStartDate(format(weekStart, 'yyyy-MM-dd'))
+      setEndDate(format(weekEnd, 'yyyy-MM-dd'))
+    } else if (periodType === 'monthly') {
+      const monthStart = startOfMonth(today)
+      const monthEnd = endOfMonth(today)
+      setStartDate(format(monthStart, 'yyyy-MM-dd'))
+      setEndDate(format(monthEnd, 'yyyy-MM-dd'))
     }
-    
-    // 해당 월의 첫째 날
-    const prevMonthFirstDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`
-    
-    // 해당 월의 마지막 날
-    const prevMonthLastDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(new Date(targetYear, targetMonth + 1, 0).getDate()).padStart(2, '0')}`
-    
-    console.log('DashboardPage previous month:', { targetYear, targetMonth, prevMonthFirstDay, prevMonthLastDay })
-    setStartDate(prevMonthFirstDay)
-    setEndDate(prevMonthLastDay)
-  }
+  }, [periodType])
 
-  const handleCurrentMonth = () => {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = now.getMonth()
-    
-    // 기준 월을 현재 월로 리셋
-    setCurrentBaseMonth(month)
-    
-    // 현재 월의 첫째 날
-    const firstDayString = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    
-    // 오늘 날짜
-    const todayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    
-    console.log('DashboardPage current month:', { year, month, firstDayString, todayString })
-    setStartDate(firstDayString)
-    setEndDate(todayString)
-  }
-
-  const handleNextMonth = () => {
-    const now = new Date()
-    const year = now.getFullYear()
-    
-    // 현재 기준 월에서 한 달 더하기
-    const newBaseMonth = currentBaseMonth + 1
-    setCurrentBaseMonth(newBaseMonth)
-    
-    // 12를 넘으면 다음 년도로 넘어가기
-    let targetYear = year
-    let targetMonth = newBaseMonth
-    if (newBaseMonth > 11) {
-      targetYear = year + 1
-      targetMonth = 0 // 1월
-    }
-    
-    // 해당 월의 첫째 날
-    const nextMonthFirstDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`
-    
-    // 해당 월의 마지막 날
-    const nextMonthLastDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(new Date(targetYear, targetMonth + 1, 0).getDate()).padStart(2, '0')}`
-    
-    console.log('DashboardPage next month:', { targetYear, targetMonth, nextMonthFirstDay, nextMonthLastDay })
-    setStartDate(nextMonthFirstDay)
-    setEndDate(nextMonthLastDay)
-  }
-
-  const fetchDashboardStats = useCallback(async () => {
-    try {
-      const response = await api.get(`/dashboard/stats?startDate=${startDate}&endDate=${endDate}&manager=${managerFilter}`)
-      setStats(response.data)
-    } catch (error) {
-      console.error('Failed to fetch dashboard stats:', error)
-    }
-  }, [startDate, endDate, managerFilter])
-
-  const fetchSalesTrend = useCallback(async () => {
-    try {
-      const response = await api.get(`/dashboard/sales-trend?manager=${managerFilter}`)
-      setMonthlySales(response.data)
-    } catch (error) {
-      console.error('Failed to fetch sales trend:', error)
-    }
-  }, [managerFilter])
-
-  const fetchPersonalStats = useCallback(async () => {
-    try {
-      const response = await api.get('/retargeting/stats/personal')
-      setPersonalStats(response.data)
-    } catch (error) {
-      console.error('Failed to fetch personal stats:', error)
-    }
-  }, [])
-
+  // 사용자 목록 가져오기
   const fetchUsers = useCallback(async () => {
     try {
       const response = await api.get('/auth/users')
@@ -153,105 +80,148 @@ export default function DashboardPage() {
     }
   }, [])
 
-  const fetchAlertCustomers = useCallback(async () => {
+  // 성과 데이터 가져오기
+  const fetchPerformanceData = useCallback(async () => {
+    if (!startDate || !endDate) return
+    
     try {
-      const response = await api.get('/retargeting')
-      const myCustomers = response.data.filter((c: RetargetingCustomer) => 
-        c.manager === user?.name && 
-        c.status !== 'ゴミ箱' && 
-        c.status !== '휴지통' &&
-        c.status !== 'trash'
-      )
-      
-      const overdueCustomers = myCustomers.filter((c: RetargetingCustomer) => {
-        if (!c.lastContactDate) return false
-        const days = Math.floor((Date.now() - new Date(c.lastContactDate).getTime()) / (1000 * 60 * 60 * 24))
-        return days >= 30
+      setLoading(true)
+      const response = await api.get('/dashboard/performance-stats', {
+        params: { startDate, endDate, manager: managerFilter }
       })
-      
-      setAlertCustomers(overdueCustomers.sort((a: RetargetingCustomer, b: RetargetingCustomer) => {
-        const daysA = Math.floor((Date.now() - new Date(a.lastContactDate!).getTime()) / (1000 * 60 * 60 * 24))
-        const daysB = Math.floor((Date.now() - new Date(b.lastContactDate!).getTime()) / (1000 * 60 * 60 * 24))
-        return daysB - daysA
-      }))
+      setPerformanceData(response.data)
     } catch (error) {
-      console.error('Failed to fetch alert customers:', error)
+      console.error('Failed to fetch performance data:', error)
+    } finally {
+      setLoading(false)
     }
-  }, [user?.name])
+  }, [startDate, endDate, managerFilter])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
 
   useEffect(() => {
     if (startDate && endDate) {
-      // 병렬로 API 호출
-      // 첫 번째 로드만 로딩 스피너 표시
-      if (!initialLoadComplete) {
-        setLoading(true)
-      }
-      Promise.all([
-        fetchDashboardStats(),
-        fetchSalesTrend(),
-        fetchPersonalStats(),
-        fetchUsers(),
-        fetchAlertCustomers()
-      ]).finally(() => {
-        if (!initialLoadComplete) {
-          setInitialLoadComplete(true)
-        }
-        setLoading(false)
-      })
+      fetchPerformanceData()
     }
-  }, [startDate, endDate, managerFilter, fetchDashboardStats, fetchSalesTrend, fetchPersonalStats, fetchUsers, fetchAlertCustomers])
+  }, [startDate, endDate, managerFilter, fetchPerformanceData])
 
-  // 팝업 표시 로직
-  useEffect(() => {
-    if (!user?.id || alertCustomers.length === 0) return
-    
-    const today = new Date().toISOString().split('T')[0]
-    const storageKey = `retargeting_alert_hidden_${user.id}_${today}`
-    const isHidden = localStorage.getItem(storageKey)
-    
-    if (!isHidden) {
-      setShowAlertModal(true)
+  // 빠른 날짜 선택 핸들러
+  const handlePreviousPeriod = () => {
+    if (periodType === 'weekly') {
+      const newStart = subWeeks(new Date(startDate), 1)
+      const newEnd = subWeeks(new Date(endDate), 1)
+      setStartDate(format(newStart, 'yyyy-MM-dd'))
+      setEndDate(format(newEnd, 'yyyy-MM-dd'))
+    } else if (periodType === 'monthly') {
+      const currentStart = new Date(startDate)
+      const prevMonthStart = new Date(currentStart.getFullYear(), currentStart.getMonth() - 1, 1)
+      const prevMonthEnd = new Date(currentStart.getFullYear(), currentStart.getMonth(), 0)
+      setStartDate(format(prevMonthStart, 'yyyy-MM-dd'))
+      setEndDate(format(prevMonthEnd, 'yyyy-MM-dd'))
     }
-  }, [alertCustomers, user?.id])
-
-  const handleHideToday = () => {
-    if (!user?.id) return
-    const today = new Date().toISOString().split('T')[0]
-    const storageKey = `retargeting_alert_hidden_${user.id}_${today}`
-    localStorage.setItem(storageKey, 'true')
   }
 
-  if (loading && !stats) {
-    return <div>{t('loading')}</div>
+  const handleCurrentPeriod = () => {
+    const today = new Date()
+    if (periodType === 'weekly') {
+      const weekStart = startOfWeek(today, { weekStartsOn: 1 })
+      const weekEnd = endOfWeek(today, { weekStartsOn: 1 })
+      setStartDate(format(weekStart, 'yyyy-MM-dd'))
+      setEndDate(format(weekEnd, 'yyyy-MM-dd'))
+    } else if (periodType === 'monthly') {
+      const monthStart = startOfMonth(today)
+      const monthEnd = endOfMonth(today)
+      setStartDate(format(monthStart, 'yyyy-MM-dd'))
+      setEndDate(format(monthEnd, 'yyyy-MM-dd'))
+    }
   }
 
-  if (!stats) {
-    return <div>{t('loading')}</div>
+  const handleNextPeriod = () => {
+    if (periodType === 'weekly') {
+      const newStart = new Date(startDate)
+      newStart.setDate(newStart.getDate() + 7)
+      const newEnd = new Date(endDate)
+      newEnd.setDate(newEnd.getDate() + 7)
+      setStartDate(format(newStart, 'yyyy-MM-dd'))
+      setEndDate(format(newEnd, 'yyyy-MM-dd'))
+    } else if (periodType === 'monthly') {
+      const currentStart = new Date(startDate)
+      const nextMonthStart = new Date(currentStart.getFullYear(), currentStart.getMonth() + 1, 1)
+      const nextMonthEnd = new Date(currentStart.getFullYear(), currentStart.getMonth() + 2, 0)
+      setStartDate(format(nextMonthStart, 'yyyy-MM-dd'))
+      setEndDate(format(nextMonthEnd, 'yyyy-MM-dd'))
+    }
   }
+
+  if (loading && !performanceData) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg">로딩 중...</div>
+      </div>
+    )
+  }
+
+  if (!performanceData) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg">데이터를 불러올 수 없습니다</div>
+      </div>
+    )
+  }
+
+  // 활동량 차트 데이터
+  const activityChartData = [
+    { name: '신규 영업', value: performanceData.activities.newSales, color: COLORS.newSales },
+    { name: '리타겟팅', value: performanceData.activities.retargeting, color: COLORS.retargeting },
+    { name: '기존 관리', value: performanceData.activities.existingCustomer, color: COLORS.existing }
+  ]
+
+  // 매출 구성비 차트 데이터
+  const salesChartData = [
+    { name: '신규 매출', value: performanceData.salesBreakdown.newSales, color: COLORS.newRevenue },
+    { name: '연장 매출', value: performanceData.salesBreakdown.renewalSales, color: COLORS.renewalRevenue }
+  ]
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      backgroundColor: '#f3f4f6'
-    }}>
-      {/* 30일 이상 미연락 고객 알림 팝업 */}
-      {showAlertModal && user && (
-        <RetargetingAlertModal
-          customers={alertCustomers}
-          onClose={() => setShowAlertModal(false)}
-          onHideToday={handleHideToday}
-          userId={user.id}
-        />
-      )}
-      
-      <div className="bg-white p-6">
-        <div className="space-y-6">
-          {/* 날짜 필터 */}
-          <Card>
-            <CardContent className="p-4">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">성과 분석 대시보드</h1>
+        </div>
+
+        {/* 기간 필터 */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="space-y-4">
+              {/* 탭 선택 */}
+              <div className="flex gap-2">
+                <Button
+                  variant={periodType === 'weekly' ? 'default' : 'outline'}
+                  onClick={() => setPeriodType('weekly')}
+                >
+                  주간 통계
+                </Button>
+                <Button
+                  variant={periodType === 'monthly' ? 'default' : 'outline'}
+                  onClick={() => setPeriodType('monthly')}
+                >
+                  월간 통계
+                </Button>
+                <Button
+                  variant={periodType === 'custom' ? 'default' : 'outline'}
+                  onClick={() => setPeriodType('custom')}
+                >
+                  기간 선택
+                </Button>
+              </div>
+
+              {/* 날짜 선택 및 빠른 선택 */}
               <div className="flex gap-4 items-center flex-wrap">
                 <div className="flex gap-2 items-center">
-                  <label className="text-sm font-medium">{t('startDate')}:</label>
+                  <label className="text-sm font-medium">시작일:</label>
                   <input
                     type="date"
                     value={startDate}
@@ -260,7 +230,7 @@ export default function DashboardPage() {
                   />
                 </div>
                 <div className="flex gap-2 items-center">
-                  <label className="text-sm font-medium">{t('endDate')}:</label>
+                  <label className="text-sm font-medium">종료일:</label>
                   <input
                     type="date"
                     value={endDate}
@@ -268,255 +238,252 @@ export default function DashboardPage() {
                     className="border rounded px-3 py-2"
                   />
                 </div>
-                <Button onClick={handlePreviousMonth} variant="outline">{t('previousMonth')}</Button>
-                <Button onClick={handleCurrentMonth}>{t('currentMonth')}</Button>
-                <Button onClick={handleNextMonth} variant="outline">{t('nextMonth')}</Button>
+                <Button onClick={handlePreviousPeriod} variant="outline">
+                  이전 {periodType === 'weekly' ? '주' : '달'}
+                </Button>
+                <Button onClick={handleCurrentPeriod}>
+                  이번 {periodType === 'weekly' ? '주' : '달'}
+                </Button>
+                <Button onClick={handleNextPeriod} variant="outline">
+                  다음 {periodType === 'weekly' ? '주' : '달'}
+                </Button>
+                
+                {/* 담당자 필터 */}
                 <div className="flex gap-2 items-center ml-auto">
-                  <label className="text-sm font-medium">{t('manager')}:</label>
+                  <label className="text-sm font-medium">담당자:</label>
                   <select
                     value={managerFilter}
-                    onChange={e => setManagerFilter(e.target.value.trim())}
+                    onChange={e => setManagerFilter(e.target.value)}
                     className="border rounded px-3 py-2"
                   >
-                    <option value="all">{t('all')}</option>
-                    <option value={user?.name}>{user?.name} ({t('me')})</option>
+                    <option value="all">전체</option>
+                    {user && <option value={user.name}>{user.name} (나)</option>}
                     {users.filter(u => u.name !== user?.name).map(u => (
                       <option key={u.id} value={u.name}>{u.name}</option>
                     ))}
                   </select>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {/* 총 매출액 */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">총 매출액</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatNumber(performanceData.summary.totalSales)}원
+              </div>
+              <div className="flex items-center text-xs mt-1">
+                {performanceData.summary.comparedToPrevious.salesChange >= 0 ? (
+                  <>
+                    <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
+                    <span className="text-green-500">
+                      +{performanceData.summary.comparedToPrevious.salesChange.toFixed(1)}%
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
+                    <span className="text-red-500">
+                      {performanceData.summary.comparedToPrevious.salesChange.toFixed(1)}%
+                    </span>
+                  </>
+                )}
+                <span className="text-muted-foreground ml-1">전 기간 대비</span>
+              </div>
             </CardContent>
           </Card>
 
-          {/* 주요 지표 */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t('dailyContacts')}</CardTitle>
-                <Phone className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">0</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t('totalSales')}</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(stats.totalSales)}{t('yen')}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t('contractStatus')}</CardTitle>
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span>{t('contractCustomers')}:</span>
-                    <span className="font-medium text-blue-600 text-lg">{formatNumber(stats.contractCustomers)}{t('cases')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{t('newCustomers')}:</span>
-                    <span className="font-medium text-green-600 text-lg">{formatNumber(stats.newCustomers)}{t('cases')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{t('retargetingCount')}:</span>
-                    <span className="font-medium text-purple-600 text-lg">{formatNumber(stats.retargetingAcquired || 0)}{t('cases')}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t('salesProgress')}</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span>{t('start')}:</span>
-                    <span className="font-medium">{formatNumber(stats.dbStatus.salesStart)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{t('awareness')}:</span>
-                    <span className="font-medium">{formatNumber(stats.dbStatus.awareness)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{t('interest')}:</span>
-                    <span className="font-medium">{formatNumber(stats.dbStatus.interest)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{t('desire')}:</span>
-                    <span className="font-medium">{formatNumber(stats.dbStatus.desire)}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* 직원별 리타겟팅 현황 */}
-          {personalStats.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  {t('retargetingProgress')}
-                </CardTitle>
-                <CardDescription>{t('employeeProgress')}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* 본인 현황 (크게) */}
-                  {personalStats.find(stat => stat.manager === user?.name) && (
-                    <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-lg font-semibold text-blue-800">
-                          {personalStats.find(stat => stat.manager === user?.name)?.manager}
-                        </h3>
-                        <span className="text-lg font-bold text-blue-600">
-                          {personalStats.find(stat => stat.manager === user?.name)?.total} / 500
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-4">
-                        <div
-                          className="bg-blue-600 h-4 rounded-full transition-all"
-                          style={{ 
-                            width: `${Math.min(100, (personalStats.find(stat => stat.manager === user?.name)?.total / 500) * 100)}%` 
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* 다른 직원들 현황 (작게) */}
-                  <div className="grid gap-2 grid-cols-4">
-                    {personalStats
-                      .filter(stat => stat.manager !== user?.name)
-                      .map(stat => (
-                        <div key={stat.manager} className="bg-white p-3 rounded-lg border">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">{stat.manager}</span>
-                            <span className="text-sm font-semibold text-gray-600">
-                              {stat.total} / 500
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-gray-500 h-2 rounded-full transition-all"
-                              style={{ width: `${Math.min(100, (stat.total / 500) * 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-
-          {/* 12개월 매출 추이 */}
+          {/* 계약률 */}
           <Card>
-            <CardHeader>
-              <CardTitle>{t('monthlySalesTrend')}</CardTitle>
-              <CardDescription>{t('monthlySalesTrendSubtitle')}</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">계약률</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={(() => {
-                  if (!monthlySales) return []
-                  
-                  if (managerFilter === 'all' && monthlySales && 'totalSales' in monthlySales) {
-                    // 전체 선택 시: 전체 매출 데이터를 기준으로 X축 생성
-                    return monthlySales.totalSales
-                  } else if (Array.isArray(monthlySales)) {
-                    // 개별 담당자 선택 시: 해당 담당자와 전체 매출 데이터
-                    return monthlySales
-                  }
-                  return []
-                })()}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="month" 
-                    tick={{ fontSize: 12 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    allowDuplicatedCategory={false}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => formatNumber(value)}
-                    domain={[0, 'dataMax']}
-                  />
-                  <Tooltip 
-                    formatter={(value: any, name: string) => [
-                      `${formatNumber(value)}${t('yen')}`, 
-                      name === 'personalSales' ? t('personalSales') : name === 'totalSales' ? t('totalSalesTrend') : name
-                    ]}
-                    labelFormatter={(label) => `월: ${label}`}
-                  />
-                  <Legend />
-                  
-                  {managerFilter === 'all' && monthlySales && 'userSales' in monthlySales ? (
-                    // 전체 선택 시: 각 담당자별 개별 라인들
-                    <>
-                      {Object.keys(monthlySales.userSales || {}).map((userName, index) => (
-                        <Line 
-                          key={userName}
-                          type="monotone" 
-                          dataKey="amount" 
-                          data={monthlySales.userSales[userName]}
-                          stroke={`hsl(${index * 60}, 70%, 50%)`}
-                          strokeWidth={2}
-                          name={userName}
-                          dot={{ r: 4 }}
-                        />
-                      ))}
-                      <Line 
-                        type="monotone" 
-                        dataKey="amount" 
-                        data={monthlySales.totalSales}
-                        stroke="#6b7280" 
-                        strokeWidth={3}
-                        name={t('totalSalesTrend')}
-                        dot={{ r: 5 }}
-                        strokeDasharray="5 5"
-                      />
-                    </>
-                  ) : (
-                    // 개별 담당자 선택 시: 해당 담당자와 전체 매출만
-                    <>
-                      <Line 
-                        type="monotone" 
-                        dataKey="personalSales" 
-                        stroke="#3b82f6" 
-                        strokeWidth={2}
-                        name={t('personalSales')}
-                        dot={{ r: 4 }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="totalSales" 
-                        stroke="#6b7280" 
-                        strokeWidth={2}
-                        name={t('totalSalesTrend')}
-                        dot={{ r: 4 }}
-                      />
-                    </>
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="text-2xl font-bold">
+                {performanceData.summary.contractRate.toFixed(1)}%
+              </div>
+              <div className="flex items-center text-xs mt-1">
+                {performanceData.summary.comparedToPrevious.contractRateChange >= 0 ? (
+                  <>
+                    <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
+                    <span className="text-green-500">
+                      +{performanceData.summary.comparedToPrevious.contractRateChange.toFixed(1)}%p
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
+                    <span className="text-red-500">
+                      {performanceData.summary.comparedToPrevious.contractRateChange.toFixed(1)}%p
+                    </span>
+                  </>
+                )}
+                <span className="text-muted-foreground ml-1">전 기간 대비</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                계약 {performanceData.summary.contractCount}건 / 활동 {performanceData.summary.totalActivities}건
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 총 활동량 */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">총 활동량</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatNumber(performanceData.summary.totalActivities)}건
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                <div>신규: {performanceData.activities.newSales}건</div>
+                <div>리타겟: {performanceData.activities.retargeting}건</div>
+                <div>기존: {performanceData.activities.existingCustomer}건</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 미배정 문의 */}
+          <Card className={performanceData.summary.unassignedInquiries > 0 ? 'border-red-300 bg-red-50' : ''}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">미배정 문의</CardTitle>
+              <AlertCircle className={`h-4 w-4 ${performanceData.summary.unassignedInquiries > 0 ? 'text-red-500' : 'text-muted-foreground'}`} />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${performanceData.summary.unassignedInquiries > 0 ? 'text-red-600' : ''}`}>
+                {formatNumber(performanceData.summary.unassignedInquiries)}건
+              </div>
+              {performanceData.summary.unassignedInquiries > 0 && (
+                <p className="text-xs text-red-600 mt-1 font-medium">
+                  확인 필요
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Middle Charts */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* 활동량 비교 막대 차트 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>활동량 비교</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={activityChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#8884d8">
+                    {activityChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* 매출 구성비 도넛 차트 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>매출 구성비</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={salesChartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value, percent }) => 
+                      `${name}: ${formatNumber(value)}원 (${(percent * 100).toFixed(0)}%)`
+                    }
+                    outerRadius={80}
+                    innerRadius={40}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {salesChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => formatNumber(value) + '원'} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-4 text-center text-sm text-muted-foreground">
+                <div>총 매출: {formatNumber(performanceData.summary.totalSales)}원</div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 담당자별 성과 테이블 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              담당자별 성과
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">담당자</th>
+                    <th className="px-4 py-3 text-right font-medium">신규 연락</th>
+                    <th className="px-4 py-3 text-right font-medium">리타겟 연락</th>
+                    <th className="px-4 py-3 text-right font-medium">기존 관리</th>
+                    <th className="px-4 py-3 text-right font-medium">계약 건수</th>
+                    <th className="px-4 py-3 text-right font-medium">매출 합계</th>
+                    <th className="px-4 py-3 text-right font-medium">계약률</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {performanceData.managerStats.map((stat) => {
+                    const isLowPerformance = stat.contractRate < 5
+                    return (
+                      <tr 
+                        key={stat.managerName}
+                        className={isLowPerformance ? 'bg-red-50' : 'hover:bg-gray-50'}
+                      >
+                        <td className="px-4 py-3 font-medium">{stat.managerName}</td>
+                        <td className="px-4 py-3 text-right">{stat.newContacts}</td>
+                        <td className="px-4 py-3 text-right">{stat.retargetingContacts}</td>
+                        <td className="px-4 py-3 text-right">{stat.existingContacts}</td>
+                        <td className="px-4 py-3 text-right font-medium">{stat.contractCount}</td>
+                        <td className="px-4 py-3 text-right font-medium">{formatNumber(stat.totalSales)}원</td>
+                        <td className={`px-4 py-3 text-right font-bold ${isLowPerformance ? 'text-red-600' : 'text-green-600'}`}>
+                          {stat.contractRate.toFixed(1)}%
+                          {isLowPerformance && <span className="ml-2 text-xs">⚠️</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {performanceData.managerStats.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  선택한 기간에 데이터가 없습니다
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
