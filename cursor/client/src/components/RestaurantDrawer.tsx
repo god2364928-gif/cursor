@@ -3,6 +3,7 @@ import { X, Phone, Globe, Instagram, ExternalLink, Mail, MapPin, Clock, User, Me
 import { Button } from './ui/button'
 import api from '../lib/api'
 import { useToast } from './ui/toast'
+import { useI18nStore } from '../i18n'
 
 interface Restaurant {
   id: number
@@ -47,15 +48,16 @@ interface Props {
   onUpdate?: () => void
 }
 
-const CONTACT_METHOD_LABELS: Record<string, { label: string; icon: string }> = {
-  form: { label: '폼', icon: '📝' },
-  phone: { label: '전화', icon: '📞' },
-  instagram: { label: '인스타그램', icon: '📷' },
-  line: { label: '라인', icon: '💬' }
+const CONTACT_METHOD_ICONS: Record<string, string> = {
+  form: '📝',
+  phone: '📞',
+  instagram: '📷',
+  line: '💬'
 }
 
 export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Props) {
   const { showToast } = useToast()
+  const { t, language } = useI18nStore()
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [activities, setActivities] = useState<SalesActivity[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -81,7 +83,7 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
       setMemo(response.data.restaurant.memo || '')
     } catch (error) {
       console.error('Failed to load restaurant:', error)
-      showToast('가게 정보를 불러오는데 실패했습니다', 'error')
+      showToast(t('failedToLoadStore'), 'error')
     } finally {
       setIsLoading(false)
     }
@@ -93,10 +95,10 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
     try {
       setIsSavingMemo(true)
       await api.patch(`/restaurants/${restaurant.id}`, { memo })
-      showToast('메모가 저장되었습니다', 'success')
+      showToast(t('memoSaved'), 'success')
     } catch (error) {
       console.error('Failed to save memo:', error)
-      showToast('메모 저장에 실패했습니다', 'error')
+      showToast(t('memoSaveFailed'), 'error')
     } finally {
       setIsSavingMemo(false)
     }
@@ -109,13 +111,13 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
       await api.post(`/restaurants/${restaurant.id}/unusable`, { 
         reason: unusableReason 
       })
-      showToast('쓸 수 없는 가게로 표시되었습니다', 'success')
+      showToast(t('markedAsUnusable'), 'success')
       setShowUnusableConfirm(false)
       onUpdate?.()
       onClose()
     } catch (error) {
       console.error('Failed to mark as unusable:', error)
-      showToast('처리에 실패했습니다', 'error')
+      showToast(t('processFailed'), 'error')
     }
   }
 
@@ -124,18 +126,28 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
     
     try {
       await api.delete(`/restaurants/${restaurant.id}/unusable`)
-      showToast('가게가 복원되었습니다', 'success')
+      showToast(t('storeRestored'), 'success')
       loadRestaurant()
       onUpdate?.()
     } catch (error) {
       console.error('Failed to restore:', error)
-      showToast('처리에 실패했습니다', 'error')
+      showToast(t('processFailed'), 'error')
     }
   }
 
-  const copyToClipboard = (text: string, label: string) => {
+  const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
-    showToast(`${label} 복사됨`, 'success')
+    showToast(t('copied'), 'success')
+  }
+  
+  const getContactMethodLabel = (method: string) => {
+    const labels: Record<string, string> = {
+      form: t('form'),
+      phone: t('phoneCall'),
+      instagram: t('instagram'),
+      line: t('line')
+    }
+    return labels[method] || method
   }
 
   if (!restaurantId) return null
@@ -153,7 +165,7 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
           <h2 className="text-lg font-bold truncate">
-            {isLoading ? '로딩 중...' : restaurant?.name || '가게 상세'}
+            {isLoading ? t('loading') : restaurant?.name || t('storeDetail')}
           </h2>
           <button
             onClick={onClose}
@@ -177,12 +189,12 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium text-red-800">쓸 수 없는 가게</p>
+                      <p className="font-medium text-red-800">{t('unusableStore')}</p>
                       {restaurant.unusable_reason && (
                         <p className="text-sm text-red-600 mt-1">{restaurant.unusable_reason}</p>
                       )}
                       <p className="text-xs text-red-500 mt-2">
-                        {restaurant.unusable_by_name} • {restaurant.unusable_at && new Date(restaurant.unusable_at).toLocaleDateString('ko-KR')}
+                        {restaurant.unusable_by_name} • {restaurant.unusable_at && new Date(restaurant.unusable_at).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'ko-KR')}
                       </p>
                       <Button 
                         variant="outline" 
@@ -190,7 +202,7 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                         className="mt-3"
                         onClick={handleRestoreUsable}
                       >
-                        복원하기
+                        {t('restore')}
                       </Button>
                     </div>
                   </div>
@@ -205,14 +217,14 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                   restaurant.status === 'contracted' ? 'bg-green-100 text-green-700' :
                   'bg-red-100 text-red-700'
                 }`}>
-                  {restaurant.status === 'new' ? '신규' :
-                   restaurant.status === 'contacted' ? '영업 진행' :
-                   restaurant.status === 'contracted' ? '계약 완료' :
+                  {restaurant.status === 'new' ? t('statusNew') :
+                   restaurant.status === 'contacted' ? t('statusInSales') :
+                   restaurant.status === 'contracted' ? t('statusContracted') :
                    restaurant.status}
                 </span>
                 {restaurant.is_contactable && (
                   <span className="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700">
-                    📧 문의 가능
+                    📧 {t('canContact')}
                   </span>
                 )}
               </div>
@@ -221,32 +233,32 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
               <div className="space-y-3">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <Phone className="w-4 h-4" />
-                  연락처
+                  {t('contactInfo')}
                 </h3>
                 
                 {restaurant.tel_original && (
                   <div 
                     className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors"
-                    onClick={() => copyToClipboard(restaurant.tel_original!, '전화번호(기존)')}
+                    onClick={() => copyToClipboard(restaurant.tel_original!)}
                   >
-                    <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded">중요</span>
+                    <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded">{t('important')}</span>
                     <span className="font-mono text-lg">{restaurant.tel_original}</span>
-                    <span className="text-xs text-gray-500 ml-auto">클릭해서 복사</span>
+                    <span className="text-xs text-gray-500 ml-auto">{t('clickToCopy')}</span>
                   </div>
                 )}
                 
                 {restaurant.tel_confirmed && (
                   <div 
                     className="flex items-center gap-2 p-3 bg-gray-50 border rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => copyToClipboard(restaurant.tel_confirmed!, '전화번호(확인됨)')}
+                    onClick={() => copyToClipboard(restaurant.tel_confirmed!)}
                   >
                     <span className="font-mono text-lg">{restaurant.tel_confirmed}</span>
-                    <span className="text-xs text-gray-500 ml-auto">클릭해서 복사</span>
+                    <span className="text-xs text-gray-500 ml-auto">{t('clickToCopy')}</span>
                   </div>
                 )}
 
                 {!restaurant.tel_original && !restaurant.tel_confirmed && (
-                  <p className="text-gray-500 text-sm">전화번호 정보 없음</p>
+                  <p className="text-gray-500 text-sm">{t('noPhoneInfo')}</p>
                 )}
               </div>
 
@@ -254,7 +266,7 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
               <div className="space-y-3">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <Globe className="w-4 h-4" />
-                  링크
+                  {t('link')}
                 </h3>
                 
                 <div className="grid grid-cols-1 gap-2">
@@ -292,7 +304,7 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                       className="flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
                     >
                       <span className="text-xl">🌶️</span>
-                      <span className="flex-1">핫페퍼에서 보기</span>
+                      <span className="flex-1">{t('viewOnHotpepper')}</span>
                       <ExternalLink className="w-4 h-4 text-gray-400" />
                     </a>
                   )}
@@ -304,7 +316,7 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                 <div className="space-y-2">
                   <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
-                    주소
+                    {t('address')}
                   </h3>
                   <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{restaurant.address}</p>
                 </div>
@@ -313,7 +325,7 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
               {/* 장르 */}
               {restaurant.genres && restaurant.genres.length > 0 && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">장르</h3>
+                  <h3 className="font-semibold text-gray-900">{t('genre')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {restaurant.genres.map((genre, idx) => (
                       <span 
@@ -332,18 +344,18 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                 <div className="space-y-2">
                   <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    담당자 정보
+                    {t('assigneeInfo')}
                   </h3>
                   <div className="bg-gray-50 p-3 rounded-lg space-y-1">
                     {restaurant.assignee_name && (
                       <p className="text-sm">
-                        <span className="text-gray-500">담당자:</span> {restaurant.assignee_name}
+                        <span className="text-gray-500">{t('assigneeLabel')}:</span> {restaurant.assignee_name}
                       </p>
                     )}
                     {restaurant.last_contacted_at && (
                       <p className="text-sm">
-                        <span className="text-gray-500">마지막 연락:</span>{' '}
-                        {new Date(restaurant.last_contacted_at).toLocaleDateString('ko-KR')}
+                        <span className="text-gray-500">{t('lastContact')}:</span>{' '}
+                        {new Date(restaurant.last_contacted_at).toLocaleDateString(language === 'ja' ? 'ja-JP' : 'ko-KR')}
                         {restaurant.last_contacted_by_name && ` (${restaurant.last_contacted_by_name})`}
                       </p>
                     )}
@@ -355,12 +367,12 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
               <div className="space-y-2">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <MessageSquare className="w-4 h-4" />
-                  메모
+                  {t('memo')}
                 </h3>
                 <textarea
                   value={memo}
                   onChange={(e) => setMemo(e.target.value)}
-                  placeholder="메모를 입력하세요..."
+                  placeholder={t('enterMemoPlaceholder')}
                   className="w-full h-24 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <Button 
@@ -368,7 +380,7 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                   disabled={isSavingMemo}
                   className="w-full"
                 >
-                  {isSavingMemo ? '저장 중...' : '메모 저장'}
+                  {isSavingMemo ? t('savingMemo') : t('saveMemo')}
                 </Button>
               </div>
 
@@ -376,11 +388,11 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
               <div className="space-y-3">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <Clock className="w-4 h-4" />
-                  영업 이력
+                  {t('salesHistory')}
                 </h3>
                 
                 {activities.length === 0 ? (
-                  <p className="text-gray-500 text-sm">아직 영업 이력이 없습니다</p>
+                  <p className="text-gray-500 text-sm">{t('noSalesHistory')}</p>
                 ) : (
                   <div className="space-y-2">
                     {activities.map((activity) => (
@@ -390,10 +402,10 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-lg">
-                            {CONTACT_METHOD_LABELS[activity.contact_method]?.icon || '📌'}
+                            {CONTACT_METHOD_ICONS[activity.contact_method] || '📌'}
                           </span>
                           <span className="font-medium">
-                            {CONTACT_METHOD_LABELS[activity.contact_method]?.label || activity.contact_method}
+                            {getContactMethodLabel(activity.contact_method)}
                           </span>
                           <span className="text-gray-500 text-sm ml-auto">
                             {activity.user_name}
@@ -403,7 +415,7 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                           <p className="text-sm text-gray-600 mt-1">{activity.notes}</p>
                         )}
                         <p className="text-xs text-gray-400 mt-2">
-                          {new Date(activity.created_at).toLocaleString('ko-KR')}
+                          {new Date(activity.created_at).toLocaleString(language === 'ja' ? 'ja-JP' : 'ko-KR')}
                         </p>
                       </div>
                     ))}
@@ -416,12 +428,12 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                 <div className="pt-4 border-t">
                   {showUnusableConfirm ? (
                     <div className="space-y-3">
-                      <p className="text-sm text-gray-600">이 가게를 쓸 수 없는 것으로 표시하시겠습니까?</p>
+                      <p className="text-sm text-gray-600">{t('confirmMarkUnusable')}</p>
                       <input
                         type="text"
                         value={unusableReason}
                         onChange={(e) => setUnusableReason(e.target.value)}
-                        placeholder="사유 입력 (선택)"
+                        placeholder={t('enterReasonOptional')}
                         className="w-full p-2 border rounded-lg"
                       />
                       <div className="flex gap-2">
@@ -430,14 +442,14 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                           className="flex-1"
                           onClick={handleMarkUnusable}
                         >
-                          확인
+                          {t('confirm')}
                         </Button>
                         <Button 
                           variant="outline" 
                           className="flex-1"
                           onClick={() => setShowUnusableConfirm(false)}
                         >
-                          취소
+                          {t('cancel')}
                         </Button>
                       </div>
                     </div>
@@ -448,14 +460,14 @@ export default function RestaurantDrawer({ restaurantId, onClose, onUpdate }: Pr
                       onClick={() => setShowUnusableConfirm(true)}
                     >
                       <AlertTriangle className="w-4 h-4 mr-2" />
-                      쓸 수 없는 가게로 표시
+                      {t('markAsUnusable')}
                     </Button>
                   )}
                 </div>
               )}
             </>
           ) : (
-            <p className="text-center text-gray-500 py-12">가게 정보를 찾을 수 없습니다</p>
+            <p className="text-center text-gray-500 py-12">{t('storeNotFound')}</p>
           )}
         </div>
       </div>
