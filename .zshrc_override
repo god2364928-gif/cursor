@@ -1,7 +1,0 @@
-#!/bin/zsh
-# Temporary override to bypass dump_zsh_state requirement
-function dump_zsh_state() {
-  return 0
-}
-
-

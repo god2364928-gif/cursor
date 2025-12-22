@@ -274,7 +274,7 @@ export interface PerformanceStats {
     newSales: number
     renewalSales: number
   }
-  retargetingAlert: {
+  retargetingAlert?: {  // 옵셔널로 변경
     dueThisWeek: number
     overdue: number
     upcoming: number

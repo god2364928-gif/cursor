@@ -3,6 +3,7 @@ import { X, Phone, FileText, Instagram, MessageCircle, Loader2 } from 'lucide-re
 import { Button } from './ui/button'
 import api from '../lib/api'
 import { useToast } from './ui/toast'
+import { useI18nStore } from '../i18n'
 
 interface Props {
   restaurantId: number
@@ -12,14 +13,15 @@ interface Props {
 }
 
 const CONTACT_METHODS = [
-  { id: 'form', label: '폼', icon: FileText, color: 'bg-blue-500 hover:bg-blue-600' },
-  { id: 'phone', label: '전화', icon: Phone, color: 'bg-green-500 hover:bg-green-600' },
-  { id: 'instagram', label: '인스타그램', icon: Instagram, color: 'bg-pink-500 hover:bg-pink-600' },
-  { id: 'line', label: '라인', icon: MessageCircle, color: 'bg-emerald-500 hover:bg-emerald-600' },
+  { id: 'form', labelKey: 'form', icon: FileText, color: 'bg-blue-500 hover:bg-blue-600' },
+  { id: 'phone', labelKey: 'phoneCall', icon: Phone, color: 'bg-green-500 hover:bg-green-600' },
+  { id: 'instagram', labelKey: 'instagram', icon: Instagram, color: 'bg-pink-500 hover:bg-pink-600' },
+  { id: 'line', labelKey: 'line', icon: MessageCircle, color: 'bg-emerald-500 hover:bg-emerald-600' },
 ] as const
 
 export default function SalesActivityModal({ restaurantId, restaurantName, onClose, onSuccess }: Props) {
   const { showToast } = useToast()
+  const { t } = useI18nStore()
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -40,12 +42,12 @@ export default function SalesActivityModal({ restaurantId, restaurantName, onClo
         notes: notes || null
       })
       
-      showToast('영업 이력이 등록되었습니다', 'success')
+      showToast(t('salesHistoryRegistered'), 'success')
       onSuccess()
       onClose()
     } catch (error) {
       console.error('Failed to create sales activity:', error)
-      showToast('영업 이력 등록에 실패했습니다', 'error')
+      showToast(t('salesHistoryRegisterFailed'), 'error')
     } finally {
       setIsSubmitting(false)
     }
@@ -67,7 +69,7 @@ export default function SalesActivityModal({ restaurantId, restaurantName, onClo
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-lg font-bold">영업 이력 등록</h2>
+            <h2 className="text-lg font-bold">{t('registerSalesHistory')}</h2>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -80,13 +82,13 @@ export default function SalesActivityModal({ restaurantId, restaurantName, onClo
           <div className="p-6">
             {/* Restaurant Name */}
             <div className="mb-6 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-500">가게</p>
+              <p className="text-sm text-gray-500">{t('store')}</p>
               <p className="font-semibold truncate">{restaurantName}</p>
             </div>
 
             {step === 'select' ? (
               <>
-                <p className="text-gray-600 mb-4">영업 방식을 선택해주세요</p>
+                <p className="text-gray-600 mb-4">{t('selectSalesMethod')}</p>
                 
                 {/* Method Selection */}
                 <div className="grid grid-cols-2 gap-3">
@@ -104,7 +106,7 @@ export default function SalesActivityModal({ restaurantId, restaurantName, onClo
                         `}
                       >
                         <Icon className="w-8 h-8" />
-                        <span className="font-medium">{method.label}</span>
+                        <span className="font-medium">{t(method.labelKey)}</span>
                       </button>
                     )
                   })}
@@ -121,7 +123,7 @@ export default function SalesActivityModal({ restaurantId, restaurantName, onClo
                           <selectedMethodInfo.icon className="w-6 h-6" />
                         </div>
                         <span className="text-lg font-semibold">
-                          {selectedMethodInfo.label}로 영업
+                          {t(selectedMethodInfo.labelKey)}{t('salesWith')}
                         </span>
                       </>
                     )}
@@ -129,19 +131,19 @@ export default function SalesActivityModal({ restaurantId, restaurantName, onClo
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      메모 (선택)
+                      {t('memoOptional')}
                     </label>
                     <textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="추가 메모를 입력하세요..."
+                      placeholder={t('enterAdditionalMemo')}
                       className="w-full h-24 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <p className="text-sm text-yellow-800">
-                      <strong>확인:</strong> 이 가게에 영업 이력을 등록하면 담당자로 지정됩니다.
+                      <strong>{t('confirmNote')}:</strong> {t('willBeAssigned')}
                     </p>
                   </div>
                 </div>
@@ -158,7 +160,7 @@ export default function SalesActivityModal({ restaurantId, restaurantName, onClo
                 onClick={() => setStep('select')}
                 disabled={isSubmitting}
               >
-                뒤로
+                {t('back')}
               </Button>
               <Button 
                 className="flex-1"
@@ -168,10 +170,10 @@ export default function SalesActivityModal({ restaurantId, restaurantName, onClo
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    등록 중...
+                    {t('registering')}
                   </>
                 ) : (
-                  '영업 이력 등록'
+                  t('registerSalesHistory')
                 )}
               </Button>
             </div>

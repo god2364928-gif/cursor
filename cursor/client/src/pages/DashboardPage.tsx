@@ -191,11 +191,15 @@ export default function DashboardPage() {
     { name: '연장 매출', value: performanceData.salesBreakdown.renewalSales, color: COLORS.renewalRevenue }
   ]
 
-  // 리타겟팅 연락 주기 차트 데이터
-  const retargetingCycleData = [
+  // 리타겟팅 연락 주기 차트 데이터 (안전한 기본값 처리)
+  const retargetingCycleData = performanceData.retargetingAlert ? [
     { name: '주기 미도래', value: performanceData.retargetingAlert.upcoming, fill: '#10b981' },
     { name: '이번 주 예정', value: performanceData.retargetingAlert.dueThisWeek, fill: '#f59e0b' },
     { name: '연락 지연', value: performanceData.retargetingAlert.overdue, fill: '#ef4444' }
+  ] : [
+    { name: '주기 미도래', value: 0, fill: '#10b981' },
+    { name: '이번 주 예정', value: 0, fill: '#f59e0b' },
+    { name: '연락 지연', value: 0, fill: '#ef4444' }
   ]
 
   return (
@@ -364,35 +368,37 @@ export default function DashboardPage() {
             </Card>
 
           {/* 총 활동량 */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">총 활동량</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
+              </CardHeader>
+              <CardContent>
               <div className="text-2xl font-bold">
                 {formatNumber(performanceData.summary.totalActivities)}건
-              </div>
+                  </div>
               <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                 <div>신규: {performanceData.activities.newSales}건</div>
                 <div>리타겟: {performanceData.activities.retargeting}건</div>
                 <div>기존: {performanceData.activities.existingCustomer}건</div>
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+              </CardContent>
+            </Card>
 
           {/* 연락 주기 도래 (신규) */}
-          <Card className={performanceData.retargetingAlert.overdue > 0 ? 'border-orange-300 bg-orange-50' : ''}>
+          <Card className={performanceData.retargetingAlert && performanceData.retargetingAlert.overdue > 0 ? 'border-orange-300 bg-orange-50' : ''}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">연락 주기 도래</CardTitle>
-              <Users className={`h-4 w-4 ${performanceData.retargetingAlert.overdue > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
+              <Users className={`h-4 w-4 ${performanceData.retargetingAlert && performanceData.retargetingAlert.overdue > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {performanceData.retargetingAlert.overdue + performanceData.retargetingAlert.dueThisWeek}건
+                {performanceData.retargetingAlert 
+                  ? performanceData.retargetingAlert.overdue + performanceData.retargetingAlert.dueThisWeek 
+                  : 0}건
               </div>
               <p className="text-xs text-orange-600 mt-1">
-                지연 {performanceData.retargetingAlert.overdue}건 / 이번 주 {performanceData.retargetingAlert.dueThisWeek}건
+                지연 {performanceData.retargetingAlert?.overdue || 0}건 / 이번 주 {performanceData.retargetingAlert?.dueThisWeek || 0}건
               </p>
             </CardContent>
           </Card>
@@ -419,11 +425,11 @@ export default function DashboardPage() {
         {/* Middle Charts */}
         <div className="grid gap-4 md:grid-cols-3">
           {/* 활동량 비교 막대 차트 */}
-          <Card>
-            <CardHeader>
+            <Card>
+              <CardHeader>
               <CardTitle>활동량 비교</CardTitle>
-            </CardHeader>
-            <CardContent>
+              </CardHeader>
+              <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={activityChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -470,9 +476,9 @@ export default function DashboardPage() {
               </ResponsiveContainer>
               <div className="mt-4 text-center text-sm text-muted-foreground">
                 <div>총 매출: {formatNumber(performanceData.summary.totalSales)}원</div>
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+              </CardContent>
+            </Card>
 
           {/* 리타겟팅 연락 주기 현황 (신규) */}
           <Card>
@@ -495,7 +501,7 @@ export default function DashboardPage() {
               </ResponsiveContainer>
               <div className="mt-4 text-center text-xs text-muted-foreground">
                 <div className="text-orange-600 font-medium">
-                  {performanceData.retargetingAlert.overdue > 0 
+                  {performanceData.retargetingAlert && performanceData.retargetingAlert.overdue > 0 
                     ? `⚠️ ${performanceData.retargetingAlert.overdue}명에게 즉시 연락 필요` 
                     : '✓ 모든 고객 관리 중'}
                 </div>
