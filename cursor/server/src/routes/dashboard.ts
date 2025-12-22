@@ -704,6 +704,21 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       }
     })
 
+    // === 연락 주기 도래 고객 집계 (30일 주기 기준) ===
+    let retargetingAlertQuery = `
+      SELECT 
+        COUNT(CASE WHEN last_contact_date <= CURRENT_DATE - INTERVAL '30 days' 
+                    AND last_contact_date > CURRENT_DATE - INTERVAL '37 days' THEN 1 END) as due_this_week,
+        COUNT(CASE WHEN last_contact_date <= CURRENT_DATE - INTERVAL '37 days' THEN 1 END) as overdue,
+        COUNT(CASE WHEN last_contact_date > CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as upcoming
+      FROM retargeting_customers
+      WHERE status NOT IN ('ゴミ箱', '휴지통', '契約完了', '계약완료')
+      AND last_contact_date IS NOT NULL
+      ${manager && manager !== 'all' ? `AND (TRIM(manager) = TRIM($1) OR REPLACE(TRIM(manager), '﨑', '崎') = REPLACE(TRIM($1), '﨑', '崎'))` : ''}
+    `
+    const alertParams = manager && manager !== 'all' ? [manager] : []
+    const alertResult = await pool.query(retargetingAlertQuery, alertParams)
+
     const response = {
       summary: {
         totalSales,
@@ -724,6 +739,11 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       salesBreakdown: {
         newSales,
         renewalSales
+      },
+      retargetingAlert: {
+        dueThisWeek: parseInt(alertResult.rows[0]?.due_this_week || '0'),
+        overdue: parseInt(alertResult.rows[0]?.overdue || '0'),
+        upcoming: parseInt(alertResult.rows[0]?.upcoming || '0')
       },
       managerStats
     }

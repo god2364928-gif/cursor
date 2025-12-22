@@ -274,6 +274,11 @@ export interface PerformanceStats {
     newSales: number
     renewalSales: number
   }
+  retargetingAlert: {
+    dueThisWeek: number
+    overdue: number
+    upcoming: number
+  }
   managerStats: ManagerPerformance[]
 }
 
