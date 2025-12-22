@@ -8,15 +8,9 @@ import {
   validateInsertValues, 
   formatPhoneNumber 
 } from '../utils/nullSafe'
+import { toSeoulTimestampString } from '../utils/dateHelper'
 
 const router = Router()
-
-const toSeoulTimestampString = (input: Date) => {
-  const utc = input.getTime() + input.getTimezoneOffset() * 60000
-  const seoul = new Date(utc + 9 * 60 * 60 * 1000)
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${seoul.getUTCFullYear()}-${pad(seoul.getUTCMonth() + 1)}-${pad(seoul.getUTCDate())} ${pad(seoul.getUTCHours())}:${pad(seoul.getUTCMinutes())}:${pad(seoul.getUTCSeconds())}`
-}
 
 // Get all sales tracking records (with search)
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {

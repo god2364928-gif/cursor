@@ -17,9 +17,9 @@ import globalSearchRoutes from './routes/globalSearch'
 import integrationsRoutes from './routes/integrations'
 import accountOptimizationRoutes from './routes/accountOptimization'
 import keywordAnalysisRoutes from './routes/keywordAnalysis'
-import accountingRoutes from './routes/accounting'
+import accountingRoutes from './routes/accounting/index'
 import paypayRoutes from './routes/paypay'
-import totalSalesRoutes from './routes/totalSales'
+import totalSalesRoutes from './routes/accounting/totalSales'
 import monthlyPayrollRoutes from './routes/monthlyPayroll'
 import invoicesRoutes from './routes/invoices'
 import receiptsRoutes from './routes/receipts'
@@ -59,7 +59,7 @@ if (process.env.NODE_ENV === 'production' || true) {
 }
 
 const app = express()
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 5001
 
 // Middleware
 const corsOptions = {
