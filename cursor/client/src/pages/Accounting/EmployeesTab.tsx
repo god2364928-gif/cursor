@@ -533,7 +533,7 @@ export default function EmployeesTab({ isAdmin }: EmployeesTabProps) {
                             )}
                           </div>
                           <span className="text-xs text-gray-500 flex-shrink-0">
-                            {(file.fileSize / 1024).toFixed(1)} KB
+                            {((file.fileSize || 0) / 1024).toFixed(1)} KB
                           </span>
                           <Button
                             size="sm"

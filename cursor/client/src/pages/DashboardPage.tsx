@@ -44,6 +44,20 @@ const COLORS = {
   renewalRevenue: '#f59e0b' // 연장 매출
 }
 
+// 안전한 숫자 포맷팅 헬퍼 함수
+const safeToFixed = (value: number | undefined | null, decimals: number = 1): string => {
+  if (value === null || value === undefined || isNaN(value)) return '0.' + '0'.repeat(decimals)
+  return value.toFixed(decimals)
+}
+
+// 안전한 퍼센트 계산 함수
+const safePercent = (numerator: number | undefined, denominator: number | undefined, decimals: number = 0): string => {
+  if (!numerator || !denominator || denominator === 0) return '0.' + '0'.repeat(decimals)
+  const result = (numerator / denominator) * 100
+  if (isNaN(result)) return '0.' + '0'.repeat(decimals)
+  return result.toFixed(decimals)
+}
+
 export default function DashboardPage() {
   const { t } = useI18nStore()
   const user = useAuthStore((state) => state.user)
@@ -319,18 +333,18 @@ export default function DashboardPage() {
                 {formatNumber(performanceData.summary.totalSales)}{t('yen')}
               </div>
               <div className="flex items-center text-xs mt-1">
-                {performanceData.summary.comparedToPrevious.salesChange >= 0 ? (
+                {(performanceData.summary.comparedToPrevious?.salesChange || 0) >= 0 ? (
                   <>
                     <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
                     <span className="text-green-500">
-                      +{performanceData.summary.comparedToPrevious.salesChange.toFixed(1)}%
+                      +{safeToFixed(performanceData.summary.comparedToPrevious?.salesChange)}%
                     </span>
                   </>
                 ) : (
                   <>
                     <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
                     <span className="text-red-500">
-                      {performanceData.summary.comparedToPrevious.salesChange.toFixed(1)}%
+                      {safeToFixed(performanceData.summary.comparedToPrevious?.salesChange)}%
                     </span>
                   </>
                 )}
@@ -363,21 +377,21 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
               <div className="text-2xl font-bold">
-                {performanceData.summary.contractRate.toFixed(1)}%
+                {safeToFixed(performanceData.summary.contractRate)}%
               </div>
               <div className="flex items-center text-xs mt-1">
-                {performanceData.summary.comparedToPrevious.contractRateChange >= 0 ? (
+                {(performanceData.summary.comparedToPrevious?.contractRateChange || 0) >= 0 ? (
                   <>
                     <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
                     <span className="text-green-500">
-                      +{performanceData.summary.comparedToPrevious.contractRateChange.toFixed(1)}%p
+                      +{safeToFixed(performanceData.summary.comparedToPrevious?.contractRateChange)}%p
                     </span>
                   </>
                 ) : (
                   <>
                     <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
                     <span className="text-red-500">
-                      {performanceData.summary.comparedToPrevious.contractRateChange.toFixed(1)}%p
+                      {safeToFixed(performanceData.summary.comparedToPrevious?.contractRateChange)}%p
                     </span>
                   </>
                 )}
@@ -397,7 +411,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-purple-900">
-                {performanceData.summary.retargetingContractRate?.toFixed(1) || '0.0'}%
+                {safeToFixed(performanceData.summary.retargetingContractRate)}%
               </div>
               <p className="text-xs text-purple-600 mt-1">{t('retargetingActivity')}</p>
             </CardContent>
@@ -411,7 +425,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-900">
-                {performanceData.summary.renewalRate?.toFixed(1) || '0.0'}%
+                {safeToFixed(performanceData.summary.renewalRate)}%
               </div>
               <p className="text-xs text-green-600 mt-1">{t('previousMonth')}</p>
             </CardContent>
@@ -525,13 +539,13 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded-full" style={{backgroundColor: COLORS.newRevenue}}></div>
                     <span className="font-medium">{t('newSales')}: {formatNumber(performanceData.salesBreakdown.newSales)}{t('yen')} 
-                      ({((performanceData.salesBreakdown.newSales / performanceData.summary.totalSales) * 100).toFixed(0)}%)
+                      ({safePercent(performanceData.salesBreakdown.newSales, performanceData.summary.totalSales, 0)}%)
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded-full" style={{backgroundColor: COLORS.renewalRevenue}}></div>
                     <span className="font-medium">{t('renewalSales')}: {formatNumber(performanceData.salesBreakdown.renewalSales)}{t('yen')} 
-                      ({((performanceData.salesBreakdown.renewalSales / performanceData.summary.totalSales) * 100).toFixed(0)}%)
+                      ({safePercent(performanceData.salesBreakdown.renewalSales, performanceData.summary.totalSales, 0)}%)
                     </span>
                   </div>
                 </div>
@@ -715,7 +729,7 @@ export default function DashboardPage() {
                         <td className="px-2 py-2 text-right">{stat.retargetingContacts}</td>
                         <td className="px-2 py-2 text-right font-medium">{stat.retargetingContractCount || 0}</td>
                         <td className="px-2 py-2 text-right font-bold text-purple-600 border-r-2 border-gray-300">
-                          {stat.retargetingContractRate?.toFixed(1) || '0.0'}%
+                          {safeToFixed(stat.retargetingContractRate)}%
                         </td>
                         <td className="px-2 py-2 text-right font-medium">{stat.newContractCount || 0}</td>
                         <td className="px-2 py-2 text-right">{formatNumber(stat.newSales || 0)}{t('yen')}</td>
