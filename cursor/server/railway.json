@@ -1,7 +1,8 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "buildCommand": "npm ci --include=dev && npm run build && echo '=== Build completed ===' && ls -la dist/ && ls -la dist/utils/ && ls -la dist/utils/dateHelper.*"
   },
   "deploy": {
     "startCommand": "npm start",
