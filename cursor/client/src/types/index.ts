@@ -259,7 +259,9 @@ export interface PerformanceStats {
     contractCount: number
     totalActivities: number
     contractRate: number
-    unassignedInquiries: number
+    retargetingContractRate: number  // 리타 계약률 추가
+    renewalRate: number  // 연장률 추가
+    averageOrderValue: number  // 평균 객단가
     comparedToPrevious: {
       salesChange: number
       contractRateChange: number
@@ -267,12 +269,25 @@ export interface PerformanceStats {
   }
   activities: {
     newSales: number
+    newSalesBreakdown: {  // 신규 영업 세부 분류
+      form: number
+      dm: number
+      line: number
+      phone: number
+      mail: number
+    }
     retargeting: number
     existingCustomer: number
   }
   salesBreakdown: {
     newSales: number
     renewalSales: number
+  }
+  retargetingStages: {  // 리타겟팅 단계별 현황
+    start: number
+    awareness: number
+    interest: number
+    desire: number
   }
   retargetingAlert?: {  // 옵셔널로 변경
     dueThisWeek: number
@@ -284,11 +299,61 @@ export interface PerformanceStats {
 
 export interface ManagerPerformance {
   managerName: string
-  newContacts: number
-  retargetingContacts: number
-  existingContacts: number
-  contractCount: number
-  totalSales: number
-  contractRate: number
+  formCount: number  // 폼 활동
+  dmCount: number  // DM 활동
+  lineCount: number  // 라인 활동
+  phoneCount: number  // 전화 활동
+  mailCount: number  // 메일 활동
+  newContacts: number  // 신규 영업 합계
+  retargetingContacts: number  // 리타겟팅 연락 수
+  retargetingContractCount: number  // 리타겟팅 계약 건수
+  retargetingContractRate: number  // 리타겟팅 계약률
+  existingContacts: number  // 기존 고객 관리
+  newContractCount: number  // 신규 계약 건수
+  newSales: number  // 신규 매출
+  renewalCount: number  // 연장 건수
+  renewalSales: number  // 연장 매출
+  terminationCount: number  // 해지 건수
+  terminationSales: number  // 해지 매출
+  totalSales: number  // 매출 합계
+}
+
+// Meeting Modal Types
+export interface UserTarget {
+  userId: string
+  userName: string
+  targetNewSales: number
+  targetRetargeting: number
+  targetExisting: number
+  targetRevenue: number
+  targetContracts: number
+  targetNewRevenue: number
+  targetNewContracts: number
+  targetForm: number
+  targetDm: number
+  targetLine: number
+  targetPhone: number
+  targetEmail: number
+  targetRetargetingCustomers: number
+  actualNewSales: number
+  actualRetargeting: number
+  actualExisting: number
+  actualRevenue: number
+  actualContracts: number
+  actualNewRevenue: number
+  actualNewContracts: number
+  actualForm: number
+  actualDm: number
+  actualLine: number
+  actualPhone: number
+  actualEmail: number
+  actualRetargetingCustomers: number
+}
+
+export interface MeetingLog {
+  userId: string
+  userName: string
+  reflection: string
+  actionPlan: string
 }
 

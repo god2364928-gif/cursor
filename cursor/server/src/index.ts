@@ -16,6 +16,7 @@ import salesTrackingRoutes from './routes/salesTracking'
 import globalSearchRoutes from './routes/globalSearch'
 import integrationsRoutes from './routes/integrations'
 import accountOptimizationRoutes from './routes/accountOptimization'
+import meetingRoutes from './routes/meeting'
 import keywordAnalysisRoutes from './routes/keywordAnalysis'
 import accountingRoutes from './routes/accounting/index'
 import paypayRoutes from './routes/paypay'
@@ -104,6 +105,7 @@ app.use('/api/sales-tracking', salesTrackingRoutes)
 app.use('/api/global-search', globalSearchRoutes)
 app.use('/api/integrations', integrationsRoutes)
 app.use('/api/account-optimization', accountOptimizationRoutes)
+app.use('/api/meeting', meetingRoutes)
 app.use('/api/keyword-analysis', keywordAnalysisRoutes)
 app.use('/api/accounting', accountingRoutes)
 app.use('/api/paypay', paypayRoutes)

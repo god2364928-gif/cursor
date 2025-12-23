@@ -15,8 +15,10 @@ import {
   AlertCircle,
   Users,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Calendar
 } from 'lucide-react'
+import MeetingModal from '../components/MeetingModal'
 import { 
   BarChart, 
   Bar, 
@@ -49,10 +51,12 @@ export default function DashboardPage() {
   const [periodType, setPeriodType] = useState<PeriodType>('monthly')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  // 마케터는 본인, admin/user는 전체가 기본값
   const [managerFilter, setManagerFilter] = useState<string>('all')
   const [users, setUsers] = useState<User[]>([])
   const [performanceData, setPerformanceData] = useState<PerformanceStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
 
   // 날짜 초기 설정
   useEffect(() => {
@@ -100,6 +104,13 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchUsers()
   }, [fetchUsers])
+
+  // user가 로드되면 기본 필터값 설정 (마케터는 본인, 나머지는 전체)
+  useEffect(() => {
+    if (user && managerFilter === 'all' && user.role === 'marketer') {
+      setManagerFilter(user.name)
+    }
+  }, [user])
 
   useEffect(() => {
     if (startDate && endDate) {
@@ -155,7 +166,7 @@ export default function DashboardPage() {
     }
   }
 
-  // 저성과자 지원 핸들러
+  // 저성과자 지엔 핸들러
   const handleSupport = (managerName: string) => {
     // 문의 배정 페이지로 이동하거나 알림 보내기
     alert(`${managerName}님에게 피드백을 전송하거나 미배정 문의를 할당하세요.`)
@@ -165,7 +176,7 @@ export default function DashboardPage() {
   if (loading && !performanceData) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">로딩 중...</div>
+        <div className="text-lg">{t('loading')}</div>
       </div>
     )
   }
@@ -173,33 +184,33 @@ export default function DashboardPage() {
   if (!performanceData) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">데이터를 불러올 수 없습니다</div>
+        <div className="text-lg">{t('dataLoadFailed')}</div>
       </div>
     )
   }
 
   // 활동량 차트 데이터
   const activityChartData = [
-    { name: '신규 영업', value: performanceData.activities.newSales, color: COLORS.newSales },
-    { name: '리타겟팅', value: performanceData.activities.retargeting, color: COLORS.retargeting },
-    { name: '기존 관리', value: performanceData.activities.existingCustomer, color: COLORS.existing }
+    { name: t('newSalesActivity'), value: performanceData.activities.newSales, color: COLORS.newSales },
+    { name: t('retargetingActivity'), value: performanceData.activities.retargeting, color: COLORS.retargeting },
+    { name: t('existingManagement'), value: performanceData.activities.existingCustomer, color: COLORS.existing }
   ]
 
   // 매출 구성비 차트 데이터
   const salesChartData = [
-    { name: '신규 매출', value: performanceData.salesBreakdown.newSales, color: COLORS.newRevenue },
-    { name: '연장 매출', value: performanceData.salesBreakdown.renewalSales, color: COLORS.renewalRevenue }
+    { name: t('newSales'), value: performanceData.salesBreakdown.newSales, color: COLORS.newRevenue },
+    { name: t('renewalSales'), value: performanceData.salesBreakdown.renewalSales, color: COLORS.renewalRevenue }
   ]
 
   // 리타겟팅 연락 주기 차트 데이터 (안전한 기본값 처리)
   const retargetingCycleData = performanceData.retargetingAlert ? [
-    { name: '주기 미도래', value: performanceData.retargetingAlert.upcoming, fill: '#10b981' },
-    { name: '이번 주 예정', value: performanceData.retargetingAlert.dueThisWeek, fill: '#f59e0b' },
-    { name: '연락 지연', value: performanceData.retargetingAlert.overdue, fill: '#ef4444' }
+    { name: t('cycleNotDue'), value: performanceData.retargetingAlert.upcoming, fill: '#10b981' },
+    { name: t('dueThisWeek'), value: performanceData.retargetingAlert.dueThisWeek, fill: '#f59e0b' },
+    { name: t('contactDelayed'), value: performanceData.retargetingAlert.overdue, fill: '#ef4444' }
   ] : [
-    { name: '주기 미도래', value: 0, fill: '#10b981' },
-    { name: '이번 주 예정', value: 0, fill: '#f59e0b' },
-    { name: '연락 지연', value: 0, fill: '#ef4444' }
+    { name: t('cycleNotDue'), value: 0, fill: '#10b981' },
+    { name: t('dueThisWeek'), value: 0, fill: '#f59e0b' },
+    { name: t('contactDelayed'), value: 0, fill: '#ef4444' }
   ]
 
   return (
@@ -207,7 +218,14 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 헤더 */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">성과 분석 대시보드</h1>
+          <h1 className="text-3xl font-bold">{t('performanceDashboard')}</h1>
+          <Button
+            onClick={() => setIsMeetingModalOpen(true)}
+            className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-6 py-3 flex items-center gap-2 shadow-lg"
+          >
+            <Calendar className="w-5 h-5" />
+            {t('startMeetingMode')}
+          </Button>
         </div>
 
         {/* 기간 필터 */}
@@ -220,26 +238,26 @@ export default function DashboardPage() {
                   variant={periodType === 'weekly' ? 'default' : 'outline'}
                   onClick={() => setPeriodType('weekly')}
                 >
-                  주간 통계
+                  {t('weeklyStats')}
                 </Button>
                 <Button
                   variant={periodType === 'monthly' ? 'default' : 'outline'}
                   onClick={() => setPeriodType('monthly')}
                 >
-                  월간 통계
+                  {t('monthlyStats')}
                 </Button>
                 <Button
                   variant={periodType === 'custom' ? 'default' : 'outline'}
                   onClick={() => setPeriodType('custom')}
                 >
-                  기간 선택
+                  {t('periodSelection')}
                 </Button>
               </div>
 
               {/* 날짜 선택 및 빠른 선택 */}
               <div className="flex gap-4 items-center flex-wrap">
                 <div className="flex gap-2 items-center">
-                  <label className="text-sm font-medium">시작일:</label>
+                  <label className="text-sm font-medium">{t('startDate')}:</label>
                   <input
                     type="date"
                     value={startDate}
@@ -248,7 +266,7 @@ export default function DashboardPage() {
                   />
                 </div>
                 <div className="flex gap-2 items-center">
-                  <label className="text-sm font-medium">종료일:</label>
+                  <label className="text-sm font-medium">{t('endDate')}:</label>
                   <input
                     type="date"
                     value={endDate}
@@ -257,27 +275,29 @@ export default function DashboardPage() {
                   />
                 </div>
                 <Button onClick={handlePreviousPeriod} variant="outline">
-                  이전 {periodType === 'weekly' ? '주' : '달'}
+                  {periodType === 'weekly' ? t('previousWeek') : t('previousMonth')}
                 </Button>
                 <Button onClick={handleCurrentPeriod}>
-                  이번 {periodType === 'weekly' ? '주' : '달'}
+                  {periodType === 'weekly' ? t('currentWeek') : t('currentMonth')}
                 </Button>
                 <Button onClick={handleNextPeriod} variant="outline">
-                  다음 {periodType === 'weekly' ? '주' : '달'}
+                  {periodType === 'weekly' ? t('nextWeek') : t('nextMonth')}
                 </Button>
                 
                 {/* 담당자 필터 */}
                 <div className="flex gap-2 items-center ml-auto">
-                  <label className="text-sm font-medium">담당자:</label>
+                  <label className="text-sm font-medium">{t('manager')}:</label>
                   <select
                     value={managerFilter}
                     onChange={e => setManagerFilter(e.target.value)}
                     className="border rounded px-3 py-2"
                   >
-                    <option value="all">전체</option>
-                    {user && <option value={user.name}>{user.name} (나)</option>}
-                    {users.filter(u => u.name !== user?.name).map(u => (
-                      <option key={u.id} value={u.name}>{u.name}</option>
+                    <option value="all">{t('all')}</option>
+                    {/* 마케터만 표시 */}
+                    {users.filter(u => u.role === 'marketer').map(u => (
+                      <option key={u.id} value={u.name}>
+                        {u.name}{u.id === user?.id ? ` (${t('me')})` : ''}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -287,16 +307,16 @@ export default function DashboardPage() {
         </Card>
 
         {/* Top Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* 총 매출액 */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">총 매출액</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('totalSales')}</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatNumber(performanceData.summary.totalSales)}원
+                {formatNumber(performanceData.summary.totalSales)}{t('yen')}
               </div>
               <div className="flex items-center text-xs mt-1">
                 {performanceData.summary.comparedToPrevious.salesChange >= 0 ? (
@@ -314,7 +334,7 @@ export default function DashboardPage() {
                     </span>
                   </>
                 )}
-                <span className="text-muted-foreground ml-1">전 기간 대비</span>
+                <span className="text-muted-foreground ml-1">{t('comparedToPrevious')}</span>
               </div>
             </CardContent>
           </Card>
@@ -322,21 +342,23 @@ export default function DashboardPage() {
           {/* 예상 파이프라인 (신규) */}
           <Card className="bg-blue-50 border-blue-200">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-blue-700">예상 파이프라인</CardTitle>
+              <CardTitle className="text-sm font-medium text-blue-700">{t('expectedPipeline')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
               <div className="text-2xl font-bold text-blue-900">
-                {formatNumber(performanceData.summary.potentialRevenue)}원
+                {formatNumber(performanceData.summary.potentialRevenue)}{t('yen')}
               </div>
-              <p className="text-xs text-blue-600 mt-1">현재 진행 중인 상담 기준</p>
+              <p className="text-xs text-blue-600 mt-1">
+                {t('start')}(5%) + {t('awareness')}(10%) + {t('interest')}(30%) + {t('desire')}(50%) × {t('averageOrderValue')}
+              </p>
               </CardContent>
             </Card>
 
           {/* 계약률 */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">계약률</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('contractRate')}</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -359,28 +381,56 @@ export default function DashboardPage() {
                     </span>
                   </>
                 )}
-                <span className="text-muted-foreground ml-1">전 기간 대비</span>
+                <span className="text-muted-foreground ml-1">{t('comparedToPrevious')}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                계약 {performanceData.summary.contractCount}건 / 활동 {performanceData.summary.totalActivities}건
+                {t('contracts')} {performanceData.summary.contractCount}{t('cases')} / {t('totalActivity')} {performanceData.summary.totalActivities}{t('cases')}
               </p>
               </CardContent>
             </Card>
 
+          {/* 리타 계약률 */}
+          <Card className="bg-purple-50 border-purple-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-purple-700">{t('retargetingContractRate')}</CardTitle>
+              <Target className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-900">
+                {performanceData.summary.retargetingContractRate?.toFixed(1) || '0.0'}%
+              </div>
+              <p className="text-xs text-purple-600 mt-1">{t('retargetingActivity')}</p>
+            </CardContent>
+          </Card>
+
+          {/* 연장률 */}
+          <Card className="bg-green-50 border-green-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-green-700">{t('renewalRate')}</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-900">
+                {performanceData.summary.renewalRate?.toFixed(1) || '0.0'}%
+              </div>
+              <p className="text-xs text-green-600 mt-1">{t('previousMonth')}</p>
+            </CardContent>
+          </Card>
+
           {/* 총 활동량 */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">총 활동량</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('totalActivity')}</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
               <div className="text-2xl font-bold">
-                {formatNumber(performanceData.summary.totalActivities)}건
+                {formatNumber(performanceData.summary.totalActivities)}{t('cases')}
                   </div>
               <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                <div>신규: {performanceData.activities.newSales}건</div>
-                <div>리타겟: {performanceData.activities.retargeting}건</div>
-                <div>기존: {performanceData.activities.existingCustomer}건</div>
+                <div>{t('newSalesActivity')}: {performanceData.activities.newSales}{t('cases')}</div>
+                <div>{t('retargetingActivity')}: {performanceData.activities.retargeting}{t('cases')}</div>
+                <div>{t('existingManagement')}: {performanceData.activities.existingCustomer}{t('cases')}</div>
                 </div>
               </CardContent>
             </Card>
@@ -388,36 +438,34 @@ export default function DashboardPage() {
           {/* 연락 주기 도래 (신규) */}
           <Card className={performanceData.retargetingAlert && performanceData.retargetingAlert.overdue > 0 ? 'border-orange-300 bg-orange-50' : ''}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">연락 주기 도래</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('contactCycle')}</CardTitle>
               <Users className={`h-4 w-4 ${performanceData.retargetingAlert && performanceData.retargetingAlert.overdue > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {performanceData.retargetingAlert 
                   ? performanceData.retargetingAlert.overdue + performanceData.retargetingAlert.dueThisWeek 
-                  : 0}건
+                  : 0}{t('cases')}
               </div>
               <p className="text-xs text-orange-600 mt-1">
-                지연 {performanceData.retargetingAlert?.overdue || 0}건 / 이번 주 {performanceData.retargetingAlert?.dueThisWeek || 0}건
+                {t('contactDelayed')} {performanceData.retargetingAlert?.overdue || 0}{t('cases')} / {t('dueThisWeek')} {performanceData.retargetingAlert?.dueThisWeek || 0}{t('cases')}
               </p>
             </CardContent>
           </Card>
 
-          {/* 미배정 문의 */}
-          <Card className={performanceData.summary.unassignedInquiries > 0 ? 'border-red-300 bg-red-50' : ''}>
+          {/* 평균 객단가 */}
+          <Card className="bg-indigo-50 border-indigo-200">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">미배정 문의</CardTitle>
-              <AlertCircle className={`h-4 w-4 ${performanceData.summary.unassignedInquiries > 0 ? 'text-red-500' : 'text-muted-foreground'}`} />
+              <CardTitle className="text-sm font-medium text-indigo-700">{t('averageOrderValue')}</CardTitle>
+              <TrendingUp className="h-4 w-4 text-indigo-600" />
               </CardHeader>
               <CardContent>
-              <div className={`text-2xl font-bold ${performanceData.summary.unassignedInquiries > 0 ? 'text-red-600' : ''}`}>
-                {formatNumber(performanceData.summary.unassignedInquiries)}건
+              <div className="text-2xl font-bold text-indigo-900">
+                {formatNumber(performanceData.summary.averageOrderValue)}{t('yen')}
                   </div>
-              {performanceData.summary.unassignedInquiries > 0 && (
-                <p className="text-xs text-red-600 mt-1 font-medium">
-                  확인 필요
+              <p className="text-xs text-indigo-600 mt-1">
+                {t('totalSales')} / {t('contracts')}
                 </p>
-              )}
               </CardContent>
             </Card>
           </div>
@@ -427,7 +475,7 @@ export default function DashboardPage() {
           {/* 활동량 비교 막대 차트 */}
             <Card>
               <CardHeader>
-              <CardTitle>활동량 비교</CardTitle>
+              <CardTitle>{t('activityComparison')}</CardTitle>
               </CardHeader>
               <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -449,7 +497,7 @@ export default function DashboardPage() {
           {/* 매출 구성비 도넛 차트 */}
           <Card>
             <CardHeader>
-              <CardTitle>매출 구성비</CardTitle>
+              <CardTitle>{t('salesComposition')}</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -459,11 +507,9 @@ export default function DashboardPage() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, value, percent }) => 
-                      `${name}: ${formatNumber(value)}원 (${(percent * 100).toFixed(0)}%)`
-                    }
-                    outerRadius={80}
-                    innerRadius={40}
+                    label={false}
+                    outerRadius={100}
+                    innerRadius={60}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -471,19 +517,35 @@ export default function DashboardPage() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: any) => formatNumber(value) + '원'} />
+                  <Tooltip formatter={(value: any) => formatNumber(value) + t('yen')} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="mt-4 text-center text-sm text-muted-foreground">
-                <div>총 매출: {formatNumber(performanceData.summary.totalSales)}원</div>
+              <div className="mt-4 space-y-3">
+                <div className="flex justify-center gap-8 text-base">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full" style={{backgroundColor: COLORS.newRevenue}}></div>
+                    <span className="font-medium">{t('newSales')}: {formatNumber(performanceData.salesBreakdown.newSales)}{t('yen')} 
+                      ({((performanceData.salesBreakdown.newSales / performanceData.summary.totalSales) * 100).toFixed(0)}%)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full" style={{backgroundColor: COLORS.renewalRevenue}}></div>
+                    <span className="font-medium">{t('renewalSales')}: {formatNumber(performanceData.salesBreakdown.renewalSales)}{t('yen')} 
+                      ({((performanceData.salesBreakdown.renewalSales / performanceData.summary.totalSales) * 100).toFixed(0)}%)
+                    </span>
+                  </div>
                 </div>
+                <div className="text-center text-base font-bold text-gray-900">
+                  {t('totalSales')}: {formatNumber(performanceData.summary.totalSales)}{t('yen')}
+                </div>
+              </div>
               </CardContent>
             </Card>
 
           {/* 리타겟팅 연락 주기 현황 (신규) */}
           <Card>
             <CardHeader>
-              <CardTitle>리타겟팅 연락 주기</CardTitle>
+              <CardTitle>{t('retargetingContactCycle')}</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -502,65 +564,166 @@ export default function DashboardPage() {
               <div className="mt-4 text-center text-xs text-muted-foreground">
                 <div className="text-orange-600 font-medium">
                   {performanceData.retargetingAlert && performanceData.retargetingAlert.overdue > 0 
-                    ? `⚠️ ${performanceData.retargetingAlert.overdue}명에게 즉시 연락 필요` 
-                    : '✓ 모든 고객 관리 중'}
+                    ? `⚠️ ${performanceData.retargetingAlert.overdue}${t('people')} ${t('prioritizeDelayed')}` 
+                    : `✓ ${t('allCustomersManaged')}`}
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* 리타겟팅 단계별 현황 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('retargetingStageStatus')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* 시작 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">{t('start')}</span>
+                  <span className="text-sm font-bold">{performanceData.retargetingStages?.start || 0}{t('people')}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-blue-500 h-3 rounded-full transition-all"
+                    style={{ 
+                      width: `${Math.min(100, ((performanceData.retargetingStages?.start || 0) / 
+                        Math.max(1, (performanceData.retargetingStages?.start || 0) + 
+                        (performanceData.retargetingStages?.awareness || 0) + 
+                        (performanceData.retargetingStages?.interest || 0) + 
+                        (performanceData.retargetingStages?.desire || 0))) * 100)}%` 
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 인지 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">{t('awareness')}</span>
+                  <span className="text-sm font-bold">{performanceData.retargetingStages?.awareness || 0}{t('people')}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-yellow-500 h-3 rounded-full transition-all"
+                    style={{ 
+                      width: `${Math.min(100, ((performanceData.retargetingStages?.awareness || 0) / 
+                        Math.max(1, (performanceData.retargetingStages?.start || 0) + 
+                        (performanceData.retargetingStages?.awareness || 0) + 
+                        (performanceData.retargetingStages?.interest || 0) + 
+                        (performanceData.retargetingStages?.desire || 0))) * 100)}%` 
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 흥미 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">{t('interest')}</span>
+                  <span className="text-sm font-bold">{performanceData.retargetingStages?.interest || 0}{t('people')}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-purple-500 h-3 rounded-full transition-all"
+                    style={{ 
+                      width: `${Math.min(100, ((performanceData.retargetingStages?.interest || 0) / 
+                        Math.max(1, (performanceData.retargetingStages?.start || 0) + 
+                        (performanceData.retargetingStages?.awareness || 0) + 
+                        (performanceData.retargetingStages?.interest || 0) + 
+                        (performanceData.retargetingStages?.desire || 0))) * 100)}%` 
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 욕망 (강조) */}
+              <div className="bg-pink-50 p-3 rounded-lg border-2 border-pink-300">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-pink-700">{t('desire')} ⭐ ({t('highPotential')})</span>
+                  <span className="text-sm font-bold text-pink-700">{performanceData.retargetingStages?.desire || 0}{t('people')}</span>
+                </div>
+                <div className="w-full bg-pink-200 rounded-full h-4">
+                  <div
+                    className="bg-pink-600 h-4 rounded-full transition-all"
+                    style={{ 
+                      width: `${Math.min(100, ((performanceData.retargetingStages?.desire || 0) / 
+                        Math.max(1, (performanceData.retargetingStages?.start || 0) + 
+                        (performanceData.retargetingStages?.awareness || 0) + 
+                        (performanceData.retargetingStages?.interest || 0) + 
+                        (performanceData.retargetingStages?.desire || 0))) * 100)}%` 
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* 담당자별 성과 테이블 */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              담당자별 성과
+              {t('managerPerformance')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium">담당자</th>
-                    <th className="px-4 py-3 text-right font-medium">신규 연락</th>
-                    <th className="px-4 py-3 text-right font-medium">리타겟 연락</th>
-                    <th className="px-4 py-3 text-right font-medium">기존 관리</th>
-                    <th className="px-4 py-3 text-right font-medium">계약 건수</th>
-                    <th className="px-4 py-3 text-right font-medium">매출 합계</th>
-                    <th className="px-4 py-3 text-right font-medium">계약률</th>
+                    <th className="px-2 py-2 text-left font-medium sticky left-0 bg-gray-100 z-10">{t('manager')}</th>
+                    <th className="px-2 py-2 text-center font-medium border-l-2 border-gray-300" colSpan={5}>{t('newSalesActivities')}</th>
+                    <th className="px-2 py-2 text-center font-medium border-l-2 border-gray-300" colSpan={3}>{t('retargetingActivity')}</th>
+                    <th className="px-2 py-2 text-center font-medium border-l-2 border-gray-300" colSpan={7}>{t('performanceBasedOnResults')}</th>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <th className="px-2 py-2 text-left font-medium text-gray-600 sticky left-0 bg-gray-50 z-10"></th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('form')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('contactDM')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('line')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('contactPhone')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600 border-r-2 border-gray-300">{t('contactMail')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('contacts')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('contracts')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600 border-r-2 border-gray-300">{t('contractRate')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('newContracts')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('newSalesRevenue')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('renewalContracts')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('renewalRevenue')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('terminationContracts')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('terminationRevenue')}</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-600">{t('totalRevenue')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {performanceData.managerStats.map((stat) => {
-                    const isLowPerformance = stat.contractRate < 5
-                    const totalContacts = stat.newContacts + stat.retargetingContacts + stat.existingContacts
                     return (
                       <tr 
                         key={stat.managerName}
-                        className={isLowPerformance ? 'bg-red-50' : 'hover:bg-gray-50'}
+                        className="hover:bg-gray-50"
                       >
-                        <td className="px-4 py-3 font-medium">{stat.managerName}</td>
-                        <td className="px-4 py-3 text-right">{stat.newContacts}</td>
-                        <td className="px-4 py-3 text-right">{stat.retargetingContacts}</td>
-                        <td className="px-4 py-3 text-right">{stat.existingContacts}</td>
-                        <td className="px-4 py-3 text-right font-medium">{stat.contractCount}</td>
-                        <td className="px-4 py-3 text-right font-medium">{formatNumber(stat.totalSales)}원</td>
-                        <td className={`px-4 py-3 text-right font-bold ${isLowPerformance ? 'text-red-600' : 'text-green-600'}`}>
-                          <div className="flex items-center justify-end gap-2">
-                            <span>{stat.contractRate.toFixed(1)}%</span>
-                            {isLowPerformance && totalContacts > 0 && (
-                              <button
-                                onClick={() => handleSupport(stat.managerName)}
-                                className="h-6 w-6 flex items-center justify-center rounded hover:bg-red-100 transition-colors"
-                                title="피드백 보내기 또는 지원"
-                              >
-                                <AlertCircle className="h-4 w-4 text-red-500" />
-                              </button>
-                            )}
-                          </div>
+                        <td className="px-2 py-2 font-medium sticky left-0 bg-white z-10">{stat.managerName}</td>
+                        <td className="px-2 py-2 text-right">{stat.formCount || 0}</td>
+                        <td className="px-2 py-2 text-right">{stat.dmCount || 0}</td>
+                        <td className="px-2 py-2 text-right">{stat.lineCount || 0}</td>
+                        <td className="px-2 py-2 text-right">{stat.phoneCount || 0}</td>
+                        <td className="px-2 py-2 text-right border-r-2 border-gray-300">{stat.mailCount || 0}</td>
+                        <td className="px-2 py-2 text-right">{stat.retargetingContacts}</td>
+                        <td className="px-2 py-2 text-right font-medium">{stat.retargetingContractCount || 0}</td>
+                        <td className="px-2 py-2 text-right font-bold text-purple-600 border-r-2 border-gray-300">
+                          {stat.retargetingContractRate?.toFixed(1) || '0.0'}%
                         </td>
+                        <td className="px-2 py-2 text-right font-medium">{stat.newContractCount || 0}</td>
+                        <td className="px-2 py-2 text-right">{formatNumber(stat.newSales || 0)}{t('yen')}</td>
+                        <td className="px-2 py-2 text-right font-medium">{stat.renewalCount || 0}</td>
+                        <td className="px-2 py-2 text-right">{formatNumber(stat.renewalSales || 0)}{t('yen')}</td>
+                        <td className="px-2 py-2 text-right font-medium text-red-600">{stat.terminationCount || 0}</td>
+                        <td className="px-2 py-2 text-right text-red-600">{formatNumber(stat.terminationSales || 0)}{t('yen')}</td>
+                        <td className="px-2 py-2 text-right font-bold text-green-600">{formatNumber(stat.totalSales)}{t('yen')}</td>
                       </tr>
                     )
                   })}
@@ -568,13 +731,23 @@ export default function DashboardPage() {
               </table>
               {performanceData.managerStats.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
-                  선택한 기간에 데이터가 없습니다
+                  {t('noDataForPeriod')}
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* 회의 모달 */}
+      {performanceData && (
+        <MeetingModal
+          isOpen={isMeetingModalOpen}
+          onClose={() => setIsMeetingModalOpen(false)}
+          performanceData={performanceData}
+          users={users}
+        />
+      )}
     </div>
   )
 }

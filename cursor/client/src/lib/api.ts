@@ -2,6 +2,11 @@ import axios from 'axios'
 
 // Determine API URL based on environment
 const getApiUrl = () => {
+  // Check for environment variable first (Railway/Production)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL + '/api'
+  }
+  
   // If running in browser, check for environment variable
   if (typeof window !== 'undefined') {
     // For local development, use relative path so Vite proxy handles it
@@ -10,6 +15,11 @@ const getApiUrl = () => {
     // For local development - use relative path
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return '/api'
+    }
+    
+    // For Railway deployment - use environment variable or fallback
+    if (hostname.includes('railway.app')) {
+      return import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : '/api'
     }
     
     // For Vercel deployment - use Railway API
