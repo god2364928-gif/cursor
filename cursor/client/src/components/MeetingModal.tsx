@@ -257,20 +257,20 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
     try {
       setIsSaving(true)
       
-      // 현재 주차/월부터 numberOfPeriods만큼 반복
+      // 현재 주차/월부터 numberOfPeriods만큼 반복 (과거는 제외)
       for (let i = 0; i < numberOfPeriods; i++) {
-        let targetYear = reviewYear
+        let targetYear = currentYear
         let targetPeriod = 0
         
         if (tab === 'weekly') {
-          targetPeriod = reviewWeek + i
+          targetPeriod = currentWeek + i
           // 주차가 52를 넘으면 다음 해로
           if (targetPeriod > 52) {
             targetYear++
             targetPeriod = targetPeriod - 52
           }
         } else {
-          targetPeriod = reviewMonth + i
+          targetPeriod = currentMonth + i
           // 월이 12를 넘으면 다음 해로
           if (targetPeriod > 12) {
             targetYear++
