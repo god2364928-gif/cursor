@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { X, TrendingUp, TrendingDown, Minus, Target, Users, CheckCircle2, AlertCircle, Activity } from 'lucide-react'
+import { X, TrendingUp, TrendingDown, Minus, Target, Users, CheckCircle2, AlertCircle, Activity, Zap } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
 import { UserTarget, MeetingLog } from '../types'
+import BulkTargetModal from './BulkTargetModal'
 
 interface MeetingModalProps {
   isOpen: boolean
@@ -22,6 +23,7 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
   const [retargetingAlerts, setRetargetingAlerts] = useState<Map<string, any>>(new Map()) // 담당자별로 저장
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
 
   // 현재 주차/월 계산
   const getWeekNumber = (date: Date) => {
@@ -248,6 +250,71 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
     }
   }
 
+  // 목표 일괄 설정 핸들러
+  const handleBulkSaveTargets = async (targets: any, numberOfPeriods: number) => {
+    if (!currentUser) return
+
+    try {
+      setIsSaving(true)
+      
+      // 현재 주차/월부터 numberOfPeriods만큼 반복
+      for (let i = 0; i < numberOfPeriods; i++) {
+        let targetYear = reviewYear
+        let targetPeriod = 0
+        
+        if (tab === 'weekly') {
+          targetPeriod = reviewWeek + i
+          // 주차가 52를 넘으면 다음 해로
+          if (targetPeriod > 52) {
+            targetYear++
+            targetPeriod = targetPeriod - 52
+          }
+        } else {
+          targetPeriod = reviewMonth + i
+          // 월이 12를 넘으면 다음 해로
+          if (targetPeriod > 12) {
+            targetYear++
+            targetPeriod = targetPeriod - 12
+          }
+        }
+
+        // API 호출
+        await api.post('/meeting/targets', {
+          userId: currentUser.id,
+          periodType: tab,
+          year: targetYear,
+          weekOrMonth: targetPeriod,
+          // 주간 목표
+          targetNewSales: targets.targetForm + targets.targetDm + targets.targetLine + targets.targetPhone + targets.targetEmail || 0,
+          targetRetargeting: targets.targetRetargeting || 0,
+          targetExisting: targets.targetExisting || 0,
+          targetRetargetingCustomers: targets.targetRetargetingCustomers || 0,
+          targetForm: targets.targetForm || 0,
+          targetDm: targets.targetDm || 0,
+          targetLine: targets.targetLine || 0,
+          targetPhone: targets.targetPhone || 0,
+          targetEmail: targets.targetEmail || 0,
+          // 월간 목표
+          targetRevenue: targets.targetRevenue || 0,
+          targetContracts: targets.targetContracts || 0,
+          targetNewRevenue: targets.targetNewRevenue || 0,
+          targetNewContracts: targets.targetNewContracts || 0,
+          // 실적은 0으로 초기화
+          actualRetargetingCustomers: 0
+        })
+      }
+
+      alert(t('savedMeeting'))
+      // 데이터 다시 로드
+      await loadData()
+    } catch (error) {
+      console.error('Failed to save bulk targets:', error)
+      alert(t('saveFailedMeeting'))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   // 회의 로그 저장
   const saveLog = async (userId: string) => {
     const log = logs.get(userId)
@@ -332,6 +399,16 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
               </button>
             </div>
             
+            {/* 목표 일괄 설정 버튼 */}
+            <button
+              onClick={() => setIsBulkModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+              title={t('bulkSetTargets')}
+            >
+              <Zap className="w-4 h-4" />
+              {t('bulkSetTargets')}
+            </button>
+
             {/* 주차/월 선택 드롭다운 */}
             <div className="flex items-center gap-2">
               <select
@@ -923,6 +1000,17 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
           )}
         </div>
       </div>
+
+      {/* 목표 일괄 설정 모달 */}
+      <BulkTargetModal
+        isOpen={isBulkModalOpen}
+        onClose={() => setIsBulkModalOpen(false)}
+        onSave={handleBulkSaveTargets}
+        type={tab}
+        currentWeek={currentWeek}
+        currentMonth={currentMonth}
+        currentYear={currentYear}
+      />
     </div>
   )
 }
