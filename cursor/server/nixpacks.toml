@@ -5,7 +5,15 @@ nixPkgs = ["nodejs-18_x"]
 cmds = ["npm ci --include=dev"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = [
+  "npm run build",
+  "echo '=== Build completed, checking dist folder ==='",
+  "ls -la dist/",
+  "echo '=== Checking dist/utils folder ==='",
+  "ls -la dist/utils/ || echo 'utils folder not found'",
+  "echo '=== Checking dateHelper files ==='",
+  "ls -la dist/utils/dateHelper.* || echo 'dateHelper files not found'"
+]
 
 [start]
 cmd = "npm start"
