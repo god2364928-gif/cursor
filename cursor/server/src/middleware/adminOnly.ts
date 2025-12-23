@@ -12,3 +12,4 @@ export const adminOnly = (req: AuthRequest, res: Response, next: Function) => {
   next()
 }
 
+

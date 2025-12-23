@@ -45,8 +45,16 @@ export default function Layout() {
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
   
-  // 회계 페이지 확인
+  // 회계 페이지 확인 및 활성 탭 상태
   const isAccountingPage = location.pathname === '/accounting'
+  const [activeAccountingTab, setActiveAccountingTab] = useState('dashboard')
+  
+  // 회계 탭 변경 핸들러
+  const handleAccountingTabClick = (tabKey: string) => {
+    setActiveAccountingTab(tabKey)
+    const event = new CustomEvent('accounting-tab-change', { detail: tabKey })
+    window.dispatchEvent(event)
+  }
 
   // 언어 변경 시 HTML lang 속성 업데이트
   useEffect(() => {
@@ -104,11 +112,12 @@ export default function Layout() {
             {accountingTabs.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => {
-                  const event = new CustomEvent('accounting-tab-change', { detail: tab.key })
-                  window.dispatchEvent(event)
-                }}
-                className="px-4 py-2 text-sm font-medium transition-colors border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
+                onClick={() => handleAccountingTabClick(tab.key)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                  activeAccountingTab === tab.key
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
                 {tab.label}
               </button>

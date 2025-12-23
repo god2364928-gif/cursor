@@ -11,17 +11,46 @@ const upload = multer({ storage: multer.memoryStorage() })
 router.get('/employees', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(
-      `SELECT * FROM accounting_employees ORDER BY employment_status, hire_date`
+      `SELECT 
+        id, name, email, role, team,
+        department, position, employment_status,
+        base_salary, contract_start_date, contract_end_date,
+        mart_id, transportation_route, monthly_transportation_cost,
+        transportation_start_date, transportation_details,
+        hire_date, created_at, updated_at
+       FROM users 
+       WHERE employment_status IS NOT NULL
+       ORDER BY employment_status, hire_date`
     )
     
     res.json(result.rows.map((r: any) => ({
       id: r.id,
       name: r.name,
+      email: r.email,
+      role: r.role,
+      team: r.team,
+      department: r.department,
       position: r.position,
-      hireDate: r.hire_date,
-      baseSalary: Number(r.base_salary),
-      incentiveRate: Number(r.incentive_rate),
       employmentStatus: r.employment_status,
+      employment_status: r.employment_status,
+      baseSalary: Number(r.base_salary) || 0,
+      base_salary: Number(r.base_salary) || 0,
+      hireDate: r.hire_date,
+      hire_date: r.hire_date,
+      contractStartDate: r.contract_start_date,
+      contract_start_date: r.contract_start_date,
+      contractEndDate: r.contract_end_date,
+      contract_end_date: r.contract_end_date,
+      martId: r.mart_id,
+      mart_id: r.mart_id,
+      transportationRoute: r.transportation_route,
+      transportation_route: r.transportation_route,
+      monthlyTransportationCost: Number(r.monthly_transportation_cost) || 0,
+      monthly_transportation_cost: Number(r.monthly_transportation_cost) || 0,
+      transportationStartDate: r.transportation_start_date,
+      transportation_start_date: r.transportation_start_date,
+      transportationDetails: r.transportation_details,
+      transportation_details: r.transportation_details,
       createdAt: r.created_at,
     })))
   } catch (error) {

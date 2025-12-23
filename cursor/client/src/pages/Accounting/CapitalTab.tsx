@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import api from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,11 +24,19 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
   const [editingCapital, setEditingCapital] = useState<CapitalBalance | null>(null)
   const [editingDeposit, setEditingDeposit] = useState<Deposit | null>(null)
 
+  // 보증금 합계 계산 (메모이제이션)
+  const totalDeposits = useMemo(() => {
+    return deposits.reduce((sum, d) => sum + Number(d.amount || 0), 0)
+  }, [deposits])
+
   // Data fetching
   useEffect(() => {
     fetchCapitalBalances()
-    fetchDeposits()
   }, [capitalOffset])
+
+  useEffect(() => {
+    fetchDeposits()
+  }, [])
 
   const fetchCapitalBalances = async () => {
     try {
@@ -424,7 +432,7 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
                   <tr className="border-t bg-gray-50 font-bold">
                     <td className="px-4 py-3 text-sm">{language === 'ja' ? '合計' : '합계'}</td>
                     <td className="px-4 py-3 text-sm text-right">
-                      {formatCurrency(deposits.reduce((sum, d) => sum + Number(d.amount || 0), 0))}
+                      {formatCurrency(totalDeposits)}
                     </td>
                     <td className="px-4 py-3" colSpan={2}></td>
                   </tr>

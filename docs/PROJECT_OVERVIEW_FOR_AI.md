@@ -453,3 +453,4 @@ python cli.py validate
 **버전**: 1.0  
 **대상 독자**: AI 분석 도구 (Gemini, Claude 등)
 
+

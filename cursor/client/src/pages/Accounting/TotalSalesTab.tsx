@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import api from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,8 +18,11 @@ interface MonthlyData {
   paypay_fee: number
   paypal: number
   paypal_fee: number
-  stripe: number
-  stripe_fee: number
+  strip: number
+  strip_fee: number
+  strip1: number
+  strip1_fee: number
+  coconala: number
 }
 
 const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
@@ -27,6 +30,7 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
   const [totalSalesYear, setTotalSalesYear] = useState<number>(2026)
   const [editingCell, setEditingCell] = useState<{ month: number; field: string } | null>(null)
   const [editingValue, setEditingValue] = useState<string>('')
+  const [loading, setLoading] = useState(false)
 
   const months = [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -34,15 +38,20 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
     fetchTotalSales()
   }, [totalSalesYear])
 
-  const fetchTotalSales = async () => {
+  const fetchTotalSales = useCallback(async () => {
+    setLoading(true)
     try {
       const response = await api.get(`/total-sales/${totalSalesYear}`)
       console.log('Total sales API response:', response.data)
+      console.log('First row:', response.data[0])
+      console.log('First row bank_transfer:', response.data[0]?.bank_transfer)
       setMonthlyData(response.data || [])
     } catch (error) {
       console.error('Total sales fetch error:', error)
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [totalSalesYear])
   
   // 특정 월의 데이터 가져오기
   const getMonthData = (month: number): MonthlyData | null => {
@@ -165,19 +174,23 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                 </tr>
               </thead>
               <tbody>
-                {renderPaymentRow(language === 'ja' ? '口座振込' : '계좌이체', 'bank_transfer', 'bg-blue-50')}
-                {renderPaymentRow('PayPay', 'paypay', 'bg-green-50')}
-                {renderPaymentRow('PayPal', 'paypal', 'bg-purple-50')}
+                {renderPaymentRow(language === 'ja' ? '口座振込' : '계좌이체', 'bank_transfer')}
+                {renderPaymentRow('PayPay', 'paypay')}
+                {renderPaymentRow('PayPal', 'paypal')}
                 {renderPaymentRow(language === 'ja' ? 'PayPal 手数料' : 'PayPal 수수료', 'paypal_fee')}
-                {renderPaymentRow('Stripe', 'stripe', 'bg-yellow-50')}
-                {renderPaymentRow(language === 'ja' ? 'Stripe 手数料' : 'Stripe 수수료', 'stripe_fee')}
+                {renderPaymentRow('strip', 'strip')}
+                {renderPaymentRow(language === 'ja' ? 'strip 手数料' : 'strip 수수료', 'strip_fee')}
+                {renderPaymentRow('strip1', 'strip1')}
+                {renderPaymentRow(language === 'ja' ? 'strip1 手数料' : 'strip1 수수료', 'strip1_fee')}
+                {renderPaymentRow(language === 'ja' ? 'ココナラ' : '코코나라', 'coconala')}
                 
                 {/* 매출 합계 행 */}
                 <tr className="border-t-2 bg-red-100 font-bold">
                   <td className="px-4 py-2 text-sm border">{language === 'ja' ? '売上' : '매출'}</td>
                   {months.map(month => {
                     const sales = getValue(month, 'bank_transfer') + getValue(month, 'paypay') + 
-                                 getValue(month, 'paypal') + getValue(month, 'stripe')
+                                 getValue(month, 'paypal') + getValue(month, 'strip') + 
+                                 getValue(month, 'strip1') + getValue(month, 'coconala')
                     return (
                       <td key={month} className="px-2 py-2 text-right text-sm border">
                         {formatCurrency(sales)}
@@ -187,7 +200,8 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                   <td className="px-4 py-2 text-right text-sm bg-red-200 border">
                     {formatCurrency(
                       getRowTotal('bank_transfer') + getRowTotal('paypay') + 
-                      getRowTotal('paypal') + getRowTotal('stripe')
+                      getRowTotal('paypal') + getRowTotal('strip') + 
+                      getRowTotal('strip1') + getRowTotal('coconala')
                     )}
                   </td>
                 </tr>
@@ -197,7 +211,8 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                   <td className="px-4 py-2 text-sm border">{language === 'ja' ? '手数料' : '수수료'}</td>
                   {months.map(month => {
                     const fees = getValue(month, 'bank_transfer_fee') + getValue(month, 'paypay_fee') + 
-                                getValue(month, 'paypal_fee') + getValue(month, 'stripe_fee')
+                                getValue(month, 'paypal_fee') + getValue(month, 'strip_fee') + 
+                                getValue(month, 'strip1_fee')
                     return (
                       <td key={month} className="px-2 py-2 text-right text-sm border">
                         {formatCurrency(fees)}
@@ -207,7 +222,8 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                   <td className="px-4 py-2 text-right text-sm bg-yellow-200 border">
                     {formatCurrency(
                       getRowTotal('bank_transfer_fee') + getRowTotal('paypay_fee') + 
-                      getRowTotal('paypal_fee') + getRowTotal('stripe_fee')
+                      getRowTotal('paypal_fee') + getRowTotal('strip_fee') + 
+                      getRowTotal('strip1_fee')
                     )}
                   </td>
                 </tr>
@@ -220,9 +236,11 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                     if (!data) return <td key={month} className="px-2 py-2 text-right text-sm border">¥0</td>
                     
                     const sales = getValue(month, 'bank_transfer') + getValue(month, 'paypay') + 
-                                 getValue(month, 'paypal') + getValue(month, 'stripe')
+                                 getValue(month, 'paypal') + getValue(month, 'strip') + 
+                                 getValue(month, 'strip1') + getValue(month, 'coconala')
                     const fees = getValue(month, 'bank_transfer_fee') + getValue(month, 'paypay_fee') + 
-                                getValue(month, 'paypal_fee') + getValue(month, 'stripe_fee')
+                                getValue(month, 'paypal_fee') + getValue(month, 'strip_fee') + 
+                                getValue(month, 'strip1_fee')
                     
                     return (
                       <td key={month} className="px-2 py-2 text-right text-sm border">
@@ -232,8 +250,8 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                   })}
                   <td className="px-4 py-2 text-right text-sm bg-green-200 border font-extrabold">
                     {formatCurrency(
-                      (getRowTotal('bank_transfer') + getRowTotal('paypay') + getRowTotal('paypal') + getRowTotal('stripe')) -
-                      (getRowTotal('bank_transfer_fee') + getRowTotal('paypay_fee') + getRowTotal('paypal_fee') + getRowTotal('stripe_fee'))
+                      (getRowTotal('bank_transfer') + getRowTotal('paypay') + getRowTotal('paypal') + getRowTotal('strip') + getRowTotal('strip1') + getRowTotal('coconala')) -
+                      (getRowTotal('bank_transfer_fee') + getRowTotal('paypay_fee') + getRowTotal('paypal_fee') + getRowTotal('strip_fee') + getRowTotal('strip1_fee'))
                     )}
                   </td>
                 </tr>

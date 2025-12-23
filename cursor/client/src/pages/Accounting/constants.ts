@@ -11,3 +11,4 @@ export const CATEGORY_OPTIONS = [
   { value: '기타', labelJa: 'その他', labelKo: '기타' },
 ]
 
+
