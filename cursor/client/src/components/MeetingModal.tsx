@@ -271,10 +271,10 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
           actualContracts: target.actualContracts
         } : {}
       })
-      alert(t('saved'))
+      alert(t('savedMeeting'))
     } catch (error) {
       console.error('Failed to save log:', error)
-      alert(t('saveFailed'))
+      alert(t('saveFailedMeeting'))
     } finally {
       setIsSaving(false)
     }
@@ -373,7 +373,7 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
         <div className="p-6 space-y-6">
           {isLoading ? (
             <div className="text-center py-12">
-              <div className="text-lg">{t('loadingData')}</div>
+              <div className="text-lg">{t('loadingDataMeeting')}</div>
             </div>
           ) : (
             <>
@@ -913,7 +913,7 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
                         disabled={isSaving}
                         className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
                       >
-                        {isSaving ? t('saving') : t('saveReviewAndPlan')}
+                        {isSaving ? t('savingMeeting') : t('saveReviewAndPlan')}
                       </button>
                     </div>
                   </div>
