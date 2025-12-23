@@ -9,18 +9,23 @@ interface TotalSalesTabProps {
   isAdmin: boolean
 }
 
-interface RawDataRow {
-  fiscal_year: number
+interface MonthlyData {
+  id: string
   month: number
-  payment_method: string
-  amount: string
-  is_fee: boolean
+  bank_transfer: number
+  bank_transfer_fee: number
+  paypay: number
+  paypay_fee: number
+  paypal: number
+  paypal_fee: number
+  stripe: number
+  stripe_fee: number
 }
 
 const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
-  const [rawData, setRawData] = useState<RawDataRow[]>([])
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [totalSalesYear, setTotalSalesYear] = useState<number>(2026)
-  const [editingCell, setEditingCell] = useState<{ paymentMethod: string; isFee: boolean; month: number } | null>(null)
+  const [editingCell, setEditingCell] = useState<{ month: number; field: string } | null>(null)
   const [editingValue, setEditingValue] = useState<string>('')
 
   const months = [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -32,66 +37,45 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
   const fetchTotalSales = async () => {
     try {
       const response = await api.get(`/total-sales/${totalSalesYear}`)
-      setRawData(response.data || [])
+      console.log('Total sales API response:', response.data)
+      setMonthlyData(response.data || [])
     } catch (error) {
       console.error('Total sales fetch error:', error)
     }
   }
   
-  // 특정 결제수단 + 수수료여부 + 월에 해당하는 금액 가져오기
-  const getAmount = (paymentMethod: string, isFee: boolean, month: number): number => {
-    const row = rawData.find(
-      r => r.payment_method === paymentMethod && r.is_fee === isFee && r.month === month
-    )
-    return row ? parseFloat(row.amount) : 0
+  // 특정 월의 데이터 가져오기
+  const getMonthData = (month: number): MonthlyData | null => {
+    return monthlyData.find(d => d.month === month) || null
   }
   
-  // 결제수단별 합계 (모든 월)
-  const getRowTotal = (paymentMethod: string, isFee: boolean): number => {
-    return months.reduce((sum, month) => sum + getAmount(paymentMethod, isFee, month), 0)
+  // 특정 필드의 값 가져오기
+  const getValue = (month: number, field: keyof MonthlyData): number => {
+    const data = getMonthData(month)
+    if (!data) return 0
+    const value = data[field]
+    return typeof value === 'number' ? value : parseFloat(String(value)) || 0
   }
   
-  // 월별 합계 (모든 결제수단)
-  const getMonthTotal = (month: number): number => {
-    return rawData
-      .filter(r => r.month === month)
-      .reduce((sum, r) => {
-        const amount = parseFloat(r.amount) || 0
-        return sum + (r.is_fee ? -amount : amount)
-      }, 0)
-  }
-  
-  // 전체 합계
-  const getGrandTotal = (): number => {
-    return rawData.reduce((sum, r) => {
-      const amount = parseFloat(r.amount) || 0
-      return sum + (r.is_fee ? -amount : amount)
+  // 행 합계 (모든 월)
+  const getRowTotal = (field: keyof MonthlyData): number => {
+    return monthlyData.reduce((sum, data) => {
+      const value = data[field]
+      return sum + (typeof value === 'number' ? value : parseFloat(String(value)) || 0)
     }, 0)
   }
 
-  const handleCellClick = (paymentMethod: string, isFee: boolean, month: number, currentValue: number) => {
-    setEditingCell({ paymentMethod, isFee, month })
+  const handleCellClick = (month: number, field: string, currentValue: number) => {
+    setEditingCell({ month, field })
     setEditingValue(String(currentValue || 0))
   }
 
   const handleCellSave = async () => {
     if (!editingCell) return
-
-    try {
-      await api.put(`/total-sales/update`, {
-        fiscalYear: totalSalesYear,
-        month: editingCell.month,
-        paymentMethod: editingCell.paymentMethod,
-        isFee: editingCell.isFee,
-        amount: parseFloat(editingValue) || 0
-      })
-      setEditingCell(null)
-      setEditingValue('')
-      fetchTotalSales()
-    } catch (error) {
-      console.error('Total sales update error:', error)
-      alert(language === 'ja' ? '更新に失敗しました' : '업데이트에 실패했습니다')
-    }
+    // TODO: 개별 셀 업데이트 API 구현 필요
+    setEditingCell(null)
+    setEditingValue('')
+    fetchTotalSales()
   }
 
   const handleCellCancel = () => {
@@ -99,17 +83,15 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
     setEditingValue('')
   }
 
-  const renderEditableCell = (paymentMethod: string, isFee: boolean, month: number, className: string = '') => {
-    const value = getAmount(paymentMethod, isFee, month)
-    const isEditing = editingCell?.paymentMethod === paymentMethod && 
-                     editingCell?.isFee === isFee && 
-                     editingCell?.month === month
+  const renderEditableCell = (month: number, field: keyof MonthlyData, className: string = '') => {
+    const value = getValue(month, field)
+    const isEditing = editingCell?.month === month && editingCell?.field === field
 
     return (
       <td
-        key={`${paymentMethod}-${isFee}-${month}`}
-        className={`px-2 py-2 text-right cursor-pointer hover:bg-blue-50 text-xs ${className}`}
-        onClick={() => handleCellClick(paymentMethod, isFee, month, value)}
+        key={`${month}-${field}`}
+        className={`px-2 py-2 text-right cursor-pointer hover:bg-blue-50 text-xs border ${className}`}
+        onClick={() => handleCellClick(month, field, value)}
       >
         {isEditing ? (
           <input
@@ -134,12 +116,12 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
     )
   }
   
-  const renderPaymentRow = (label: string, paymentMethod: string, isFee: boolean, bgColor: string = '') => (
-    <tr key={`${paymentMethod}-${isFee}`} className={`border-t ${bgColor}`}>
-      <td className="px-4 py-2 font-medium text-sm">{label}</td>
-      {months.map(month => renderEditableCell(paymentMethod, isFee, month))}
-      <td className="px-4 py-2 text-right font-semibold text-sm bg-gray-100">
-        {formatCurrency(getRowTotal(paymentMethod, isFee))}
+  const renderPaymentRow = (label: string, field: keyof MonthlyData, bgColor: string = '') => (
+    <tr key={field} className={`border-t ${bgColor}`}>
+      <td className="px-4 py-2 font-medium text-sm border">{label}</td>
+      {months.map(month => renderEditableCell(month, field))}
+      <td className="px-4 py-2 text-right font-semibold text-sm bg-gray-100 border">
+        {formatCurrency(getRowTotal(field))}
       </td>
     </tr>
   )
@@ -183,23 +165,19 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                 </tr>
               </thead>
               <tbody>
-                {renderPaymentRow(language === 'ja' ? '口座振込' : '계좌이체', '口座振込', false, 'bg-blue-50')}
-                {renderPaymentRow('PayPay', 'PayPay', false, 'bg-green-50')}
-                {renderPaymentRow('PayPal', 'PayPal', false, 'bg-purple-50')}
-                {renderPaymentRow(language === 'ja' ? 'PayPal 手数料' : 'PayPal 수수료', 'PayPal', true)}
-                {renderPaymentRow('strip', 'strip', false, 'bg-yellow-50')}
-                {renderPaymentRow(language === 'ja' ? 'strip 手数料' : 'strip 수수료', 'strip', true)}
-                {renderPaymentRow('strip1', 'strip1', false, 'bg-orange-50')}
-                {renderPaymentRow(language === 'ja' ? 'strip1 手数料' : 'strip1 수수료', 'strip1', true)}
-                {renderPaymentRow(language === 'ja' ? 'ココナラ' : '코코나라', 'ココナラ', false, 'bg-pink-50')}
+                {renderPaymentRow(language === 'ja' ? '口座振込' : '계좌이체', 'bank_transfer', 'bg-blue-50')}
+                {renderPaymentRow('PayPay', 'paypay', 'bg-green-50')}
+                {renderPaymentRow('PayPal', 'paypal', 'bg-purple-50')}
+                {renderPaymentRow(language === 'ja' ? 'PayPal 手数料' : 'PayPal 수수료', 'paypal_fee')}
+                {renderPaymentRow('Stripe', 'stripe', 'bg-yellow-50')}
+                {renderPaymentRow(language === 'ja' ? 'Stripe 手数料' : 'Stripe 수수료', 'stripe_fee')}
                 
                 {/* 매출 합계 행 */}
                 <tr className="border-t-2 bg-red-100 font-bold">
-                  <td className="px-4 py-2 text-sm">{language === 'ja' ? '売上' : '매출'}</td>
+                  <td className="px-4 py-2 text-sm border">{language === 'ja' ? '売上' : '매출'}</td>
                   {months.map(month => {
-                    const sales = rawData
-                      .filter(r => r.month === month && !r.is_fee)
-                      .reduce((sum, r) => sum + parseFloat(r.amount), 0)
+                    const sales = getValue(month, 'bank_transfer') + getValue(month, 'paypay') + 
+                                 getValue(month, 'paypal') + getValue(month, 'stripe')
                     return (
                       <td key={month} className="px-2 py-2 text-right text-sm border">
                         {formatCurrency(sales)}
@@ -207,17 +185,19 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                     )
                   })}
                   <td className="px-4 py-2 text-right text-sm bg-red-200 border">
-                    {formatCurrency(rawData.filter(r => !r.is_fee).reduce((sum, r) => sum + parseFloat(r.amount), 0))}
+                    {formatCurrency(
+                      getRowTotal('bank_transfer') + getRowTotal('paypay') + 
+                      getRowTotal('paypal') + getRowTotal('stripe')
+                    )}
                   </td>
                 </tr>
                 
                 {/* 수수료 합계 행 */}
                 <tr className="bg-yellow-100 font-bold">
-                  <td className="px-4 py-2 text-sm">{language === 'ja' ? '手数料' : '수수료'}</td>
+                  <td className="px-4 py-2 text-sm border">{language === 'ja' ? '手数料' : '수수료'}</td>
                   {months.map(month => {
-                    const fees = rawData
-                      .filter(r => r.month === month && r.is_fee)
-                      .reduce((sum, r) => sum + parseFloat(r.amount), 0)
+                    const fees = getValue(month, 'bank_transfer_fee') + getValue(month, 'paypay_fee') + 
+                                getValue(month, 'paypal_fee') + getValue(month, 'stripe_fee')
                     return (
                       <td key={month} className="px-2 py-2 text-right text-sm border">
                         {formatCurrency(fees)}
@@ -225,20 +205,36 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                     )
                   })}
                   <td className="px-4 py-2 text-right text-sm bg-yellow-200 border">
-                    {formatCurrency(rawData.filter(r => r.is_fee).reduce((sum, r) => sum + parseFloat(r.amount), 0))}
+                    {formatCurrency(
+                      getRowTotal('bank_transfer_fee') + getRowTotal('paypay_fee') + 
+                      getRowTotal('paypal_fee') + getRowTotal('stripe_fee')
+                    )}
                   </td>
                 </tr>
                 
                 {/* 매출합계 (매출 - 수수료) 행 */}
                 <tr className="bg-green-100 font-bold border-t-2">
-                  <td className="px-4 py-2 text-sm">{language === 'ja' ? '売上合計' : '매출합계'}</td>
-                  {months.map(month => (
-                    <td key={month} className="px-2 py-2 text-right text-sm border">
-                      {formatCurrency(getMonthTotal(month))}
-                    </td>
-                  ))}
+                  <td className="px-4 py-2 text-sm border">{language === 'ja' ? '売上合計' : '매출합계'}</td>
+                  {months.map(month => {
+                    const data = getMonthData(month)
+                    if (!data) return <td key={month} className="px-2 py-2 text-right text-sm border">¥0</td>
+                    
+                    const sales = getValue(month, 'bank_transfer') + getValue(month, 'paypay') + 
+                                 getValue(month, 'paypal') + getValue(month, 'stripe')
+                    const fees = getValue(month, 'bank_transfer_fee') + getValue(month, 'paypay_fee') + 
+                                getValue(month, 'paypal_fee') + getValue(month, 'stripe_fee')
+                    
+                    return (
+                      <td key={month} className="px-2 py-2 text-right text-sm border">
+                        {formatCurrency(sales - fees)}
+                      </td>
+                    )
+                  })}
                   <td className="px-4 py-2 text-right text-sm bg-green-200 border font-extrabold">
-                    {formatCurrency(getGrandTotal())}
+                    {formatCurrency(
+                      (getRowTotal('bank_transfer') + getRowTotal('paypay') + getRowTotal('paypal') + getRowTotal('stripe')) -
+                      (getRowTotal('bank_transfer_fee') + getRowTotal('paypay_fee') + getRowTotal('paypal_fee') + getRowTotal('stripe_fee'))
+                    )}
                   </td>
                 </tr>
               </tbody>
