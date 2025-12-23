@@ -11,8 +11,6 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
     const userId = req.user?.id
     const { startDate, endDate, manager } = req.query
 
-    console.log('Dashboard stats request:', { userId, userName: req.user?.name, startDate, endDate, manager })
-
     if (!startDate || !endDate) {
       return res.status(400).json({ message: 'startDate and endDate are required' })
     }
@@ -39,8 +37,6 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
     // manager가 'all'이면 모든 사용자의 매출을 가져옴 (추가 조건 없음)
 
     const salesResult = await pool.query(salesQuery, salesParams)
-
-    console.log('Sales result:', salesResult.rows[0])
 
     // 계약중 고객수 (고객관리에서 진행현황이 계약중인 것) - 매니저 필터 적용
     let contractCustomersQuery = `
@@ -190,8 +186,6 @@ router.get('/sales-trend', authMiddleware, async (req: AuthRequest, res: Respons
     const { manager } = req.query
     const userId = req.user?.id
     const userName = req.user?.name
-
-    console.log('Sales trend request:', { userId, userName, manager })
 
     // 최근 12개월 데이터 생성 (로컬 타임존 기준 라벨링)
     const months: string[] = []
@@ -408,33 +402,32 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       endDate as string
     )
 
-    console.log('[Performance Stats] Request:', { startDate: validatedStartDate, endDate: validatedEndDate, manager })
-
     // === 1. 활동량 집계 ===
     
-    // 1-1. 신규 영업 활동량: inquiry_leads (assigned_at 기준) + customer_history (신규 고객)
-    let newSalesActivityQuery = `
-      SELECT COUNT(*) as count FROM (
-        -- 문의 배정 건수
-        SELECT il.id 
-        FROM inquiry_leads il
-        LEFT JOIN users u ON il.assignee_id = u.id
-        WHERE il.assigned_at BETWEEN $1 AND $2
-        AND il.status IN ('IN_PROGRESS', 'COMPLETED')
-        ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
-        
-        UNION ALL
-        
-        -- 신규 고객 히스토리 건수
-        SELECT ch.id
-        FROM customer_history ch
-        JOIN customers c ON ch.customer_id = c.id
-        LEFT JOIN users u ON ch.user_id = u.id
-        WHERE ch.created_at BETWEEN $1 AND $2
-        AND c.status NOT IN ('契約中', '購入', '계약중')
-        ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
-      ) AS new_activities
+    // 1-1. 신규 영업 활동량 - 5가지 수단별로 구분
+    // 폼: inquiry_leads에서 해당 기간에 완료된 것 (sent_date 기준)
+    let formActivityQuery = `
+      SELECT COUNT(*) as count
+      FROM inquiry_leads il
+      LEFT JOIN users u ON il.assignee_id = u.id
+      WHERE il.sent_date BETWEEN $1 AND $2
+      AND il.status = 'COMPLETED'
+      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
     `
+    
+    // DM/라인/전화/메일: sales_tracking에서 contact_method별로 한 번에 집계
+    let contactMethodActivityQuery = `
+      SELECT 
+        COUNT(CASE WHEN st.contact_method = 'DM' THEN 1 END) as dm_count,
+        COUNT(CASE WHEN st.contact_method = 'LINE' THEN 1 END) as line_count,
+        COUNT(CASE WHEN st.contact_method = '電話' THEN 1 END) as phone_count,
+        COUNT(CASE WHEN st.contact_method = 'メール' THEN 1 END) as mail_count
+      FROM sales_tracking st
+      LEFT JOIN users u ON st.user_id = u.id
+      WHERE st.date BETWEEN $1 AND $2
+      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+    `
+    
     const newSalesParams = manager && manager !== 'all' 
       ? [validatedStartDate, validatedEndDate, manager] 
       : [validatedStartDate, validatedEndDate]
@@ -487,13 +480,6 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
     const salesParams = manager && manager !== 'all'
       ? [validatedStartDate, validatedEndDate, manager]
       : [validatedStartDate, validatedEndDate]
-    
-    // 2-2. 미배정 문의 건수
-    const unassignedQuery = `
-      SELECT COUNT(*) as count
-      FROM inquiry_leads
-      WHERE status = 'PENDING' AND assignee_id IS NULL
-    `
 
     // === 3. 전월/전주 대비 데이터 (비교용) ===
     const dateRange = new Date(validatedEndDate).getTime() - new Date(validatedStartDate).getTime()
@@ -519,22 +505,27 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
 
     // 병렬 쿼리 실행
     const [
-      newSalesResult,
+      formResult,
+      contactMethodResult,
       retargetingResult,
       existingResult,
       salesResult,
-      unassignedResult,
       prevSalesResult
     ] = await Promise.all([
-      pool.query(newSalesActivityQuery, newSalesParams),
+      pool.query(formActivityQuery, newSalesParams),
+      pool.query(contactMethodActivityQuery, newSalesParams),
       pool.query(retargetingActivityQuery, retargetingParams),
       pool.query(existingCustomerActivityQuery, existingParams),
       pool.query(salesQuery, salesParams),
-      pool.query(unassignedQuery),
       pool.query(prevSalesQuery, prevSalesParams)
     ])
 
-    const newSalesActivity = parseInt(newSalesResult.rows[0]?.count || '0')
+    const formActivity = parseInt(formResult.rows[0]?.count || '0')
+    const dmActivity = parseInt(contactMethodResult.rows[0]?.dm_count || '0')
+    const lineActivity = parseInt(contactMethodResult.rows[0]?.line_count || '0')
+    const phoneActivity = parseInt(contactMethodResult.rows[0]?.phone_count || '0')
+    const mailActivity = parseInt(contactMethodResult.rows[0]?.mail_count || '0')
+    const newSalesActivity = formActivity + dmActivity + lineActivity + phoneActivity + mailActivity
     const retargetingActivity = parseInt(retargetingResult.rows[0]?.count || '0')
     const existingActivity = parseInt(existingResult.rows[0]?.count || '0')
     const totalActivities = newSalesActivity + retargetingActivity + existingActivity
@@ -543,7 +534,7 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
     const newSales = parseInt(salesResult.rows[0]?.new_sales || '0')
     const renewalSales = parseInt(salesResult.rows[0]?.renewal_sales || '0')
     const contractCount = parseInt(salesResult.rows[0]?.contract_count || '0')
-    const unassignedInquiries = parseInt(unassignedResult.rows[0]?.count || '0')
+    const averageOrderValue = contractCount > 0 ? Math.round(totalSales / contractCount) : 0
 
     const prevTotalSales = parseInt(prevSalesResult.rows[0]?.total_sales || '0')
     const prevContractCount = parseInt(prevSalesResult.rows[0]?.contract_count || '0')
@@ -602,32 +593,123 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       : 0
     const contractRateChange = currentContractRate - prevContractRate
 
-    // === 4. 담당자별 성과 집계 ===
+    // === 4. 리타겟팅 단계별 현황 집계 ===
+    let retargetingStageQuery = `
+      SELECT 
+        COUNT(CASE WHEN status IN ('開始', '시작') THEN 1 END) as stage_start,
+        COUNT(CASE WHEN status IN ('認知', '인지') THEN 1 END) as stage_awareness,
+        COUNT(CASE WHEN status IN ('興味', '흥미') THEN 1 END) as stage_interest,
+        COUNT(CASE WHEN status IN ('欲求', '욕망') THEN 1 END) as stage_desire
+      FROM retargeting_customers
+      WHERE status NOT IN ('ゴミ箱', '휴지통', '契約完了', '계약완료')
+      ${manager && manager !== 'all' ? `AND (TRIM(manager) = TRIM($1) OR REPLACE(TRIM(manager), '﨑', '崎') = REPLACE(TRIM($1), '﨑', '崎'))` : ''}
+    `
+    const stageParams = manager && manager !== 'all' ? [manager] : []
+    const stageResult = await pool.query(retargetingStageQuery, stageParams)
+
+    // === 5. 리타 계약률 계산 ===
+    // 리타 계약률 = (해당 기간 신규매출 건수 / 해당 기간 리타겟팅 총 연락 횟수) * 100
+    // 실적관리 기준: 신규매출 = 리타겟팅 계약
+    let retargetingContractQuery = `
+      SELECT COUNT(s.id) as count
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.contract_date BETWEEN $1 AND $2
+      AND s.sales_type = '신규매출'
+      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+    `
+    const retargetingContractResult = await pool.query(retargetingContractQuery, 
+      manager && manager !== 'all' ? [validatedStartDate, validatedEndDate, manager] : [validatedStartDate, validatedEndDate]
+    )
+    const retargetingContractCount = parseInt(retargetingContractResult.rows[0]?.count || '0')
+    const retargetingContractRate = retargetingActivity > 0 
+      ? (retargetingContractCount / retargetingActivity) * 100 
+      : 0
+
+    // === 6. 연장률 계산 ===
+    // 연장률 = (당월 연장 매출액 / 전월 총 매출액) * 100
+    // 전월 기간 계산
+    const currentStartDate = new Date(validatedStartDate)
+    const prevMonthStartDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth() - 1, 1)
+    const prevMonthEndDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), 0)
+    
+    let prevMonthSalesQuery = `
+      SELECT COALESCE(SUM(s.amount), 0) as total_sales
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.contract_date BETWEEN $1 AND $2
+      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+    `
+    const prevMonthSalesResult = await pool.query(prevMonthSalesQuery,
+      manager && manager !== 'all' 
+        ? [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0], manager]
+        : [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0]]
+    )
+    const prevMonthTotalSales = parseInt(prevMonthSalesResult.rows[0]?.total_sales || '0')
+    const renewalRate = prevMonthTotalSales > 0 
+      ? (renewalSales / prevMonthTotalSales) * 100 
+      : 0
+
+    // === 7. 담당자별 성과 집계 ===
     let managerStatsQuery = `
-      WITH manager_activities AS (
-        -- 신규 영업 활동
+      WITH       manager_form_activity AS (
+        -- 폼 활동 (sent_date 기준으로 완료된 것)
         SELECT 
           u.name as manager_name,
-          COUNT(*) as new_contacts
-        FROM (
-          SELECT il.id, u.id as user_id
-          FROM inquiry_leads il
-          LEFT JOIN users u ON il.assignee_id = u.id
-          WHERE il.assigned_at BETWEEN $1 AND $2
-          AND il.status IN ('IN_PROGRESS', 'COMPLETED')
-          AND u.name IS NOT NULL
-          
-          UNION ALL
-          
-          SELECT ch.id, u.id as user_id
-          FROM customer_history ch
-          JOIN customers c ON ch.customer_id = c.id
-          LEFT JOIN users u ON ch.user_id = u.id
-          WHERE ch.created_at BETWEEN $1 AND $2
-          AND c.status NOT IN ('契約中', '購入', '계약중')
-          AND u.name IS NOT NULL
-        ) AS new_act
-        JOIN users u ON new_act.user_id = u.id
+          COUNT(*) as form_count
+        FROM inquiry_leads il
+        LEFT JOIN users u ON il.assignee_id = u.id
+        WHERE il.sent_date BETWEEN $1 AND $2
+        AND il.status = 'COMPLETED'
+        AND u.name IS NOT NULL
+        GROUP BY u.name
+      ),
+      manager_dm_activity AS (
+        -- DM 활동
+        SELECT 
+          u.name as manager_name,
+          COUNT(*) as dm_count
+        FROM sales_tracking st
+        LEFT JOIN users u ON st.user_id = u.id
+        WHERE st.date BETWEEN $1 AND $2
+        AND st.contact_method = 'DM'
+        AND u.name IS NOT NULL
+        GROUP BY u.name
+      ),
+      manager_line_activity AS (
+        -- 라인 활동
+        SELECT 
+          u.name as manager_name,
+          COUNT(*) as line_count
+        FROM sales_tracking st
+        LEFT JOIN users u ON st.user_id = u.id
+        WHERE st.date BETWEEN $1 AND $2
+        AND st.contact_method = 'LINE'
+        AND u.name IS NOT NULL
+        GROUP BY u.name
+      ),
+      manager_phone_activity AS (
+        -- 전화 활동
+        SELECT 
+          u.name as manager_name,
+          COUNT(*) as phone_count
+        FROM sales_tracking st
+        LEFT JOIN users u ON st.user_id = u.id
+        WHERE st.date BETWEEN $1 AND $2
+        AND st.contact_method = '電話'
+        AND u.name IS NOT NULL
+        GROUP BY u.name
+      ),
+      manager_mail_activity AS (
+        -- 메일 활동
+        SELECT 
+          u.name as manager_name,
+          COUNT(*) as mail_count
+        FROM sales_tracking st
+        LEFT JOIN users u ON st.user_id = u.id
+        WHERE st.date BETWEEN $1 AND $2
+        AND st.contact_method = 'メール'
+        AND u.name IS NOT NULL
         GROUP BY u.name
       ),
       retargeting_activities AS (
@@ -638,6 +720,18 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
         FROM retargeting_history rh
         LEFT JOIN users u ON rh.user_id = u.id
         WHERE rh.created_at BETWEEN $1 AND $2
+        AND u.name IS NOT NULL
+        GROUP BY u.name
+      ),
+      retargeting_contracts AS (
+        -- 리타겟팅 계약 건수 = 신규매출 건수 (실적관리 기준)
+        SELECT 
+          u.name as manager_name,
+          COUNT(s.id) as retargeting_contract_count
+        FROM sales s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.contract_date BETWEEN $1 AND $2
+        AND s.sales_type = '신규매출'
         AND u.name IS NOT NULL
         GROUP BY u.name
       ),
@@ -655,10 +749,15 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
         GROUP BY u.name
       ),
       manager_sales AS (
-        -- 매출 및 계약 건수
+        -- 매출 및 계약 건수 (신규/연장/해지 구분)
         SELECT 
           u.name as manager_name,
-          COUNT(CASE WHEN s.sales_type IN ('신규매출', '연장매출') THEN 1 END) as contract_count,
+          COUNT(CASE WHEN s.sales_type = '신규매출' THEN 1 END) as new_contract_count,
+          COALESCE(SUM(CASE WHEN s.sales_type = '신규매출' THEN s.amount ELSE 0 END), 0) as new_sales,
+          COUNT(CASE WHEN s.sales_type = '연장매출' THEN 1 END) as renewal_count,
+          COALESCE(SUM(CASE WHEN s.sales_type = '연장매출' THEN s.amount ELSE 0 END), 0) as renewal_sales,
+          COUNT(CASE WHEN s.sales_type = '해지매출' THEN 1 END) as termination_count,
+          COALESCE(SUM(CASE WHEN s.sales_type = '해지매출' THEN s.amount ELSE 0 END), 0) as termination_sales,
           COALESCE(SUM(s.amount), 0) as total_sales
         FROM sales s
         LEFT JOIN users u ON s.user_id = u.id
@@ -667,18 +766,33 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
         GROUP BY u.name
       )
       SELECT 
-        COALESCE(ma.manager_name, ra.manager_name, ea.manager_name, ms.manager_name) as manager_name,
-        COALESCE(ma.new_contacts, 0) as new_contacts,
+        COALESCE(mfa.manager_name, mda.manager_name, mla.manager_name, mpa.manager_name, mma.manager_name, ra.manager_name, rco.manager_name, ea.manager_name, ms.manager_name) as manager_name,
+        COALESCE(mfa.form_count, 0) as form_count,
+        COALESCE(mda.dm_count, 0) as dm_count,
+        COALESCE(mla.line_count, 0) as line_count,
+        COALESCE(mpa.phone_count, 0) as phone_count,
+        COALESCE(mma.mail_count, 0) as mail_count,
         COALESCE(ra.retargeting_contacts, 0) as retargeting_contacts,
+        COALESCE(rco.retargeting_contract_count, 0) as retargeting_contract_count,
         COALESCE(ea.existing_contacts, 0) as existing_contacts,
-        COALESCE(ms.contract_count, 0) as contract_count,
+        COALESCE(ms.new_contract_count, 0) as new_contract_count,
+        COALESCE(ms.new_sales, 0) as new_sales,
+        COALESCE(ms.renewal_count, 0) as renewal_count,
+        COALESCE(ms.renewal_sales, 0) as renewal_sales,
+        COALESCE(ms.termination_count, 0) as termination_count,
+        COALESCE(ms.termination_sales, 0) as termination_sales,
         COALESCE(ms.total_sales, 0) as total_sales
-      FROM manager_activities ma
-      FULL OUTER JOIN retargeting_activities ra ON ma.manager_name = ra.manager_name
-      FULL OUTER JOIN existing_activities ea ON COALESCE(ma.manager_name, ra.manager_name) = ea.manager_name
-      FULL OUTER JOIN manager_sales ms ON COALESCE(ma.manager_name, ra.manager_name, ea.manager_name) = ms.manager_name
-      WHERE COALESCE(ma.manager_name, ra.manager_name, ea.manager_name, ms.manager_name) IS NOT NULL
-      ${manager && manager !== 'all' ? `AND COALESCE(ma.manager_name, ra.manager_name, ea.manager_name, ms.manager_name) = $3` : ''}
+      FROM manager_form_activity mfa
+      FULL OUTER JOIN manager_dm_activity mda ON mfa.manager_name = mda.manager_name
+      FULL OUTER JOIN manager_line_activity mla ON COALESCE(mfa.manager_name, mda.manager_name) = mla.manager_name
+      FULL OUTER JOIN manager_phone_activity mpa ON COALESCE(mfa.manager_name, mda.manager_name, mla.manager_name) = mpa.manager_name
+      FULL OUTER JOIN manager_mail_activity mma ON COALESCE(mfa.manager_name, mda.manager_name, mla.manager_name, mpa.manager_name) = mma.manager_name
+      FULL OUTER JOIN retargeting_activities ra ON COALESCE(mfa.manager_name, mda.manager_name, mla.manager_name, mpa.manager_name, mma.manager_name) = ra.manager_name
+      FULL OUTER JOIN retargeting_contracts rco ON COALESCE(mfa.manager_name, mda.manager_name, mla.manager_name, mpa.manager_name, mma.manager_name, ra.manager_name) = rco.manager_name
+      FULL OUTER JOIN existing_activities ea ON COALESCE(mfa.manager_name, mda.manager_name, mla.manager_name, mpa.manager_name, mma.manager_name, ra.manager_name, rco.manager_name) = ea.manager_name
+      FULL OUTER JOIN manager_sales ms ON COALESCE(mfa.manager_name, mda.manager_name, mla.manager_name, mpa.manager_name, mma.manager_name, ra.manager_name, rco.manager_name, ea.manager_name) = ms.manager_name
+      WHERE COALESCE(mfa.manager_name, mda.manager_name, mla.manager_name, mpa.manager_name, mma.manager_name, ra.manager_name, rco.manager_name, ea.manager_name, ms.manager_name) IS NOT NULL
+      ${manager && manager !== 'all' ? `AND COALESCE(mfa.manager_name, mda.manager_name, mla.manager_name, mpa.manager_name, mma.manager_name, ra.manager_name, rco.manager_name, ea.manager_name, ms.manager_name) = $3` : ''}
       ORDER BY total_sales DESC
     `
     const managerStatsParams = manager && manager !== 'all'
@@ -688,29 +802,50 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
     const managerStatsResult = await pool.query(managerStatsQuery, managerStatsParams)
     
     const managerStats = managerStatsResult.rows.map(row => {
-      const totalContacts = parseInt(row.new_contacts) + parseInt(row.retargeting_contacts) + parseInt(row.existing_contacts)
-      const contractRate = totalContacts > 0 
-        ? (parseInt(row.contract_count) / totalContacts) * 100 
+      const formCount = parseInt(row.form_count || '0')
+      const dmCount = parseInt(row.dm_count || '0')
+      const lineCount = parseInt(row.line_count || '0')
+      const phoneCount = parseInt(row.phone_count || '0')
+      const mailCount = parseInt(row.mail_count || '0')
+      const newContacts = formCount + dmCount + lineCount + phoneCount + mailCount
+      const retargetingContacts = parseInt(row.retargeting_contacts || '0')
+      const existingContacts = parseInt(row.existing_contacts || '0')
+      
+      const retargetingContractCount = parseInt(row.retargeting_contract_count || '0')
+      const retargetingContractRate = retargetingContacts > 0
+        ? (retargetingContractCount / retargetingContacts) * 100
         : 0
       
       return {
         managerName: row.manager_name,
-        newContacts: parseInt(row.new_contacts),
-        retargetingContacts: parseInt(row.retargeting_contacts),
-        existingContacts: parseInt(row.existing_contacts),
-        contractCount: parseInt(row.contract_count),
-        totalSales: parseInt(row.total_sales),
-        contractRate: Math.round(contractRate * 100) / 100
+        formCount,
+        dmCount,
+        lineCount,
+        phoneCount,
+        mailCount,
+        newContacts,
+        retargetingContacts,
+        retargetingContractCount,
+        retargetingContractRate: Math.round(retargetingContractRate * 100) / 100,
+        existingContacts,
+        newContractCount: parseInt(row.new_contract_count || '0'),
+        newSales: parseInt(row.new_sales || '0'),
+        renewalCount: parseInt(row.renewal_count || '0'),
+        renewalSales: parseInt(row.renewal_sales || '0'),
+        terminationCount: parseInt(row.termination_count || '0'),
+        terminationSales: parseInt(row.termination_sales || '0'),
+        totalSales: parseInt(row.total_sales || '0')
       }
     })
 
     // === 연락 주기 도래 고객 집계 (30일 주기 기준) ===
+    // 1달(30일)에 한 번 연락 정책: 23일 경과 시 "이번주 예정" 표시 (30일 - 7일 = 23일)
     let retargetingAlertQuery = `
       SELECT 
-        COUNT(CASE WHEN last_contact_date <= CURRENT_DATE - INTERVAL '30 days' 
-                    AND last_contact_date > CURRENT_DATE - INTERVAL '37 days' THEN 1 END) as due_this_week,
-        COUNT(CASE WHEN last_contact_date <= CURRENT_DATE - INTERVAL '37 days' THEN 1 END) as overdue,
-        COUNT(CASE WHEN last_contact_date > CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as upcoming
+        COUNT(CASE WHEN last_contact_date <= CURRENT_DATE - INTERVAL '23 days' 
+                    AND last_contact_date > CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as due_this_week,
+        COUNT(CASE WHEN last_contact_date <= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as overdue,
+        COUNT(CASE WHEN last_contact_date > CURRENT_DATE - INTERVAL '23 days' THEN 1 END) as upcoming
       FROM retargeting_customers
       WHERE status NOT IN ('ゴミ箱', '휴지통', '契約完了', '계약완료')
       AND last_contact_date IS NOT NULL
@@ -719,13 +854,31 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
     const alertParams = manager && manager !== 'all' ? [manager] : []
     const alertResult = await pool.query(retargetingAlertQuery, alertParams)
 
+    // 리타겟팅 단계별 고객 수
+    const retargetingStart = parseInt(stageResult.rows[0]?.stage_start || '0')
+    const retargetingAwareness = parseInt(stageResult.rows[0]?.stage_awareness || '0')
+    const retargetingInterest = parseInt(stageResult.rows[0]?.stage_interest || '0')
+    const retargetingDesire = parseInt(stageResult.rows[0]?.stage_desire || '0')
+
+    // 예상 파이프라인 계산 (단계별 확률 × 객단가)
+    // 시작: 5%, 인지: 10%, 흥미: 30%, 욕망: 50%
+    const potentialRevenue = Math.round(
+      (retargetingStart * 0.05 * averageOrderValue) +
+      (retargetingAwareness * 0.10 * averageOrderValue) +
+      (retargetingInterest * 0.30 * averageOrderValue) +
+      (retargetingDesire * 0.50 * averageOrderValue)
+    )
+
     const response = {
       summary: {
         totalSales,
+        potentialRevenue,
         contractCount,
         totalActivities,
         contractRate: Math.round(currentContractRate * 100) / 100,
-        unassignedInquiries,
+        retargetingContractRate: Math.round(retargetingContractRate * 100) / 100,
+        renewalRate: Math.round(renewalRate * 100) / 100,
+        averageOrderValue,
         comparedToPrevious: {
           salesChange: Math.round(salesChange * 100) / 100,
           contractRateChange: Math.round(contractRateChange * 100) / 100
@@ -733,12 +886,25 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       },
       activities: {
         newSales: newSalesActivity,
+        newSalesBreakdown: {
+          form: formActivity,
+          dm: dmActivity,
+          line: lineActivity,
+          phone: phoneActivity,
+          mail: mailActivity
+        },
         retargeting: retargetingActivity,
         existingCustomer: existingActivity
       },
       salesBreakdown: {
         newSales,
         renewalSales
+      },
+      retargetingStages: {
+        start: retargetingStart,
+        awareness: retargetingAwareness,
+        interest: retargetingInterest,
+        desire: retargetingDesire
       },
       retargetingAlert: {
         dueThisWeek: parseInt(alertResult.rows[0]?.due_this_week || '0'),
@@ -748,12 +914,22 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       managerStats
     }
 
-    console.log('[Performance Stats] Response summary:', {
-      totalActivities,
-      contractCount,
-      contractRate: response.summary.contractRate,
-      managerCount: managerStats.length
-    })
+    // 디버깅: 담당자 없는 매출 확인
+    const orphanedSalesQuery = `
+      SELECT 
+        COUNT(*) as count,
+        COALESCE(SUM(amount), 0) as total_amount,
+        COALESCE(SUM(CASE WHEN sales_type = '신규매출' THEN amount ELSE 0 END), 0) as new_amount,
+        COALESCE(SUM(CASE WHEN sales_type = '연장매출' THEN amount ELSE 0 END), 0) as renewal_amount,
+        COALESCE(SUM(CASE WHEN sales_type = '해지매출' THEN amount ELSE 0 END), 0) as termination_amount
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.contract_date BETWEEN $1 AND $2
+      AND (u.name IS NULL OR u.name = '')
+      ${manager && manager !== 'all' ? `AND FALSE` : ''}
+    `
+    const orphanedResult = await pool.query(orphanedSalesQuery, [validatedStartDate, validatedEndDate])
+    const orphanedSales = orphanedResult.rows[0]
 
     res.json(response)
   } catch (error) {
