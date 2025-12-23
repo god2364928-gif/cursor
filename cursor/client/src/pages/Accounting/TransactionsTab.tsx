@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import api from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set())
   const [updatingTransactionId, setUpdatingTransactionId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   
   // 필터
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>('all')
@@ -60,7 +61,8 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
     fetchAutoMatchRules()
   }, [startDate, endDate])
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
+    setLoading(true)
     try {
       console.log('📡 Fetching transactions:', { startDate, endDate, limit: 1000 })
       const response = await api.get('/accounting/transactions', {
@@ -74,8 +76,10 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
       setTransactions(response.data)
     } catch (error) {
       console.error('Transactions fetch error:', error)
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [startDate, endDate])
 
   const fetchNameOptions = async () => {
     try {

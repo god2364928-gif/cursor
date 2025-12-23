@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Plus, Upload, Pencil, Trash2, FileText } from 'lucide-react'
 import api from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,6 +30,7 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
   })
   const [paypaySales, setPaypaySales] = useState<any[]>([])
   const [paypayExpenses, setPaypayExpenses] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
   
   const paypayPrevMonthDates = getPreviousMonthDates()
   const [paypayStartDate, setPaypayStartDate] = useState(paypayPrevMonthDates.start)
@@ -45,21 +46,31 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
   const [paypayUploadPreview, setPaypayUploadPreview] = useState<any[]>([])
 
   useEffect(() => {
-    fetchPaypaySummary()
-    fetchPaypaySales()
-    fetchPaypayExpenses()
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        await Promise.all([
+          fetchPaypaySummary(),
+          fetchPaypaySales(),
+          fetchPaypayExpenses()
+        ])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
   }, [paypayStartDate, paypayEndDate, paypayCategoryFilter, paypayNameFilter])
 
-  const fetchPaypaySummary = async () => {
+  const fetchPaypaySummary = useCallback(async () => {
     try {
       const response = await api.get('/paypay/summary')
       setPaypaySummary(response.data)
     } catch (error) {
       console.error('PayPay summary fetch error:', error)
     }
-  }
+  }, [])
 
-  const fetchPaypaySales = async () => {
+  const fetchPaypaySales = useCallback(async () => {
     try {
       let categoryParam = undefined
       if (paypayCategoryFilter !== 'all') {
@@ -78,9 +89,9 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
     } catch (error) {
       console.error('PayPay sales fetch error:', error)
     }
-  }
+  }, [paypayStartDate, paypayEndDate, paypayCategoryFilter, paypayNameFilter])
 
-  const fetchPaypayExpenses = async () => {
+  const fetchPaypayExpenses = useCallback(async () => {
     try {
       const response = await api.get('/paypay/expenses', {
         params: { startDate: paypayStartDate, endDate: paypayEndDate }
@@ -89,7 +100,7 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
     } catch (error) {
       console.error('PayPay expenses fetch error:', error)
     }
-  }
+  }, [paypayStartDate, paypayEndDate, paypayCategoryFilter, paypayNameFilter])
 
   const handlePaypayPreviousMonth = () => {
     const now = new Date()

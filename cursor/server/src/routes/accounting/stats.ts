@@ -38,43 +38,57 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
       dateParams = [fiscalStartDate, fiscalEndDate]
     }
 
-    // 매출 합계
-    const salesResult = await pool.query(
-      `SELECT 
-        COALESCE(SUM(amount), 0) as total_sales
-       FROM accounting_transactions
-       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'`,
-      dateParams
-    )
+    // 병렬 쿼리 실행으로 성능 최적화
+    const [
+      salesByCategoryResult,
+      expensesResult,
+      accountsResult,
+      latestCapitalResult,
+      depositsResult
+    ] = await Promise.all([
+      // 매출 카테고리별 (합계는 여기서 계산)
+      pool.query(
+        `SELECT 
+          category,
+          COALESCE(SUM(amount), 0) as total
+         FROM accounting_transactions
+         WHERE ${dateCondition} AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
+         GROUP BY category`,
+        dateParams
+      ),
+      // 지출 카테고리별
+      pool.query(
+        `SELECT 
+          category,
+          COALESCE(SUM(amount), 0) as total
+         FROM accounting_transactions
+         WHERE ${dateCondition} AND transaction_type = '출금'
+         GROUP BY category`,
+        dateParams
+      ),
+      // 계좌 잔액
+      pool.query(
+        `SELECT account_name, account_type, current_balance
+         FROM accounting_capital
+         ORDER BY account_type, account_name`
+      ),
+      // 최신 자본금
+      pool.query(
+        `SELECT amount, balance_date
+         FROM capital_balance
+         ORDER BY balance_date DESC
+         LIMIT 1`
+      ),
+      // 보증금 합계
+      pool.query(
+        `SELECT COALESCE(SUM(amount), 0) as total_deposits
+         FROM deposits`
+      )
+    ])
 
-    // 매출 카테고리별
-    const salesByCategoryResult = await pool.query(
-      `SELECT 
-        category,
-        COALESCE(SUM(amount), 0) as total
-       FROM accounting_transactions
-       WHERE ${dateCondition} AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
-       GROUP BY category`,
-      dateParams
-    )
-
-    // 지출 합계
-    const expensesResult = await pool.query(
-      `SELECT 
-        category,
-        COALESCE(SUM(amount), 0) as total
-       FROM accounting_transactions
-       WHERE ${dateCondition} AND transaction_type = '출금'
-       GROUP BY category`,
-      dateParams
-    )
-
-    // 계좌 잔액
-    const accountsResult = await pool.query(
-      `SELECT account_name, account_type, current_balance
-       FROM accounting_capital
-       ORDER BY account_type, account_name`
-    )
+    const latestCapitalBalance = latestCapitalResult.rows[0] ? Number(latestCapitalResult.rows[0].amount) : 0
+    const totalDeposits = Number(depositsResult.rows[0]?.total_deposits || 0)
+    const totalAssets = latestCapitalBalance + totalDeposits
 
     // 최근 12개월 계산 (JST 기준)
     const now = new Date()
@@ -82,57 +96,63 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
     const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1)
     const twelveMonthsAgoStr = toJSTDateString(twelveMonthsAgo)
 
-    // 월별 매출 추이 (거래내역 기반 - 최근 12개월)
-    const monthlySalesResult = await pool.query(
-      `SELECT 
-        TO_CHAR(transaction_date, 'YYYY-MM') as month,
-        COALESCE(SUM(amount), 0) as total
-       FROM accounting_transactions
-       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
-       GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
-       ORDER BY month`,
-      [twelveMonthsAgoStr, nowStr]
-    )
+    // 월별 데이터 병렬 쿼리
+    const [
+      monthlySalesResult,
+      monthlyExpensesResult,
+      monthlyExpensesByCategoryResult,
+      monthlySalesByCategoryResult
+    ] = await Promise.all([
+      // 월별 매출 추이
+      pool.query(
+        `SELECT 
+          TO_CHAR(transaction_date, 'YYYY-MM') as month,
+          COALESCE(SUM(amount), 0) as total
+         FROM accounting_transactions
+         WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
+         GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
+         ORDER BY month`,
+        [twelveMonthsAgoStr, nowStr]
+      ),
+      // 월별 지출 추이
+      pool.query(
+        `SELECT 
+          TO_CHAR(transaction_date, 'YYYY-MM') as month,
+          COALESCE(SUM(amount), 0) as total
+         FROM accounting_transactions
+         WHERE transaction_date BETWEEN $1 AND $2 AND transaction_type = '출금'
+         GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
+         ORDER BY month`,
+        [twelveMonthsAgoStr, nowStr]
+      ),
+      // 월별 카테고리별 지출
+      pool.query(
+        `SELECT 
+          TO_CHAR(transaction_date, 'YYYY-MM') as month,
+          category,
+          COALESCE(SUM(amount), 0) as total
+         FROM accounting_transactions
+         WHERE transaction_date BETWEEN $1 AND $2 AND transaction_type = '출금'
+         GROUP BY TO_CHAR(transaction_date, 'YYYY-MM'), category
+         ORDER BY month, category`,
+        [twelveMonthsAgoStr, nowStr]
+      ),
+      // 월별 카테고리별 매출
+      pool.query(
+        `SELECT 
+          TO_CHAR(transaction_date, 'YYYY-MM') as month,
+          category,
+          COALESCE(SUM(amount), 0) as total
+         FROM accounting_transactions
+         WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
+         GROUP BY TO_CHAR(transaction_date, 'YYYY-MM'), category
+         ORDER BY month, category`,
+        [twelveMonthsAgoStr, nowStr]
+      )
+    ])
 
-    // 월별 지출 추이 (거래내역 기반 - 최근 12개월)
-    const monthlyExpensesResult = await pool.query(
-      `SELECT 
-        TO_CHAR(transaction_date, 'YYYY-MM') as month,
-        COALESCE(SUM(amount), 0) as total
-       FROM accounting_transactions
-       WHERE transaction_date BETWEEN $1 AND $2 AND transaction_type = '출금'
-       GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
-       ORDER BY month`,
-      [twelveMonthsAgoStr, nowStr]
-    )
-
-    // 월별 카테고리별 지출 (최근 12개월)
-    const monthlyExpensesByCategoryResult = await pool.query(
-      `SELECT 
-        TO_CHAR(transaction_date, 'YYYY-MM') as month,
-        category,
-        COALESCE(SUM(amount), 0) as total
-       FROM accounting_transactions
-       WHERE transaction_date BETWEEN $1 AND $2 AND transaction_type = '출금'
-       GROUP BY TO_CHAR(transaction_date, 'YYYY-MM'), category
-       ORDER BY month, category`,
-      [twelveMonthsAgoStr, nowStr]
-    )
-
-    // 월별 카테고리별 매출 (최근 12개월)
-    const monthlySalesByCategoryResult = await pool.query(
-      `SELECT 
-        TO_CHAR(transaction_date, 'YYYY-MM') as month,
-        category,
-        COALESCE(SUM(amount), 0) as total
-       FROM accounting_transactions
-       WHERE transaction_date BETWEEN $1 AND $2 AND category IN ('셀마플', '코코마케') AND transaction_type = '입금'
-       GROUP BY TO_CHAR(transaction_date, 'YYYY-MM'), category
-       ORDER BY month, category`,
-      [twelveMonthsAgoStr, nowStr]
-    )
-
-    const totalSales = Number(salesResult.rows[0]?.total_sales || 0)
+    // 매출 합계 계산 (카테고리별 합산)
+    const totalSales = salesByCategoryResult.rows.reduce((sum: number, row: any) => sum + Number(row.total), 0)
     
     const salesByCategory = salesByCategoryResult.rows.reduce((acc: any, row: any) => {
       acc[row.category] = Number(row.total)
@@ -200,6 +220,11 @@ router.get('/dashboard', authMiddleware, adminOnly, async (req: AuthRequest, res
         accountType: r.account_type,
         balance: Number(r.current_balance),
       })),
+      // 총자산 정보
+      latestCapitalBalance,
+      latestCapitalDate: latestCapitalResult.rows[0]?.balance_date || null,
+      totalDeposits,
+      totalAssets,
       monthlyData,
       monthlyExpensesByCategory,
       monthlySalesByCategory

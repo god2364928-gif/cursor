@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, Download, FileText } from 'lucide-react'
 import api from '../../lib/api'
 import { useI18nStore } from '../../i18n'
 import { Employee } from './types'
@@ -24,19 +24,34 @@ export default function EmployeesTab({ isAdmin }: EmployeesTabProps) {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [selectedYearMonth, setSelectedYearMonth] = useState('')
   const [selectedFileSubcategory, setSelectedFileSubcategory] = useState('')
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     fetchEmployees()
   }, [])
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
+    setLoading(true)
     try {
       const response = await api.get('/auth/users')
       setEmployees(response.data)
     } catch (error) {
       console.error('Employees fetch error:', error)
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [])
+
+  // 필터링된 직원 목록 (메모이제이션)
+  const filteredEmployees = useMemo(() => {
+    return employees.filter(emp => {
+      const status = emp.employmentStatus || emp.employment_status
+      if (employeeStatusFilter === '입사중') {
+        return status === '입사중' || status === null || status === ''
+      }
+      return status === employeeStatusFilter
+    })
+  }, [employees, employeeStatusFilter])
 
   const openEmployeeForm = (emp?: Employee) => {
     if (emp) {
@@ -370,12 +385,7 @@ export default function EmployeesTab({ isAdmin }: EmployeesTabProps) {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {employees
-          .filter(emp => {
-            const status = emp.employmentStatus || emp.employment_status || '입사중' // NULL이나 빈 값은 입사중으로 간주
-            return status === employeeStatusFilter
-          })
-          .map((emp) => (
+        {filteredEmployees.map((emp) => (
           <Card key={emp.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEmployeeDetail(emp)}>
             <CardContent className="p-4">
               <div className="flex justify-between items-start">
@@ -391,16 +401,16 @@ export default function EmployeesTab({ isAdmin }: EmployeesTabProps) {
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <span
                     className={`px-2 py-1 rounded text-xs font-medium ${
-                      (emp.employmentStatus || emp.employment_status) === '입사중' 
+                      ((emp.employmentStatus || emp.employment_status) || '입사중') === '입사중' 
                         ? 'bg-green-100 text-green-800' 
-                        : (emp.employmentStatus || emp.employment_status) === '입사전'
+                        : ((emp.employmentStatus || emp.employment_status) || '입사중') === '입사전'
                         ? 'bg-blue-100 text-blue-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}
                   >
-                    {(emp.employmentStatus || emp.employment_status) === '입사중'
+                    {((emp.employmentStatus || emp.employment_status) || '입사중') === '입사중'
                       ? (language === 'ja' ? '入社中' : '입사중')
-                      : (emp.employmentStatus || emp.employment_status) === '입사전'
+                      : ((emp.employmentStatus || emp.employment_status) || '입사중') === '입사전'
                       ? (language === 'ja' ? '入社前' : '입사전')
                       : (language === 'ja' ? '退職' : '퇴사')}
                   </span>
@@ -486,10 +496,69 @@ export default function EmployeesTab({ isAdmin }: EmployeesTabProps) {
                   </div>
                 </div>
 
-                {/* 파일 관리 섹션 - 필요시 확장 */}
+                {/* 파일 관리 섹션 */}
                 <div className="mt-6">
                   <h3 className="text-lg font-semibold mb-4">{language === 'ja' ? 'ファイル管理' : '파일 관리'}</h3>
-                  <p className="text-sm text-gray-500">{language === 'ja' ? 'ファイル管理機能が実装されています' : '파일 관리 기능이 구현되어 있습니다'}</p>
+                  
+                  {/* 파일 업로드 */}
+                  <div className="mb-4">
+                    <label className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600 w-fit">
+                      <Upload className="h-4 w-4" />
+                      {language === 'ja' ? 'ファイルをアップロード' : '파일 업로드'}
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handleUploadEmployeeFile('개인서류', file)
+                            e.target.value = ''
+                          }
+                        }}
+                        disabled={uploadingFile}
+                      />
+                    </label>
+                  </div>
+
+                  {/* 파일 목록 */}
+                  {employeeFiles.length > 0 ? (
+                    <div className="space-y-2">
+                      {employeeFiles.map((file: any) => (
+                        <div key={file.id} className="flex items-center gap-2 p-3 border rounded hover:bg-gray-50">
+                          <FileText className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{file.fileName || file.originalName}</p>
+                            {file.fileCategory && (
+                              <p className="text-xs text-gray-500">{file.fileCategory}</p>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-500 flex-shrink-0">
+                            {(file.fileSize / 1024).toFixed(1)} KB
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownloadEmployeeFile(file.id, file.fileName || file.originalName)}
+                            className="flex-shrink-0"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteEmployeeFile(file.id)}
+                            className="flex-shrink-0 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-8">
+                      {language === 'ja' ? 'ファイルがありません' : '등록된 파일이 없습니다'}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

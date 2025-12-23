@@ -128,3 +128,4 @@ export const isoToJSTTimestampString = isoToKSTTimestampString
 // ===== Seoul 별칭 (salesTracking.ts 호환) =====
 export const toSeoulTimestampString = toKSTTimestampString
 
+

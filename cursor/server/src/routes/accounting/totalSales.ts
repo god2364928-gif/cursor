@@ -33,8 +33,11 @@ router.get('/:fiscalYear', authMiddleware, adminOnly, async (req: AuthRequest, r
           paypay_fee: 0,
           paypal: 0,
           paypal_fee: 0,
-          stripe: 0,
-          stripe_fee: 0
+          strip: 0,
+          strip_fee: 0,
+          strip1: 0,
+          strip1_fee: 0,
+          coconala: 0
         }
       }
       
@@ -43,7 +46,7 @@ router.get('/:fiscalYear', authMiddleware, adminOnly, async (req: AuthRequest, r
       const isFee = row.is_fee
       
       // 결제 방법별로 매핑
-      if (paymentMethod === '계좌이체' || paymentMethod === 'bank' || paymentMethod === 'bank_transfer') {
+      if (paymentMethod === '계좌이체' || paymentMethod === 'bank' || paymentMethod === 'bank_transfer' || paymentMethod === '口座振込'.toLowerCase()) {
         if (isFee) {
           monthlyData[month].bank_transfer_fee = amount
         } else {
@@ -61,12 +64,20 @@ router.get('/:fiscalYear', authMiddleware, adminOnly, async (req: AuthRequest, r
         } else {
           monthlyData[month].paypal = amount
         }
-      } else if (paymentMethod.includes('strip')) { // 'strip', 'strip1', 'stripe'
+      } else if (paymentMethod === 'strip1') {
         if (isFee) {
-          monthlyData[month].stripe_fee += amount
+          monthlyData[month].strip1_fee = amount
         } else {
-          monthlyData[month].stripe += amount
+          monthlyData[month].strip1 = amount
         }
+      } else if (paymentMethod === 'strip' || paymentMethod === 'stripe') {
+        if (isFee) {
+          monthlyData[month].strip_fee = amount
+        } else {
+          monthlyData[month].strip = amount
+        }
+      } else if (paymentMethod === 'ココナラ'.toLowerCase() || paymentMethod === 'coconala') {
+        monthlyData[month].coconala = amount
       }
     })
     

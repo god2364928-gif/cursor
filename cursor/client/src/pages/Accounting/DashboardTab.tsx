@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import api from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -42,6 +42,10 @@ interface DashboardData {
     accountType: string
     balance: number
   }>
+  latestCapitalBalance?: number
+  latestCapitalDate?: string | null
+  totalDeposits?: number
+  totalAssets?: number
   monthlyData: Array<{
     month: string
     sales: number
@@ -60,14 +64,10 @@ interface DashboardTabProps {
 const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
   const { startDate, endDate, fiscalYear, setStartDate, setEndDate, setFiscalYear, setDateRange } = useAccountingStore()
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (isAdmin) {
-      fetchDashboard()
-    }
-  }, [startDate, endDate, fiscalYear, isAdmin])
-
-  const fetchDashboard = async () => {
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true)
     try {
       const response = await api.get('/accounting/dashboard', {
         params: {
@@ -79,8 +79,16 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
       setDashboard(response.data)
     } catch (error) {
       console.error('Dashboard fetch error:', error)
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [fiscalYear, startDate, endDate])
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchDashboard()
+    }
+  }, [isAdmin, fetchDashboard])
 
   const handleStartDateChange = (newDate: string) => {
     if (!newDate) return
@@ -152,6 +160,77 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
     setDateRange(startDateStr, endDateStr)
   }
 
+  // 차트 데이터 준비 (useMemo로 최적화) - early return 이전에 모든 hooks 호출
+  const monthlyChartData = useMemo(() => {
+    if (!dashboard) return null
+    return {
+      labels: dashboard.monthlyData.map((d) => d.month),
+      datasets: [
+        {
+          label: language === 'ja' ? '売上' : '매출',
+          data: dashboard.monthlyData.map((d) => d.sales),
+          backgroundColor: 'rgba(34, 197, 94, 0.5)',
+          borderColor: 'rgba(34, 197, 94, 1)',
+          borderWidth: 2,
+        },
+        {
+          label: language === 'ja' ? '支出' : '지출',
+          data: dashboard.monthlyData.map((d) => d.expenses),
+          backgroundColor: 'rgba(239, 68, 68, 0.5)',
+          borderColor: 'rgba(239, 68, 68, 1)',
+          borderWidth: 2,
+        },
+        {
+          label: language === 'ja' ? '純利益' : '순이익',
+          data: dashboard.monthlyData.map((d) => d.profit),
+          backgroundColor: 'rgba(59, 130, 246, 0.5)',
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 2,
+        },
+      ],
+    }
+  }, [dashboard, language])
+
+  const salesByCategoryData = useMemo(() => {
+    if (!dashboard) return null
+    return {
+      labels: Object.keys(dashboard.salesByCategory),
+      datasets: [
+        {
+          label: language === 'ja' ? 'カテゴリー別売上' : '카테고리별 매출',
+          data: Object.values(dashboard.salesByCategory),
+          backgroundColor: [
+            'rgba(59, 130, 246, 0.5)',
+            'rgba(16, 185, 129, 0.5)',
+            'rgba(245, 158, 11, 0.5)',
+            'rgba(239, 68, 68, 0.5)',
+            'rgba(139, 92, 246, 0.5)',
+          ],
+        },
+      ],
+    }
+  }, [dashboard, language])
+
+  const expensesByCategoryData = useMemo(() => {
+    if (!dashboard) return null
+    return {
+      labels: Object.keys(dashboard.expensesByCategory),
+      datasets: [
+        {
+          label: language === 'ja' ? 'カテゴリー別支出' : '카테고리별 지출',
+          data: Object.values(dashboard.expensesByCategory),
+          backgroundColor: [
+            'rgba(239, 68, 68, 0.5)',
+            'rgba(249, 115, 22, 0.5)',
+            'rgba(234, 179, 8, 0.5)',
+            'rgba(168, 85, 247, 0.5)',
+            'rgba(236, 72, 153, 0.5)',
+          ],
+        },
+      ],
+    }
+  }, [dashboard, language])
+
   if (!dashboard) {
     return (
       <div className="p-6 text-center">
@@ -160,70 +239,13 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
     )
   }
 
-  // 차트 데이터 준비
-  const monthlyChartData = {
-    labels: dashboard.monthlyData.map((d) => d.month),
-    datasets: [
-      {
-        label: language === 'ja' ? '売上' : '매출',
-        data: dashboard.monthlyData.map((d) => d.sales),
-        backgroundColor: 'rgba(34, 197, 94, 0.5)',
-        borderColor: 'rgba(34, 197, 94, 1)',
-        borderWidth: 2,
-      },
-      {
-        label: language === 'ja' ? '支出' : '지출',
-        data: dashboard.monthlyData.map((d) => d.expenses),
-        backgroundColor: 'rgba(239, 68, 68, 0.5)',
-        borderColor: 'rgba(239, 68, 68, 1)',
-        borderWidth: 2,
-      },
-      {
-        label: language === 'ja' ? '純利益' : '순이익',
-        data: dashboard.monthlyData.map((d) => d.profit),
-        backgroundColor: 'rgba(59, 130, 246, 0.5)',
-        borderColor: 'rgba(59, 130, 246, 1)',
-        borderWidth: 2,
-      },
-    ],
-  }
-
-  const salesByCategoryData = {
-    labels: Object.keys(dashboard.salesByCategory),
-    datasets: [
-      {
-        label: language === 'ja' ? 'カテゴリー別売上' : '카테고리별 매출',
-        data: Object.values(dashboard.salesByCategory),
-        backgroundColor: [
-          'rgba(59, 130, 246, 0.5)',
-          'rgba(16, 185, 129, 0.5)',
-          'rgba(245, 158, 11, 0.5)',
-          'rgba(239, 68, 68, 0.5)',
-          'rgba(139, 92, 246, 0.5)',
-        ],
-      },
-    ],
-  }
-
-  const expensesByCategoryData = {
-    labels: Object.keys(dashboard.expensesByCategory),
-    datasets: [
-      {
-        label: language === 'ja' ? 'カテゴリー別支出' : '카테고리별 지출',
-        data: Object.values(dashboard.expensesByCategory),
-        backgroundColor: [
-          'rgba(239, 68, 68, 0.5)',
-          'rgba(249, 115, 22, 0.5)',
-          'rgba(234, 179, 8, 0.5)',
-          'rgba(168, 85, 247, 0.5)',
-          'rgba(236, 72, 153, 0.5)',
-        ],
-      },
-    ],
-  }
-
   return (
     <div className="space-y-6">
+      {loading && (
+        <div className="fixed top-20 right-6 bg-blue-500 text-white px-4 py-2 rounded shadow-lg z-50">
+          {language === 'ja' ? '読み込み中...' : '로딩 중...'}
+        </div>
+      )}
       {/* 날짜 필터 & 회계연도 */}
       <Card>
         <CardContent className="p-4">
@@ -334,6 +356,54 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
         </Card>
       </div>
 
+      {/* 총자산 카드 */}
+      {dashboard.totalAssets !== undefined && (
+        <Card className="bg-gradient-to-br from-purple-50 to-blue-50">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4">
+              {language === 'ja' ? '総資産' : '총자산'}
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">
+                  {language === 'ja' ? '口座残高（最新）' : '계좌잔액 (최신)'}
+                </span>
+                <span className="text-lg font-semibold text-blue-600">
+                  {formatCurrency(dashboard.latestCapitalBalance || 0)}
+                </span>
+              </div>
+              {dashboard.latestCapitalDate && (
+                <p className="text-xs text-gray-500">
+                  {new Date(dashboard.latestCapitalDate).toLocaleDateString('ko-KR', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit' 
+                  }).replace(/\. /g, '-').replace('.', '')} {language === 'ja' ? '基準' : '기준'}
+                </p>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">
+                  {language === 'ja' ? '保証金合計' : '보증금 합계'}
+                </span>
+                <span className="text-lg font-semibold text-green-600">
+                  {formatCurrency(dashboard.totalDeposits || 0)}
+                </span>
+              </div>
+              <div className="pt-3 border-t border-gray-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-base font-semibold">
+                    {language === 'ja' ? '合計' : '합계'}
+                  </span>
+                  <span className="text-2xl font-bold text-purple-600">
+                    {formatCurrency(dashboard.totalAssets)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 월별 추이 차트 */}
       <Card>
         <CardContent className="p-6">
@@ -341,7 +411,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
             {language === 'ja' ? '月別推移' : '월별 추이'}
           </h3>
           <div style={{ height: '300px' }}>
-            <Bar data={monthlyChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+            {monthlyChartData && <Bar data={monthlyChartData} options={{ responsive: true, maintainAspectRatio: false }} />}
           </div>
         </CardContent>
       </Card>
@@ -354,7 +424,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
               {language === 'ja' ? 'カテゴリー別売上' : '카테고리별 매출'}
             </h3>
             <div style={{ height: '250px' }}>
-              <Bar data={salesByCategoryData} options={{ responsive: true, maintainAspectRatio: false }} />
+              {salesByCategoryData && <Bar data={salesByCategoryData} options={{ responsive: true, maintainAspectRatio: false }} />}
             </div>
           </CardContent>
         </Card>
@@ -365,28 +435,12 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
               {language === 'ja' ? 'カテゴリー別支出' : '카테고리별 지출'}
             </h3>
             <div style={{ height: '250px' }}>
-              <Bar data={expensesByCategoryData} options={{ responsive: true, maintainAspectRatio: false }} />
+              {expensesByCategoryData && <Bar data={expensesByCategoryData} options={{ responsive: true, maintainAspectRatio: false }} />}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 계좌 잔액 */}
-      <Card>
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4">
-            {language === 'ja' ? '口座残高' : '계좌 잔액'}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {dashboard.accounts.map((account, idx) => (
-              <div key={idx} className="border rounded-lg p-4">
-                <p className="text-sm text-gray-600">{account.accountName}</p>
-                <p className="text-lg font-semibold">{formatCurrency(account.balance)}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

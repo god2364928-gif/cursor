@@ -392,3 +392,4 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
 
 export default PayrollTab
 
+
