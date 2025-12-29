@@ -261,6 +261,10 @@ export interface PerformanceStats {
     contractRate: number
     retargetingContractRate: number  // 리타 계약률 추가
     renewalRate: number  // 연장률 추가
+    renewalRateDetails?: {  // 연장률 상세 정보
+      currentMonthRenewalCount: number
+      prevMonthContractCount: number
+    }
     averageOrderValue: number  // 평균 객단가
     comparedToPrevious: {
       salesChange: number
