@@ -529,21 +529,43 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
     `
     
-    // 전월 계약 건수 쿼리 (연장율 계산용)
+    // 전월 계약 만료 고객 수 및 당월 연장 계약 수 조회 (연장율 계산용)
     const currentStartDate = new Date(validatedStartDate)
     const prevMonthStartDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth() - 1, 1)
     const prevMonthEndDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), 0)
     
-    let prevMonthContractsQuery = `
+    // 전월에 만료된 계약 수
+    let prevMonthExpiringQuery = `
       SELECT COUNT(*) as contract_count
-      FROM sales s
-      LEFT JOIN users u ON s.user_id = u.id
-      WHERE s.contract_date BETWEEN $1 AND $2
-      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
+      FROM customers c
+      WHERE c.contract_expiration_date BETWEEN $1 AND $2
+      AND (TRIM(c.status) IN ('契約中', '購入', '계약중') 
+           OR c.status ILIKE '%契約中%' 
+           OR c.status ILIKE '%購入%' 
+           OR c.status ILIKE '%계약%')
+      ${manager && manager !== 'all' ? `AND c.manager = $3` : ''}
     `
-    const prevMonthContractsParams = manager && manager !== 'all' 
+    
+    // 당월에 계약이 갱신된 고객 수 (전월 만료 → 당월에도 계약중)
+    let currentMonthRenewedQuery = `
+      SELECT COUNT(*) as renewal_count
+      FROM customers c
+      WHERE c.contract_expiration_date BETWEEN $1 AND $2
+      AND c.contract_expiration_date > $3
+      AND (TRIM(c.status) IN ('契約中', '購入', '계약중') 
+           OR c.status ILIKE '%契約中%' 
+           OR c.status ILIKE '%購入%' 
+           OR c.status ILIKE '%계약%')
+      ${manager && manager !== 'all' ? `AND c.manager = $4` : ''}
+    `
+    
+    const prevMonthExpiringParams = manager && manager !== 'all' 
       ? [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0], manager]
       : [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0]]
+    
+    const currentMonthRenewedParams = manager && manager !== 'all'
+      ? [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0], validatedEndDate, manager]
+      : [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0], validatedEndDate]
     
     // 전기 활동량 쿼리
     const prevTotalActivitiesQuery = `
@@ -609,7 +631,8 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       prevSalesResult,
       stageResult,
       retargetingContractResult,
-      prevMonthContractsResult,
+      prevMonthExpiringResult,
+      currentMonthRenewedResult,
       prevActivityResult,
       alertResult
     ] = await Promise.all([
@@ -623,7 +646,8 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       pool.query(retargetingContractQuery, 
         manager && manager !== 'all' ? [validatedStartDate, validatedEndDate, manager] : [validatedStartDate, validatedEndDate]
       ),
-      pool.query(prevMonthContractsQuery, prevMonthContractsParams),
+      pool.query(prevMonthExpiringQuery, prevMonthExpiringParams),
+      pool.query(currentMonthRenewedQuery, currentMonthRenewedParams),
       pool.query(prevTotalActivitiesQuery, prevActivityParams),
       pool.query(retargetingAlertQuery, alertParams)
     ])
@@ -671,11 +695,11 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       ? (retargetingContractCount / retargetingActivity) * 100 
       : 0
 
-    // === 6. 연장률 계산: (당월 연장 계약 건수 / 전월 총 계약 건수) × 100 ===
-    const renewalCount = parseInt(salesResult.rows[0]?.renewal_count || '0')
-    const prevMonthContractCount = parseInt(prevMonthContractsResult.rows[0]?.contract_count || '0')
-    const renewalRate = prevMonthContractCount > 0 
-      ? (renewalCount / prevMonthContractCount) * 100 
+    // === 6. 연장률 계산: (당월 연장 계약 건수 / 전월 만료 계약 건수) × 100 ===
+    const renewalCount = parseInt(currentMonthRenewedResult.rows[0]?.renewal_count || '0')
+    const prevMonthExpiringCount = parseInt(prevMonthExpiringResult.rows[0]?.contract_count || '0')
+    const renewalRate = prevMonthExpiringCount > 0 
+      ? (renewalCount / prevMonthExpiringCount) * 100 
       : 0
 
     // === 7. 담당자별 성과 집계 ===
@@ -904,7 +928,7 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
         renewalRate: Math.round(renewalRate * 100) / 100,
         renewalRateDetails: {
           currentMonthRenewalCount: renewalCount,
-          prevMonthContractCount: prevMonthContractCount
+          prevMonthContractCount: prevMonthExpiringCount
         },
         averageOrderValue,
         comparedToPrevious: {
