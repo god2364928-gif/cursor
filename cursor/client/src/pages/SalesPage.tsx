@@ -10,6 +10,7 @@ import { useToast } from '../components/ui/toast'
 import { formatNumber } from '../lib/utils'
 import { Plus, Edit, Trash2, Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { getMarketerNames } from '../utils/userUtils'
 
 export default function SalesPage() {
   const { t } = useI18nStore()
@@ -51,17 +52,17 @@ export default function SalesPage() {
     }
   }, [startDate, endDate])
 
-  // 모든 직원 목록(관리자 전용 API)을 읽어 드롭다운에 항상 표시
+  // 마케터만 드롭다운에 표시
   useEffect(() => {
     ;(async () => {
       try {
-        console.log('Loading users for manager filter...')
         const res = await api.get('/auth/users')
-        console.log('Users loaded:', res.data)
-        setUsers(res.data || [])
-        const names = (res.data || []).map((u: any) => u.name).sort()
-        console.log('Manager options set:', names)
-        setManagerOptions(names)
+        const allUsers = res.data || []
+        setUsers(allUsers)
+        
+        // 공통 유틸리티 함수 사용
+        const marketerNames = getMarketerNames(allUsers)
+        setManagerOptions(marketerNames)
       } catch (e) {
         console.error('Failed to load users for manager filter', e)
       }

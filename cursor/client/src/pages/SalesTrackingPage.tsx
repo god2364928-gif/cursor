@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Plus, Edit, Trash2, X, BarChart3, Search, ArrowRight, Eye, UtensilsCrossed } from 'lucide-react'
 import GlobalSearch from '../components/GlobalSearch'
 import RestaurantDrawer from '../components/RestaurantDrawer'
+import { getMarketerNames } from '../utils/userUtils'
 
 interface SalesTrackingRecord {
   id: string
@@ -119,19 +120,8 @@ export default function SalesTrackingPage() {
         const allUsers = res.data || []
         setUsers(allUsers)
         
-        console.log('All users:', allUsers.map((u: any) => ({ name: u.name, role: u.role })))
-        
-        // 마케터 역할의 사용자만 필터링
-        const marketerNames = allUsers
-          .filter((u: any) => {
-            const isMarketer = u.role === 'marketer'
-            console.log(`User ${u.name}: role=${u.role}, isMarketer=${isMarketer}`)
-            return isMarketer
-          })
-          .map((u: any) => u.name)
-          .sort()
-        
-        console.log('Filtered marketers:', marketerNames)
+        // 공통 유틸리티 함수 사용
+        const marketerNames = getMarketerNames(allUsers)
         setManagerOptions(marketerNames)
         
         // 디폴트: 마케터는 본인, 그 외는 'all'

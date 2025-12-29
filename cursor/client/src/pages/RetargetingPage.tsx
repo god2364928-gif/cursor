@@ -10,6 +10,7 @@ import { Card, CardContent } from '../components/ui/card'
 import { useToast } from '../components/ui/toast'
 import { Phone, PhoneOff, MessageSquare, FileText, Target, ExternalLink, Copy, Pin, PinOff, Trash2, FileIcon, Download } from 'lucide-react'
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
+import { getMarketerNames } from '../utils/userUtils'
 
 const RETARGETING_TARGET = 500
 
@@ -91,6 +92,7 @@ export default function RetargetingPage() {
     return content
   }
   const [customers, setCustomers] = useState<RetargetingCustomer[]>([])
+  const [users, setUsers] = useState<any[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<RetargetingCustomer | null>(null)
   const [history, setHistory] = useState<RetargetingHistory[]>([])
   const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
@@ -113,7 +115,17 @@ export default function RetargetingPage() {
 
   useEffect(() => {
     fetchCustomers()
+    fetchUsers()
   }, [])
+  
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/auth/users')
+      setUsers(response.data || [])
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+    }
+  }
   
   useEffect(() => {
     if (selectedCustomer?.id && selectedCustomer.id !== lastFetchedId.current) {
@@ -780,7 +792,8 @@ export default function RetargetingPage() {
     return (daysB || 0) - (daysA || 0)
   })
   
-  const managers = [...new Set(customers.map(c => c.manager).filter(Boolean))]
+  // Get unique managers for filter dropdown (only marketers)
+  const managers = getMarketerNames(users)
   
   const getHistoryIcon = (type: string) => {
     switch (type) {
