@@ -10,6 +10,7 @@ import { Card, CardContent } from '../components/ui/card'
 import { useToast } from '../components/ui/toast'
 import { Phone, PhoneOff, MessageSquare, FileText, ExternalLink, Copy, Calendar, Pin, PinOff, Check, Trash2, FileIcon, Download } from 'lucide-react'
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
+import { getMarketerNames } from '../utils/userUtils'
 
 export default function CustomersPage() {
   const { t, language } = useI18nStore()
@@ -88,6 +89,7 @@ export default function CustomersPage() {
     return content
   }
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [users, setUsers] = useState<any[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [history, setHistory] = useState<CustomerHistory[]>([])
   const [statusFilter, setStatusFilter] = useState<'all' | '契約中' | '契約解除'>('契約中')
@@ -109,7 +111,17 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers()
+    fetchUsers()
   }, [])
+  
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/auth/users')
+      setUsers(response.data || [])
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+    }
+  }
   
   useEffect(() => {
     if (selectedCustomer?.id && selectedCustomer.id !== lastFetchedId.current) {
@@ -723,8 +735,8 @@ export default function CustomersPage() {
     return daysA - daysB
   })
   
-  // Get unique managers for filter dropdown
-  const managers = [...new Set(customers.map(c => c.manager).filter(Boolean))]
+  // Get unique managers for filter dropdown (only marketers)
+  const managers = getMarketerNames(users)
 
   
   const getHistoryIcon = (type: string) => {
