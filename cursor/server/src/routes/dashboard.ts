@@ -902,6 +902,10 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
         contractRate: Math.round(currentContractRate * 100) / 100,
         retargetingContractRate: Math.round(retargetingContractRate * 100) / 100,
         renewalRate: Math.round(renewalRate * 100) / 100,
+        renewalRateDetails: {
+          currentMonthRenewalCount: renewalCount,
+          prevMonthContractCount: prevMonthContractCount
+        },
         averageOrderValue,
         comparedToPrevious: {
           salesChange: Math.round(salesChange * 100) / 100,
