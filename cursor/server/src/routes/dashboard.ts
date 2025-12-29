@@ -471,7 +471,8 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
         COALESCE(SUM(s.amount), 0) as total_sales,
         COALESCE(SUM(CASE WHEN s.sales_type = '신규매출' THEN s.amount ELSE 0 END), 0) as new_sales,
         COALESCE(SUM(CASE WHEN s.sales_type = '연장매출' THEN s.amount ELSE 0 END), 0) as renewal_sales,
-        COUNT(CASE WHEN s.sales_type IN ('신규매출', '연장매출') THEN 1 END) as contract_count
+        COUNT(CASE WHEN s.sales_type IN ('신규매출', '연장매출') THEN 1 END) as contract_count,
+        COUNT(CASE WHEN s.sales_type = '연장매출' THEN 1 END) as renewal_count
       FROM sales s
       LEFT JOIN users u ON s.user_id = u.id
       WHERE s.contract_date BETWEEN $1 AND $2
@@ -528,19 +529,19 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
     `
     
-    // 전월 매출 쿼리
+    // 전월 계약 건수 쿼리 (연장율 계산용)
     const currentStartDate = new Date(validatedStartDate)
     const prevMonthStartDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth() - 1, 1)
     const prevMonthEndDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), 0)
     
-    let prevMonthSalesQuery = `
-      SELECT COALESCE(SUM(s.amount), 0) as total_sales
+    let prevMonthContractsQuery = `
+      SELECT COUNT(*) as contract_count
       FROM sales s
       LEFT JOIN users u ON s.user_id = u.id
       WHERE s.contract_date BETWEEN $1 AND $2
       ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
     `
-    const prevMonthSalesParams = manager && manager !== 'all' 
+    const prevMonthContractsParams = manager && manager !== 'all' 
       ? [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0], manager]
       : [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0]]
     
@@ -608,7 +609,7 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       prevSalesResult,
       stageResult,
       retargetingContractResult,
-      prevMonthSalesResult,
+      prevMonthContractsResult,
       prevActivityResult,
       alertResult
     ] = await Promise.all([
@@ -622,7 +623,7 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       pool.query(retargetingContractQuery, 
         manager && manager !== 'all' ? [validatedStartDate, validatedEndDate, manager] : [validatedStartDate, validatedEndDate]
       ),
-      pool.query(prevMonthSalesQuery, prevMonthSalesParams),
+      pool.query(prevMonthContractsQuery, prevMonthContractsParams),
       pool.query(prevTotalActivitiesQuery, prevActivityParams),
       pool.query(retargetingAlertQuery, alertParams)
     ])
@@ -670,10 +671,11 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
       ? (retargetingContractCount / retargetingActivity) * 100 
       : 0
 
-    // === 6. 연장률 계산 (이미 위에서 조회됨) ===
-    const prevMonthTotalSales = parseInt(prevMonthSalesResult.rows[0]?.total_sales || '0')
-    const renewalRate = prevMonthTotalSales > 0 
-      ? (renewalSales / prevMonthTotalSales) * 100 
+    // === 6. 연장률 계산: (당월 연장 계약 건수 / 전월 총 계약 건수) × 100 ===
+    const renewalCount = parseInt(salesResult.rows[0]?.renewal_count || '0')
+    const prevMonthContractCount = parseInt(prevMonthContractsResult.rows[0]?.contract_count || '0')
+    const renewalRate = prevMonthContractCount > 0 
+      ? (renewalCount / prevMonthContractCount) * 100 
       : 0
 
     // === 7. 담당자별 성과 집계 ===

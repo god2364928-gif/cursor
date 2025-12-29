@@ -59,7 +59,7 @@ const safePercent = (numerator: number | undefined, denominator: number | undefi
 }
 
 export default function DashboardPage() {
-  const { t } = useI18nStore()
+  const { t, language } = useI18nStore()
   const user = useAuthStore((state) => state.user)
   
   const [periodType, setPeriodType] = useState<PeriodType>('monthly')
@@ -428,6 +428,9 @@ export default function DashboardPage() {
                 {safeToFixed(performanceData.summary.renewalRate)}%
               </div>
               <p className="text-xs text-green-600 mt-1">{t('previousMonth')}</p>
+              <p className="text-[10px] text-green-500 mt-1 opacity-70">
+                {language === 'ko' ? '당월 연장 건수 ÷ 전월 계약 건수' : '当月延長件数 ÷ 前月契約件数'}
+              </p>
             </CardContent>
           </Card>
 
