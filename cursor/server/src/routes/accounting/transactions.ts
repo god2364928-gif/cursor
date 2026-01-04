@@ -493,7 +493,7 @@ router.delete('/transactions/:id', authMiddleware, adminOnly, async (req: AuthRe
 })
 
 // ========== CSV 업로드 (은행 거래내역) ==========
-router.post('/transactions/upload-csv', authMiddleware, adminOnly, upload.single('file'), async (req: AuthRequest, res: Response) => {
+router.post('/transactions/csv-upload', authMiddleware, adminOnly, upload.single('file'), async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'CSV 파일을 업로드해 주세요' })
