@@ -66,6 +66,7 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
   // 마케터만 필터링
   const marketers = users.filter(u => u.role === 'marketer')
 
+
   // 데이터 로드
   useEffect(() => {
     if (isOpen) {
@@ -129,6 +130,22 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
           params: { startDate, endDate, manager: user.name }
         })
 
+        // managerStats에서 해당 담당자 찾기 (특수 문자 매칭 포함)
+        let stat = null
+        if (performanceRes.data?.managerStats && performanceRes.data.managerStats.length > 0) {
+          // 정확한 이름 매칭 시도
+          stat = performanceRes.data.managerStats.find((s: any) => s.managerName === user.name)
+          
+          // 매칭 실패 시 특수 문자 변환하여 재시도
+          if (!stat) {
+            const normalizedUserName = user.name.replace(/﨑/g, '崎')
+            stat = performanceRes.data.managerStats.find((s: any) => {
+              const normalizedStatName = s.managerName.replace(/﨑/g, '崎')
+              return normalizedStatName === normalizedUserName
+            })
+          }
+        }
+
         // 실제 성과 데이터 추출
         let actual = {
           actualNewSales: 0,
@@ -146,16 +163,15 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
           actualEmail: 0
         }
 
-        if (performanceRes.data?.managerStats && performanceRes.data.managerStats.length > 0) {
-          const stat = performanceRes.data.managerStats[0]
+        if (stat) {
           actual = {
             actualNewSales: (stat.formCount || 0) + (stat.dmCount || 0) + (stat.lineCount || 0) + (stat.phoneCount || 0) + (stat.mailCount || 0),
             actualRetargeting: stat.retargetingContacts || 0,
             actualExisting: stat.existingContacts || 0,
-            actualRevenue: stat.totalSalesAmount || 0,
-            actualContracts: (stat.newSalesCount || 0) + (stat.renewalSalesCount || 0),
-            actualNewRevenue: stat.newSalesAmount || 0,
-            actualNewContracts: stat.newSalesCount || 0,
+            actualRevenue: stat.totalSales || 0,
+            actualContracts: (stat.newContractCount || 0) + (stat.renewalCount || 0) + (stat.terminationCount || 0), // 총 거래 건수 (신규+연장+해지)
+            actualNewRevenue: stat.newSales || 0,
+            actualNewContracts: stat.newContractCount || 0,
             actualRetargetingCustomers: 0, // 담당자가 직접 입력
             actualForm: stat.formCount || 0,
             actualDm: stat.dmCount || 0,
