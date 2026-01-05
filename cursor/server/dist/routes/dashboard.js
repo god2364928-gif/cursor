@@ -342,6 +342,13 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
         }
         // 날짜 유효성 검증 및 보정
         const { validatedStartDate, validatedEndDate } = (0, dateValidator_1.validateDateRange)(startDate, endDate);
+        // 날짜를 YYYY-MM-DD 형식으로 변환하는 헬퍼 함수 (타임존 고려)
+        const formatDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
         // === 1. 활동량 집계 ===
         // 1-1. 신규 영업 활동량 - 5가지 수단별로 구분
         // 폼: inquiry_leads에서 해당 기간에 완료된 것 (sent_date 기준)
@@ -373,7 +380,7 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
       SELECT COUNT(*) as count
       FROM retargeting_history rh
       LEFT JOIN users u ON rh.user_id = u.id
-      WHERE rh.created_at BETWEEN $1 AND $2
+      WHERE DATE(rh.created_at) BETWEEN $1 AND $2
       ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
     `;
         const retargetingParams = manager && manager !== 'all'
@@ -385,7 +392,7 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
       FROM customer_history ch
       JOIN customers c ON ch.customer_id = c.id
       LEFT JOIN users u ON ch.user_id = u.id
-      WHERE ch.created_at BETWEEN $1 AND $2
+      WHERE DATE(ch.created_at) BETWEEN $1 AND $2
       AND (
         TRIM(c.status) IN ('契約中', '購入', '계약중')
         OR c.status ILIKE '%契約中%'
@@ -417,10 +424,13 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
         // === 3. 전월/전주 대비 데이터 (비교용) ===
         const dateRange = new Date(validatedEndDate).getTime() - new Date(validatedStartDate).getTime();
         const daysDiff = Math.ceil(dateRange / (1000 * 60 * 60 * 24));
-        const prevStartDate = new Date(new Date(validatedStartDate).getTime() - daysDiff * 24 * 60 * 60 * 1000)
-            .toISOString().split('T')[0];
-        const prevEndDate = new Date(new Date(validatedEndDate).getTime() - daysDiff * 24 * 60 * 60 * 1000)
-            .toISOString().split('T')[0];
+        // 전기 날짜 계산 (타임존 고려)
+        const prevStart = new Date(validatedStartDate);
+        prevStart.setDate(prevStart.getDate() - daysDiff);
+        const prevEnd = new Date(validatedEndDate);
+        prevEnd.setDate(prevEnd.getDate() - daysDiff);
+        const prevStartDate = formatDate(prevStart);
+        const prevEndDate = formatDate(prevEnd);
         let prevSalesQuery = `
       SELECT 
         COALESCE(SUM(s.amount), 0) as total_sales,
@@ -455,45 +465,41 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
       AND s.sales_type = '신규매출'
       ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
     `;
-        // 전월 계약 만료 고객 수 및 당월 연장 계약 수 조회 (연장율 계산용)
+        // 전월 총 매출 건수 및 당월 연장 계약 수 조회 (연장율 계산용)
         const currentStartDate = new Date(validatedStartDate);
         const prevMonthStartDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth() - 1, 1);
         const prevMonthEndDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), 0);
-        // 전월에 만료된 계약 수
+        const prevMonthStart = formatDate(prevMonthStartDate);
+        const prevMonthEnd = formatDate(prevMonthEndDate);
+        // 전월 총 매출 건수 (sales 테이블의 전월 전체 매출)
         let prevMonthExpiringQuery = `
       SELECT COUNT(*) as contract_count
-      FROM customers c
-      WHERE c.contract_expiration_date BETWEEN $1 AND $2
-      AND (TRIM(c.status) IN ('契約中', '購入', '계약중') 
-           OR c.status ILIKE '%契約中%' 
-           OR c.status ILIKE '%購入%' 
-           OR c.status ILIKE '%계약%')
-      ${manager && manager !== 'all' ? `AND c.manager = $3` : ''}
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.contract_date BETWEEN $1 AND $2
+      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
     `;
-        // 당월에 계약이 갱신된 고객 수 (전월 만료 → 당월에도 계약중)
+        // 당월 연장매출 건수 (실적관리 sales 테이블 기반)
         let currentMonthRenewedQuery = `
       SELECT COUNT(*) as renewal_count
-      FROM customers c
-      WHERE c.contract_expiration_date BETWEEN $1 AND $2
-      AND c.contract_expiration_date > $3
-      AND (TRIM(c.status) IN ('契約中', '購入', '계약중') 
-           OR c.status ILIKE '%契約中%' 
-           OR c.status ILIKE '%購入%' 
-           OR c.status ILIKE '%계약%')
-      ${manager && manager !== 'all' ? `AND c.manager = $4` : ''}
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.contract_date BETWEEN $1 AND $2
+      AND s.sales_type = '연장매출'
+      ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
     `;
         const prevMonthExpiringParams = manager && manager !== 'all'
-            ? [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0], manager]
-            : [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0]];
+            ? [prevMonthStart, prevMonthEnd, manager]
+            : [prevMonthStart, prevMonthEnd];
         const currentMonthRenewedParams = manager && manager !== 'all'
-            ? [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0], validatedEndDate, manager]
-            : [prevMonthStartDate.toISOString().split('T')[0], prevMonthEndDate.toISOString().split('T')[0], validatedEndDate];
+            ? [validatedStartDate, validatedEndDate, manager]
+            : [validatedStartDate, validatedEndDate];
         // 전기 활동량 쿼리
         const prevTotalActivitiesQuery = `
       SELECT COUNT(*) as count FROM (
         SELECT il.id FROM inquiry_leads il
         LEFT JOIN users u ON il.assignee_id = u.id
-        WHERE il.assigned_at BETWEEN $1 AND $2
+        WHERE DATE(il.assigned_at) BETWEEN $1 AND $2
         AND il.status IN ('IN_PROGRESS', 'COMPLETED')
         ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
         
@@ -502,7 +508,7 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
         SELECT ch.id FROM customer_history ch
         JOIN customers c ON ch.customer_id = c.id
         LEFT JOIN users u ON ch.user_id = u.id
-        WHERE ch.created_at BETWEEN $1 AND $2
+        WHERE DATE(ch.created_at) BETWEEN $1 AND $2
         AND c.status NOT IN ('契約中', '購入', '계약중')
         ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
         
@@ -510,7 +516,7 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
         
         SELECT rh.id FROM retargeting_history rh
         LEFT JOIN users u ON rh.user_id = u.id
-        WHERE rh.created_at BETWEEN $1 AND $2
+        WHERE DATE(rh.created_at) BETWEEN $1 AND $2
         ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
         
         UNION ALL
@@ -518,7 +524,7 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
         SELECT ch.id FROM customer_history ch
         JOIN customers c ON ch.customer_id = c.id
         LEFT JOIN users u ON ch.user_id = u.id
-        WHERE ch.created_at BETWEEN $1 AND $2
+        WHERE DATE(ch.created_at) BETWEEN $1 AND $2
         AND (TRIM(c.status) IN ('契約中', '購入', '계약중') OR c.status ILIKE '%契約中%' OR c.status ILIKE '%購入%' OR c.status ILIKE '%계약%')
         ${manager && manager !== 'all' ? `AND u.name = $3` : ''}
       ) AS prev_activities
