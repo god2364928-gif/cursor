@@ -429,12 +429,12 @@ export default function DashboardPage() {
               </div>
               <p className="text-xs text-green-600 mt-1">{t('previousMonth')}</p>
               <p className="text-[10px] text-green-500 mt-1 opacity-70">
-                {language === 'ko' ? '당월 연장 건수 ÷ 전월 만료 건수' : '当月延長件数 ÷ 前月満了件数'}
+                {language === 'ko' ? '당월 연장 건수 ÷ 전월 총 매출 건수' : '当月延長件数 ÷ 前月総売上件数'}
               </p>
               <p className="text-[10px] text-green-600 mt-1">
                 {language === 'ko' 
-                  ? `당월 연장: ${performanceData.summary.renewalRateDetails?.currentMonthRenewalCount || 0}건 / 전월 만료: ${performanceData.summary.renewalRateDetails?.prevMonthContractCount || 0}건`
-                  : `当月延長: ${performanceData.summary.renewalRateDetails?.currentMonthRenewalCount || 0}件 / 前月満了: ${performanceData.summary.renewalRateDetails?.prevMonthContractCount || 0}件`
+                  ? `당월 연장: ${performanceData.summary.renewalRateDetails?.currentMonthRenewalCount || 0}건 / 전월 총 매출: ${performanceData.summary.renewalRateDetails?.prevMonthContractCount || 0}건`
+                  : `当月延長: ${performanceData.summary.renewalRateDetails?.currentMonthRenewalCount || 0}件 / 前月総売上: ${performanceData.summary.renewalRateDetails?.prevMonthContractCount || 0}件`
                 }
               </p>
             </CardContent>
