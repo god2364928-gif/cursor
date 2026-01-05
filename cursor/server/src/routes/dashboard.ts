@@ -860,9 +860,15 @@ router.get('/performance-stats', authMiddleware, async (req: AuthRequest, res: R
         COALESCE(msd.termination_sales, 0) as termination_sales,
         COALESCE(msd.total_sales, 0) as total_sales
       FROM all_manager_data amd
-      FULL OUTER JOIN manager_sales_data msd ON amd.manager_name = msd.manager_name
+      FULL OUTER JOIN manager_sales_data msd ON (
+        amd.manager_name = msd.manager_name OR
+        REPLACE(amd.manager_name, '﨑', '崎') = REPLACE(msd.manager_name, '﨑', '崎')
+      )
       WHERE COALESCE(amd.manager_name, msd.manager_name) IS NOT NULL
-      ${manager && manager !== 'all' ? `AND COALESCE(amd.manager_name, msd.manager_name) = $3` : ''}
+      ${manager && manager !== 'all' ? `AND (
+        TRIM(COALESCE(amd.manager_name, msd.manager_name)) = TRIM($3) OR
+        REPLACE(TRIM(COALESCE(amd.manager_name, msd.manager_name)), '﨑', '崎') = REPLACE(TRIM($3), '﨑', '崎')
+      )` : ''}
       GROUP BY COALESCE(amd.manager_name, msd.manager_name), msd.new_contract_count, msd.new_sales, msd.renewal_count, msd.renewal_sales, msd.termination_count, msd.termination_sales, msd.total_sales
       ORDER BY total_sales DESC
     `
