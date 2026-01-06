@@ -604,7 +604,7 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
         // === 7. 담당자별 성과 집계 ===
         // 최적화: FULL OUTER JOIN 대신 UNION ALL + GROUP BY 사용 (3-5배 빠름)
         let managerStatsQuery = `
-      WITH all_manager_data AS (
+      WITH all_manager_data_raw AS (
         -- 폼 활동
         SELECT 
           u.name as manager_name,
@@ -715,7 +715,16 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
         AND u.name IS NOT NULL
         GROUP BY u.name
       ),
-      manager_sales_data AS (
+      all_manager_data AS (
+        -- 이름 정규화 (특수문자 통일)
+        SELECT 
+          manager_name,
+          REPLACE(manager_name, '﨑', '崎') as normalized_name,
+          metric_type,
+          value
+        FROM all_manager_data_raw
+      ),
+      manager_sales_data_raw AS (
         -- 매출 데이터 (신규/연장/해지)
         SELECT 
           u.name as manager_name,
@@ -731,6 +740,20 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
         WHERE s.contract_date BETWEEN $1 AND $2
         AND u.name IS NOT NULL
         GROUP BY u.name
+      ),
+      manager_sales_data AS (
+        -- 이름 정규화 (특수문자 통일)
+        SELECT 
+          manager_name,
+          REPLACE(manager_name, '﨑', '崎') as normalized_name,
+          new_contract_count,
+          new_sales,
+          renewal_count,
+          renewal_sales,
+          termination_count,
+          termination_sales,
+          total_sales
+        FROM manager_sales_data_raw
       )
       SELECT 
         COALESCE(amd.manager_name, msd.manager_name) as manager_name,
@@ -750,15 +773,9 @@ router.get('/performance-stats', auth_1.authMiddleware, async (req, res) => {
         COALESCE(msd.termination_sales, 0) as termination_sales,
         COALESCE(msd.total_sales, 0) as total_sales
       FROM all_manager_data amd
-      FULL OUTER JOIN manager_sales_data msd ON (
-        amd.manager_name = msd.manager_name OR
-        REPLACE(amd.manager_name, '﨑', '崎') = REPLACE(msd.manager_name, '﨑', '崎')
-      )
+      FULL OUTER JOIN manager_sales_data msd ON amd.normalized_name = msd.normalized_name
       WHERE COALESCE(amd.manager_name, msd.manager_name) IS NOT NULL
-      ${manager && manager !== 'all' ? `AND (
-        TRIM(COALESCE(amd.manager_name, msd.manager_name)) = TRIM($3) OR
-        REPLACE(TRIM(COALESCE(amd.manager_name, msd.manager_name)), '﨑', '崎') = REPLACE(TRIM($3), '﨑', '崎')
-      )` : ''}
+      ${manager && manager !== 'all' ? `AND REPLACE(TRIM(COALESCE(amd.manager_name, msd.manager_name)), '﨑', '崎') = REPLACE(TRIM($3), '﨑', '崎')` : ''}
       GROUP BY COALESCE(amd.manager_name, msd.manager_name), msd.new_contract_count, msd.new_sales, msd.renewal_count, msd.renewal_sales, msd.termination_count, msd.termination_sales, msd.total_sales
       ORDER BY total_sales DESC
     `;
