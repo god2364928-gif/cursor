@@ -762,7 +762,8 @@ export default function SalesTrackingPage() {
     const statusMatch = statusFilter === 'all' || r.status === statusFilter
     
     // 영업방법 필터
-    const contactMethodMatch = contactMethodFilter === 'all' || r.contact_method === contactMethodFilter
+    const contactMethodMatch = contactMethodFilter === 'all' || 
+      (contactMethodFilter === 'none' ? (!r.contact_method || r.contact_method.trim() === '') : r.contact_method === contactMethodFilter)
     
     return managerMatch && movedMatch && statusMatch && contactMethodMatch
   })
@@ -874,6 +875,7 @@ export default function SalesTrackingPage() {
             <option value="DM">{t('contactDM')}</option>
             <option value="メール">{t('contactMail')}</option>
             <option value="フォーム">{t('contactForm')}</option>
+            <option value="none">{t('contactNone')}</option>
           </select>
         </div>
 

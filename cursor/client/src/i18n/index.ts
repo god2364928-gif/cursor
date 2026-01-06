@@ -445,6 +445,7 @@ const translations: Record<Language, Translation> = {
     contactDM: 'DM',
     contactMail: 'メール',
     contactForm: 'フォーム',
+    contactNone: 'なし',
 
     // Option labels (statuses)
     statusNoReply: '未返信',
@@ -1141,6 +1142,7 @@ const translations: Record<Language, Translation> = {
     contactDM: 'DM',
     contactMail: '메일',
     contactForm: '폼',
+    contactNone: '없음',
 
     // Option labels (statuses)
     statusNoReply: '미회신',
