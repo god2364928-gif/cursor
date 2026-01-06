@@ -92,7 +92,7 @@ router.get('/:fiscalYear', authMiddleware, adminOnly, async (req: AuthRequest, r
 })
 
 // 특정 셀 데이터 업데이트
-router.put('/update', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+router.put('/update', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { fiscalYear, month, paymentMethod, isFee, amount } = req.body
     
