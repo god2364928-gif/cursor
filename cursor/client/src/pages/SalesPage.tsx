@@ -24,7 +24,6 @@ export default function SalesPage() {
   const [managerFilter, setManagerFilter] = useState<string>('all')
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingSale, setEditingSale] = useState<Sales | null>(null)
-  const [currentBaseMonth, setCurrentBaseMonth] = useState<number>(new Date().getMonth())
   const [managerOptions, setManagerOptions] = useState<string[]>([])
   const [users, setUsers] = useState<any[]>([])
   
@@ -95,28 +94,19 @@ export default function SalesPage() {
   
 
   const handlePreviousMonth = () => {
-    const now = new Date()
-    const year = now.getFullYear()
+    // 현재 선택된 시작일 기준으로 이전 월 계산
+    const [year, month] = startDate.split('-').map(Number)
+    const prevMonth = month === 1 ? 12 : month - 1
+    const prevYear = month === 1 ? year - 1 : year
     
-    // 현재 기준 월에서 한 달 빼기
-    const newBaseMonth = currentBaseMonth - 1
-    setCurrentBaseMonth(newBaseMonth)
+    // 이전 월의 1일
+    const prevMonthFirstDay = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`
     
-    // 음수가 되면 이전 년도로 넘어가기
-    let targetYear = year
-    let targetMonth = newBaseMonth
-    if (newBaseMonth < 0) {
-      targetYear = year - 1
-      targetMonth = 11 // 12월
-    }
+    // 이전 월의 마지막 날
+    const lastDay = new Date(prevYear, prevMonth, 0).getDate()
+    const prevMonthLastDay = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
     
-    // 해당 월의 첫째 날
-    const prevMonthFirstDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`
-    
-    // 해당 월의 마지막 날
-    const prevMonthLastDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(new Date(targetYear, targetMonth + 1, 0).getDate()).padStart(2, '0')}`
-    
-    console.log('SalesPage previous month:', { targetYear, targetMonth, prevMonthFirstDay, prevMonthLastDay })
+    console.log('SalesPage previous month:', { prevYear, prevMonth, prevMonthFirstDay, prevMonthLastDay })
     setStartDate(prevMonthFirstDay)
     setEndDate(prevMonthLastDay)
   }
@@ -124,10 +114,7 @@ export default function SalesPage() {
   const handleCurrentMonth = () => {
     const now = new Date()
     const year = now.getFullYear()
-    const month = now.getMonth()
-    
-    // 기준 월을 현재 월로 리셋
-    setCurrentBaseMonth(month)
+    const month = now.getMonth() // 0-11
     
     // 현재 월의 첫째 날
     const firstDayString = `${year}-${String(month + 1).padStart(2, '0')}-01`
@@ -141,28 +128,19 @@ export default function SalesPage() {
   }
 
   const handleNextMonth = () => {
-    const now = new Date()
-    const year = now.getFullYear()
+    // 현재 선택된 시작일 기준으로 다음 월 계산
+    const [year, month] = startDate.split('-').map(Number)
+    const nextMonth = month === 12 ? 1 : month + 1
+    const nextYear = month === 12 ? year + 1 : year
     
-    // 현재 기준 월에서 한 달 더하기
-    const newBaseMonth = currentBaseMonth + 1
-    setCurrentBaseMonth(newBaseMonth)
+    // 다음 월의 1일
+    const nextMonthFirstDay = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`
     
-    // 12를 넘으면 다음 년도로 넘어가기
-    let targetYear = year
-    let targetMonth = newBaseMonth
-    if (newBaseMonth > 11) {
-      targetYear = year + 1
-      targetMonth = 0 // 1월
-    }
+    // 다음 월의 마지막 날
+    const lastDay = new Date(nextYear, nextMonth, 0).getDate()
+    const nextMonthLastDay = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
     
-    // 해당 월의 첫째 날
-    const nextMonthFirstDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`
-    
-    // 해당 월의 마지막 날
-    const nextMonthLastDay = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(new Date(targetYear, targetMonth + 1, 0).getDate()).padStart(2, '0')}`
-    
-    console.log('SalesPage next month:', { targetYear, targetMonth, nextMonthFirstDay, nextMonthLastDay })
+    console.log('SalesPage next month:', { nextYear, nextMonth, nextMonthFirstDay, nextMonthLastDay })
     setStartDate(nextMonthFirstDay)
     setEndDate(nextMonthLastDay)
   }
