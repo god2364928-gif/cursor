@@ -386,7 +386,7 @@ router.post('/transactions/bulk-delete', authMiddleware, adminOnly, async (req: 
   }
 })
 
-router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+router.put('/transactions/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
     const {
@@ -401,6 +401,18 @@ router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthReque
       assignedUserId,
     } = req.body
 
+    // 기존 데이터 조회
+    const existingResult = await pool.query(
+      `SELECT * FROM accounting_transactions WHERE id = $1`,
+      [id]
+    )
+
+    if (existingResult.rows.length === 0) {
+      return res.status(404).json({ error: '거래내역을 찾을 수 없습니다' })
+    }
+
+    const existing = existingResult.rows[0]
+
     const normalizeTime = (value?: string | null) => {
       if (!value) return null
       const trimmed = String(value).trim()
@@ -408,13 +420,14 @@ router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthReque
       return trimmed.length === 5 ? `${trimmed}:00` : trimmed
     }
 
-    const normalizedTime = normalizeTime(transactionTime)
-    const normalizedPaymentMethod =
-      paymentMethod === '현금' || paymentMethod === '은행' || paymentMethod === '현금/은행'
-        ? '계좌이체'
-        : paymentMethod === 'Stripe'
-        ? '페이팔'
-        : paymentMethod
+    const normalizedTime = transactionTime !== undefined ? normalizeTime(transactionTime) : existing.transaction_time
+    const normalizedPaymentMethod = paymentMethod !== undefined
+      ? (paymentMethod === '현금' || paymentMethod === '은행' || paymentMethod === '현금/은행'
+          ? '계좌이체'
+          : paymentMethod === 'Stripe'
+          ? '페이팔'
+          : paymentMethod)
+      : existing.payment_method
 
     const result = await pool.query(
       `UPDATE accounting_transactions
@@ -431,22 +444,18 @@ router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthReque
        WHERE id = $10
        RETURNING *`,
       [
-        transactionDate,
+        transactionDate !== undefined ? transactionDate : existing.transaction_date,
         normalizedTime,
-        transactionType,
-        category,
+        transactionType !== undefined ? transactionType : existing.transaction_type,
+        category !== undefined ? category : existing.category,
         normalizedPaymentMethod,
-        itemName,
-        amount,
-        memo || null,
-        assignedUserId || null,
+        itemName !== undefined ? itemName : existing.item_name,
+        amount !== undefined ? amount : existing.amount,
+        memo !== undefined ? (memo || null) : existing.memo,
+        assignedUserId !== undefined ? (assignedUserId || null) : existing.assigned_user_id,
         id,
       ]
     )
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: '거래내역을 찾을 수 없습니다' })
-    }
 
     res.json({ success: true, transaction: result.rows[0] })
   } catch (error) {

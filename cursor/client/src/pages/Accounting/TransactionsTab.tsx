@@ -918,7 +918,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                       <select
                         value={tx.category}
                         onChange={(e) => handleQuickUpdateTransaction(tx.id, { category: e.target.value })}
-                        disabled={!isAdmin || updatingTransactionId === tx.id}
+                        disabled={updatingTransactionId === tx.id}
                         className={`w-full border rounded px-2 py-1 text-sm ${updatingTransactionId === tx.id ? 'opacity-60 cursor-wait' : ''}`}
                       >
                         {CATEGORY_OPTIONS.map((option) => (
@@ -936,7 +936,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                             assignedUserId: e.target.value ? e.target.value : null,
                           })
                         }
-                        disabled={!isAdmin || updatingTransactionId === tx.id || nameOptions.length === 0}
+                        disabled={updatingTransactionId === tx.id || nameOptions.length === 0}
                         className={`w-full border rounded px-2 py-1 text-sm ${
                           updatingTransactionId === tx.id ? 'opacity-60 cursor-wait' : ''
                         }`}
@@ -983,14 +983,12 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                       ) : (
                         <div 
                           className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded min-h-[28px]"
-                          onClick={() => isAdmin && handleMemoEdit(tx.id, tx.memo ?? null)}
+                          onClick={() => handleMemoEdit(tx.id, tx.memo ?? null)}
                         >
                           <span className="text-xs flex-1 truncate text-gray-600">
                             {tx.memo || ''}
                           </span>
-                          {isAdmin && (
-                            <Pencil className="w-3 h-3 text-gray-400" />
-                          )}
+                          <Pencil className="w-3 h-3 text-gray-400" />
                         </div>
                       )}
                     </td>
