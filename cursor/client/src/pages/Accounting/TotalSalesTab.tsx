@@ -81,10 +81,44 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
 
   const handleCellSave = async () => {
     if (!editingCell) return
-    // TODO: 개별 셀 업데이트 API 구현 필요
-    setEditingCell(null)
-    setEditingValue('')
-    fetchTotalSales()
+    
+    try {
+      // field명을 payment_method와 is_fee로 변환
+      const fieldMapping: { [key: string]: { paymentMethod: string; isFee: boolean } } = {
+        'bank_transfer': { paymentMethod: '계좌이체', isFee: false },
+        'bank_transfer_fee': { paymentMethod: '계좌이체', isFee: true },
+        'paypay': { paymentMethod: 'paypay', isFee: false },
+        'paypay_fee': { paymentMethod: 'paypay', isFee: true },
+        'paypal': { paymentMethod: 'paypal', isFee: false },
+        'paypal_fee': { paymentMethod: 'paypal', isFee: true },
+        'strip': { paymentMethod: 'strip', isFee: false },
+        'strip_fee': { paymentMethod: 'strip', isFee: true },
+        'strip1': { paymentMethod: 'strip1', isFee: false },
+        'strip1_fee': { paymentMethod: 'strip1', isFee: true },
+        'coconala': { paymentMethod: 'coconala', isFee: false },
+      }
+      
+      const mapping = fieldMapping[editingCell.field]
+      if (!mapping) {
+        console.error('Invalid field:', editingCell.field)
+        return
+      }
+      
+      await api.put('/total-sales/update', {
+        fiscalYear: totalSalesYear,
+        month: editingCell.month,
+        paymentMethod: mapping.paymentMethod,
+        isFee: mapping.isFee,
+        amount: parseFloat(editingValue) || 0
+      })
+      
+      setEditingCell(null)
+      setEditingValue('')
+      fetchTotalSales()
+    } catch (error) {
+      console.error('Cell update error:', error)
+      alert(language === 'ja' ? '更新に失敗しました' : '업데이트에 실패했습니다')
+    }
   }
 
   const handleCellCancel = () => {
