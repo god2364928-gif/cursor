@@ -136,7 +136,7 @@ export default function SalesTrackingPage() {
     })()
   }, [user])
 
-  const fetchRecords = useCallback(async (_append: boolean, _nextOffset: number, signal?: AbortSignal) => {
+  const fetchRecords = useCallback(async (_append: boolean, _nextOffset: number, signal?: AbortSignal, keepCurrentPage: boolean = false) => {
     setLoading(true)
     setLoadingMore(false)
 
@@ -154,7 +154,9 @@ export default function SalesTrackingPage() {
       setHasMore(false)
       setOffset(0)
       setRecords(rows)
-      setCurrentPage(1)
+      if (!keepCurrentPage) {
+        setCurrentPage(1)
+      }
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
         console.log('Previous fetch request cancelled')
@@ -290,7 +292,7 @@ export default function SalesTrackingPage() {
       showToast(t('updated'), 'success')
       setEditingId(null)
       resetForm()
-      fetchRecords(false, 0)
+      fetchRecords(false, 0, undefined, true)
     } catch (error: any) {
       console.error('Failed to update record:', error)
       showToast(error.response?.data?.message || t('updateFailed'), 'error')
@@ -375,7 +377,7 @@ export default function SalesTrackingPage() {
       setSelectedIds(new Set())
       setBulkMemo('')
       setShowBulkMemoForm(false)
-      fetchRecords(false, 0)
+      fetchRecords(false, 0, undefined, true)
     } catch (error: any) {
       showToast(error.response?.data?.message || t('bulkMemoUpdateFailed'), 'error')
     } finally {
