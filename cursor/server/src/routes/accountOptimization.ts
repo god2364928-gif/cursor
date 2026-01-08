@@ -14,6 +14,8 @@ const createErrorResponse = (message: string) => ({
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const id = String(req.query.id ?? '').trim()
 
+  console.log('[AccountOptimization] Request received:', { id })
+
   if (!id) {
     return res
       .status(400)
@@ -37,9 +39,13 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     process.env.INSTAGRAM_ANALYTICS_API_URL ||
     DEFAULT_ENDPOINT
 
+  console.log('[AccountOptimization] Using endpoint:', endpoint)
+
   try {
     const url = new URL(endpoint)
     url.searchParams.set('id', id)
+
+    console.log('[AccountOptimization] Calling GrowthCore API:', url.toString())
 
     const upstreamResponse = await fetch(url, {
       method: 'GET',
@@ -49,20 +55,33 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       },
     })
 
+    console.log('[AccountOptimization] GrowthCore response status:', upstreamResponse.status)
+
     const rawText = await upstreamResponse.text()
+    console.log('[AccountOptimization] Raw response length:', rawText.length)
+    
     let payload: any = null
 
     if (rawText) {
       try {
         payload = JSON.parse(rawText)
+        console.log('[AccountOptimization] Parsed response:', { 
+          status: payload?.status,
+          hasResult: !!payload?.result 
+        })
       } catch (parseError) {
         console.error('[AccountOptimization] Failed to parse response JSON', parseError)
+        console.error('[AccountOptimization] Raw text (first 500 chars):', rawText.substring(0, 500))
         payload = createErrorResponse('外部サービスの応答を解析できませんでした。')
       }
     }
 
     if (!upstreamResponse.ok) {
       const statusCode = upstreamResponse.status || 502
+      console.error('[AccountOptimization] Upstream error:', {
+        statusCode,
+        payload: payload ? JSON.stringify(payload).substring(0, 200) : 'null'
+      })
       return res.status(statusCode).json(
         payload ||
           createErrorResponse(
@@ -72,14 +91,21 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     }
 
     if (!payload) {
+      console.error('[AccountOptimization] Empty payload received')
       return res
         .status(502)
         .json(createErrorResponse('外部サービスから空の応答が返されました。'))
     }
 
+    console.log('[AccountOptimization] Returning successful response')
     return res.json(payload)
   } catch (error) {
-    console.error('[AccountOptimization] Request failed', error)
+    console.error('[AccountOptimization] Request failed:', error)
+    console.error('[AccountOptimization] Error details:', {
+      name: (error as Error)?.name,
+      message: (error as Error)?.message,
+      stack: (error as Error)?.stack?.substring(0, 500)
+    })
     return res
       .status(502)
       .json(createErrorResponse('外部サービス呼び出しに失敗しました。再度お試しください。'))
