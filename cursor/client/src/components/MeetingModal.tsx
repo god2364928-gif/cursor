@@ -58,10 +58,24 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
   // 현재 사용자
   const isCurrentUserTarget = (userId: string) => currentUser?.id === userId
   
-  // 미래 기간인지 확인 (목표 수정 가능 여부)
-  const isFuturePeriod = tab === 'weekly' 
-    ? reviewWeek >= currentWeek || reviewYear > currentYear
-    : reviewMonth >= currentMonth || reviewYear > currentYear
+  // 수정 가능한 기간인지 확인 (현재 주/월 + 직전 주/월만 가능)
+  const canEditPeriod = (() => {
+    if (tab === 'weekly') {
+      // 주간: 현재 주 또는 직전 주만 수정 가능
+      const lastWeek = currentWeek - 1 <= 0 ? 52 : currentWeek - 1
+      const lastWeekYear = currentWeek - 1 <= 0 ? currentYear - 1 : currentYear
+      
+      return (reviewWeek === currentWeek && reviewYear === currentYear) || 
+             (reviewWeek === lastWeek && reviewYear === lastWeekYear)
+    } else {
+      // 월간: 현재 월 또는 직전 월만 수정 가능
+      const lastMonth = currentMonth - 1 <= 0 ? 12 : currentMonth - 1
+      const lastMonthYear = currentMonth - 1 <= 0 ? currentYear - 1 : currentYear
+      
+      return (reviewMonth === currentMonth && reviewYear === currentYear) || 
+             (reviewMonth === lastMonth && reviewYear === lastMonthYear)
+    }
+  })()
 
   // 마케터만 필터링
   const marketers = users.filter(u => u.role === 'marketer')
@@ -226,10 +240,10 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
     }
   }
 
-  // 목표 저장 (본인만, 미래 기간만 가능)
+  // 목표 저장 (본인만, 현재 주/월 + 직전 주/월만 가능)
   const saveTarget = async (userId: string, field: string, value: number) => {
-    // 권한 체크: 본인이 아니거나 과거/현재 기간이면 저장 불가
-    if (!isCurrentUserTarget(userId) || !isFuturePeriod) {
+    // 권한 체크: 본인이 아니거나 수정 불가능한 기간이면 저장 불가
+    if (!isCurrentUserTarget(userId) || !canEditPeriod) {
       return
     }
     
@@ -474,7 +488,7 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
               {marketers.map(user => {
                 const target = targets.get(user.id)
                 const log = logs.get(user.id)
-                const canEditTarget = isCurrentUserTarget(user.id) && isFuturePeriod
+                const canEditTarget = isCurrentUserTarget(user.id) && canEditPeriod
                 // 월간 회의에서는 5대 수단, 리타겟팅, 기존 관리 목표는 자동 계산되므로 수정 불가
                 const canEditMonthlyAutoTarget = tab === 'weekly' && canEditTarget
                 // 월간 매출 목표는 수정 가능
