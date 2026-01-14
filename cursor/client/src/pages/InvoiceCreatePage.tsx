@@ -208,11 +208,23 @@ export default function InvoiceCreatePage() {
     setFormData({ ...formData, line_items: newItems })
   }
 
+  // 세액 계산 함수 (내세/외세에 따라 다르게 계산)
+  const calculateTax = (unitPrice: number, quantity: number, taxRate: number, isInclusive: boolean) => {
+    const subtotal = unitPrice * quantity
+    if (isInclusive) {
+      // 내세: 세금 포함 금액에서 역산
+      return Math.floor(subtotal * taxRate / (100 + taxRate))
+    } else {
+      // 외세: 세금 별도 계산
+      return Math.floor(subtotal * taxRate / 100)
+    }
+  }
+
   const handleLineItemChange = (index: number, field: keyof InvoiceLineItem, value: string | number) => {
     const newItems = [...formData.line_items]
     newItems[index] = { ...newItems[index], [field]: value }
     
-    // 세액 자동 계산 (품목별 세율 적용)
+    // 세액 자동 계산 (품목별 세율 적용, 내세/외세 구분)
     if (field === 'unit_price' || field === 'quantity' || field === 'tax_rate') {
       const unitPrice = field === 'unit_price' 
         ? (typeof value === 'string' ? (value === '' ? 0 : Number(value)) : Number(value))
@@ -221,7 +233,8 @@ export default function InvoiceCreatePage() {
           : newItems[index].unit_price)
       const quantity = field === 'quantity' ? Number(value) : newItems[index].quantity
       const taxRate = field === 'tax_rate' ? Number(value) : newItems[index].tax_rate
-      newItems[index].tax = Math.floor(unitPrice * quantity * (taxRate / 100))
+      const isInclusive = formData.tax_entry_method === 'inclusive'
+      newItems[index].tax = calculateTax(unitPrice, quantity, taxRate, isInclusive)
     }
     
     setFormData({ ...formData, line_items: newItems })
@@ -729,10 +742,23 @@ export default function InvoiceCreatePage() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setFormData({ 
-                      ...formData, 
-                      tax_entry_method: formData.tax_entry_method === 'inclusive' ? 'exclusive' : 'inclusive' 
-                    })}
+                    onClick={() => {
+                      const newMethod = formData.tax_entry_method === 'inclusive' ? 'exclusive' : 'inclusive'
+                      const isInclusive = newMethod === 'inclusive'
+                      // 모든 품목의 세액 재계산
+                      const updatedItems = formData.line_items.map(item => {
+                        const unitPrice = typeof item.unit_price === 'string' 
+                          ? (item.unit_price === '' ? 0 : Number(item.unit_price)) 
+                          : item.unit_price
+                        const tax = calculateTax(unitPrice, item.quantity, item.tax_rate, isInclusive)
+                        return { ...item, tax }
+                      })
+                      setFormData({ 
+                        ...formData, 
+                        tax_entry_method: newMethod,
+                        line_items: updatedItems
+                      })
+                    }}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       formData.tax_entry_method === 'inclusive' ? 'bg-blue-500' : 'bg-gray-300'
                     }`}
