@@ -639,29 +639,6 @@ export default function InvoiceCreatePage() {
             </div>
           </div>
 
-          {/* 소비세 포함/별도 선택 */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">
-              {language === 'ja' ? '消費税' : '소비세'} <span className="text-red-500">*</span>
-            </label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, tax_entry_method: 'inclusive' })}
-                className={`flex-1 px-4 py-2 rounded border ${formData.tax_entry_method === 'inclusive' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
-              >
-                {language === 'ja' ? '税込' : '소비세 포함'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, tax_entry_method: 'exclusive' })}
-                className={`flex-1 px-4 py-2 rounded border ${formData.tax_entry_method === 'exclusive' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
-              >
-                {language === 'ja' ? '税別' : '소비세 별도'}
-              </button>
-            </div>
-          </div>
-
           {/* 송금처 선택 */}
           <div className="mb-6">
             <label className="block text-sm font-medium mb-2">
@@ -744,16 +721,40 @@ export default function InvoiceCreatePage() {
           <div className="mb-6">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-bold">{language === 'ja' ? '品目' : '품목'}</h3>
-              <Button
-                type="button"
-                onClick={handleAddLineItem}
-                disabled={formData.line_items.length >= 5}
-                className="flex items-center gap-1"
-                size="sm"
-              >
-                <Plus className="w-4 h-4" />
-                {language === 'ja' ? '追加' : '추가'}
-              </Button>
+              <div className="flex items-center gap-4">
+                {/* 소비세 포함 토글 */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-sm text-gray-600">
+                    {language === 'ja' ? '税込' : '소비세 포함'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ 
+                      ...formData, 
+                      tax_entry_method: formData.tax_entry_method === 'inclusive' ? 'exclusive' : 'inclusive' 
+                    })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      formData.tax_entry_method === 'inclusive' ? 'bg-blue-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        formData.tax_entry_method === 'inclusive' ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </label>
+                <Button
+                  type="button"
+                  onClick={handleAddLineItem}
+                  disabled={formData.line_items.length >= 5}
+                  className="flex items-center gap-1"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  {language === 'ja' ? '追加' : '추가'}
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-3">
