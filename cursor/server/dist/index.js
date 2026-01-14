@@ -136,6 +136,7 @@ async function startServer() {
     // 자동 마이그레이션 실행
     await (0, autoMigrate_1.autoMigrateSalesTracking)();
     await (0, autoMigrate_1.autoMigrateHotpepper)();
+    await (0, autoMigrate_1.autoMigrateSalesAmountFields)();
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
         console.log(`CORS enabled for all origins`);

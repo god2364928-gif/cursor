@@ -3,11 +3,59 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.autoMigrateSalesAmountFields = autoMigrateSalesAmountFields;
 exports.autoMigrateHotpepper = autoMigrateHotpepper;
 exports.autoMigrateSalesTracking = autoMigrateSalesTracking;
 const db_1 = require("../db");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+async function autoMigrateSalesAmountFields() {
+    try {
+        console.log('Checking sales amount fields (total_amount, tax_amount, net_amount)...');
+        // total_amount 컬럼 존재 여부 확인
+        const checkResult = await db_1.pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'sales'
+        AND column_name = 'total_amount'
+      );
+    `);
+        if (checkResult.rows[0].exists) {
+            console.log('✓ sales amount fields already exist');
+            return;
+        }
+        console.log('Adding sales amount fields...');
+        // SQL 파일 읽기
+        const sqlPath = path_1.default.join(__dirname, '../../database/add-sales-amount-fields.sql');
+        const sql = fs_1.default.readFileSync(sqlPath, 'utf-8');
+        // 마이그레이션 실행
+        const client = await db_1.pool.connect();
+        try {
+            await client.query('BEGIN');
+            await client.query(sql);
+            await client.query('COMMIT');
+            console.log('✅ sales amount fields added and migrated successfully');
+        }
+        catch (error) {
+            await client.query('ROLLBACK');
+            if (error.code === '42701') {
+                // 컬럼이 이미 존재하는 경우 (동시 실행 시 발생 가능)
+                console.log('ℹ️  Columns were added by another process (this is OK)');
+            }
+            else {
+                throw error;
+            }
+        }
+        finally {
+            client.release();
+        }
+    }
+    catch (error) {
+        console.error('❌ Sales amount fields auto-migration failed:', error.message);
+        console.error('Server will continue to start, but some features may not work correctly');
+    }
+}
 async function autoMigrateHotpepper() {
     try {
         console.log('Checking hotpepper_restaurants table...');
