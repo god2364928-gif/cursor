@@ -151,11 +151,11 @@ export default function SalesPage() {
     const paymentMethodValue = (document.getElementById('add-paymentMethod') as HTMLSelectElement)?.value
     const salesType = (document.getElementById('add-salesType') as HTMLSelectElement)?.value
     const sourceType = (document.getElementById('add-sourceType') as HTMLSelectElement)?.value
-    let amount = parseFormattedNumber((document.getElementById('add-amount') as HTMLInputElement)?.value || '0')
+    const totalAmount = parseFormattedNumber((document.getElementById('add-amountWithTax') as HTMLInputElement)?.value || '0')
     const contractDate = (document.getElementById('add-contractDate') as HTMLInputElement)?.value
     const marketingContent = (document.getElementById('add-marketingContent') as HTMLTextAreaElement)?.value
 
-    if (!companyName || !salesType || !sourceType || !amount || !contractDate || !marketingContent) {
+    if (!companyName || !salesType || !sourceType || !totalAmount || !contractDate || !marketingContent) {
       showToast(t('pleaseFillAllFields'), 'error')
       return
     }
@@ -167,7 +167,7 @@ export default function SalesPage() {
         paymentMethod: paymentMethodValue || null,
         salesType,
         sourceType,
-        amount, // 계산된 세전 금액 저장
+        totalAmount, // 세금 포함 총액 그대로 저장
         contractDate,
         marketingContent
       })
@@ -197,7 +197,7 @@ export default function SalesPage() {
     const paymentMethodValue = (document.getElementById('edit-paymentMethod') as HTMLSelectElement)?.value
     const salesType = (document.getElementById('edit-salesType') as HTMLSelectElement)?.value
     const sourceType = (document.getElementById('edit-sourceType') as HTMLSelectElement)?.value
-    let amount = parseFormattedNumber((document.getElementById('edit-amount') as HTMLInputElement)?.value || '0')
+    const totalAmount = parseFormattedNumber((document.getElementById('edit-amountWithTax') as HTMLInputElement)?.value || '0')
     const contractDate = (document.getElementById('edit-contractDate') as HTMLInputElement)?.value
     const marketingContent = (document.getElementById('edit-marketingContent') as HTMLTextAreaElement)?.value
 
@@ -208,7 +208,7 @@ export default function SalesPage() {
         paymentMethod: paymentMethodValue || null,
         salesType,
         sourceType,
-        amount, // 계산된 세전 금액 저장
+        totalAmount, // 세금 포함 총액 그대로 저장
         contractDate,
         marketingContent
       })
@@ -256,8 +256,8 @@ export default function SalesPage() {
       [t('paymentMethod')]: paymentMethodLabel(sale.paymentMethod),
       [t('salesType')]: typeLabel(sale.salesType),
       [t('sourceType')]: sourceLabel(sale.sourceType),
-      [t('amountWithTax')]: Math.round(sale.amount * 1.1),
-      [t('revenue')]: sale.amount,
+      [t('amountWithTax')]: sale.totalAmount ?? Math.round(sale.amount * 1.1),
+      [t('revenue')]: sale.netAmount ?? sale.amount,
       [t('contractDate')]: sale.contractDate?.split('T')[0] || sale.contractDate,
       [t('marketingContent')]: sale.marketingContent || ''
     }))
@@ -334,8 +334,8 @@ export default function SalesPage() {
   // 통계 계산
   const filteredSales = sales.filter(s => managerFilter === 'all' || s.userName === managerFilter)
   
-  const totalSales = filteredSales.reduce((sum, s) => sum + s.amount, 0)
-  const totalDeposit = filteredSales.reduce((sum, s) => sum + Math.round(s.amount * 1.1), 0) // 입금액(소비세포함)
+  const totalSales = filteredSales.reduce((sum, s) => sum + (s.netAmount ?? s.amount), 0)
+  const totalDeposit = filteredSales.reduce((sum, s) => sum + (s.totalAmount ?? Math.round(s.amount * 1.1)), 0) // 입금액(소비세포함)
   const newSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'new')
   const renewalSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'renew')
   const cancellationSales = filteredSales.filter(s => toTypeCode(s.salesType) === 'cancel')
@@ -366,7 +366,7 @@ export default function SalesPage() {
       }
       
       const current = summaryByManager.get(manager)!
-      current.total_gross += sale.amount || 0
+      current.total_gross += sale.netAmount ?? sale.amount ?? 0
       current.count += 1
     })
     
@@ -430,7 +430,7 @@ export default function SalesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {formatNumber(newSales.reduce((sum, s) => sum + s.amount, 0))}{t('yen')}
+              {formatNumber(newSales.reduce((sum, s) => sum + (s.netAmount ?? s.amount), 0))}{t('yen')}
             </div>
           </CardContent>
         </Card>
@@ -440,7 +440,7 @@ export default function SalesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {formatNumber(renewalSales.reduce((sum, s) => sum + s.amount, 0))}{t('yen')}
+              {formatNumber(renewalSales.reduce((sum, s) => sum + (s.netAmount ?? s.amount), 0))}{t('yen')}
             </div>
           </CardContent>
         </Card>
@@ -450,7 +450,7 @@ export default function SalesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {formatNumber(cancellationSales.reduce((sum, s) => sum + s.amount, 0))}{t('yen')}
+              {formatNumber(cancellationSales.reduce((sum, s) => sum + (s.netAmount ?? s.amount), 0))}{t('yen')}
             </div>
           </CardContent>
         </Card>
@@ -562,11 +562,12 @@ export default function SalesPage() {
                     const numValue = parseInt(value) || 0
                     const formatted = formatNumber(numValue)
                     e.target.value = formatted
-                    // 매출(소비세별도) 자동 계산: 입금액 / 1.1
-                    const amountWithoutTax = Math.round(numValue / 1.1)
+                    // 회계 표준: 세액 = floor(총액 * 10/110), 공급가액 = 총액 - 세액
+                    const taxAmount = Math.floor(numValue * 10 / 110)
+                    const netAmount = numValue - taxAmount
                     const amountInput = document.getElementById('add-amount') as HTMLInputElement
                     if (amountInput) {
-                      amountInput.value = formatNumber(amountWithoutTax)
+                      amountInput.value = formatNumber(netAmount)
                     }
                   }}
                 />
@@ -656,7 +657,7 @@ export default function SalesPage() {
                           <div className="flex items-center gap-2">
                             <Input 
                               type="text" 
-                              defaultValue={formatNumber(Math.round(sale.amount * 1.1))} 
+                              defaultValue={formatNumber(sale.totalAmount ?? Math.round(sale.amount * 1.1))} 
                               id="edit-amountWithTax"
                               className="w-28"
                               onChange={e => {
@@ -664,17 +665,18 @@ export default function SalesPage() {
                                 const numValue = parseInt(value) || 0
                                 const formatted = formatNumber(numValue)
                                 e.target.value = formatted
-                                // 매출(소비세별도) 자동 계산: 입금액 / 1.1
-                                const amountWithoutTax = Math.round(numValue / 1.1)
+                                // 회계 표준: 세액 = floor(총액 * 10/110), 공급가액 = 총액 - 세액
+                                const taxAmount = Math.floor(numValue * 10 / 110)
+                                const netAmount = numValue - taxAmount
                                 const amountInput = document.getElementById('edit-amount') as HTMLInputElement
                                 if (amountInput) {
-                                  amountInput.value = formatNumber(amountWithoutTax)
+                                  amountInput.value = formatNumber(netAmount)
                                 }
                               }}
                             />
                             <Input 
                               type="text" 
-                              defaultValue={formatNumber(sale.amount)} 
+                              defaultValue={formatNumber(sale.netAmount ?? sale.amount)} 
                               id="edit-amount"
                               className="w-28"
                               disabled
@@ -709,8 +711,8 @@ export default function SalesPage() {
                           </span>
                         </td>
                         <td className="px-2 py-3 text-sm text-gray-500">{sourceLabel(sale.sourceType)}</td>
-                        <td className="px-2 py-3 text-sm font-medium text-gray-900">{formatNumber(Math.round(sale.amount * 1.1))}{t('yen')}</td>
-                        <td className="px-2 py-3 text-sm font-medium text-gray-900">{formatNumber(sale.amount)}{t('yen')}</td>
+                        <td className="px-2 py-3 text-sm font-medium text-gray-900">{formatNumber(sale.totalAmount ?? Math.round(sale.amount * 1.1))}{t('yen')}</td>
+                        <td className="px-2 py-3 text-sm font-medium text-gray-900">{formatNumber(sale.netAmount ?? sale.amount)}{t('yen')}</td>
                         <td className="px-2 py-3 text-sm text-gray-500">{sale.contractDate?.split('T')[0] || sale.contractDate}</td>
                         <td className="px-2 py-3 text-sm text-gray-500 max-w-xs truncate">{sale.marketingContent}</td>
                         <td className="px-2 py-3 text-sm">

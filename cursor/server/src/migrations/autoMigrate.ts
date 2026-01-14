@@ -2,6 +2,56 @@ import { pool } from '../db'
 import fs from 'fs'
 import path from 'path'
 
+export async function autoMigrateSalesAmountFields(): Promise<void> {
+  try {
+    console.log('Checking sales amount fields (total_amount, tax_amount, net_amount)...')
+    
+    // total_amount 컬럼 존재 여부 확인
+    const checkResult = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'sales'
+        AND column_name = 'total_amount'
+      );
+    `)
+    
+    if (checkResult.rows[0].exists) {
+      console.log('✓ sales amount fields already exist')
+      return
+    }
+    
+    console.log('Adding sales amount fields...')
+    
+    // SQL 파일 읽기
+    const sqlPath = path.join(__dirname, '../../database/add-sales-amount-fields.sql')
+    const sql = fs.readFileSync(sqlPath, 'utf-8')
+    
+    // 마이그레이션 실행
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(sql)
+      await client.query('COMMIT')
+      console.log('✅ sales amount fields added and migrated successfully')
+    } catch (error: any) {
+      await client.query('ROLLBACK')
+      if (error.code === '42701') {
+        // 컬럼이 이미 존재하는 경우 (동시 실행 시 발생 가능)
+        console.log('ℹ️  Columns were added by another process (this is OK)')
+      } else {
+        throw error
+      }
+    } finally {
+      client.release()
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Sales amount fields auto-migration failed:', error.message)
+    console.error('Server will continue to start, but some features may not work correctly')
+  }
+}
+
 export async function autoMigrateHotpepper(): Promise<void> {
   try {
     console.log('Checking hotpepper_restaurants table...')
