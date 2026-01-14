@@ -522,8 +522,8 @@ async function createInvoice(invoiceData) {
  * 청구서 PDF 다운로드 (freee請求書 API)
  * freee 請求書 API는 /reports/ 경로를 사용
  */
-async function downloadInvoicePdf(companyId, invoiceId, dueDateFromDb, memoFromDb, paymentBankInfoFromDb) {
-    console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}, memo=${memoFromDb ? 'present' : 'none'}, payment_info=${paymentBankInfoFromDb ? 'custom' : 'default'}`);
+async function downloadInvoicePdf(companyId, invoiceId, dueDateFromDb, memoFromDb, paymentBankInfoFromDb, taxEntryMethodFromDb) {
+    console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}, memo=${memoFromDb ? 'present' : 'none'}, payment_info=${paymentBankInfoFromDb ? 'custom' : 'default'}, tax_entry_method=${taxEntryMethodFromDb}`);
     const token = await ensureValidToken();
     if (!token) {
         throw new Error('No valid access token. Please authenticate first.');
@@ -571,6 +571,7 @@ async function downloadInvoicePdf(companyId, invoiceId, dueDateFromDb, memoFromD
             payment_bank_info: paymentInfo, // DB의 payment_bank_info 사용
             invoice_registration_number: invoice.template?.invoice_registration_number || 'T5013301050765',
             memo: memoFromDb || '', // DB의 memo 사용
+            tax_entry_method: (taxEntryMethodFromDb === 'inclusive' ? 'inclusive' : 'exclusive'), // DB의 tax_entry_method 사용 (기본값: 외세)
         });
         console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`);
         return pdfBuffer;

@@ -18,6 +18,7 @@ interface InvoiceData {
     payment_bank_info?: string;
     invoice_registration_number?: string;
     memo?: string;
+    tax_entry_method?: 'inclusive' | 'exclusive';
 }
 interface ReceiptData {
     receipt_number: string;
