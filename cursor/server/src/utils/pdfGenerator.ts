@@ -21,6 +21,7 @@ interface InvoiceData {
   payment_bank_info?: string
   invoice_registration_number?: string
   memo?: string  // 추가: 비고
+  tax_entry_method?: 'inclusive' | 'exclusive'  // 추가: 내세/외세
 }
 
 interface ReceiptData {
@@ -345,35 +346,56 @@ function generateInvoiceHtml(data: InvoiceData): string {
     }
   }
 
-  // 세율별 금액 계산 (프론트엔드와 동일한 방식: Math.floor 사용)
-  const taxRateGroups: { [key: number]: { subtotal: number; tax: number } } = {}
+  // 내세/외세 모드 확인
+  const isInclusive = data.tax_entry_method === 'inclusive'
+  
+  // 세율별 금액 계산
+  const taxRateGroups: { [key: number]: { subtotal: number; tax: number; taxExcluding: number } } = {}
   
   data.lines.forEach((line) => {
     const lineSubtotal = line.quantity * line.unit_price
     const taxRate = line.tax_rate || 10  // 기본값 10%
-    const lineTax = Math.floor(lineSubtotal * taxRate / 100)  // 세금 계산 (소수점 버림) - 프론트엔드와 동일
+    
+    let lineTax: number
+    let lineTaxExcluding: number
+    
+    if (isInclusive) {
+      // 내세: 입력 금액에서 세금을 역산 (세금 포함 가격 / 1.1 * 0.1)
+      lineTax = Math.floor(lineSubtotal * taxRate / (100 + taxRate))
+      lineTaxExcluding = lineSubtotal - lineTax
+    } else {
+      // 외세: 세금을 별도 계산
+      lineTax = Math.floor(lineSubtotal * taxRate / 100)
+      lineTaxExcluding = lineSubtotal
+    }
     
     if (!taxRateGroups[taxRate]) {
-      taxRateGroups[taxRate] = { subtotal: 0, tax: 0 }
+      taxRateGroups[taxRate] = { subtotal: 0, tax: 0, taxExcluding: 0 }
     }
     taxRateGroups[taxRate].subtotal += lineSubtotal
     taxRateGroups[taxRate].tax += lineTax
+    taxRateGroups[taxRate].taxExcluding += lineTaxExcluding
   })
 
-  // 총 소계와 총 세금 계산 (프론트엔드와 동일하게 계산)
+  // 총 금액 계산
   const calculatedSubtotal = Object.values(taxRateGroups).reduce((sum, g) => sum + g.subtotal, 0)
   const calculatedTax = Object.values(taxRateGroups).reduce((sum, g) => sum + g.tax, 0)
-  const calculatedTotal = calculatedSubtotal + calculatedTax
+  const calculatedTaxExcluding = Object.values(taxRateGroups).reduce((sum, g) => sum + g.taxExcluding, 0)
+  
+  // 내세: 합계 = 소계 (세금 이미 포함), 외세: 합계 = 소계 + 세금
+  const calculatedTotal = isInclusive ? calculatedSubtotal : calculatedSubtotal + calculatedTax
 
   // 세율별 내역 HTML 생성 (10%, 8% 순서)
   const taxRates = Object.keys(taxRateGroups).map(Number).sort((a, b) => b - a)  // 내림차순
   const summaryRowsHtml = taxRates.map((rate, index) => {
     const group = taxRateGroups[rate]
     const prefix = index === 0 ? '内訳　　' : '　　　　'
+    // 내세: taxExcluding (세전 금액) 표시, 외세: subtotal (세전 금액) 표시
+    const displaySubtotal = isInclusive ? group.taxExcluding : group.subtotal
     return `
     <div class="summary-row">
       <span class="label">${prefix}${rate}%対象(税抜)</span>
-      <span class="value">${group.subtotal.toLocaleString()}円</span>
+      <span class="value">${displaySubtotal.toLocaleString()}円</span>
     </div>
     <div class="summary-row">
       <span class="label">　　　　${rate}%消費税</span>
@@ -623,7 +645,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
       <td class="total-label" style="width: 50%;">請求金額</td>
     </tr>
     <tr>
-      <td>${calculatedSubtotal.toLocaleString()}円</td>
+      <td>${(isInclusive ? calculatedTaxExcluding : calculatedSubtotal).toLocaleString()}円</td>
       <td>${calculatedTax.toLocaleString()}円</td>
       <td class="total-value">${calculatedTotal.toLocaleString()}円</td>
     </tr>
