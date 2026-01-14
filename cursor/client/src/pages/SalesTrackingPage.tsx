@@ -33,7 +33,7 @@ interface SalesTrackingRecord {
   restaurant_id?: number // Reference to restaurants table for records from Recruit search
 }
 
-const PAGE_SIZE = 500
+const PAGE_SIZE = 100
 
 interface MonthlyStats {
   manager: string
@@ -136,12 +136,19 @@ export default function SalesTrackingPage() {
     })()
   }, [user])
 
-  const fetchRecords = useCallback(async (_append: boolean, _nextOffset: number, signal?: AbortSignal, keepCurrentPage: boolean = false) => {
-    setLoading(true)
-    setLoadingMore(false)
+  const fetchRecords = useCallback(async (append: boolean, nextOffset: number, signal?: AbortSignal, keepCurrentPage: boolean = false) => {
+    if (append) {
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+      setLoadingMore(false)
+    }
 
     try {
-      const params: any = { limit: 'all' }
+      const params: any = { 
+        limit: PAGE_SIZE,
+        offset: append ? nextOffset : 0
+      }
       if (searchQuery.trim()) {
         params.search = searchQuery.trim()
       }
@@ -151,12 +158,19 @@ export default function SalesTrackingPage() {
       }
       const response = await api.get('/sales-tracking', config)
       const rows = response.data?.rows ?? response.data ?? []
-      setHasMore(false)
-      setOffset(0)
-      setRecords(rows)
-      if (!keepCurrentPage) {
-        setCurrentPage(1)
+      const hasMoreData = response.data?.hasMore ?? (rows.length === PAGE_SIZE)
+      
+      if (append) {
+        setRecords(prev => [...prev, ...rows])
+        setOffset(nextOffset + rows.length)
+      } else {
+        setRecords(rows)
+        setOffset(rows.length)
+        if (!keepCurrentPage) {
+          setCurrentPage(1)
+        }
       }
+      setHasMore(hasMoreData)
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
         console.log('Previous fetch request cancelled')
@@ -165,7 +179,9 @@ export default function SalesTrackingPage() {
       console.error('Failed to fetch records:', error)
       const errorMessage = error?.response?.data?.message || error?.message || t('error')
       showToast(errorMessage, 'error')
-      setRecords([])
+      if (!append) {
+        setRecords([])
+      }
     } finally {
       setLoading(false)
       setLoadingMore(false)
@@ -221,7 +237,7 @@ export default function SalesTrackingPage() {
 
   const handleLoadMore = () => {
     if (!hasMore || loading || loadingMore) return
-    fetchRecords(true, offset + PAGE_SIZE)
+    fetchRecords(true, offset)
   }
 
   // Daily stats
