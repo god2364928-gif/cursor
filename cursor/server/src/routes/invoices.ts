@@ -163,6 +163,7 @@ router.get('/list', authMiddleware, async (req: AuthRequest, res: Response) => {
         i.due_date,
         i.total_amount,
         i.tax_amount,
+        i.tax_entry_method,
         i.user_id as issued_by_user_id,
         u.name as issued_by_user_name,
         i.receipt_id,

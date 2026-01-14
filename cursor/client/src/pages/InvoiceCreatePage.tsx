@@ -639,10 +639,10 @@ export default function InvoiceCreatePage() {
             </div>
           </div>
 
-          {/* 내세/외세 선택 */}
+          {/* 소비세 포함/별도 선택 */}
           <div className="mb-6">
             <label className="block text-sm font-medium mb-2">
-              {language === 'ja' ? '税の表示方法' : '세금 표시 방법'} <span className="text-red-500">*</span>
+              {language === 'ja' ? '消費税' : '소비세'} <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-2">
               <button
@@ -650,14 +650,14 @@ export default function InvoiceCreatePage() {
                 onClick={() => setFormData({ ...formData, tax_entry_method: 'inclusive' })}
                 className={`flex-1 px-4 py-2 rounded border ${formData.tax_entry_method === 'inclusive' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
               >
-                {language === 'ja' ? '内税' : '내세'}
+                {language === 'ja' ? '税込' : '소비세 포함'}
               </button>
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, tax_entry_method: 'exclusive' })}
                 className={`flex-1 px-4 py-2 rounded border ${formData.tax_entry_method === 'exclusive' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white border-gray-300'}`}
               >
-                {language === 'ja' ? '外税' : '외세'}
+                {language === 'ja' ? '税別' : '소비세 별도'}
               </button>
             </div>
           </div>
