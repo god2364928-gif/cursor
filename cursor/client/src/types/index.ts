@@ -115,6 +115,9 @@ export interface Sales {
   salesType: '신규매출' | '연장매출' | '해지매출'
   sourceType: string
   amount: number
+  totalAmount?: number  // 세금 포함 총액 (사용자 입력값 그대로)
+  taxAmount?: number    // 세액
+  netAmount?: number    // 공급가액 (세금 제외)
   contractDate: string
   marketingContent?: string
   note?: string

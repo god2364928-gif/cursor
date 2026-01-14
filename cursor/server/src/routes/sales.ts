@@ -40,6 +40,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         s.sales_type,
         s.source_type,
         s.amount,
+        s.total_amount,
+        s.tax_amount,
+        s.net_amount,
         s.contract_date,
         s.marketing_content,
         s.note,
@@ -111,6 +114,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       salesType: row.sales_type,
       sourceType: row.source_type,
       amount: row.amount,
+      totalAmount: row.total_amount,
+      taxAmount: row.tax_amount,
+      netAmount: row.net_amount,
       contractDate: row.contract_date_str || row.contract_date,
       marketingContent: row.marketing_content,
       note: row.note,
@@ -133,17 +139,22 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 // Create new sale
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const { companyName, payerName, paymentMethod, salesType, sourceType, amount, contractDate, marketingContent } = req.body
+    const { companyName, payerName, paymentMethod, salesType, sourceType, totalAmount, contractDate, marketingContent } = req.body
     
-    if (!companyName || !salesType || !sourceType || !amount || !contractDate || !marketingContent) {
+    if (!companyName || !salesType || !sourceType || !totalAmount || !contractDate || !marketingContent) {
       return res.status(400).json({ message: 'All fields are required' })
     }
     
+    // 회계 표준 방식: 총액 우선 저장, 세금 별도 계산
+    const total = Math.round(totalAmount)
+    const taxAmount = Math.floor(total * 10 / 110) // 세액 (버림 처리)
+    const netAmount = total - taxAmount // 공급가액
+    
     const result = await pool.query(
-      `INSERT INTO sales (user_id, company_name, payer_name, payment_method, sales_type, source_type, amount, contract_date, marketing_content)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO sales (user_id, company_name, payer_name, payment_method, sales_type, source_type, amount, total_amount, tax_amount, net_amount, contract_date, marketing_content)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [req.user?.id, companyName, payerName || null, paymentMethod || null, salesType, sourceType, amount, contractDate, marketingContent]
+      [req.user?.id, companyName, payerName || null, paymentMethod || null, salesType, sourceType, netAmount, total, taxAmount, netAmount, contractDate, marketingContent]
     )
     
     const sale = result.rows[0]
@@ -158,6 +169,9 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       salesType: sale.sales_type,
       sourceType: sale.source_type,
       amount: sale.amount,
+      totalAmount: sale.total_amount,
+      taxAmount: sale.tax_amount,
+      netAmount: sale.net_amount,
       contractDate: sale.contract_date,
       marketingContent: sale.marketing_content,
       note: sale.note,
@@ -175,7 +189,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
-    const { companyName, payerName, paymentMethod, salesType, sourceType, amount, contractDate, marketingContent } = req.body
+    const { companyName, payerName, paymentMethod, salesType, sourceType, totalAmount, contractDate, marketingContent } = req.body
     
     // Check if sale exists and get user_id
     const saleResult = await pool.query('SELECT user_id FROM sales WHERE id = $1', [id])
@@ -191,9 +205,14 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'You can only edit your own sales' })
     }
     
+    // 회계 표준 방식: 총액 우선 저장, 세금 별도 계산
+    const total = Math.round(totalAmount)
+    const taxAmount = Math.floor(total * 10 / 110) // 세액 (버림 처리)
+    const netAmount = total - taxAmount // 공급가액
+    
     await pool.query(
-      `UPDATE sales SET company_name = $1, payer_name = $2, payment_method = $3, sales_type = $4, source_type = $5, amount = $6, contract_date = $7, marketing_content = $8 WHERE id = $9`,
-      [companyName, payerName || null, paymentMethod || null, salesType, sourceType, amount, contractDate, marketingContent, id]
+      `UPDATE sales SET company_name = $1, payer_name = $2, payment_method = $3, sales_type = $4, source_type = $5, amount = $6, total_amount = $7, tax_amount = $8, net_amount = $9, contract_date = $10, marketing_content = $11 WHERE id = $12`,
+      [companyName, payerName || null, paymentMethod || null, salesType, sourceType, netAmount, total, taxAmount, netAmount, contractDate, marketingContent, id]
     )
     
     res.json({ success: true })
