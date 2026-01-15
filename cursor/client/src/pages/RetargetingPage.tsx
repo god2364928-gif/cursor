@@ -22,6 +22,9 @@ export default function RetargetingPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const customerListRef = useRef<HTMLDivElement>(null)
+  const translationCacheRef = useRef<Map<string, string>>(new Map())
+  const selectedCustomerIdRef = useRef<string | null>(null)
+  const didInitRef = useRef(false)
   
   // Helper to translate server error messages
   const translateErrorMessage = (message: string): string => {
@@ -95,6 +98,8 @@ export default function RetargetingPage() {
   const [users, setUsers] = useState<any[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<RetargetingCustomer | null>(null)
   const [history, setHistory] = useState<RetargetingHistory[]>([])
+  const [loadingCustomers, setLoadingCustomers] = useState(false)
+  const [customersError, setCustomersError] = useState<string | null>(null)
   const [managerFilter, setManagerFilter] = useState<string>(user?.name || 'all')
   const [mainFilter, setMainFilter] = useState<string>('inProgress')
   const [subFilter, setSubFilter] = useState<string>('all')
@@ -114,6 +119,9 @@ export default function RetargetingPage() {
   const [uploadingFile, setUploadingFile] = useState(false)
 
   useEffect(() => {
+    // 개발 모드(React StrictMode)에서 effect가 2번 호출되어도 중복 로딩 방지
+    if (didInitRef.current) return
+    didInitRef.current = true
     fetchCustomers()
     fetchUsers()
   }, [])
@@ -130,6 +138,7 @@ export default function RetargetingPage() {
   useEffect(() => {
     if (selectedCustomer?.id && selectedCustomer.id !== lastFetchedId.current) {
       lastFetchedId.current = selectedCustomer.id
+      selectedCustomerIdRef.current = selectedCustomer.id
       
       // 즉시 리스트 데이터로 초기화 (빠른 반응)
       setPhoneNumbers(selectedCustomer.phone ? [selectedCustomer.phone] : [''])
@@ -209,14 +218,25 @@ export default function RetargetingPage() {
   
   const fetchCustomers = async () => {
     try {
-    const response = await api.get('/retargeting')
-    setCustomers(response.data)
-    // 첫 번째 고객을 자동으로 선택
-    if (response.data.length > 0 && !selectedCustomer) {
-      setSelectedCustomer(response.data[0])
-    }
+      setLoadingCustomers(true)
+      setCustomersError(null)
+
+      const response = await api.get('/retargeting', {
+        params: { view: 'list', includeTrash: 1 }
+      })
+      const list = Array.isArray(response.data) ? response.data : []
+      setCustomers(list)
+
+      // 첫 번째 고객을 자동으로 선택 (목록이 먼저 뜨고 난 뒤 상세는 별도로)
+      if (list.length > 0 && !selectedCustomer) {
+        setSelectedCustomer(list[0])
+      }
     } catch (error) {
       console.error('Failed to fetch retargeting customers:', error)
+      setCustomers([])
+      setCustomersError(t('error'))
+    } finally {
+      setLoadingCustomers(false)
     }
   }
   
@@ -242,7 +262,12 @@ export default function RetargetingPage() {
         setInstagramAccounts([''])
         setInitialInstagramCount(1)
       }
-      // setSelectedCustomer를 호출하지 않음 - 이미 리스트에서 선택된 상태이므로
+
+      // 상세 응답으로 선택 고객 정보를 갱신 (목록 응답이 가벼워져도 상세 폼이 정상 동작하도록)
+      setSelectedCustomer((prev) => {
+        if (!prev || prev.id !== id) return prev
+        return { ...prev, ...customer }
+      })
     } catch (error: any) {
       // AbortError는 무시 (요청이 취소된 경우)
       if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
@@ -255,14 +280,31 @@ export default function RetargetingPage() {
     try {
       const response = await api.get(`/retargeting/${id}/history`, { signal })
       const historyData = response.data
-      
-      // Translate history content if needed
-      const translatedHistory = await Promise.all(historyData.map(async (item: any) => {
-        const translatedContent = await translateContent(item.content)
-        return { ...item, content: translatedContent }
-      }))
-      
-      setHistory(translatedHistory)
+
+      // 먼저 원문을 즉시 표시 (체감 속도)
+      setHistory(historyData)
+
+      // 번역은 백그라운드에서 수행 (외부 호출/지연이 있어도 UI가 먼저 뜨도록)
+      ;(async () => {
+        if (language !== 'ko') return
+        const currentSelectedId = selectedCustomerIdRef.current
+        if (currentSelectedId !== id) return
+
+        const translated = await Promise.all(
+          (historyData as any[]).map(async (item: any) => {
+            const key = `${item.id}:${item.content}`
+            if (translationCacheRef.current.has(key)) {
+              return { ...item, content: translationCacheRef.current.get(key) }
+            }
+            const translatedContent = await translateContent(item.content)
+            translationCacheRef.current.set(key, translatedContent)
+            return { ...item, content: translatedContent }
+          })
+        )
+
+        if (selectedCustomerIdRef.current !== id) return
+        setHistory(translated)
+      })().catch((e) => console.error('History translation background error', e))
     } catch (error: any) {
       // AbortError는 무시 (요청이 취소된 경우)
       if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
@@ -791,6 +833,13 @@ export default function RetargetingPage() {
     // 같은 범주 내에서 오래된 순 (days 큰 순)
     return (daysB || 0) - (daysA || 0)
   })
+
+  // 담당자 필터가 특정 값인데 결과가 0건이면 전체로 자동 전환 (목록이 비는 문제 방지)
+  useEffect(() => {
+    if (customers.length > 0 && managerFilter !== 'all' && filteredCustomers.length === 0) {
+      setManagerFilter('all')
+    }
+  }, [customers.length, managerFilter, filteredCustomers.length])
   
   // Get unique managers for filter dropdown (only marketers)
   const managers = getMarketerNames(users)
@@ -991,6 +1040,12 @@ export default function RetargetingPage() {
           
           {/* Customer List */}
           <div ref={customerListRef} className="space-y-2">
+          {loadingCustomers && (
+            <div className="text-sm text-gray-500 py-2">{t('loading')}</div>
+          )}
+          {!loadingCustomers && customersError && (
+            <div className="text-sm text-red-600 py-2">{customersError}</div>
+          )}
           {filteredCustomers.map(customer => {
             const days = getDaysSinceLastContact(customer.lastContactDate)
             return (
