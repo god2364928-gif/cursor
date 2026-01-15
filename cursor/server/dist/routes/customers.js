@@ -76,6 +76,62 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
 // Get all customers with filtering
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
+        const view = String(req.query.view || '').trim();
+        const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
+        const manager = typeof req.query.manager === 'string' ? req.query.manager.trim() : '';
+        const where = [];
+        const params = [];
+        if (status) {
+            params.push(status);
+            where.push(`status = $${params.length}`);
+        }
+        if (manager) {
+            params.push(manager);
+            where.push(`manager = $${params.length}`);
+        }
+        const whereClause = where.length ? ` WHERE ${where.join(' AND ')}` : '';
+        // list view: 빠른 목록 표시용 (필요한 필드만)
+        if (view === 'list') {
+            const result = await db_1.pool.query(`SELECT
+          id,
+          company_name,
+          customer_name,
+          industry,
+          phone1,
+          phone2,
+          phone3,
+          instagram,
+          monthly_budget,
+          status,
+          inflow_path,
+          manager,
+          manager_team,
+          to_char(contract_start_date, 'YYYY-MM-DD') AS contract_start_date_str,
+          to_char(contract_expiration_date, 'YYYY-MM-DD') AS contract_expiration_date_str,
+          to_char(registration_date, 'YYYY-MM-DD') AS registration_date_str
+         FROM customers
+         ${whereClause}
+         ORDER BY registration_date DESC`, params);
+            const customers = result.rows.map(row => ({
+                id: row.id,
+                companyName: row.company_name,
+                industry: row.industry,
+                customerName: row.customer_name,
+                phone1: row.phone1,
+                phone2: row.phone2,
+                phone3: row.phone3,
+                instagram: row.instagram,
+                monthlyBudget: row.monthly_budget,
+                contractStartDate: row.contract_start_date_str || row.contract_start_date,
+                contractExpirationDate: row.contract_expiration_date_str || row.contract_expiration_date,
+                status: row.status,
+                inflowPath: row.inflow_path,
+                manager: row.manager,
+                managerTeam: row.manager_team,
+                registrationDate: row.registration_date_str || row.registration_date
+            }));
+            return res.json(customers);
+        }
         const result = await db_1.pool.query(`SELECT 
         id, company_name, industry, customer_name, title, phone1, phone2, phone3,
         customer_type, business_model, region, homepage, blog, instagram,
@@ -89,7 +145,8 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         to_char(registration_date, 'YYYY-MM-DD') AS registration_date_str,
         last_contact, last_talk, last_call, memo
        FROM customers
-       ORDER BY registration_date DESC`);
+       ${whereClause}
+       ORDER BY registration_date DESC`, params);
         // Convert snake_case to camelCase
         const customers = result.rows.map(row => ({
             id: row.id,

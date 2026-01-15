@@ -6,6 +6,52 @@ const auth_1 = require("../middleware/auth");
 const nullSafe_1 = require("../utils/nullSafe");
 const dateHelper_1 = require("../utils/dateHelper");
 const router = (0, express_1.Router)();
+const mapInflowPathFromContactMethod = (contactMethod) => {
+    console.log('[mapInflowPathFromContactMethod] Input:', { contactMethod, type: typeof contactMethod });
+    if (!contactMethod) {
+        console.log('[mapInflowPathFromContactMethod] Empty input, returning null');
+        return null;
+    }
+    const normalized = contactMethod.trim();
+    console.log('[mapInflowPathFromContactMethod] Normalized:', { normalized, length: normalized.length });
+    if (!normalized)
+        return null;
+    if (normalized === '없음' || normalized === 'なし')
+        return null;
+    if (normalized.startsWith('아웃바운드('))
+        return normalized;
+    const normalizedLower = normalized.toLowerCase();
+    const mapping = {
+        전화: '아웃바운드(전화)',
+        電話: '아웃바운드(전화)',
+        phone: '아웃바운드(전화)',
+        tel: '아웃바운드(전화)',
+        라인: '아웃바운드(라인)',
+        ライン: '아웃바운드(라인)',
+        LINE: '아웃바운드(라인)',
+        line: '아웃바운드(라인)',
+        DM: '아웃바운드(DM)',
+        dm: '아웃바운드(DM)',
+        폼: '아웃바운드(폼)',
+        フォーム: '아웃바운드(폼)',
+        form: '아웃바운드(폼)',
+        메일: '아웃바운드(메일)',
+        メール: '아웃바운드(메일)',
+        mail: '아웃바운드(메일)',
+        email: '아웃바운드(메일)'
+    };
+    if (mapping[normalized]) {
+        console.log('[mapInflowPathFromContactMethod] Exact match found:', mapping[normalized]);
+        return mapping[normalized];
+    }
+    if (mapping[normalizedLower]) {
+        console.log('[mapInflowPathFromContactMethod] Lowercase match found:', mapping[normalizedLower]);
+        return mapping[normalizedLower];
+    }
+    const result = `아웃바운드(${normalized})`;
+    console.log('[mapInflowPathFromContactMethod] No match, creating default:', result);
+    return result;
+};
 // Get all sales tracking records (with search)
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
@@ -195,6 +241,7 @@ router.post('/bulk-move-to-retargeting', auth_1.authMiddleware, async (req, res)
             try {
                 const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
                 // 리타겟팅 고객으로 추가
+                const inflowPath = mapInflowPathFromContactMethod(record.contact_method);
                 await db_1.pool.query(`INSERT INTO retargeting_customers 
            (company_name, industry, customer_name, phone, region, inflow_path, manager, manager_team, status, registered_at, memo, homepage, instagram, main_keywords, sales_tracking_id, last_contact_date)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`, [
@@ -203,7 +250,7 @@ router.post('/bulk-move-to-retargeting', auth_1.authMiddleware, async (req, res)
                     record.customer_name || record.company_name || '이름 없음',
                     record.phone || '',
                     null, // region
-                    record.contact_method || null, // inflow_path (유입경로)
+                    inflowPath, // inflow_path (유입경로)
                     record.manager_name || '',
                     null, // manager_team
                     '시작', // status
@@ -466,6 +513,7 @@ router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) 
             // memo: 빈 값 허용
             const memoFinal = record.memo ? record.memo.trim() : null;
             const memoFinalValue = (memoFinal && memoFinal !== '') ? memoFinal : null;
+            const inflowPath = mapInflowPathFromContactMethod(record.contact_method);
             // insertValues 배열 생성 (null-safe 유틸리티로 이미 처리된 값들 사용)
             insertValues = [
                 companyNameFinal, // company_name (NOT NULL) - null-safe 처리 완료
@@ -473,7 +521,7 @@ router.post('/:id/move-to-retargeting', auth_1.authMiddleware, async (req, res) 
                 customerNameFinal, // customer_name (NOT NULL) - null-safe 처리 완료
                 phoneFinal, // phone (NOT NULL) - null-safe 처리 완료
                 null, // region
-                record.contact_method || null, // inflow_path (유입경로)
+                inflowPath, // inflow_path (유입경로)
                 managerName, // manager - null-safe 처리 완료
                 null, // manager_team
                 '시작', // status

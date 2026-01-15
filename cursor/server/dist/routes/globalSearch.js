@@ -109,23 +109,39 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
            OR (company_name ILIKE $2 OR customer_name ILIKE $2 OR phone ILIKE $2 OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '%'))
         ORDER BY match_priority, company_name LIMIT 10`;
         const retargetingResult = await db_1.pool.query(retargetingQuery, partialKeyword ? [exactKeyword, startsWithKeyword, partialKeyword] : [exactKeyword, startsWithKeyword]);
-        // 3. 영업이력 검색 - 정확 일치 > 시작 일치 > 부분 일치 (4자 이상만)
+        // 3. 영업이력 검색 - 정확 일치 > 시작 일치 > 부분 일치 (부분일치는 partialKeyword 조건 따름)
         const salesTrackingQuery = partialKeyword
-            ? `SELECT 'salesTracking' as page, manager_name, COALESCE(customer_name, account_id, '(no name)') as display_name, id,
-          CASE WHEN customer_name = $1 OR account_id = $1 OR phone = $1 OR contact_person = $1 OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) THEN 1
-               WHEN customer_name ILIKE $2 OR account_id ILIKE $2 OR phone ILIKE $2 OR contact_person ILIKE $2 OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '%') THEN 2
-               WHEN customer_name ILIKE $3 OR account_id ILIKE $3 OR phone ILIKE $3 OR contact_person ILIKE $3 THEN 3 END as match_priority
+            ? `SELECT 'salesTracking' as page, manager_name,
+          COALESCE(NULLIF(company_name, ''), NULLIF(customer_name, ''), NULLIF(account_id, ''), NULLIF(contact_person, ''), '(no name)') as display_name,
+          id,
+          CASE
+            WHEN company_name = $1 OR customer_name = $1 OR account_id = $1 OR phone = $1 OR contact_person = $1 OR memo = $1
+                 OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) THEN 1
+            WHEN company_name ILIKE $2 OR customer_name ILIKE $2 OR account_id ILIKE $2 OR phone ILIKE $2 OR contact_person ILIKE $2 OR memo ILIKE $2
+                 OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '%') THEN 2
+            WHEN company_name ILIKE $3 OR customer_name ILIKE $3 OR account_id ILIKE $3 OR phone ILIKE $3 OR contact_person ILIKE $3 OR memo ILIKE $3 THEN 3
+          END as match_priority
         FROM sales_tracking
-        WHERE (customer_name = $1 OR account_id = $1 OR phone = $1 OR contact_person = $1 OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')))
-           OR (customer_name ILIKE $2 OR account_id ILIKE $2 OR phone ILIKE $2 OR contact_person ILIKE $2 OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '%'))
-           OR (customer_name ILIKE $3 OR account_id ILIKE $3 OR phone ILIKE $3 OR contact_person ILIKE $3)
+        WHERE (company_name = $1 OR customer_name = $1 OR account_id = $1 OR phone = $1 OR contact_person = $1 OR memo = $1
+               OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')))
+           OR (company_name ILIKE $2 OR customer_name ILIKE $2 OR account_id ILIKE $2 OR phone ILIKE $2 OR contact_person ILIKE $2 OR memo ILIKE $2
+               OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '%'))
+           OR (company_name ILIKE $3 OR customer_name ILIKE $3 OR account_id ILIKE $3 OR phone ILIKE $3 OR contact_person ILIKE $3 OR memo ILIKE $3)
         ORDER BY match_priority, date DESC LIMIT 10`
-            : `SELECT 'salesTracking' as page, manager_name, COALESCE(customer_name, account_id, '(no name)') as display_name, id,
-          CASE WHEN customer_name = $1 OR account_id = $1 OR phone = $1 OR contact_person = $1 OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) THEN 1
-               WHEN customer_name ILIKE $2 OR account_id ILIKE $2 OR phone ILIKE $2 OR contact_person ILIKE $2 OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '%') THEN 2 END as match_priority
+            : `SELECT 'salesTracking' as page, manager_name,
+          COALESCE(NULLIF(company_name, ''), NULLIF(customer_name, ''), NULLIF(account_id, ''), NULLIF(contact_person, ''), '(no name)') as display_name,
+          id,
+          CASE
+            WHEN company_name = $1 OR customer_name = $1 OR account_id = $1 OR phone = $1 OR contact_person = $1 OR memo = $1
+                 OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) THEN 1
+            WHEN company_name ILIKE $2 OR customer_name ILIKE $2 OR account_id ILIKE $2 OR phone ILIKE $2 OR contact_person ILIKE $2 OR memo ILIKE $2
+                 OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '%') THEN 2
+          END as match_priority
         FROM sales_tracking
-        WHERE (customer_name = $1 OR account_id = $1 OR phone = $1 OR contact_person = $1 OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')))
-           OR (customer_name ILIKE $2 OR account_id ILIKE $2 OR phone ILIKE $2 OR contact_person ILIKE $2 OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '%'))
+        WHERE (company_name = $1 OR customer_name = $1 OR account_id = $1 OR phone = $1 OR contact_person = $1 OR memo = $1
+               OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')))
+           OR (company_name ILIKE $2 OR customer_name ILIKE $2 OR account_id ILIKE $2 OR phone ILIKE $2 OR contact_person ILIKE $2 OR memo ILIKE $2
+               OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '%'))
         ORDER BY match_priority, date DESC LIMIT 10`;
         const salesTrackingResult = await db_1.pool.query(salesTrackingQuery, partialKeyword ? [exactKeyword, startsWithKeyword, partialKeyword] : [exactKeyword, startsWithKeyword]);
         // 결과 병합
