@@ -69,7 +69,66 @@ const upload = (0, multer_1.default)({
 // Get all retargeting customers
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
-        const result = await db_1.pool.query('SELECT * FROM retargeting_customers ORDER BY registered_at DESC');
+        const view = String(req.query.view || '').trim();
+        const manager = typeof req.query.manager === 'string' ? req.query.manager.trim() : '';
+        const includeTrash = String(req.query.includeTrash || '').trim() === '1';
+        const where = [];
+        const params = [];
+        if (manager) {
+            params.push(manager);
+            where.push(`manager = $${params.length}`);
+        }
+        if (!includeTrash) {
+            where.push(`status NOT IN ('ゴミ箱', '휴지통', 'trash')`);
+        }
+        const whereClause = where.length ? ` WHERE ${where.join(' AND ')}` : '';
+        // list view: 빠른 목록 표시용 (필요한 필드만)
+        if (view === 'list') {
+            const result = await db_1.pool.query(`SELECT
+          id,
+          company_name,
+          industry,
+          customer_name,
+          phone,
+          region,
+          inflow_path,
+          manager,
+          manager_team,
+          status,
+          contract_history_category,
+          last_contact_date,
+          memo,
+          homepage,
+          instagram,
+          main_keywords,
+          registered_at
+         FROM retargeting_customers
+         ${whereClause}
+         ORDER BY registered_at DESC`, params);
+            const customers = result.rows.map(row => ({
+                id: row.id,
+                companyName: row.company_name,
+                industry: row.industry,
+                customerName: row.customer_name,
+                phone: row.phone,
+                region: row.region,
+                inflowPath: row.inflow_path,
+                manager: row.manager,
+                managerTeam: row.manager_team,
+                status: row.status,
+                contractHistoryCategory: row.contract_history_category,
+                lastContactDate: row.last_contact_date,
+                memo: row.memo,
+                homepage: row.homepage,
+                instagram: row.instagram,
+                mainKeywords: row.main_keywords || [],
+                registeredAt: (0, dateHelper_1.toKSTDateString)(row.registered_at)
+            }));
+            return res.json(customers);
+        }
+        const result = await db_1.pool.query(`SELECT * FROM retargeting_customers
+       ${whereClause}
+       ORDER BY registered_at DESC`, params);
         // Convert snake_case to camelCase
         const customers = result.rows.map(row => ({
             id: row.id,
