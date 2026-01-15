@@ -843,6 +843,8 @@ export default function CustomersPage() {
                       <option value="아웃바운드(전화)">{t('outboundPhone')}</option>
                       <option value="아웃바운드(라인)">{t('outboundLine')}</option>
                       <option value="아웃바운드(DM)">{t('outboundDM')}</option>
+                      <option value="아웃바운드(폼)">{t('outboundForm')}</option>
+                      <option value="아웃바운드(메일)">{t('outboundMail')}</option>
                       <option value="아웃바운드(기타)">{t('outboundOther')}</option>
                       <option value="인바운드(홈페이지)">{t('inboundHomepage')}</option>
                       <option value="인바운드(상위노출)">{t('inboundTopExposure')}</option>
@@ -1064,6 +1066,8 @@ export default function CustomersPage() {
                       <option value="아웃바운드(전화)">{t('outboundPhone')}</option>
                       <option value="아웃바운드(라인)">{t('outboundLine')}</option>
                       <option value="아웃바운드(DM)">{t('outboundDM')}</option>
+                      <option value="아웃바운드(폼)">{t('outboundForm')}</option>
+                      <option value="아웃바운드(메일)">{t('outboundMail')}</option>
                       <option value="아웃바운드(기타)">{t('outboundOther')}</option>
                       <option value="인바운드(홈페이지)">{t('inboundHomepage')}</option>
                       <option value="인바운드(상위노출)">{t('inboundTopExposure')}</option>
