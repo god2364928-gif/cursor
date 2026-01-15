@@ -12,6 +12,30 @@ import { toSeoulTimestampString } from '../utils/dateHelper'
 
 const router = Router()
 
+const mapInflowPathFromContactMethod = (contactMethod?: string | null): string | null => {
+  if (!contactMethod) return null
+  const normalized = contactMethod.trim()
+  if (!normalized) return null
+  if (normalized === '없음' || normalized === 'なし') return null
+  if (normalized.startsWith('아웃바운드(')) return normalized
+
+  const mapping: Record<string, string> = {
+    전화: '아웃바운드(전화)',
+    電話: '아웃바운드(전화)',
+    라인: '아웃바운드(라인)',
+    ライン: '아웃바운드(라인)',
+    LINE: '아웃바운드(라인)',
+    DM: '아웃바운드(DM)',
+    폼: '아웃바운드(폼)',
+    フォーム: '아웃바운드(폼)',
+    메일: '아웃바운드(메일)',
+    メール: '아웃바운드(메일)'
+  }
+
+  if (mapping[normalized]) return mapping[normalized]
+  return `아웃바운드(${normalized})`
+}
+
 // Get all sales tracking records (with search)
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -252,6 +276,7 @@ router.post('/bulk-move-to-retargeting', authMiddleware, async (req: AuthRequest
         const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
         
         // 리타겟팅 고객으로 추가
+        const inflowPath = mapInflowPathFromContactMethod(record.contact_method)
         await pool.query(
           `INSERT INTO retargeting_customers 
            (company_name, industry, customer_name, phone, region, inflow_path, manager, manager_team, status, registered_at, memo, homepage, instagram, main_keywords, sales_tracking_id, last_contact_date)
@@ -262,7 +287,7 @@ router.post('/bulk-move-to-retargeting', authMiddleware, async (req: AuthRequest
             record.customer_name || record.company_name || '이름 없음',
             record.phone || '',
             null, // region
-            record.contact_method || null, // inflow_path (유입경로)
+            inflowPath, // inflow_path (유입경로)
             record.manager_name || '',
             null, // manager_team
             '시작', // status
@@ -600,6 +625,7 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
       const memoFinal = record.memo ? record.memo.trim() : null
       const memoFinalValue = (memoFinal && memoFinal !== '') ? memoFinal : null
       
+      const inflowPath = mapInflowPathFromContactMethod(record.contact_method)
       // insertValues 배열 생성 (null-safe 유틸리티로 이미 처리된 값들 사용)
       insertValues = [
         companyNameFinal, // company_name (NOT NULL) - null-safe 처리 완료
@@ -607,7 +633,7 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
         customerNameFinal, // customer_name (NOT NULL) - null-safe 처리 완료
         phoneFinal, // phone (NOT NULL) - null-safe 처리 완료
         null, // region
-        record.contact_method || null, // inflow_path (유입경로)
+        inflowPath, // inflow_path (유입경로)
         managerName, // manager - null-safe 처리 완료
         null, // manager_team
         '시작', // status
