@@ -13,8 +13,16 @@ import { toSeoulTimestampString } from '../utils/dateHelper'
 const router = Router()
 
 const mapInflowPathFromContactMethod = (contactMethod?: string | null): string | null => {
-  if (!contactMethod) return null
+  console.log('[mapInflowPathFromContactMethod] Input:', { contactMethod, type: typeof contactMethod })
+  
+  if (!contactMethod) {
+    console.log('[mapInflowPathFromContactMethod] Empty input, returning null')
+    return null
+  }
+  
   const normalized = contactMethod.trim()
+  console.log('[mapInflowPathFromContactMethod] Normalized:', { normalized, length: normalized.length })
+  
   if (!normalized) return null
   if (normalized === '없음' || normalized === 'なし') return null
   if (normalized.startsWith('아웃바운드(')) return normalized
@@ -40,9 +48,18 @@ const mapInflowPathFromContactMethod = (contactMethod?: string | null): string |
     email: '아웃바운드(메일)'
   }
 
-  if (mapping[normalized]) return mapping[normalized]
-  if (mapping[normalizedLower]) return mapping[normalizedLower]
-  return `아웃바운드(${normalized})`
+  if (mapping[normalized]) {
+    console.log('[mapInflowPathFromContactMethod] Exact match found:', mapping[normalized])
+    return mapping[normalized]
+  }
+  if (mapping[normalizedLower]) {
+    console.log('[mapInflowPathFromContactMethod] Lowercase match found:', mapping[normalizedLower])
+    return mapping[normalizedLower]
+  }
+  
+  const result = `아웃바운드(${normalized})`
+  console.log('[mapInflowPathFromContactMethod] No match, creating default:', result)
+  return result
 }
 
 // Get all sales tracking records (with search)
