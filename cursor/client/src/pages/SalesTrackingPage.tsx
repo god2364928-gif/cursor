@@ -80,9 +80,13 @@ export default function SalesTrackingPage() {
   const [dailyStats, setDailyStats] = useState<any[]>([])
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
+  const [highlightRecordId, setHighlightRecordId] = useState<string | null>(null)
   
   // 이전 검색 요청 취소용
   const abortControllerRef = useRef<AbortController | null>(null)
+  const recordsRef = useRef<SalesTrackingRecord[]>([])
+  const offsetRef = useRef<number>(0)
+  const hasMoreRef = useRef<boolean>(false)
   
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1)
@@ -136,6 +140,19 @@ export default function SalesTrackingPage() {
     })()
   }, [user])
 
+  // 최신 상태를 ref로 유지 (비동기 로직에서 사용)
+  useEffect(() => {
+    recordsRef.current = records
+  }, [records])
+
+  useEffect(() => {
+    offsetRef.current = offset
+  }, [offset])
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore
+  }, [hasMore])
+
   const fetchRecords = useCallback(async (append: boolean, nextOffset: number, signal?: AbortSignal, keepCurrentPage: boolean = false) => {
     if (append) {
       setLoadingMore(true)
@@ -160,17 +177,20 @@ export default function SalesTrackingPage() {
       const rows = response.data?.rows ?? response.data ?? []
       const hasMoreData = response.data?.hasMore ?? (rows.length === PAGE_SIZE)
       
-      if (append) {
-        setRecords(prev => [...prev, ...rows])
-        setOffset(nextOffset + rows.length)
-      } else {
-        setRecords(rows)
-        setOffset(rows.length)
-        if (!keepCurrentPage) {
-          setCurrentPage(1)
-        }
-      }
+      const nextRecords = append ? [...recordsRef.current, ...rows] : rows
+      recordsRef.current = nextRecords
+      setRecords(nextRecords)
+
+      const nextOffsetValue = append ? nextOffset + rows.length : rows.length
+      offsetRef.current = nextOffsetValue
+      setOffset(nextOffsetValue)
+
+      hasMoreRef.current = hasMoreData
       setHasMore(hasMoreData)
+
+      if (!append && !keepCurrentPage) {
+        setCurrentPage(1)
+      }
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
         console.log('Previous fetch request cancelled')
@@ -200,45 +220,96 @@ export default function SalesTrackingPage() {
     }
   }, [fetchRecords])
 
-  // 통합검색에서 선택한 레코드 처리
+  // 통합검색에서 선택한 레코드 처리:
+  // - 목록에 아직 없는 경우 자동으로 추가 로딩을 진행해 찾는다
+  // - 필터로 인해 안 보이는 문제를 줄이기 위해 기본 필터는 전체로 되돌린다
   useEffect(() => {
     const state = location.state as { selectedId?: string; searchQuery?: string } | null
-    if (state?.selectedId && records.length > 0) {
-      const record = records.find(r => r.id === state.selectedId)
-      if (record) {
-        // 검색어가 있으면 필터 설정
+    if (!state?.selectedId) return
+
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        // 통합검색에서 넘어온 검색어가 있으면 먼저 반영
         if (state.searchQuery) {
           setSearchQuery(state.searchQuery)
         }
-        // 레코드가 있는 페이지로 이동 (filteredRecords를 직접 계산)
-        const filtered = records.filter(r => managerFilter === 'all' || r.manager_name === managerFilter)
-        const index = filtered.findIndex(r => r.id === record.id)
+
+        // 다른 담당자/상태/방법 필터 때문에 안 보이는 문제를 방지
+        setManagerFilter('all')
+        setMovedToRetargetingFilter('all')
+        setStatusFilter('all')
+        setContactMethodFilter('all')
+
+        // 레코드가 아직 로드되지 않았으면 자동으로 더 불러오기 (최대 10번)
+        const targetId = state.selectedId
+        let safety = 0
+        while (!recordsRef.current.some(r => r.id === targetId) && hasMoreRef.current && safety < 10) {
+          safety += 1
+          await fetchRecords(true, offsetRef.current)
+          if (cancelled) return
+        }
+
+        const found = recordsRef.current.find(r => r.id === targetId)
+        if (!found) {
+          // 아직 못 찾았으면 state를 유지해 두고, 사용자가 더 불러오기를 눌렀을 때 이어서 찾을 수 있게 둔다
+          return
+        }
+
+        // 레코드가 있는 페이지로 이동
+        const index = recordsRef.current.findIndex(r => r.id === found.id)
         if (index >= 0) {
           const page = Math.floor(index / itemsPerPage) + 1
           setCurrentPage(page)
-          // 레코드로 스크롤 (약간의 딜레이를 두어 DOM이 업데이트된 후 실행)
+          setHighlightRecordId(found.id)
+
+          // 레코드로 스크롤
           setTimeout(() => {
-            const element = document.getElementById(`sales-tracking-record-${record.id}`)
+            const element = document.getElementById(`sales-tracking-record-${found.id}`)
             if (element) {
               element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-              // 하이라이트 효과
-              element.classList.add('bg-yellow-100')
-              setTimeout(() => {
-                element.classList.remove('bg-yellow-100')
-              }, 2000)
             }
           }, 300)
         }
+
         // state 초기화 (뒤로가기 시 다시 선택되지 않도록)
         navigate(location.pathname, { replace: true, state: {} })
+      } catch (e) {
+        console.error('Failed to handle global search selection', e)
       }
+    })()
+
+    return () => {
+      cancelled = true
     }
-  }, [location.state, records, managerFilter, navigate, location.pathname, itemsPerPage])
+  }, [location.state, navigate, location.pathname, itemsPerPage, fetchRecords])
 
   const handleLoadMore = () => {
     if (!hasMore || loading || loadingMore) return
-    fetchRecords(true, offset)
+    fetchRecords(true, offsetRef.current)
   }
+
+  const ensureLoadedForPage = useCallback(
+    async (page: number) => {
+      const needed = Math.max(1, page) * itemsPerPage
+      let safety = 0
+      while (recordsRef.current.length < needed && hasMoreRef.current && safety < 20) {
+        safety += 1
+        await fetchRecords(true, offsetRef.current)
+      }
+    },
+    [fetchRecords, itemsPerPage]
+  )
+
+  const goToPage = useCallback(
+    async (page: number) => {
+      const nextPage = Math.max(1, page)
+      await ensureLoadedForPage(nextPage)
+      setCurrentPage(nextPage)
+    },
+    [ensureLoadedForPage]
+  )
 
   // Daily stats
   const openDailyStats = () => {
@@ -788,6 +859,8 @@ export default function SalesTrackingPage() {
   
   // 페이지네이션 계산
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage)
+  const uiTotalPages = hasMore ? Math.max(totalPages, currentPage + 1) : totalPages
+  const totalCountLabel = hasMore ? `${filteredRecords.length}+` : `${filteredRecords.length}`
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const paginatedRecords = filteredRecords.slice(startIndex, endIndex)
@@ -795,6 +868,12 @@ export default function SalesTrackingPage() {
   useEffect(() => {
     setCurrentPage(1)
   }, [managerFilter, movedToRetargetingFilter, statusFilter, contactMethodFilter])
+
+  useEffect(() => {
+    if (!highlightRecordId) return
+    const timeoutId = setTimeout(() => setHighlightRecordId(null), 2000)
+    return () => clearTimeout(timeoutId)
+  }, [highlightRecordId])
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 pt-8 space-y-6">
@@ -929,25 +1008,27 @@ export default function SalesTrackingPage() {
             className="pl-10"
           />
         </div>
-        {filteredRecords.length > 0 && totalPages > 1 && (
+        {filteredRecords.length > 0 && uiTotalPages > 1 && (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => {
+                void goToPage(currentPage - 1)
+              }}
               disabled={currentPage === 1}
             >
               {t('previous')}
             </Button>
             <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              {Array.from({ length: Math.min(5, uiTotalPages) }, (_, i) => {
                 let pageNum
-                if (totalPages <= 5) {
+                if (uiTotalPages <= 5) {
                   pageNum = i + 1
                 } else if (currentPage <= 3) {
                   pageNum = i + 1
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i
+                } else if (currentPage >= uiTotalPages - 2) {
+                  pageNum = uiTotalPages - 4 + i
                 } else {
                   pageNum = currentPage - 2 + i
                 }
@@ -956,7 +1037,9 @@ export default function SalesTrackingPage() {
                     key={pageNum}
                     variant={currentPage === pageNum ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setCurrentPage(pageNum)}
+                    onClick={() => {
+                      void goToPage(pageNum)
+                    }}
                   >
                     {pageNum}
                   </Button>
@@ -966,8 +1049,10 @@ export default function SalesTrackingPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
+              onClick={() => {
+                void goToPage(currentPage + 1)
+              }}
+              disabled={!hasMore && currentPage === totalPages}
             >
               {t('next')}
             </Button>
@@ -1229,9 +1314,11 @@ export default function SalesTrackingPage() {
                       key={record.id} 
                       id={`sales-tracking-record-${record.id}`} 
                       className={`border-b relative group ${
-                        record.moved_to_retargeting 
-                          ? 'bg-gray-100 text-gray-600' 
-                          : 'hover:bg-gray-50'
+                        highlightRecordId === record.id
+                          ? 'bg-yellow-100'
+                          : record.moved_to_retargeting 
+                            ? 'bg-gray-100 text-gray-600' 
+                            : 'hover:bg-gray-50'
                       }`}
                     >
                       <td className="px-2 py-1 border-r text-center relative overflow-hidden">
@@ -1320,29 +1407,31 @@ export default function SalesTrackingPage() {
           </div>
 
           {/* Pagination */}
-          {filteredRecords.length > 0 && totalPages > 1 && (
+          {filteredRecords.length > 0 && uiTotalPages > 1 && (
             <div className="px-4 py-3 border-t flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                {t('showing')} {startIndex + 1} - {Math.min(endIndex, filteredRecords.length)} {t('of')} {filteredRecords.length}
+                {t('showing')} {startIndex + 1} - {Math.min(endIndex, filteredRecords.length)} {t('of')} {totalCountLabel}
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  onClick={() => {
+                    void goToPage(currentPage - 1)
+                  }}
                   disabled={currentPage === 1}
                 >
                   {t('previous')}
                 </Button>
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  {Array.from({ length: Math.min(5, uiTotalPages) }, (_, i) => {
                     let pageNum
-                    if (totalPages <= 5) {
+                    if (uiTotalPages <= 5) {
                       pageNum = i + 1
                     } else if (currentPage <= 3) {
                       pageNum = i + 1
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i
+                    } else if (currentPage >= uiTotalPages - 2) {
+                      pageNum = uiTotalPages - 4 + i
                     } else {
                       pageNum = currentPage - 2 + i
                     }
@@ -1351,7 +1440,9 @@ export default function SalesTrackingPage() {
                         key={pageNum}
                         variant={currentPage === pageNum ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setCurrentPage(pageNum)}
+                        onClick={() => {
+                          void goToPage(pageNum)
+                        }}
                       >
                         {pageNum}
                       </Button>
@@ -1361,8 +1452,10 @@ export default function SalesTrackingPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
+                  onClick={() => {
+                    void goToPage(currentPage + 1)
+                  }}
+                  disabled={!hasMore && currentPage === totalPages}
                 >
                   {t('next')}
                 </Button>
