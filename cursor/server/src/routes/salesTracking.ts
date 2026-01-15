@@ -18,6 +18,7 @@ const mapInflowPathFromContactMethod = (contactMethod?: string | null): string |
   if (!normalized) return null
   if (normalized === '없음' || normalized === 'なし') return null
   if (normalized.startsWith('아웃바운드(')) return normalized
+  const normalizedLower = normalized.toLowerCase()
 
   const mapping: Record<string, string> = {
     전화: '아웃바운드(전화)',
@@ -26,6 +27,7 @@ const mapInflowPathFromContactMethod = (contactMethod?: string | null): string |
     ライン: '아웃바운드(라인)',
     LINE: '아웃바운드(라인)',
     DM: '아웃바운드(DM)',
+    dm: '아웃바운드(DM)',
     폼: '아웃바운드(폼)',
     フォーム: '아웃바운드(폼)',
     메일: '아웃바운드(메일)',
@@ -33,6 +35,7 @@ const mapInflowPathFromContactMethod = (contactMethod?: string | null): string |
   }
 
   if (mapping[normalized]) return mapping[normalized]
+  if (mapping[normalizedLower]) return mapping[normalizedLower]
   return `아웃바운드(${normalized})`
 }
 
