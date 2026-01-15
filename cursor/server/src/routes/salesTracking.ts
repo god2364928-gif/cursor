@@ -23,15 +23,21 @@ const mapInflowPathFromContactMethod = (contactMethod?: string | null): string |
   const mapping: Record<string, string> = {
     전화: '아웃바운드(전화)',
     電話: '아웃바운드(전화)',
+    phone: '아웃바운드(전화)',
+    tel: '아웃바운드(전화)',
     라인: '아웃바운드(라인)',
     ライン: '아웃바운드(라인)',
     LINE: '아웃바운드(라인)',
+    line: '아웃바운드(라인)',
     DM: '아웃바운드(DM)',
     dm: '아웃바운드(DM)',
     폼: '아웃바운드(폼)',
     フォーム: '아웃바운드(폼)',
+    form: '아웃바운드(폼)',
     메일: '아웃바운드(메일)',
-    メール: '아웃바운드(메일)'
+    メール: '아웃바운드(메일)',
+    mail: '아웃바운드(메일)',
+    email: '아웃바운드(메일)'
   }
 
   if (mapping[normalized]) return mapping[normalized]
