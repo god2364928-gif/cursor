@@ -21,6 +21,16 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
   const [targets, setTargets] = useState<Map<string, UserTarget>>(new Map())
   const [logs, setLogs] = useState<Map<string, MeetingLog>>(new Map())
   const [retargetingAlerts, setRetargetingAlerts] = useState<Map<string, any>>(new Map()) // 담당자별로 저장
+  const [monthlyWeeklySum, setMonthlyWeeklySum] = useState<{
+    weeks: number[]
+    data: Record<string, {
+      userId: string
+      userName: string
+      totalTarget: number
+      totalActual: number
+      weeklyData: { week: number, target: number, actual: number }[]
+    }>
+  }>({ weeks: [], data: {} }) // 월간 회의용 주간 합산 데이터
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
@@ -233,6 +243,21 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
       setTargets(targetsMap)
       setLogs(logsMap)
       setRetargetingAlerts(alertsMap)
+
+      // 월간 회의인 경우 주간 합산 데이터 로드
+      if (tab === 'monthly') {
+        try {
+          const weeklySumRes = await api.get('/meeting/weekly-sum-for-month', {
+            params: { year, month: weekOrMonth }
+          })
+          setMonthlyWeeklySum(weeklySumRes.data)
+        } catch (error) {
+          console.error('Failed to load weekly sum data:', error)
+          setMonthlyWeeklySum({ weeks: [], data: {} })
+        }
+      } else {
+        setMonthlyWeeklySum({ weeks: [], data: {} })
+      }
     } catch (error) {
       console.error('Failed to load meeting data:', error)
     } finally {
@@ -755,60 +780,133 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
                         </div>
                       </div>
 
-                      {/* 총 리타겟팅 고객 수 관리 */}
+                      {/* 총 리타겟팅 고객 수 관리 - 주간/월간에 따라 다르게 표시 */}
                       <div className="mt-6">
-                        <h4 className="font-bold text-lg mb-3 flex items-center gap-2">
-                          👥 {t('totalRetargetingCustomers')}
-                        </h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          {/* 목표 리타겟팅 고객 수 */}
-                          <div className={`border-2 rounded-lg p-4 ${getStatusColor(retargetingCustomersRate)}`}>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium">{t('targetCustomerCount')}</span>
-                              {getStatusIcon(retargetingCustomersRate)}
-                            </div>
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-xs">
-                                <span>{t('target')}:</span>
-                                <input
-                                  type="number"
-                                  value={target.targetRetargetingCustomers}
-                                  onChange={(e) => saveTarget(user.id, 'targetRetargetingCustomers', parseInt(e.target.value) || 0)}
-                                  readOnly={!canEditTarget}
-                                  className={`w-16 px-1 border rounded text-right ${!canEditTarget ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                  title={!canEditTarget ? t('cannotEditPastOrOthers') : ''}
-                                />
-                                <span>{t('people')}</span>
+                        {tab === 'weekly' ? (
+                          <>
+                            {/* 주간회의: 직접 입력 방식 */}
+                            <h4 className="font-bold text-lg mb-3 flex items-center gap-2">
+                              👥 {t('totalRetargetingCustomers')}
+                            </h4>
+                            <div className="grid grid-cols-2 gap-4">
+                              {/* 목표 리타겟팅 고객 수 */}
+                              <div className={`border-2 rounded-lg p-4 ${getStatusColor(retargetingCustomersRate)}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium">{t('targetCustomerCount')}</span>
+                                  {getStatusIcon(retargetingCustomersRate)}
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span>{t('target')}:</span>
+                                    <input
+                                      type="number"
+                                      value={target.targetRetargetingCustomers}
+                                      onChange={(e) => saveTarget(user.id, 'targetRetargetingCustomers', parseInt(e.target.value) || 0)}
+                                      readOnly={!canEditTarget}
+                                      className={`w-16 px-1 border rounded text-right ${!canEditTarget ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                      title={!canEditTarget ? t('cannotEditPastOrOthers') : ''}
+                                    />
+                                    <span>{t('people')}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span>{t('actual')}:</span>
+                                    <input
+                                      type="number"
+                                      value={target.actualRetargetingCustomers}
+                                      onChange={(e) => saveTarget(user.id, 'actualRetargetingCustomers', parseInt(e.target.value) || 0)}
+                                      readOnly={!canEditTarget}
+                                      className={`w-16 px-1 border rounded text-right ${!canEditTarget ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                      title={!canEditTarget ? t('cannotEditPastOrOthers') : ''}
+                                    />
+                                    <span>{t('people')}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className={`text-lg font-bold ${retargetingCustomersRate >= 100 ? 'text-green-600' : retargetingCustomersRate >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                      {retargetingCustomersRate}%
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="flex items-center justify-between text-xs">
-                                <span>{t('actual')}:</span>
-                                <input
-                                  type="number"
-                                  value={target.actualRetargetingCustomers}
-                                  onChange={(e) => saveTarget(user.id, 'actualRetargetingCustomers', parseInt(e.target.value) || 0)}
-                                  readOnly={!canEditTarget}
-                                  className={`w-16 px-1 border rounded text-right ${!canEditTarget ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                  title={!canEditTarget ? t('cannotEditPastOrOthers') : ''}
-                                />
-                                <span>{t('people')}</span>
-                              </div>
-                              <div className="text-right">
-                                <span className={`text-lg font-bold ${retargetingCustomersRate >= 100 ? 'text-green-600' : retargetingCustomersRate >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                  {retargetingCustomersRate}%
-                                </span>
+                              
+                              {/* 설명 카드 - 주간 단위 안내 */}
+                              <div className="border-2 border-amber-200 rounded-lg p-4 bg-amber-50">
+                                <div className="text-sm text-amber-800">
+                                  <p className="font-medium mb-2">📝 {t('managedSeparately')}</p>
+                                  <p className="text-xs">• {t('enterManually')}</p>
+                                  <p className="text-xs">• {t('notAutoCalculated')}</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          
-                          {/* 설명 카드 */}
-                          <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-                            <div className="text-sm text-blue-800">
-                              <p className="font-medium mb-2">📝 {t('managedSeparately')}</p>
-                              <p className="text-xs">• {t('enterManually')}</p>
-                              <p className="text-xs">• {t('notAutoCalculated')}</p>
-                            </div>
-                          </div>
-                        </div>
+                          </>
+                        ) : (
+                          <>
+                            {/* 월간회의: 주간 데이터 자동 합산 표시 */}
+                            <h4 className="font-bold text-lg mb-3 flex items-center gap-2">
+                              👥 {t('monthlyAutoSumTitle')}
+                            </h4>
+                            {(() => {
+                              const userWeeklySum = monthlyWeeklySum.data[user.id]
+                              const sumTarget = userWeeklySum?.totalTarget || 0
+                              const sumActual = userWeeklySum?.totalActual || 0
+                              const sumRate = sumTarget > 0 ? Math.round((sumActual / sumTarget) * 100) : 0
+                              const includedWeeks = monthlyWeeklySum.weeks
+
+                              return (
+                                <div className="grid grid-cols-2 gap-4">
+                                  {/* 합산된 리타겟팅 고객 수 */}
+                                  <div className={`border-2 rounded-lg p-4 ${getStatusColor(sumRate)}`}>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium">{t('targetCustomerCount')}</span>
+                                      {getStatusIcon(sumRate)}
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span>{t('target')}:</span>
+                                        <span className="font-bold bg-gray-100 px-2 py-1 rounded">{sumTarget}</span>
+                                        <span>{t('people')}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span>{t('actual')}:</span>
+                                        <span className="font-bold bg-gray-100 px-2 py-1 rounded">{sumActual}</span>
+                                        <span>{t('people')}</span>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className={`text-lg font-bold ${sumRate >= 100 ? 'text-green-600' : sumRate >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                          {sumRate}%
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* 합산 정보 카드 */}
+                                  <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
+                                    <div className="text-sm text-green-800">
+                                      <p className="font-medium mb-2">🔄 {t('monthlyAutoSumDesc')}</p>
+                                      <p className="text-xs font-medium">{t('weeksIncludedLabel')}:</p>
+                                      {includedWeeks.length > 0 ? (
+                                        <p className="text-xs mt-1">
+                                          {includedWeeks.map(w => `${w}${t('weeklyMeeting').replace('회의', '').trim()}`).join(' + ')}
+                                        </p>
+                                      ) : (
+                                        <p className="text-xs mt-1 text-gray-500">{t('noWeeklyDataAvailable')}</p>
+                                      )}
+                                      {userWeeklySum?.weeklyData && userWeeklySum.weeklyData.length > 0 && (
+                                        <div className="mt-2 pt-2 border-t border-green-300">
+                                          <p className="text-xs font-medium mb-1">상세:</p>
+                                          {userWeeklySum.weeklyData.map(wd => (
+                                            <p key={wd.week} className="text-xs">
+                                              {wd.week}주차: 목표 {wd.target}명 / 실적 {wd.actual}명
+                                            </p>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                          </>
+                        )}
                       </div>
 
                       {/* 월간 회의일 경우 매출 지표 추가 */}
