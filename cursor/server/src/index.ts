@@ -60,7 +60,7 @@ if (process.env.NODE_ENV === 'production' || true) {
 }
 
 const app = express()
-const PORT = process.env.PORT || 5001
+const PORT = parseInt(process.env.PORT || '5001', 10)
 
 // Middleware
 const corsOptions = {
@@ -142,7 +142,7 @@ async function startServer() {
   await autoMigrateHotpepper()
   await autoMigrateSalesAmountFields()
   
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`)
   console.log(`CORS enabled for all origins`)
   })

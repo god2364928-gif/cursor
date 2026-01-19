@@ -220,6 +220,123 @@ router.post('/logs', authMiddleware, async (req: AuthRequest, res: Response) => 
   }
 })
 
+// 월간 회의용: 해당 월에 속하는 주간 리타겟팅 고객 수 합산 조회
+router.get('/weekly-sum-for-month', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, month } = req.query
+    
+    if (!year || !month) {
+      return res.status(400).json({ message: 'year and month are required' })
+    }
+
+    const yearNum = parseInt(String(year), 10)
+    const monthNum = parseInt(String(month), 10)
+
+    // 해당 월에 속하는 주차 계산 (월요일 기준)
+    // 해당 월의 첫째 날과 마지막 날
+    const monthStart = new Date(yearNum, monthNum - 1, 1)
+    const monthEnd = new Date(yearNum, monthNum, 0)
+
+    // 각 주차의 월요일 날짜를 계산해서 해당 월에 속하는지 확인
+    const getWeekNumber = (date: Date): number => {
+      const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
+      const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000
+      return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
+    }
+
+    const getMondayOfWeek = (y: number, week: number): Date => {
+      const firstDayOfYear = new Date(y, 0, 1)
+      const daysOffset = (week - 1) * 7
+      const weekStart = new Date(firstDayOfYear.getTime() + daysOffset * 24 * 60 * 60 * 1000)
+      const dayOfWeek = weekStart.getDay()
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+      weekStart.setDate(weekStart.getDate() + mondayOffset)
+      return weekStart
+    }
+
+    // 해당 월에 속하는 주차 찾기
+    const weeksInMonth: number[] = []
+    for (let week = 1; week <= 53; week++) {
+      const monday = getMondayOfWeek(yearNum, week)
+      // 월요일이 해당 월에 속하면 이 주차를 포함
+      if (monday.getMonth() + 1 === monthNum && monday.getFullYear() === yearNum) {
+        weeksInMonth.push(week)
+      }
+    }
+
+    // 연도가 바뀌는 경우도 고려 (예: 1월 1일이 목요일이면 1주차의 월요일은 전년도 12월)
+    // 1월의 경우 전년도 마지막 주도 확인
+    if (monthNum === 1) {
+      for (let week = 52; week <= 53; week++) {
+        const monday = getMondayOfWeek(yearNum - 1, week)
+        const sunday = new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000)
+        // 해당 주의 일요일이 1월에 속하면 포함 가능
+        if (sunday.getMonth() === 0 && sunday.getFullYear() === yearNum) {
+          // 하지만 월요일 기준이므로 이 주는 전년도에 속함 - 스킵
+        }
+      }
+    }
+
+    if (weeksInMonth.length === 0) {
+      return res.json({ weeks: [], data: {} })
+    }
+
+    // 해당 주차들의 데이터 조회
+    const query = `
+      SELECT 
+        ut.user_id,
+        u.name as user_name,
+        ut.week_or_month as week,
+        COALESCE(ut.target_retargeting_customers, 0) as target_retargeting_customers,
+        COALESCE(ut.actual_retargeting_customers, 0) as actual_retargeting_customers
+      FROM user_targets ut
+      JOIN users u ON ut.user_id = u.id
+      WHERE ut.period_type = 'weekly' 
+        AND ut.year = $1 
+        AND ut.week_or_month = ANY($2::int[])
+        AND u.role = 'marketer'
+      ORDER BY u.name, ut.week_or_month
+    `
+    const result = await pool.query(query, [yearNum, weeksInMonth])
+
+    // 사용자별로 합산
+    const userSums: Record<string, {
+      userId: string
+      userName: string
+      totalTarget: number
+      totalActual: number
+      weeklyData: { week: number, target: number, actual: number }[]
+    }> = {}
+
+    for (const row of result.rows) {
+      if (!userSums[row.user_id]) {
+        userSums[row.user_id] = {
+          userId: row.user_id,
+          userName: row.user_name,
+          totalTarget: 0,
+          totalActual: 0,
+          weeklyData: []
+        }
+      }
+      userSums[row.user_id].totalTarget += parseInt(row.target_retargeting_customers) || 0
+      userSums[row.user_id].totalActual += parseInt(row.actual_retargeting_customers) || 0
+      userSums[row.user_id].weeklyData.push({
+        week: row.week,
+        target: parseInt(row.target_retargeting_customers) || 0,
+        actual: parseInt(row.actual_retargeting_customers) || 0
+      })
+    }
+
+    res.json({
+      weeks: weeksInMonth,
+      data: userSums
+    })
+  } catch (error) {
+    console.error('Error fetching weekly sum for month:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
 // 욕망 단계 고객 조회
 router.get('/desire-customers', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
