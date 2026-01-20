@@ -64,7 +64,7 @@ if (process.env.NODE_ENV === 'production' || true) {
     }
 }
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 5001;
+const PORT = parseInt(process.env.PORT || '5001', 10);
 // Middleware
 const corsOptions = {
     origin: function (origin, callback) {
@@ -137,7 +137,7 @@ async function startServer() {
     await (0, autoMigrate_1.autoMigrateSalesTracking)();
     await (0, autoMigrate_1.autoMigrateHotpepper)();
     await (0, autoMigrate_1.autoMigrateSalesAmountFields)();
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server is running on port ${PORT}`);
         console.log(`CORS enabled for all origins`);
     });
