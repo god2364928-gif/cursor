@@ -2,11 +2,6 @@ import axios from 'axios'
 
 // Determine API URL based on environment
 const getApiUrl = () => {
-  // Railway/Production: use environment variable
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL + '/api'
-  }
-  
   // Local development: use relative path (Vite proxy handles it)
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
@@ -15,8 +10,8 @@ const getApiUrl = () => {
     }
   }
   
-  // Fallback for production without env var
-  return '/api'
+  // Production: use Railway backend URL
+  return 'https://cursor-production-1d92.up.railway.app/api'
 }
 
 const API_URL = getApiUrl()
