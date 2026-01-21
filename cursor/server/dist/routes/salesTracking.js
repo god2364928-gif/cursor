@@ -376,6 +376,31 @@ router.put('/:id', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+// Reset last contact time (set to null) - Must be defined BEFORE /:id route
+router.delete('/:id/contact', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Check if record exists and get user_id
+        const recordResult = await db_1.pool.query('SELECT user_id FROM sales_tracking WHERE id = $1', [id]);
+        if (recordResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Record not found' });
+        }
+        // Check if user is the owner (or admin)
+        const recordUserId = recordResult.rows[0].user_id;
+        if (req.user?.role !== 'admin' && req.user?.id !== recordUserId) {
+            return res.status(403).json({ message: 'You can only update your own records' });
+        }
+        // Reset last_contact_at to null
+        await db_1.pool.query(`UPDATE sales_tracking 
+       SET last_contact_at = NULL, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1`, [id]);
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Error resetting last contact time:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
 // Delete sales tracking record (only owner can delete)
 router.delete('/:id', auth_1.authMiddleware, async (req, res) => {
     const client = await db_1.pool.connect();
@@ -464,31 +489,6 @@ router.patch('/:id/contact', auth_1.authMiddleware, async (req, res) => {
     }
     catch (error) {
         console.error('Error updating last contact time:', error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-});
-// Reset last contact time (set to null)
-router.delete('/:id/contact', auth_1.authMiddleware, async (req, res) => {
-    try {
-        const { id } = req.params;
-        // Check if record exists and get user_id
-        const recordResult = await db_1.pool.query('SELECT user_id FROM sales_tracking WHERE id = $1', [id]);
-        if (recordResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Record not found' });
-        }
-        // Check if user is the owner (or admin)
-        const recordUserId = recordResult.rows[0].user_id;
-        if (req.user?.role !== 'admin' && req.user?.id !== recordUserId) {
-            return res.status(403).json({ message: 'You can only update your own records' });
-        }
-        // Reset last_contact_at to null
-        await db_1.pool.query(`UPDATE sales_tracking 
-       SET last_contact_at = NULL, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $1`, [id]);
-        res.json({ success: true });
-    }
-    catch (error) {
-        console.error('Error resetting last contact time:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });

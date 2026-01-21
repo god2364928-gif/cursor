@@ -487,16 +487,10 @@ export default function SalesTrackingPage() {
     }
   }
 
-  // 마지막 연락 시간 포맷
+  // 마지막 연락 날짜 포맷 (항상 날짜만 표시)
   const formatLastContact = (lastContactAt?: string) => {
     if (!lastContactAt) return '-'
     const contactDate = new Date(lastContactAt)
-    const today = new Date()
-    const isToday = contactDate.toDateString() === today.toDateString()
-    
-    if (isToday) {
-      return contactDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
-    }
     return contactDate.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
   }
 
