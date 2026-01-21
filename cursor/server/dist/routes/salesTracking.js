@@ -52,10 +52,14 @@ const mapInflowPathFromContactMethod = (contactMethod) => {
     console.log('[mapInflowPathFromContactMethod] No match, creating default:', result);
     return result;
 };
-// Get all sales tracking records (with search)
+// Get all sales tracking records (with search and date filtering)
 router.get('/', auth_1.authMiddleware, async (req, res) => {
     try {
         const search = (req.query.search || '').trim();
+        const startDate = (req.query.startDate || '').trim();
+        const endDate = (req.query.endDate || '').trim();
+        const lastContactStartDate = (req.query.lastContactStartDate || '').trim();
+        const lastContactEndDate = (req.query.lastContactEndDate || '').trim();
         const rawLimit = req.query.limit;
         const limit = typeof rawLimit === 'string' && rawLimit.toLowerCase() === 'all'
             ? null
@@ -87,7 +91,8 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         created_at,
         updated_at,
         moved_to_retargeting,
-        restaurant_id`;
+        restaurant_id,
+        last_contact_at`;
         let orderClause = '';
         if (search) {
             query += `,
@@ -102,21 +107,46 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         END as match_priority`;
         }
         query += ` FROM sales_tracking`;
+        const whereConditions = [];
         if (search) {
-            query += ` WHERE 
-        (manager_name = $1 OR company_name = $1 OR account_id = $1 OR customer_name = $1 OR industry = $1 OR phone = $1
-         OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g'))) OR
-        (manager_name ILIKE $2 OR company_name ILIKE $2 OR account_id ILIKE $2 OR customer_name ILIKE $2 OR industry ILIKE $2 OR phone ILIKE $2
-         OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '')) OR
-        (manager_name ILIKE $3 OR company_name ILIKE $3 OR account_id ILIKE $3 OR customer_name ILIKE $3 OR industry ILIKE $3 OR phone ILIKE $3
-         OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || regexp_replace($1, '[^0-9]', '', 'g') || '%'))
-      `;
             const kw = search.trim();
             params.push(kw, `${kw}%`, `%${kw}%`);
+            const paramIdx1 = params.length - 2;
+            const paramIdx2 = params.length - 1;
+            const paramIdx3 = params.length;
+            whereConditions.push(`(
+        (manager_name = $${paramIdx1} OR company_name = $${paramIdx1} OR account_id = $${paramIdx1} OR customer_name = $${paramIdx1} OR industry = $${paramIdx1} OR phone = $${paramIdx1}
+         OR (regexp_replace($${paramIdx1}, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($${paramIdx1}, '[^0-9]', '', 'g'))) OR
+        (manager_name ILIKE $${paramIdx2} OR company_name ILIKE $${paramIdx2} OR account_id ILIKE $${paramIdx2} OR customer_name ILIKE $${paramIdx2} OR industry ILIKE $${paramIdx2} OR phone ILIKE $${paramIdx2}
+         OR (regexp_replace($${paramIdx2}, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($${paramIdx2}, '[^0-9]', '', 'g') || '')) OR
+        (manager_name ILIKE $${paramIdx3} OR company_name ILIKE $${paramIdx3} OR account_id ILIKE $${paramIdx3} OR customer_name ILIKE $${paramIdx3} OR industry ILIKE $${paramIdx3} OR phone ILIKE $${paramIdx3}
+         OR (regexp_replace($${paramIdx1}, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || regexp_replace($${paramIdx1}, '[^0-9]', '', 'g') || '%'))
+      )`);
             orderClause = ` ORDER BY match_priority, date DESC, COALESCE(occurred_at, date::timestamp) DESC`;
         }
         else {
             orderClause = ` ORDER BY date DESC, COALESCE(occurred_at, date::timestamp) DESC`;
+        }
+        // Date range filtering (for record date)
+        if (startDate) {
+            params.push(startDate);
+            whereConditions.push(`date >= $${params.length}`);
+        }
+        if (endDate) {
+            params.push(endDate);
+            whereConditions.push(`date <= $${params.length}`);
+        }
+        // Last contact date filtering
+        if (lastContactStartDate) {
+            params.push(lastContactStartDate);
+            whereConditions.push(`last_contact_at >= $${params.length}::date`);
+        }
+        if (lastContactEndDate) {
+            params.push(lastContactEndDate);
+            whereConditions.push(`last_contact_at < ($${params.length}::date + interval '1 day')`);
+        }
+        if (whereConditions.length > 0) {
+            query += ` WHERE ${whereConditions.join(' AND ')}`;
         }
         query += orderClause;
         if (limit !== null) {
@@ -406,6 +436,35 @@ router.delete('/:id', auth_1.authMiddleware, async (req, res) => {
     }
     finally {
         client.release();
+    }
+});
+// Update last contact time (only owner can update)
+router.patch('/:id/contact', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Check if record exists and get user_id
+        const recordResult = await db_1.pool.query('SELECT user_id FROM sales_tracking WHERE id = $1', [id]);
+        if (recordResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Record not found' });
+        }
+        // Check if user is the owner (or admin)
+        const recordUserId = recordResult.rows[0].user_id;
+        if (req.user?.role !== 'admin' && req.user?.id !== recordUserId) {
+            return res.status(403).json({ message: 'You can only update your own records' });
+        }
+        // Update last_contact_at to current timestamp
+        const result = await db_1.pool.query(`UPDATE sales_tracking 
+       SET last_contact_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1
+       RETURNING id, last_contact_at`, [id]);
+        res.json({
+            success: true,
+            last_contact_at: result.rows[0].last_contact_at
+        });
+    }
+    catch (error) {
+        console.error('Error updating last contact time:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 // Move sales tracking record to retargeting (only owner can move)

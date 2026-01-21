@@ -465,6 +465,28 @@ export default function SalesTrackingPage() {
     }
   }
 
+  // 마지막 연락 시간 초기화
+  const handleResetLastContact = async (recordId: string) => {
+    try {
+      await api.delete(`/sales-tracking/${recordId}/contact`)
+      // 로컬 상태 업데이트
+      setRecords(prev => prev.map(r => 
+        r.id === recordId 
+          ? { ...r, last_contact_at: undefined }
+          : r
+      ))
+      recordsRef.current = recordsRef.current.map(r => 
+        r.id === recordId 
+          ? { ...r, last_contact_at: undefined }
+          : r
+      )
+      showToast(t('lastContactReset'), 'success')
+    } catch (error: any) {
+      console.error('Failed to reset last contact:', error)
+      showToast(error.response?.data?.message || t('lastContactResetFailed'), 'error')
+    }
+  }
+
   // 마지막 연락 시간 포맷
   const formatLastContact = (lastContactAt?: string) => {
     if (!lastContactAt) return '-'
@@ -1286,167 +1308,167 @@ export default function SalesTrackingPage() {
             
             {/* Body */}
             <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-140px)]">
-              {/* 리타겟팅으로 이동된 항목인지 확인 */}
-              {editingId && records.find(r => r.id === editingId)?.moved_to_retargeting && (
+            {/* 리타겟팅으로 이동된 항목인지 확인 */}
+            {editingId && records.find(r => r.id === editingId)?.moved_to_retargeting && (
                 <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    {t('movedToRetargeting')} - {t('movedToRetargetingEditOnlyStatus')}
-                  </p>
-                </div>
-              )}
+                <p className="text-sm text-yellow-800">
+                  {t('movedToRetargeting')} - {t('movedToRetargetingEditOnlyStatus')}
+                </p>
+              </div>
+            )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* 날짜 */}
-                <div>
+              <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     {t('date')}
                   </label>
-                  <Input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
+                <Input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                     className="w-full"
-                  />
-                </div>
+                />
+              </div>
                 
                 {/* 담당자명 */}
-                <div>
+              <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     {t('managerName')}
                   </label>
-                  <select
-                    value={formData.managerName}
-                    onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
+                <select
+                  value={formData.managerName}
+                  onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
-                  >
-                    <option value="">{t('selectManager')}</option>
-                    {managerOptions.map((name) => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-                </div>
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
+                >
+                  <option value="">{t('selectManager')}</option>
+                  {managerOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
                 
                 {/* 상호 */}
-                <div>
+              <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     {t('companyName')} <span className="text-red-500">*</span>
                   </label>
-                  <Input
-                    value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                    disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
+                <Input
+                  value={formData.companyName}
+                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                     className="w-full"
                     placeholder={t('companyName')}
-                  />
-                </div>
+                />
+              </div>
                 
                 {/* 계정 ID */}
-                <div>
+              <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     {t('accountId')}
                   </label>
-                  <Input
-                    value={formData.accountId}
-                    onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
-                    disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
+                <Input
+                  value={formData.accountId}
+                  onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                     className="w-full"
                     placeholder={t('accountId')}
-                  />
-                </div>
+                />
+              </div>
                 
                 {/* 업종 */}
-                <div>
+              <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     {t('industry')}
                   </label>
-                  <select
-                    value={formData.industry}
-                    onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                <select
+                  value={formData.industry}
+                  onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
-                  >
-                    <option value="">-</option>
-                    <option value="飲食店">{t('industryRestaurant')}</option>
-                    <option value="娯楽/観光/レジャー">{t('industryEntertainment')}</option>
-                    <option value="美容サロン">{t('industryBeautySalon')}</option>
-                    <option value="有形商材">{t('industryTangible')}</option>
-                    <option value="個人利用">{t('industryPersonal')}</option>
-                    <option value="無形商材">{t('industryIntangible')}</option>
-                    <option value="代理店">{t('industryAgency')}</option>
-                    <option value="教育">{t('industryEducation')}</option>
-                    <option value="その他">{t('industryOther')}</option>
-                    <option value="アートメイク">{t('industryArtMake')}</option>
-                  </select>
-                </div>
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
+                >
+                  <option value="">-</option>
+                  <option value="飲食店">{t('industryRestaurant')}</option>
+                  <option value="娯楽/観光/レジャー">{t('industryEntertainment')}</option>
+                  <option value="美容サロン">{t('industryBeautySalon')}</option>
+                  <option value="有形商材">{t('industryTangible')}</option>
+                  <option value="個人利用">{t('industryPersonal')}</option>
+                  <option value="無形商材">{t('industryIntangible')}</option>
+                  <option value="代理店">{t('industryAgency')}</option>
+                  <option value="教育">{t('industryEducation')}</option>
+                  <option value="その他">{t('industryOther')}</option>
+                  <option value="アートメイク">{t('industryArtMake')}</option>
+                </select>
+              </div>
                 
                 {/* 영업 방법 */}
-                <div>
+              <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     {t('contactMethod')} <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={formData.contactMethod}
-                    onChange={(e) => setFormData({ ...formData, contactMethod: e.target.value })}
+                <select
+                  value={formData.contactMethod}
+                  onChange={(e) => setFormData({ ...formData, contactMethod: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
-                  >
-                    <option value="">-</option>
-                    <option value="電話">{t('contactPhone')}</option>
-                    <option value="LINE">{t('contactLINE')}</option>
-                    <option value="DM">{t('contactDM')}</option>
-                    <option value="メール">{t('contactMail')}</option>
-                    <option value="フォーム">{t('contactForm')}</option>
-                  </select>
-                </div>
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
+                >
+                  <option value="">-</option>
+                  <option value="電話">{t('contactPhone')}</option>
+                  <option value="LINE">{t('contactLINE')}</option>
+                  <option value="DM">{t('contactDM')}</option>
+                  <option value="メール">{t('contactMail')}</option>
+                  <option value="フォーム">{t('contactForm')}</option>
+                </select>
+              </div>
                 
                 {/* 진행 현황 */}
-                <div>
+              <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     {t('status')}
                   </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="未返信">{t('statusNoReply')}</option>
-                    <option value="返信済み">{t('statusReplied')}</option>
-                    <option value="商談中">{t('statusNegotiating')}</option>
-                    <option value="契約">{t('statusContract')}</option>
-                  </select>
-                </div>
+                >
+                  <option value="未返信">{t('statusNoReply')}</option>
+                  <option value="返信済み">{t('statusReplied')}</option>
+                  <option value="商談中">{t('statusNegotiating')}</option>
+                  <option value="契約">{t('statusContract')}</option>
+                </select>
+              </div>
                 
                 {/* 전화번호 */}
-                <div>
+              <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     {t('phone')}
                   </label>
-                  <Input
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
+                <Input
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                     className="w-full"
                     placeholder={t('phone')}
-                  />
-                </div>
+                />
+              </div>
                 
                 {/* 메모 - 전체 너비 */}
-                <div className="md:col-span-2">
+              <div className="md:col-span-2">
                   <label className="text-sm font-medium text-gray-700 mb-1 block">
                     {t('memo')}
                   </label>
                   <textarea
-                    value={formData.memo}
-                    onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
-                    disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
+                  value={formData.memo}
+                  onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+                  disabled={!!(editingId && records.find(r => r.id === editingId)?.moved_to_retargeting)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     rows={3}
                     placeholder={t('memo')}
-                  />
-                </div>
+                />
               </div>
+            </div>
             </div>
             
             {/* Footer */}
@@ -1621,16 +1643,16 @@ export default function SalesTrackingPage() {
                         <div className="flex items-center gap-1 max-w-[200px]">
                           <div className="text-xs truncate flex-1">{record.memo || '-'}</div>
                           {record.restaurant_id && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedRestaurantId(record.restaurant_id!)}
-                              title={t('storeDetail')}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedRestaurantId(record.restaurant_id!)}
+                            title={t('storeDetail')}
                               className="h-5 w-5 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50 flex-shrink-0"
-                            >
-                              <UtensilsCrossed className="h-3 w-3" />
-                            </Button>
-                          )}
+                          >
+                            <UtensilsCrossed className="h-3 w-3" />
+                          </Button>
+                        )}
                         </div>
                       </td>
                       {/* 작업 - 더보기 메뉴 */}
@@ -1662,16 +1684,16 @@ export default function SalesTrackingPage() {
                                     <Edit className="h-3 w-3" />
                                     {t('edit')}
                                   </button>
-                                  {!record.moved_to_retargeting && (
-                                    <>
+                            {!record.moved_to_retargeting && (
+                              <>
                                       <button
                                         className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-blue-600"
                                         onClick={() => {
                                           handleMoveToRetargeting(record)
                                           setOpenActionMenuId(null)
                                         }}
-                                      >
-                                        <ArrowRight className="h-3 w-3" />
+                                >
+                                  <ArrowRight className="h-3 w-3" />
                                         {t('moveToRetargeting')}
                                       </button>
                                       <button
@@ -1685,6 +1707,18 @@ export default function SalesTrackingPage() {
                                         {t('delete')}
                                       </button>
                                     </>
+                                  )}
+                                  {record.last_contact_at && (
+                                    <button
+                                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-600 border-t"
+                                      onClick={() => {
+                                        handleResetLastContact(record.id)
+                                        setOpenActionMenuId(null)
+                                      }}
+                                    >
+                                      <RefreshCw className="h-3 w-3" />
+                                      {t('resetLastContact')}
+                                    </button>
                                   )}
                                 </div>
                               </>
