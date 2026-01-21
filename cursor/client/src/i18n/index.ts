@@ -44,6 +44,7 @@ const translations: Record<Language, Translation> = {
     save: '保存',
     cancel: 'キャンセル',
     add: '追加',
+    addSalesHistory: '営業履歴追加',
     edit: '編集',
     confirm: '確認',
     close: '閉じる',
@@ -429,6 +430,18 @@ const translations: Record<Language, Translation> = {
     overall: '全体表示',
     byManager: '担当者別',
 
+    // Last Contact Feature
+    lastContactTime: '最終連絡',
+    updateContact: '更新',
+    confirmUpdateContact: '今の時間で更新しますか？',
+    allPeriods: '全期間',
+    industryMethod: '業種/方法',
+    contactUpdated: '連絡時間を更新しました',
+    contactUpdateFailed: '連絡時間の更新に失敗しました',
+    dateFilter: '期間フィルター',
+    lastContactFilter: '最終連絡日 フィルター',
+    clearDateFilter: 'リセット',
+
     // Option labels (industries)
     industryRestaurant: '飲食店',
     industryEntertainment: '娯楽/観光/レジャー',
@@ -747,6 +760,7 @@ const translations: Record<Language, Translation> = {
     save: '저장',
     cancel: '취소',
     add: '추가',
+    addSalesHistory: '영업 이력 추가',
     edit: '수정',
     confirm: '확인',
     close: '닫기',
@@ -1131,6 +1145,18 @@ const translations: Record<Language, Translation> = {
     view: '보기',
     overall: '전체 보기',
     byManager: '담당자별',
+
+    // Last Contact Feature
+    lastContactTime: '마지막 연락',
+    updateContact: '갱신',
+    confirmUpdateContact: '지금 시간으로 갱신할까요?',
+    allPeriods: '전체 기간',
+    industryMethod: '업종/방법',
+    contactUpdated: '연락 시간이 갱신되었습니다',
+    contactUpdateFailed: '연락 시간 갱신에 실패했습니다',
+    dateFilter: '기간 필터',
+    lastContactFilter: '마지막 연락일 필터',
+    clearDateFilter: '초기화',
 
     // Option labels (industries)
     industryRestaurant: '음식점',
