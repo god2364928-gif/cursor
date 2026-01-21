@@ -170,6 +170,20 @@ export async function autoMigrateSalesTracking(): Promise<void> {
       } catch (e) {
         console.error('Failed migrating customer_name into company_name:', e)
       }
+
+      // Add last_contact_at column for tracking last contact time
+      try {
+        await pool.query(`
+          ALTER TABLE sales_tracking
+          ADD COLUMN IF NOT EXISTS last_contact_at TIMESTAMP;
+        `)
+        await pool.query(`
+          CREATE INDEX IF NOT EXISTS idx_sales_tracking_last_contact ON sales_tracking(last_contact_at);
+        `)
+        console.log('✓ last_contact_at column ensured')
+      } catch (e) {
+        console.error('Failed ensuring last_contact_at column:', e)
+      }
       return
     }
     
