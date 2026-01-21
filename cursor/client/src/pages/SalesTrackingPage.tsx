@@ -12,6 +12,7 @@ import { Plus, Edit, Trash2, X, BarChart3, Search, ArrowRight, UtensilsCrossed, 
 import GlobalSearch from '../components/GlobalSearch'
 import RestaurantDrawer from '../components/RestaurantDrawer'
 import { getMarketerNames } from '../utils/userUtils'
+import { DatePickerInput } from '../components/ui/date-picker-input'
 
 interface SalesTrackingRecord {
   id: string
@@ -1109,24 +1110,24 @@ export default function SalesTrackingPage() {
           <div>
             <label className="text-sm text-gray-600 mb-2 block">{t('lastContactFilter')}</label>
             <div className="flex items-center gap-2">
-              <input
-                type="date"
-                className="border rounded px-3 py-2 text-sm"
+              <DatePickerInput
                 value={filterStartDate}
-                onChange={e => {
-                  setFilterStartDate(e.target.value)
+                onChange={(value) => {
+                  setFilterStartDate(value)
                   setCurrentPage(1)
                 }}
+                className="w-[120px]"
+                popperPlacement="top-start"
               />
               <span className="text-gray-400">~</span>
-              <input
-                type="date"
-                className="border rounded px-3 py-2 text-sm"
+              <DatePickerInput
                 value={filterEndDate}
-                onChange={e => {
-                  setFilterEndDate(e.target.value)
+                onChange={(value) => {
+                  setFilterEndDate(value)
                   setCurrentPage(1)
                 }}
+                className="w-[120px]"
+                popperPlacement="top-start"
               />
             </div>
           </div>
@@ -1598,7 +1599,12 @@ export default function SalesTrackingPage() {
                               </Button>
                               {/* 인라인 확인 팝오버 */}
                               {confirmUpdateId === record.id && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50" data-popover-container>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50" data-popover-container>
+                                  {/* 말풍선 꼬리 (위쪽) */}
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[-1px]">
+                                    <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-gray-200"></div>
+                                    <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px] border-b-white absolute top-[1px] left-1/2 -translate-x-1/2"></div>
+                                  </div>
                                   <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 min-w-[180px]">
                                     <p className="text-xs text-gray-700 mb-2 whitespace-nowrap">{t('confirmUpdateContact')}</p>
                                     <div className="flex gap-2 justify-end">
@@ -1621,11 +1627,6 @@ export default function SalesTrackingPage() {
                                         {t('confirm')}
                                       </Button>
                                     </div>
-                                  </div>
-                                  {/* 말풍선 꼬리 */}
-                                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px]">
-                                    <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-gray-200"></div>
-                                    <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px] border-t-white absolute -top-[6px] left-1/2 -translate-x-1/2"></div>
                                   </div>
                                 </div>
                               )}

@@ -11,6 +11,7 @@ import { useToast } from '../components/ui/toast'
 import { Phone, PhoneOff, MessageSquare, FileText, ExternalLink, Copy, Calendar, Pin, PinOff, Check, Trash2, FileIcon, Download } from 'lucide-react'
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
 import { getMarketerNames } from '../utils/userUtils'
+import { DatePickerInput } from '../components/ui/date-picker-input'
 
 export default function CustomersPage() {
   const { t, language } = useI18nStore()
@@ -1112,30 +1113,28 @@ export default function CustomersPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm text-gray-600">{t('contractStartDate')}</label>
-                      <input
-                        type="date"
-                        className="w-full border rounded px-3 py-2"
+                      <DatePickerInput
                         value={(() => {
                           const date = selectedCustomer.contractStartDate;
                           if (!date) return '';
                           if (typeof date === 'string') return date.split('T')[0];
                           return date;
                         })()}
-                        onChange={e => setSelectedCustomer({...selectedCustomer, contractStartDate: e.target.value})}
+                        onChange={(value) => setSelectedCustomer({...selectedCustomer, contractStartDate: value})}
+                        className="w-full"
                       />
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">{t('contractExpirationDate')}</label>
-                      <input
-                        type="date"
-                        className="w-full border rounded px-3 py-2"
+                      <DatePickerInput
                         value={(() => {
                           const date = selectedCustomer.contractExpirationDate;
                           if (!date) return '';
                           if (typeof date === 'string') return date.split('T')[0];
                           return date;
                         })()}
-                        onChange={e => setSelectedCustomer({...selectedCustomer, contractExpirationDate: e.target.value})}
+                        onChange={(value) => setSelectedCustomer({...selectedCustomer, contractExpirationDate: value})}
+                        className="w-full"
                       />
                     </div>
                   </div>

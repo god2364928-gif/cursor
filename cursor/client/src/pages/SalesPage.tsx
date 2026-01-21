@@ -11,6 +11,7 @@ import { formatNumber } from '../lib/utils'
 import { Plus, Edit, Trash2, Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { getMarketerNames } from '../utils/userUtils'
+import { DatePickerInput } from '../components/ui/date-picker-input'
 
 export default function SalesPage() {
   const { t } = useI18nStore()
@@ -388,23 +389,19 @@ export default function SalesPage() {
         {/* 날짜 필터 */}
         <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
+          <div className="flex gap-3 items-end">
+            <div>
               <label className="text-sm text-gray-600 mb-2 block">{t('startDate')}</label>
-              <input
-                type="date"
-                className="w-full border rounded px-3 py-2"
+              <DatePickerInput
                 value={startDate}
-                onChange={e => setStartDate(e.target.value)}
+                onChange={setStartDate}
               />
             </div>
-            <div className="flex-1">
+            <div>
               <label className="text-sm text-gray-600 mb-2 block">{t('endDate')}</label>
-              <input
-                type="date"
-                className="w-full border rounded px-3 py-2"
+              <DatePickerInput
                 value={endDate}
-                onChange={e => setEndDate(e.target.value)}
+                onChange={setEndDate}
               />
             </div>
             <Button onClick={handlePreviousMonth} variant="outline">{t('previousMonth')}</Button>

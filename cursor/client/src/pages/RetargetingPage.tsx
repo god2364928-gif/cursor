@@ -11,6 +11,7 @@ import { useToast } from '../components/ui/toast'
 import { Phone, PhoneOff, MessageSquare, FileText, Target, ExternalLink, Copy, Pin, PinOff, Trash2, FileIcon, Download } from 'lucide-react'
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
 import { getMarketerNames } from '../utils/userUtils'
+import { DatePickerInput } from '../components/ui/date-picker-input'
 
 const RETARGETING_TARGET = 500
 
@@ -1204,30 +1205,28 @@ export default function RetargetingPage() {
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">{t('registrationDate')}</label>
-                    <input
-                      type="date"
-                      className="w-full border rounded px-3 py-2"
+                    <DatePickerInput
                       value={(() => {
                         const date = selectedCustomer.registeredAt;
                         if (!date) return '';
                         if (typeof date === 'string') return date.split('T')[0];
                         return date;
                       })()}
-                      onChange={e => setSelectedCustomer({...selectedCustomer, registeredAt: e.target.value})}
+                      onChange={(value) => setSelectedCustomer({...selectedCustomer, registeredAt: value})}
+                      className="w-full"
                     />
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">{t('lastContactDate')}</label>
-                    <input
-                      type="date"
-                      className="w-full border rounded px-3 py-2"
+                    <DatePickerInput
                       value={(() => {
                         const date = selectedCustomer.lastContactDate;
                         if (!date) return '';
                         if (typeof date === 'string') return date.split('T')[0];
                         return date;
                       })()}
-                      onChange={e => setSelectedCustomer({...selectedCustomer, lastContactDate: e.target.value})}
+                      onChange={(value) => setSelectedCustomer({...selectedCustomer, lastContactDate: value})}
+                      className="w-full"
                     />
                   </div>
             </div>
@@ -1614,12 +1613,10 @@ export default function RetargetingPage() {
               </div>
               <div>
                 <label className="text-sm text-gray-600">{t('startDate')}</label>
-                <input
-                  type="date"
-                  className="w-full border rounded px-3 py-2"
+                <DatePickerInput
                   value={convertData.contractStartDate}
-                  onChange={e => {
-                    const startDate = e.target.value
+                  onChange={(value) => {
+                    const startDate = value
                     // 시작일이 변경되면 자동으로 1개월 뒤를 만료일로 설정
                     let expirationDate = ''
                     if (startDate) {
@@ -1629,15 +1626,15 @@ export default function RetargetingPage() {
                     }
                     setConvertData({...convertData, contractStartDate: startDate, contractExpirationDate: expirationDate})
                   }}
+                  className="w-full"
                 />
               </div>
               <div>
                 <label className="text-sm text-gray-600">{t('endDate')}</label>
-                <input
-                  type="date"
-                  className="w-full border rounded px-3 py-2"
+                <DatePickerInput
                   value={convertData.contractExpirationDate}
-                  onChange={e => setConvertData({...convertData, contractExpirationDate: e.target.value})}
+                  onChange={(value) => setConvertData({...convertData, contractExpirationDate: value})}
+                  className="w-full"
                 />
               </div>
               <div className="flex gap-2">

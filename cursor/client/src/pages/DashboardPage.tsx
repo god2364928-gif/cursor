@@ -19,6 +19,7 @@ import {
   Calendar
 } from 'lucide-react'
 import MeetingModal from '../components/MeetingModal'
+import { DatePickerInput } from '../components/ui/date-picker-input'
 import { 
   BarChart, 
   Bar, 
@@ -272,20 +273,16 @@ export default function DashboardPage() {
               <div className="flex gap-4 items-center flex-wrap">
                 <div className="flex gap-2 items-center">
                   <label className="text-sm font-medium">{t('startDate')}:</label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    className="border rounded px-3 py-2"
+                    onChange={setStartDate}
                   />
                 </div>
                 <div className="flex gap-2 items-center">
                   <label className="text-sm font-medium">{t('endDate')}:</label>
-                  <input
-                    type="date"
+                  <DatePickerInput
                     value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
-                    className="border rounded px-3 py-2"
+                    onChange={setEndDate}
                   />
                 </div>
                 <Button onClick={handlePreviousPeriod} variant="outline">
