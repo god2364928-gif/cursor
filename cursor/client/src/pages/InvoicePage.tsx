@@ -6,6 +6,7 @@ import { useI18nStore } from '../i18n'
 import { FileText, Plus, Download, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { DatePickerInput } from '../components/ui/date-picker-input'
 
 // 청구서 취소 확인 모달 컴포넌트
 function CancelConfirmModal({
@@ -173,12 +174,11 @@ function ReceiptModal({
             <label className="block text-sm font-medium mb-2">
               {language === 'ja' ? '領収日' : '영수일'} *
             </label>
-            <input
-              type="date"
+            <DatePickerInput
               value={issueDate}
-              onChange={(e) => setIssueDate(e.target.value)}
-              className="w-full border rounded px-3 py-2"
-              required
+              onChange={setIssueDate}
+              className="w-full"
+              isClearable={false}
             />
           </div>
 

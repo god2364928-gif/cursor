@@ -17,6 +17,7 @@ import {
 } from 'chart.js'
 import { useAccountingStore } from '@/store/accountingStore'
 import { formatCurrency } from './utils'
+import { DatePickerInput } from '@/components/ui/date-picker-input'
 
 // Chart.js 등록
 ChartJS.register(
@@ -255,24 +256,18 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
                 <label className="text-sm font-medium">
                   {language === 'ja' ? '開始日' : '시작일'}:
                 </label>
-                <input
-                  type="date"
+                <DatePickerInput
                   value={startDate}
-                  onChange={e => handleStartDateChange(e.target.value)}
-                  max="2099-12-31"
-                  className="border rounded px-3 py-2"
+                  onChange={handleStartDateChange}
                 />
               </div>
               <div className="flex gap-2 items-center">
                 <label className="text-sm font-medium">
                   {language === 'ja' ? '終了日' : '종료일'}:
                 </label>
-                <input
-                  type="date"
+                <DatePickerInput
                   value={endDate}
-                  onChange={e => handleEndDateChange(e.target.value)}
-                  max="2099-12-31"
-                  className="border rounded px-3 py-2"
+                  onChange={handleEndDateChange}
                 />
               </div>
               <Button onClick={handlePreviousMonth} variant="outline">

@@ -9,6 +9,7 @@ import InvoicePreviewModal from '../components/InvoicePreviewModal'
 import ExcludedPartnersModal from '../components/ExcludedPartnersModal'
 import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
+import { DatePickerInput } from '../components/ui/date-picker-input'
 
 export default function InvoiceCreatePage() {
   const navigate = useNavigate()
@@ -693,24 +694,22 @@ export default function InvoiceCreatePage() {
                 <label className="block text-sm font-medium mb-1">
                   {language === 'ja' ? '請求日' : '청구일'} <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <DatePickerInput
                   value={formData.invoice_date}
-                  onChange={(e) => setFormData({ ...formData, invoice_date: e.target.value })}
-                  className="w-full border rounded px-3 py-2"
-                  required
+                  onChange={(value) => setFormData({ ...formData, invoice_date: value })}
+                  className="w-full"
+                  isClearable={false}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
                   {language === 'ja' ? '入金期限' : '입금기한'} <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <DatePickerInput
                   value={formData.due_date}
-                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                  className="w-full border rounded px-3 py-2"
-                  required
+                  onChange={(value) => setFormData({ ...formData, due_date: value })}
+                  className="w-full"
+                  isClearable={false}
                 />
               </div>
             </div>

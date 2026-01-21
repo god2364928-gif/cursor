@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency } from './utils'
+import { DatePickerInput } from '@/components/ui/date-picker-input'
 
 interface PayPayTabProps {
   language: 'ja' | 'ko'
@@ -103,13 +104,14 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
   }, [paypayStartDate, paypayEndDate, paypayCategoryFilter, paypayNameFilter])
 
   const handlePaypayPreviousMonth = () => {
-    const now = new Date()
-    now.setMonth(now.getMonth() - 1)
-    const year = now.getFullYear()
-    const month = now.getMonth()
-    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    const lastDay = new Date(year, month + 1, 0)
-    const lastDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
+    // 현재 선택된 시작일 기준으로 이전 월 계산
+    const [year, month] = paypayStartDate.split('-').map(Number)
+    const prevMonth = month === 1 ? 12 : month - 1
+    const prevYear = month === 1 ? year - 1 : year
+    
+    const firstDay = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`
+    const lastDay = new Date(prevYear, prevMonth, 0).getDate()
+    const lastDayString = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
     setPaypayStartDate(firstDay)
     setPaypayEndDate(lastDayString)
   }
@@ -119,19 +121,21 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
     const year = now.getFullYear()
     const month = now.getMonth()
     const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    const today = `${year}-${String(month + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const lastDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
     setPaypayStartDate(firstDay)
-    setPaypayEndDate(today)
+    setPaypayEndDate(lastDayString)
   }
 
   const handlePaypayNextMonth = () => {
-    const now = new Date()
-    now.setMonth(now.getMonth() + 1)
-    const year = now.getFullYear()
-    const month = now.getMonth()
-    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    const lastDay = new Date(year, month + 1, 0)
-    const lastDayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
+    // 현재 선택된 시작일 기준으로 다음 월 계산
+    const [year, month] = paypayStartDate.split('-').map(Number)
+    const nextMonth = month === 12 ? 1 : month + 1
+    const nextYear = month === 12 ? year + 1 : year
+    
+    const firstDay = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`
+    const lastDay = new Date(nextYear, nextMonth, 0).getDate()
+    const lastDayString = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
     setPaypayStartDate(firstDay)
     setPaypayEndDate(lastDayString)
   }
@@ -312,11 +316,11 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
             <div className="flex-1 grid grid-cols-5 gap-3">
               <div>
                 <label className="block text-sm font-medium mb-1">{language === 'ja' ? '開始日' : '시작일'}</label>
-                <Input type="date" value={paypayStartDate} onChange={(e) => setPaypayStartDate(e.target.value)} className="h-9" />
+                <DatePickerInput value={paypayStartDate} onChange={setPaypayStartDate} className="h-9" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">{language === 'ja' ? '終了日' : '종료일'}</label>
-                <Input type="date" value={paypayEndDate} onChange={(e) => setPaypayEndDate(e.target.value)} className="h-9" />
+                <DatePickerInput value={paypayEndDate} onChange={setPaypayEndDate} className="h-9" />
               </div>
               <div className="flex items-end gap-2">
                 <Button size="sm" variant="outline" onClick={handlePaypayPreviousMonth} className="h-9">
