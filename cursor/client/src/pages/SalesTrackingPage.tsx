@@ -111,12 +111,16 @@ export default function SalesTrackingPage() {
 
   // 액션 메뉴 상태
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null)
+  const [actionMenuPosition, setActionMenuPosition] = useState<'top' | 'bottom'>('bottom')
+  const [actionMenuCoords, setActionMenuCoords] = useState<{ top: number; left: number } | null>(null)
 
   // 마지막 연락 갱신 중인 레코드 ID
   const [updatingContactId, setUpdatingContactId] = useState<string | null>(null)
   
   // 갱신 확인 팝오버 상태
   const [confirmUpdateId, setConfirmUpdateId] = useState<string | null>(null)
+  const [confirmPopoverPosition, setConfirmPopoverPosition] = useState<'top' | 'bottom'>('bottom')
+  const [confirmPopoverCoords, setConfirmPopoverCoords] = useState<{ top: number; left: number } | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -1582,28 +1586,62 @@ export default function SalesTrackingPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => setConfirmUpdateId(confirmUpdateId === record.id ? null : record.id)}
+                                onClick={(e) => {
+                                  if (confirmUpdateId === record.id) {
+                                    setConfirmUpdateId(null)
+                                    setConfirmPopoverCoords(null)
+                                  } else {
+                                    // 버튼 위치 기준으로 팝오버 방향 및 좌표 결정
+                                    const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                    const spaceBelow = window.innerHeight - buttonRect.bottom
+                                    const isTop = spaceBelow < 120
+                                    setConfirmPopoverPosition(isTop ? 'top' : 'bottom')
+                                    setConfirmPopoverCoords({
+                                      top: isTop ? buttonRect.top - 8 : buttonRect.bottom + 8,
+                                      left: buttonRect.left + buttonRect.width / 2
+                                    })
+                                    setConfirmUpdateId(record.id)
+                                  }
+                                }}
                                 disabled={updatingContactId === record.id}
                                 className="h-5 w-5 p-0 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-full"
                                 title={t('updateContact')}
                               >
                                 <RefreshCw className={`h-3 w-3 ${updatingContactId === record.id ? 'animate-spin' : ''}`} />
                               </Button>
-                              {/* 인라인 확인 팝오버 */}
-                              {confirmUpdateId === record.id && (
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50" data-popover-container>
-                                  {/* 말풍선 꼬리 (위쪽) */}
-                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[-1px]">
-                                    <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-gray-200"></div>
-                                    <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px] border-b-white absolute top-[1px] left-1/2 -translate-x-1/2"></div>
-                                  </div>
+                              {/* 인라인 확인 팝오버 - fixed 위치로 테이블 밖에서도 보이도록 */}
+                              {confirmUpdateId === record.id && confirmPopoverCoords && (
+                                <div 
+                                  className="fixed z-[9999] -translate-x-1/2"
+                                  style={{
+                                    top: confirmPopoverPosition === 'top' ? 'auto' : confirmPopoverCoords.top,
+                                    bottom: confirmPopoverPosition === 'top' ? window.innerHeight - confirmPopoverCoords.top : 'auto',
+                                    left: confirmPopoverCoords.left
+                                  }}
+                                  data-popover-container
+                                >
+                                  {/* 말풍선 꼬리 */}
+                                  {confirmPopoverPosition === 'bottom' ? (
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[-1px]">
+                                      <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-gray-200"></div>
+                                      <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px] border-b-white absolute top-[1px] left-1/2 -translate-x-1/2"></div>
+                                    </div>
+                                  ) : (
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-[-1px]">
+                                      <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-gray-200"></div>
+                                      <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px] border-t-white absolute bottom-[1px] left-1/2 -translate-x-1/2"></div>
+                                    </div>
+                                  )}
                                   <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 min-w-[180px]">
                                     <p className="text-xs text-gray-700 mb-2 whitespace-nowrap">{t('confirmUpdateContact')}</p>
                                     <div className="flex gap-2 justify-end">
                                       <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => setConfirmUpdateId(null)}
+                                        onClick={() => {
+                                          setConfirmUpdateId(null)
+                                          setConfirmPopoverCoords(null)
+                                        }}
                                         className="h-6 px-2 text-xs"
                                       >
                                         {t('cancel')}
@@ -1612,6 +1650,7 @@ export default function SalesTrackingPage() {
                                         size="sm"
                                         onClick={() => {
                                           setConfirmUpdateId(null)
+                                          setConfirmPopoverCoords(null)
                                           handleUpdateContact(record.id)
                                         }}
                                         className="h-6 px-2 text-xs bg-blue-600 hover:bg-blue-700"
@@ -1649,23 +1688,51 @@ export default function SalesTrackingPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setOpenActionMenuId(openActionMenuId === record.id ? null : record.id)}
+                              onClick={(e) => {
+                                if (openActionMenuId === record.id) {
+                                  setOpenActionMenuId(null)
+                                  setActionMenuCoords(null)
+                                } else {
+                                  // 버튼 위치 기준으로 메뉴 방향 및 좌표 결정
+                                  const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                  const spaceBelow = window.innerHeight - buttonRect.bottom
+                                  const isTop = spaceBelow < 200
+                                  setActionMenuPosition(isTop ? 'top' : 'bottom')
+                                  setActionMenuCoords({
+                                    top: isTop ? buttonRect.top - 4 : buttonRect.bottom + 4,
+                                    left: buttonRect.right
+                                  })
+                                  setOpenActionMenuId(record.id)
+                                }
+                              }}
                               className="h-6 w-6 p-0"
                             >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
-                            {openActionMenuId === record.id && (
+                            {openActionMenuId === record.id && actionMenuCoords && (
                               <>
                                 <div 
-                                  className="fixed inset-0 z-40" 
-                                  onClick={() => setOpenActionMenuId(null)}
+                                  className="fixed inset-0 z-[9998]" 
+                                  onClick={() => {
+                                    setOpenActionMenuId(null)
+                                    setActionMenuCoords(null)
+                                  }}
                                 />
-                                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 py-1 min-w-[140px]">
+                                <div 
+                                  className="fixed bg-white border rounded-lg shadow-lg z-[9999] py-1 min-w-[140px]"
+                                  style={{
+                                    top: actionMenuPosition === 'top' ? 'auto' : actionMenuCoords.top,
+                                    bottom: actionMenuPosition === 'top' ? window.innerHeight - actionMenuCoords.top : 'auto',
+                                    left: actionMenuCoords.left,
+                                    transform: 'translateX(-100%)'
+                                  }}
+                                >
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                                     onClick={() => {
                                       startEdit(record)
                                       setOpenActionMenuId(null)
+                                      setActionMenuCoords(null)
                                     }}
                                   >
                                     <Edit className="h-3 w-3" />
@@ -1678,6 +1745,7 @@ export default function SalesTrackingPage() {
                                         onClick={() => {
                                           handleMoveToRetargeting(record)
                                           setOpenActionMenuId(null)
+                                          setActionMenuCoords(null)
                                         }}
                                 >
                                   <ArrowRight className="h-3 w-3" />
@@ -1688,6 +1756,7 @@ export default function SalesTrackingPage() {
                                         onClick={() => {
                                           handleDelete(record.id)
                                           setOpenActionMenuId(null)
+                                          setActionMenuCoords(null)
                                         }}
                                       >
                                         <Trash2 className="h-3 w-3" />
@@ -1701,6 +1770,7 @@ export default function SalesTrackingPage() {
                                       onClick={() => {
                                         handleResetLastContact(record.id)
                                         setOpenActionMenuId(null)
+                                        setActionMenuCoords(null)
                                       }}
                                     >
                                       <RefreshCw className="h-3 w-3" />
