@@ -9,7 +9,7 @@ import { useToast } from '../components/ui/toast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Plus, Edit, Trash2, X, BarChart3, Search, ArrowRight, UtensilsCrossed, MoreVertical, RefreshCw } from 'lucide-react'
+import { Plus, Edit, Trash2, X, BarChart3, Search, ArrowRight, UtensilsCrossed, MoreVertical, RefreshCw, Copy } from 'lucide-react'
 import GlobalSearch from '../components/GlobalSearch'
 import RestaurantDrawer from '../components/RestaurantDrawer'
 import { getMarketerNames } from '../utils/userUtils'
@@ -189,6 +189,19 @@ export default function SalesTrackingPage() {
       if (filterEndDate) {
         params.lastContactEndDate = filterEndDate
       }
+      // 서버 사이드 필터 파라미터 추가
+      if (managerFilter && managerFilter !== 'all') {
+        params.manager = managerFilter
+      }
+      if (statusFilter && statusFilter !== 'all') {
+        params.status = statusFilter
+      }
+      if (contactMethodFilter && contactMethodFilter !== 'all') {
+        params.contactMethod = contactMethodFilter
+      }
+      if (movedToRetargetingFilter && movedToRetargetingFilter !== 'all') {
+        params.movedToRetargeting = movedToRetargetingFilter
+      }
       const config: any = { params }
       if (signal) {
         config.signal = signal
@@ -224,7 +237,7 @@ export default function SalesTrackingPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, filterStartDate, filterEndDate, showToast, t])
+  }, [searchQuery, filterStartDate, filterEndDate, managerFilter, statusFilter, contactMethodFilter, movedToRetargetingFilter, showToast, t])
 
   useEffect(() => {
     if (abortControllerRef.current) {
@@ -885,28 +898,8 @@ export default function SalesTrackingPage() {
     }
   }
 
-  // 담당자별 필터링 및 추가 필터들
-  const filteredRecords = records.filter(r => {
-    // 담당자 필터
-    const managerMatch = managerFilter === 'all' || r.manager_name === managerFilter
-    
-    // 리타겟팅 이동 여부 필터
-    let movedMatch = true
-    if (movedToRetargetingFilter === 'moved') {
-      movedMatch = r.moved_to_retargeting === true
-    } else if (movedToRetargetingFilter === 'notMoved') {
-      movedMatch = !r.moved_to_retargeting
-    }
-    
-    // 진행현황 필터
-    const statusMatch = statusFilter === 'all' || r.status === statusFilter
-    
-    // 영업방법 필터
-    const contactMethodMatch = contactMethodFilter === 'all' || 
-      (contactMethodFilter === 'none' ? (!r.contact_method || r.contact_method.trim() === '') : r.contact_method === contactMethodFilter)
-    
-    return managerMatch && movedMatch && statusMatch && contactMethodMatch
-  })
+  // 서버에서 필터링된 데이터를 그대로 사용 (클라이언트 필터링 불필요)
+  const filteredRecords = records
   
   // 페이지네이션 계산 - 서버의 totalCount 기반
   const uiTotalPages = Math.ceil(totalCount / itemsPerPage) || 1
@@ -1539,7 +1532,35 @@ export default function SalesTrackingPage() {
                         <div className="text-[10px] text-gray-400 truncate">{translateContactMethodLabel(record.contact_method as any)}</div>
                       </td>
                       <td className="px-2 py-2 border-r truncate overflow-hidden text-xs">{record.phone || '-'}</td>
-                      <td className="px-2 py-2 border-r truncate overflow-hidden text-xs" title={!record.moved_to_retargeting ? (record.account_id || '-') : undefined}>{record.account_id || '-'}</td>
+                      {/* 인스타그램 ID - 클릭 시 프로필 이동, 호버 시 복사 버튼 */}
+                      <td className="px-2 py-2 border-r overflow-hidden text-xs" title={record.account_id || '-'}>
+                        {record.account_id ? (
+                          <div className="flex items-center gap-1 group/insta">
+                            <a
+                              href={`https://www.instagram.com/${record.account_id.replace('@', '')}/`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline truncate flex-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {record.account_id}
+                            </a>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigator.clipboard.writeText(record.account_id!)
+                                showToast(t('copiedToClipboard'), 'success')
+                              }}
+                              className="opacity-0 group-hover/insta:opacity-100 p-1 hover:bg-gray-200 rounded transition-opacity flex-shrink-0"
+                              title={t('copy')}
+                            >
+                              <Copy className="h-3 w-3 text-gray-400" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                       {/* 진행현황 - 컬러 뱃지 */}
                       <td className="px-2 py-2 border-r overflow-hidden">
                         <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${
