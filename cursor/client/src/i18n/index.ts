@@ -520,6 +520,7 @@ const translations: Record<Language, Translation> = {
     selectPrefectureDesc: '上記で地域を選択すると、その地域の飲食店リストが表示されます',
     failedToLoadData: 'データの読み込みに失敗しました',
     phoneCopied: '電話番号がコピーされました',
+    copiedToClipboard: 'コピーされました',
     important: '重要',
     
     // Restaurant Drawer
@@ -1239,6 +1240,7 @@ const translations: Record<Language, Translation> = {
     selectPrefectureDesc: '위에서 지역을 선택하면 해당 지역의 음식점 목록이 표시됩니다',
     failedToLoadData: '데이터를 불러오는데 실패했습니다',
     phoneCopied: '전화번호가 복사되었습니다',
+    copiedToClipboard: '복사되었습니다',
     important: '중요',
     
     // Restaurant Drawer

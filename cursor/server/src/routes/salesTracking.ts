@@ -70,6 +70,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const endDate = (req.query.endDate as string || '').trim()
     const lastContactStartDate = (req.query.lastContactStartDate as string || '').trim()
     const lastContactEndDate = (req.query.lastContactEndDate as string || '').trim()
+    // 추가 필터 파라미터
+    const managerFilter = (req.query.manager as string || '').trim()
+    const statusFilter = (req.query.status as string || '').trim()
+    const contactMethodFilter = (req.query.contactMethod as string || '').trim()
+    const movedToRetargetingFilter = (req.query.movedToRetargeting as string || '').trim()
     const rawLimit = req.query.limit as string | undefined
     const limit =
       typeof rawLimit === 'string' && rawLimit.toLowerCase() === 'all'
@@ -163,6 +168,37 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     if (lastContactEndDate) {
       params.push(lastContactEndDate)
       whereConditions.push(`last_contact_at < ($${params.length}::date + interval '1 day')`)
+    }
+
+    // 담당자 필터
+    if (managerFilter && managerFilter !== 'all') {
+      params.push(managerFilter)
+      whereConditions.push(`manager_name = $${params.length}`)
+    }
+
+    // 진행현황 필터
+    if (statusFilter && statusFilter !== 'all') {
+      params.push(statusFilter)
+      whereConditions.push(`status = $${params.length}`)
+    }
+
+    // 영업방법 필터
+    if (contactMethodFilter && contactMethodFilter !== 'all') {
+      if (contactMethodFilter === 'none') {
+        whereConditions.push(`(contact_method IS NULL OR TRIM(contact_method) = '')`)
+      } else {
+        params.push(contactMethodFilter)
+        whereConditions.push(`contact_method = $${params.length}`)
+      }
+    }
+
+    // 리타겟팅 이동 여부 필터
+    if (movedToRetargetingFilter && movedToRetargetingFilter !== 'all') {
+      if (movedToRetargetingFilter === 'moved') {
+        whereConditions.push(`moved_to_retargeting = TRUE`)
+      } else if (movedToRetargetingFilter === 'notMoved') {
+        whereConditions.push(`(moved_to_retargeting IS NULL OR moved_to_retargeting = FALSE)`)
+      }
     }
 
     const whereClause = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(' AND ')}` : ''
