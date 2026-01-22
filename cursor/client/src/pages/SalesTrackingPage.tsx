@@ -1,4 +1,5 @@
 // Last Contact Date Filter: filters by last_contact_at field
+// Pagination: Standard page-based navigation with totalCount from server
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import api from '../lib/api'

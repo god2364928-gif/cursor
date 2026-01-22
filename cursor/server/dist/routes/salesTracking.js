@@ -145,9 +145,15 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
             params.push(lastContactEndDate);
             whereConditions.push(`last_contact_at < ($${params.length}::date + interval '1 day')`);
         }
-        if (whereConditions.length > 0) {
-            query += ` WHERE ${whereConditions.join(' AND ')}`;
+        const whereClause = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(' AND ')}` : '';
+        if (whereClause) {
+            query += whereClause;
         }
+        // COUNT 쿼리 (LIMIT/OFFSET 적용 전에 실행)
+        const countQuery = `SELECT COUNT(*) FROM sales_tracking${whereClause}`;
+        const countParams = [...params]; // LIMIT/OFFSET 추가 전의 파라미터 복사
+        const countResult = await db_1.pool.query(countQuery, countParams);
+        const totalCount = parseInt(countResult.rows[0].count, 10);
         query += orderClause;
         if (limit !== null) {
             params.push(limit, offset);
@@ -156,7 +162,7 @@ router.get('/', auth_1.authMiddleware, async (req, res) => {
         const result = await db_1.pool.query(query, params);
         const rows = result.rows.map(({ customer_name: _ignored, ...rest }) => rest);
         const hasMore = limit !== null && result.rows.length === limit;
-        res.json({ rows, hasMore });
+        res.json({ rows, hasMore, totalCount });
     }
     catch (error) {
         console.error('Error fetching sales tracking:', error);
