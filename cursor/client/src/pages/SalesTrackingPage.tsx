@@ -60,7 +60,6 @@ export default function SalesTrackingPage() {
   const [records, setRecords] = useState<SalesTrackingRecord[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showStatsModal, setShowStatsModal] = useState(false)
@@ -83,6 +82,7 @@ export default function SalesTrackingPage() {
   const [dailyStats, setDailyStats] = useState<any[]>([])
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
   const [highlightRecordId, setHighlightRecordId] = useState<string | null>(null)
   
   // 이전 검색 요청 취소용
@@ -169,18 +169,14 @@ export default function SalesTrackingPage() {
     hasMoreRef.current = hasMore
   }, [hasMore])
 
-  const fetchRecords = useCallback(async (append: boolean, nextOffset: number, signal?: AbortSignal, keepCurrentPage: boolean = false) => {
-    if (append) {
-      setLoadingMore(true)
-    } else {
-      setLoading(true)
-      setLoadingMore(false)
-    }
+  const fetchRecords = useCallback(async (pageNumber: number, signal?: AbortSignal) => {
+    setLoading(true)
 
     try {
+      const pageOffset = (pageNumber - 1) * PAGE_SIZE
       const params: any = { 
         limit: PAGE_SIZE,
-        offset: append ? nextOffset : 0
+        offset: pageOffset
       }
       if (searchQuery.trim()) {
         params.search = searchQuery.trim()
@@ -199,21 +195,22 @@ export default function SalesTrackingPage() {
       const response = await api.get('/sales-tracking', config)
       const rows = response.data?.rows ?? response.data ?? []
       const hasMoreData = response.data?.hasMore ?? (rows.length === PAGE_SIZE)
+      const serverTotalCount = response.data?.totalCount ?? 0
       
-      const nextRecords = append ? [...recordsRef.current, ...rows] : rows
-      recordsRef.current = nextRecords
-      setRecords(nextRecords)
+      // 페이지별 데이터 교체 (누적하지 않음)
+      recordsRef.current = rows
+      setRecords(rows)
 
-      const nextOffsetValue = append ? nextOffset + rows.length : rows.length
-      offsetRef.current = nextOffsetValue
-      setOffset(nextOffsetValue)
+      offsetRef.current = pageOffset + rows.length
+      setOffset(pageOffset + rows.length)
 
       hasMoreRef.current = hasMoreData
       setHasMore(hasMoreData)
-
-      if (!append && !keepCurrentPage) {
-        setCurrentPage(1)
-      }
+      setTotalCount(serverTotalCount)
+      setCurrentPage(pageNumber)
+      
+      // 페이지 이동 시 상단으로 스크롤
+      window.scrollTo(0, 0)
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
         console.log('Previous fetch request cancelled')
@@ -222,12 +219,9 @@ export default function SalesTrackingPage() {
       console.error('Failed to fetch records:', error)
       const errorMessage = error?.response?.data?.message || error?.message || t('error')
       showToast(errorMessage, 'error')
-      if (!append) {
-        setRecords([])
-      }
+      setRecords([])
     } finally {
       setLoading(false)
-      setLoadingMore(false)
     }
   }, [searchQuery, filterStartDate, filterEndDate, showToast, t])
 
@@ -237,7 +231,7 @@ export default function SalesTrackingPage() {
     }
     const controller = new AbortController()
     abortControllerRef.current = controller
-    fetchRecords(false, 0, controller.signal)
+    fetchRecords(1, controller.signal)
     return () => {
       controller.abort()
     }
@@ -265,26 +259,15 @@ export default function SalesTrackingPage() {
         setStatusFilter('all')
         setContactMethodFilter('all')
 
-        // 레코드가 아직 로드되지 않았으면 자동으로 더 불러오기 (최대 10번)
         const targetId = state.selectedId
-        let safety = 0
-        while (!recordsRef.current.some(r => r.id === targetId) && hasMoreRef.current && safety < 10) {
-          safety += 1
-          await fetchRecords(true, offsetRef.current)
-          if (cancelled) return
-        }
+
+        // 검색 후 레코드를 찾아서 하이라이트
+        // 잠시 대기하여 데이터 로드가 완료되도록 함
+        await new Promise(resolve => setTimeout(resolve, 500))
+        if (cancelled) return
 
         const found = recordsRef.current.find(r => r.id === targetId)
-        if (!found) {
-          // 아직 못 찾았으면 state를 유지해 두고, 사용자가 더 불러오기를 눌렀을 때 이어서 찾을 수 있게 둔다
-          return
-        }
-
-        // 레코드가 있는 페이지로 이동
-        const index = recordsRef.current.findIndex(r => r.id === found.id)
-        if (index >= 0) {
-          const page = Math.floor(index / itemsPerPage) + 1
-          setCurrentPage(page)
+        if (found) {
           setHighlightRecordId(found.id)
 
           // 레코드로 스크롤
@@ -308,30 +291,17 @@ export default function SalesTrackingPage() {
     }
   }, [location.state, navigate, location.pathname, itemsPerPage, fetchRecords])
 
-  const handleLoadMore = () => {
-    if (!hasMore || loading || loadingMore) return
-    fetchRecords(true, offsetRef.current)
-  }
-
-  const ensureLoadedForPage = useCallback(
-    async (page: number) => {
-      const needed = Math.max(1, page) * itemsPerPage
-      let safety = 0
-      while (recordsRef.current.length < needed && hasMoreRef.current && safety < 20) {
-        safety += 1
-        await fetchRecords(true, offsetRef.current)
-      }
-    },
-    [fetchRecords, itemsPerPage]
-  )
-
   const goToPage = useCallback(
-    async (page: number) => {
+    (page: number) => {
       const nextPage = Math.max(1, page)
-      await ensureLoadedForPage(nextPage)
-      setCurrentPage(nextPage)
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+      fetchRecords(nextPage, controller.signal)
     },
-    [ensureLoadedForPage]
+    [fetchRecords]
   )
 
   // Daily stats
@@ -937,17 +907,17 @@ export default function SalesTrackingPage() {
     return managerMatch && movedMatch && statusMatch && contactMethodMatch
   })
   
-  // 페이지네이션 계산
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage)
-  const uiTotalPages = hasMore ? Math.max(totalPages, currentPage + 1) : totalPages
-  const totalCountLabel = hasMore ? `${filteredRecords.length}+` : `${filteredRecords.length}`
+  // 페이지네이션 계산 - 서버의 totalCount 기반
+  const uiTotalPages = Math.ceil(totalCount / itemsPerPage) || 1
+  const totalCountLabel = `${totalCount}`
+  // 표시 범위 계산
   const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const paginatedRecords = filteredRecords.slice(startIndex, endIndex)
+  const endIndex = Math.min(currentPage * itemsPerPage, totalCount)
+  // 현재 페이지 데이터에 클라이언트 필터 적용 (이미 서버에서 페이지별로 받아옴)
+  const paginatedRecords = filteredRecords
 
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [managerFilter, movedToRetargetingFilter, statusFilter, contactMethodFilter])
+  // 필터 변경 시 1페이지로 이동 (클라이언트 사이드 필터는 현재 페이지 데이터에만 적용됨)
+  // 참고: managerFilter 등은 클라이언트 필터이므로 totalCount에 반영되지 않음
 
   useEffect(() => {
     if (!highlightRecordId) return
@@ -1204,7 +1174,7 @@ export default function SalesTrackingPage() {
               onClick={() => {
                 void goToPage(currentPage + 1)
               }}
-              disabled={!hasMore && currentPage === totalPages}
+              disabled={currentPage >= uiTotalPages}
             >
               {t('next')}
             </Button>
@@ -1732,7 +1702,7 @@ export default function SalesTrackingPage() {
           {filteredRecords.length > 0 && uiTotalPages > 1 && (
             <div className="px-4 py-3 border-t flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                {t('showing')} {startIndex + 1} - {Math.min(endIndex, filteredRecords.length)} {t('of')} {totalCountLabel}
+                {t('showing')} {startIndex + 1} - {endIndex} {t('of')} {totalCountLabel}
               </div>
               <div className="flex gap-2">
                 <Button
@@ -1777,23 +1747,11 @@ export default function SalesTrackingPage() {
                   onClick={() => {
                     void goToPage(currentPage + 1)
                   }}
-                  disabled={!hasMore && currentPage === totalPages}
+                  disabled={currentPage >= uiTotalPages}
                 >
                   {t('next')}
                 </Button>
               </div>
-            </div>
-          )}
-          {hasMore && (
-            <div className="px-4 py-3 border-t flex justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLoadMore}
-                disabled={loading || loadingMore}
-              >
-                {loadingMore ? t('loading') : t('loadMore')}
-              </Button>
             </div>
           )}
         </CardContent>
