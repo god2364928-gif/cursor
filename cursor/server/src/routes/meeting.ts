@@ -425,6 +425,208 @@ router.get('/sales-tracking-stats', authMiddleware, async (req: AuthRequest, res
   }
 })
 
+// 모든 마케터의 실적 데이터를 한 번에 조회 (벌크 API)
+router.get('/all-marketers-performance', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { startDate, endDate } = req.query
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: 'startDate and endDate are required' })
+    }
+
+    // 1. 모든 마케터의 활동량 및 매출 통계 (한 번의 쿼리로)
+    const statsQuery = `
+      WITH all_manager_data_raw AS (
+        -- 폼 활동
+        SELECT u.id as user_id, u.name as manager_name, 'form' as metric_type, COUNT(*) as value
+        FROM inquiry_leads il
+        LEFT JOIN users u ON il.assignee_id = u.id
+        WHERE il.sent_date BETWEEN $1 AND $2 AND il.status = 'COMPLETED' AND u.name IS NOT NULL AND u.role = 'marketer'
+        GROUP BY u.id, u.name
+        
+        UNION ALL
+        
+        -- DM 활동
+        SELECT u.id as user_id, u.name as manager_name, 'dm' as metric_type, COUNT(*) as value
+        FROM sales_tracking st
+        LEFT JOIN users u ON st.user_id = u.id
+        WHERE st.date BETWEEN $1 AND $2 AND st.contact_method = 'DM' AND u.name IS NOT NULL AND u.role = 'marketer'
+        GROUP BY u.id, u.name
+        
+        UNION ALL
+        
+        -- 라인 활동
+        SELECT u.id as user_id, u.name as manager_name, 'line' as metric_type, COUNT(*) as value
+        FROM sales_tracking st
+        LEFT JOIN users u ON st.user_id = u.id
+        WHERE st.date BETWEEN $1 AND $2 AND st.contact_method = 'LINE' AND u.name IS NOT NULL AND u.role = 'marketer'
+        GROUP BY u.id, u.name
+        
+        UNION ALL
+        
+        -- 전화 활동
+        SELECT u.id as user_id, u.name as manager_name, 'phone' as metric_type, COUNT(*) as value
+        FROM sales_tracking st
+        LEFT JOIN users u ON st.user_id = u.id
+        WHERE st.date BETWEEN $1 AND $2 AND st.contact_method = '電話' AND u.name IS NOT NULL AND u.role = 'marketer'
+        GROUP BY u.id, u.name
+        
+        UNION ALL
+        
+        -- 메일 활동
+        SELECT u.id as user_id, u.name as manager_name, 'mail' as metric_type, COUNT(*) as value
+        FROM sales_tracking st
+        LEFT JOIN users u ON st.user_id = u.id
+        WHERE st.date BETWEEN $1 AND $2 AND st.contact_method = 'メール' AND u.name IS NOT NULL AND u.role = 'marketer'
+        GROUP BY u.id, u.name
+        
+        UNION ALL
+        
+        -- 리타겟팅 활동
+        SELECT u.id as user_id, u.name as manager_name, 'retargeting_contacts' as metric_type, COUNT(*) as value
+        FROM retargeting_history rh
+        LEFT JOIN users u ON rh.user_id = u.id
+        WHERE rh.created_at BETWEEN $1 AND $2 AND u.name IS NOT NULL AND u.role = 'marketer'
+        GROUP BY u.id, u.name
+        
+        UNION ALL
+        
+        -- 기존 고객 관리
+        SELECT u.id as user_id, u.name as manager_name, 'existing_contacts' as metric_type, COUNT(*) as value
+        FROM customer_history ch
+        JOIN customers c ON ch.customer_id = c.id
+        LEFT JOIN users u ON ch.user_id = u.id
+        WHERE ch.created_at BETWEEN $1 AND $2 
+        AND (TRIM(c.status) IN ('契約中', '購入', '계약중') OR c.status ILIKE '%契約中%' OR c.status ILIKE '%購入%' OR c.status ILIKE '%계약%')
+        AND u.name IS NOT NULL AND u.role = 'marketer'
+        GROUP BY u.id, u.name
+      ),
+      manager_sales_data AS (
+        SELECT 
+          u.id as user_id,
+          u.name as manager_name,
+          COUNT(CASE WHEN s.sales_type = '신규매출' THEN 1 END) as new_contract_count,
+          COALESCE(SUM(CASE WHEN s.sales_type = '신규매출' THEN s.amount ELSE 0 END), 0) as new_sales,
+          COUNT(CASE WHEN s.sales_type = '연장매출' THEN 1 END) as renewal_count,
+          COALESCE(SUM(CASE WHEN s.sales_type = '연장매출' THEN s.amount ELSE 0 END), 0) as renewal_sales,
+          COUNT(CASE WHEN s.sales_type = '해지매출' THEN 1 END) as termination_count,
+          COALESCE(SUM(s.amount), 0) as total_sales
+        FROM sales s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.contract_date BETWEEN $1 AND $2 AND u.name IS NOT NULL AND u.role = 'marketer'
+        GROUP BY u.id, u.name
+      ),
+      all_marketers AS (
+        SELECT id as user_id, name as manager_name FROM users WHERE role = 'marketer'
+      )
+      SELECT 
+        am.user_id,
+        am.manager_name,
+        COALESCE(SUM(CASE WHEN amd.metric_type = 'form' THEN amd.value END), 0) as form_count,
+        COALESCE(SUM(CASE WHEN amd.metric_type = 'dm' THEN amd.value END), 0) as dm_count,
+        COALESCE(SUM(CASE WHEN amd.metric_type = 'line' THEN amd.value END), 0) as line_count,
+        COALESCE(SUM(CASE WHEN amd.metric_type = 'phone' THEN amd.value END), 0) as phone_count,
+        COALESCE(SUM(CASE WHEN amd.metric_type = 'mail' THEN amd.value END), 0) as mail_count,
+        COALESCE(SUM(CASE WHEN amd.metric_type = 'retargeting_contacts' THEN amd.value END), 0) as retargeting_contacts,
+        COALESCE(SUM(CASE WHEN amd.metric_type = 'existing_contacts' THEN amd.value END), 0) as existing_contacts,
+        COALESCE(msd.new_contract_count, 0) as new_contract_count,
+        COALESCE(msd.new_sales, 0) as new_sales,
+        COALESCE(msd.renewal_count, 0) as renewal_count,
+        COALESCE(msd.renewal_sales, 0) as renewal_sales,
+        COALESCE(msd.termination_count, 0) as termination_count,
+        COALESCE(msd.total_sales, 0) as total_sales
+      FROM all_marketers am
+      LEFT JOIN all_manager_data_raw amd ON am.user_id = amd.user_id
+      LEFT JOIN manager_sales_data msd ON am.user_id = msd.user_id
+      GROUP BY am.user_id, am.manager_name, msd.new_contract_count, msd.new_sales, msd.renewal_count, msd.renewal_sales, msd.termination_count, msd.total_sales
+      ORDER BY am.manager_name
+    `
+
+    // 2. 모든 마케터의 리타겟팅 알림 조회
+    const alertsQuery = `
+      SELECT 
+        u.id as user_id,
+        u.name as manager_name,
+        COUNT(CASE WHEN rc.last_contact_date <= CURRENT_DATE - INTERVAL '23 days' 
+                    AND rc.last_contact_date > CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as due_this_week,
+        COUNT(CASE WHEN rc.last_contact_date <= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as overdue,
+        COUNT(CASE WHEN rc.last_contact_date > CURRENT_DATE - INTERVAL '23 days' THEN 1 END) as upcoming
+      FROM users u
+      LEFT JOIN retargeting_customers rc ON (
+        TRIM(rc.manager) = TRIM(u.name) OR REPLACE(TRIM(rc.manager), '﨑', '崎') = REPLACE(TRIM(u.name), '﨑', '崎')
+      ) AND rc.status NOT IN ('ゴミ箱', '휴지통', '契約完了', '계약완료') AND rc.last_contact_date IS NOT NULL
+      WHERE u.role = 'marketer'
+      GROUP BY u.id, u.name
+      ORDER BY u.name
+    `
+
+    const [statsResult, alertsResult] = await Promise.all([
+      pool.query(statsQuery, [startDate, endDate]),
+      pool.query(alertsQuery)
+    ])
+
+    // 결과를 user_id 기준 Map으로 변환
+    const performanceByUser: Record<string, any> = {}
+
+    for (const row of statsResult.rows) {
+      const formCount = parseInt(row.form_count || '0')
+      const dmCount = parseInt(row.dm_count || '0')
+      const lineCount = parseInt(row.line_count || '0')
+      const phoneCount = parseInt(row.phone_count || '0')
+      const mailCount = parseInt(row.mail_count || '0')
+
+      performanceByUser[row.user_id] = {
+        managerName: row.manager_name,
+        formCount,
+        dmCount,
+        lineCount,
+        phoneCount,
+        mailCount,
+        retargetingContacts: parseInt(row.retargeting_contacts || '0'),
+        existingContacts: parseInt(row.existing_contacts || '0'),
+        newContractCount: parseInt(row.new_contract_count || '0'),
+        newSales: parseInt(row.new_sales || '0'),
+        renewalCount: parseInt(row.renewal_count || '0'),
+        renewalSales: parseInt(row.renewal_sales || '0'),
+        terminationCount: parseInt(row.termination_count || '0'),
+        totalSales: parseInt(row.total_sales || '0')
+      }
+    }
+
+    // 알림 데이터 병합
+    for (const row of alertsResult.rows) {
+      if (performanceByUser[row.user_id]) {
+        performanceByUser[row.user_id].retargetingAlert = {
+          dueThisWeek: parseInt(row.due_this_week || '0'),
+          overdue: parseInt(row.overdue || '0'),
+          upcoming: parseInt(row.upcoming || '0')
+        }
+      } else {
+        performanceByUser[row.user_id] = {
+          managerName: row.manager_name,
+          formCount: 0, dmCount: 0, lineCount: 0, phoneCount: 0, mailCount: 0,
+          retargetingContacts: 0, existingContacts: 0,
+          newContractCount: 0, newSales: 0, renewalCount: 0, renewalSales: 0, terminationCount: 0, totalSales: 0,
+          retargetingAlert: {
+            dueThisWeek: parseInt(row.due_this_week || '0'),
+            overdue: parseInt(row.overdue || '0'),
+            upcoming: parseInt(row.upcoming || '0')
+          }
+        }
+      }
+    }
+
+    res.json({
+      startDate,
+      endDate,
+      performanceByUser
+    })
+  } catch (error) {
+    console.error('Error fetching all marketers performance:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
 // 욕망 단계 고객 조회
 router.get('/desire-customers', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
