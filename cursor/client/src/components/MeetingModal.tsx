@@ -787,136 +787,67 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
                         </div>
                       </div>
 
-                      {/* 총 리타겟팅 고객 수 관리 - 주간/월간에 따라 다르게 표시 */}
+                      {/* 총 리타겟팅 고객 수 관리 - 주간/월간 모두 영업 이력 연동 방식 */}
                       <div className="mt-6">
-                        {tab === 'weekly' ? (
-                          <>
-                            {/* 주간회의: 영업 이력 연동 자동 집계 */}
-                            <h4 className="font-bold text-lg mb-3 flex items-center gap-2">
-                              👥 {t('totalRetargetingCustomers')}
-                              <span className="flex items-center gap-1 text-xs font-normal text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                                <Link2 className="w-3 h-3" />
-                                {t('salesTrackingLinked') || '영업 이력 연동'}
-                              </span>
-                            </h4>
-                            <div className="grid grid-cols-2 gap-4">
-                              {/* 목표 리타겟팅 고객 수 */}
-                              <div className={`border-2 rounded-lg p-4 ${getStatusColor(retargetingCustomersRate)}`}>
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-sm font-medium">{t('targetCustomerCount')}</span>
-                                  {getStatusIcon(retargetingCustomersRate)}
-                                </div>
-                                <div className="space-y-1">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span>{t('target')}:</span>
-                                    <input
-                                      type="number"
-                                      value={target.targetRetargetingCustomers}
-                                      onChange={(e) => saveTarget(user.id, 'targetRetargetingCustomers', parseInt(e.target.value) || 0)}
-                                      readOnly={!canEditTarget}
-                                      className={`w-16 px-1 border rounded text-right ${!canEditTarget ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                      title={!canEditTarget ? t('cannotEditPastOrOthers') : ''}
-                                    />
-                                    <span>{t('people')}</span>
-                                  </div>
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className="flex items-center gap-1">
-                                      {t('actual')}:
-                                      <Link2 className="w-3 h-3 text-blue-500" title={t('autoFromSalesTracking') || '영업 이력에서 자동 집계'} />
-                                    </span>
-                                    <span className="font-bold bg-blue-50 px-2 py-0.5 rounded text-blue-700">{target.actualRetargetingCustomers}</span>
-                                    <span>{t('people')}</span>
-                                  </div>
-                                  <div className="text-right">
-                                    <span className={`text-lg font-bold ${retargetingCustomersRate >= 100 ? 'text-green-600' : retargetingCustomersRate >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                      {retargetingCustomersRate}%
-                                    </span>
-                                  </div>
-                                </div>
+                        {/* 주간/월간 모두 영업 이력 연동 자동 집계 */}
+                        <h4 className="font-bold text-lg mb-3 flex items-center gap-2">
+                          👥 {t('totalRetargetingCustomers')}
+                          <span className="flex items-center gap-1 text-xs font-normal text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                            <Link2 className="w-3 h-3" />
+                            {t('salesTrackingLinked') || '영업 이력 연동'}
+                          </span>
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* 목표 리타겟팅 고객 수 */}
+                          <div className={`border-2 rounded-lg p-4 ${getStatusColor(retargetingCustomersRate)}`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium">{t('targetCustomerCount')}</span>
+                              {getStatusIcon(retargetingCustomersRate)}
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span>{t('target')}:</span>
+                                <input
+                                  type="number"
+                                  value={target.targetRetargetingCustomers}
+                                  onChange={(e) => saveTarget(user.id, 'targetRetargetingCustomers', parseInt(e.target.value) || 0)}
+                                  readOnly={!canEditTarget}
+                                  className={`w-16 px-1 border rounded text-right ${!canEditTarget ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                  title={!canEditTarget ? t('cannotEditPastOrOthers') : ''}
+                                />
+                                <span>{t('people')}</span>
                               </div>
-                              
-                              {/* 설명 카드 - 자동 집계 안내 */}
-                              <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-                                <div className="text-sm text-blue-800">
-                                  <p className="font-medium mb-2 flex items-center gap-1">
-                                    <Link2 className="w-4 h-4" />
-                                    {t('autoAggregatedFromHistory') || '영업 이력에서 자동 집계'}
-                                  </p>
-                                  <p className="text-xs">• {t('uniqueCustomersOnly') || '해당 주간 연락한 고유 고객 수'}</p>
-                                  <p className="text-xs">• {t('duplicatesRemoved') || '같은 고객에게 여러 번 연락해도 1명으로 집계'}</p>
-                                </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="flex items-center gap-1">
+                                  {t('actual')}:
+                                  <Link2 className="w-3 h-3 text-blue-500" title={t('autoFromSalesTracking') || '영업 이력에서 자동 집계'} />
+                                </span>
+                                <span className="font-bold bg-blue-50 px-2 py-0.5 rounded text-blue-700">{target.actualRetargetingCustomers}</span>
+                                <span>{t('people')}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-lg font-bold ${retargetingCustomersRate >= 100 ? 'text-green-600' : retargetingCustomersRate >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                  {retargetingCustomersRate}%
+                                </span>
                               </div>
                             </div>
-                          </>
-                        ) : (
-                          <>
-                            {/* 월간회의: 주간 데이터 자동 합산 표시 */}
-                            <h4 className="font-bold text-lg mb-3 flex items-center gap-2">
-                              👥 {t('monthlyAutoSumTitle')}
-                            </h4>
-                            {(() => {
-                              const userWeeklySum = monthlyWeeklySum.data[user.id]
-                              const sumTarget = userWeeklySum?.totalTarget || 0
-                              const sumActual = userWeeklySum?.totalActual || 0
-                              const sumRate = sumTarget > 0 ? Math.round((sumActual / sumTarget) * 100) : 0
-                              const includedWeeks = monthlyWeeklySum.weeks
-
-                              return (
-                                <div className="grid grid-cols-2 gap-4">
-                                  {/* 합산된 리타겟팅 고객 수 */}
-                                  <div className={`border-2 rounded-lg p-4 ${getStatusColor(sumRate)}`}>
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className="text-sm font-medium">{t('targetCustomerCount')}</span>
-                                      {getStatusIcon(sumRate)}
-                                    </div>
-                                    <div className="space-y-1">
-                                      <div className="flex items-center justify-between text-xs">
-                                        <span>{t('target')}:</span>
-                                        <span className="font-bold bg-gray-100 px-2 py-1 rounded">{sumTarget}</span>
-                                        <span>{t('people')}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between text-xs">
-                                        <span>{t('actual')}:</span>
-                                        <span className="font-bold bg-gray-100 px-2 py-1 rounded">{sumActual}</span>
-                                        <span>{t('people')}</span>
-                                      </div>
-                                      <div className="text-right">
-                                        <span className={`text-lg font-bold ${sumRate >= 100 ? 'text-green-600' : sumRate >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                          {sumRate}%
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  {/* 합산 정보 카드 */}
-                                  <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
-                                    <div className="text-sm text-green-800">
-                                      <p className="font-medium mb-2">🔄 {t('monthlyAutoSumDesc')}</p>
-                                      <p className="text-xs font-medium">{t('weeksIncludedLabel')}:</p>
-                                      {includedWeeks.length > 0 ? (
-                                        <p className="text-xs mt-1">
-                                          {includedWeeks.map(w => `${w}${t('weeklyMeeting').replace('회의', '').trim()}`).join(' + ')}
-                                        </p>
-                                      ) : (
-                                        <p className="text-xs mt-1 text-gray-500">{t('noWeeklyDataAvailable')}</p>
-                                      )}
-                                      {userWeeklySum?.weeklyData && userWeeklySum.weeklyData.length > 0 && (
-                                        <div className="mt-2 pt-2 border-t border-green-300">
-                                          <p className="text-xs font-medium mb-1">상세:</p>
-                                          {userWeeklySum.weeklyData.map(wd => (
-                                            <p key={wd.week} className="text-xs">
-                                              {wd.week}주차: 목표 {wd.target}명 / 실적 {wd.actual}명
-                                            </p>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              )
-                            })()}
-                          </>
-                        )}
+                          </div>
+                          
+                          {/* 설명 카드 - 자동 집계 안내 */}
+                          <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                            <div className="text-sm text-blue-800">
+                              <p className="font-medium mb-2 flex items-center gap-1">
+                                <Link2 className="w-4 h-4" />
+                                {t('autoAggregatedFromHistory') || '영업 이력에서 자동 집계'}
+                              </p>
+                              <p className="text-xs">• {tab === 'weekly' 
+                                ? (t('uniqueCustomersOnly') || '해당 주간 연락한 고유 고객 수')
+                                : (t('uniqueCustomersMonthly') || '해당 월간 연락한 고유 고객 수')
+                              }</p>
+                              <p className="text-xs">• {t('duplicatesRemoved') || '같은 고객에게 여러 번 연락해도 1명으로 집계'}</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {/* 월간 회의일 경우 매출 지표 추가 */}
