@@ -12,6 +12,7 @@ import { Phone, PhoneOff, MessageSquare, FileText, ExternalLink, Copy, Calendar,
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
 import { getMarketerNames } from '../utils/userUtils'
 import { DatePickerInput } from '../components/ui/date-picker-input'
+import SalesHistoryTimeline from '../components/SalesHistoryTimeline'
 
 export default function CustomersPage() {
   const { t, language } = useI18nStore()
@@ -1409,6 +1410,16 @@ export default function CustomersPage() {
             </div>
         </CardContent>
       </Card>
+
+        {/* 영업 이력 히스토리 (영업 이력에서 온 경우) */}
+        {selectedCustomer && (
+          <div className="mb-4">
+            <SalesHistoryTimeline 
+              entityType="customer" 
+              entityId={selectedCustomer.id} 
+            />
+          </div>
+        )}
         
         {/* History Timeline */}
         <div className="space-y-2">

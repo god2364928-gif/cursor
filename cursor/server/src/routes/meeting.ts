@@ -337,6 +337,94 @@ router.get('/weekly-sum-for-month', authMiddleware, async (req: AuthRequest, res
   }
 })
 
+// 영업 이력 히스토리 기반 실적 집계
+// sales_tracking_history 테이블에서 해당 기간 내 작성된 로그가 있는 고유 고객(sales_tracking_id) 수 집계
+router.get('/sales-tracking-stats', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { periodType, year, weekOrMonth, userId } = req.query
+
+    if (!periodType || !year || !weekOrMonth) {
+      return res.status(400).json({ message: 'periodType, year, and weekOrMonth are required' })
+    }
+
+    const yearNum = parseInt(String(year), 10)
+    const periodNum = parseInt(String(weekOrMonth), 10)
+
+    // 기간의 시작일과 종료일 계산
+    let startDate: Date
+    let endDate: Date
+
+    if (periodType === 'weekly') {
+      // 주차의 시작일(월요일)과 종료일(일요일) 계산
+      const firstDayOfYear = new Date(yearNum, 0, 1)
+      const daysOffset = (periodNum - 1) * 7
+      const weekStart = new Date(firstDayOfYear.getTime() + daysOffset * 24 * 60 * 60 * 1000)
+      const dayOfWeek = weekStart.getDay()
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+      weekStart.setDate(weekStart.getDate() + mondayOffset)
+      
+      startDate = weekStart
+      endDate = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000)
+      endDate.setHours(23, 59, 59, 999)
+    } else {
+      // 월의 시작일과 종료일
+      startDate = new Date(yearNum, periodNum - 1, 1)
+      endDate = new Date(yearNum, periodNum, 0)
+      endDate.setHours(23, 59, 59, 999)
+    }
+
+    const startDateStr = startDate.toISOString()
+    const endDateStr = endDate.toISOString()
+
+    // 담당자별 집계 쿼리
+    // sales_tracking_history에서 해당 기간 내에 contact_date가 있는 고유 sales_tracking_id 수
+    let query = `
+      SELECT 
+        u.id as user_id,
+        u.name as user_name,
+        COUNT(DISTINCT sth.sales_tracking_id) as unique_customers_contacted
+      FROM users u
+      LEFT JOIN (
+        SELECT DISTINCT 
+          sth.sales_tracking_id,
+          st.user_id
+        FROM sales_tracking_history sth
+        JOIN sales_tracking st ON sth.sales_tracking_id = st.id
+        WHERE sth.contact_date >= $1 AND sth.contact_date <= $2
+      ) sth ON u.id = sth.user_id
+      WHERE u.role = 'marketer'
+    `
+    const params: any[] = [startDateStr, endDateStr]
+
+    if (userId) {
+      query += ` AND u.id = $3`
+      params.push(userId)
+    }
+
+    query += ` GROUP BY u.id, u.name ORDER BY u.name`
+
+    const result = await pool.query(query, params)
+
+    // 결과를 Map 형태로 반환
+    const stats: Record<string, number> = {}
+    for (const row of result.rows) {
+      stats[row.user_id] = parseInt(row.unique_customers_contacted) || 0
+    }
+
+    res.json({
+      periodType,
+      year: yearNum,
+      weekOrMonth: periodNum,
+      startDate: startDateStr.split('T')[0],
+      endDate: endDateStr.split('T')[0],
+      stats
+    })
+  } catch (error) {
+    console.error('Error fetching sales tracking stats:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
 // 욕망 단계 고객 조회
 router.get('/desire-customers', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {

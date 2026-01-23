@@ -91,43 +91,49 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const params: any[] = []
     let query = `
       SELECT 
-        id,
-        date,
-        occurred_at,
-        manager_name,
-        company_name,
-        account_id,
-        customer_name,
-        industry,
-        contact_method,
-        status,
-        contact_person,
-        phone,
-        memo,
-        memo_note,
-        user_id,
-        created_at,
-        updated_at,
-        moved_to_retargeting,
-        restaurant_id,
-        last_contact_at`
+        st.id,
+        st.date,
+        st.occurred_at,
+        st.manager_name,
+        st.company_name,
+        st.account_id,
+        st.customer_name,
+        st.industry,
+        st.contact_method,
+        st.status,
+        st.contact_person,
+        st.phone,
+        st.memo,
+        st.memo_note,
+        st.user_id,
+        st.created_at,
+        st.updated_at,
+        st.moved_to_retargeting,
+        st.restaurant_id,
+        st.last_contact_at,
+        COALESCE(h.latest_round, 0) as latest_round`
 
     let orderClause = ''
 
     if (search) {
       query += `,
         CASE
-          WHEN manager_name = $1 OR company_name = $1 OR account_id = $1 OR customer_name = $1 OR industry = $1 OR phone = $1
-               OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) THEN 1
-          WHEN manager_name ILIKE $2 OR company_name ILIKE $2 OR account_id ILIKE $2 OR customer_name ILIKE $2 OR industry ILIKE $2 OR phone ILIKE $2
-               OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '') THEN 2
-          WHEN manager_name ILIKE $3 OR company_name ILIKE $3 OR account_id ILIKE $3 OR customer_name ILIKE $3 OR industry ILIKE $3 OR phone ILIKE $3
-               OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || regexp_replace($1, '[^0-9]', '', 'g') || '%') THEN 3
+          WHEN st.manager_name = $1 OR st.company_name = $1 OR st.account_id = $1 OR st.customer_name = $1 OR st.industry = $1 OR st.phone = $1
+               OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(st.phone, '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')) THEN 1
+          WHEN st.manager_name ILIKE $2 OR st.company_name ILIKE $2 OR st.account_id ILIKE $2 OR st.customer_name ILIKE $2 OR st.industry ILIKE $2 OR st.phone ILIKE $2
+               OR (regexp_replace($2, '[^0-9]', '', 'g') <> '' AND regexp_replace(st.phone, '[^0-9]', '', 'g') LIKE regexp_replace($2, '[^0-9]', '', 'g') || '') THEN 2
+          WHEN st.manager_name ILIKE $3 OR st.company_name ILIKE $3 OR st.account_id ILIKE $3 OR st.customer_name ILIKE $3 OR st.industry ILIKE $3 OR st.phone ILIKE $3
+               OR (regexp_replace($1, '[^0-9]', '', 'g') <> '' AND regexp_replace(st.phone, '[^0-9]', '', 'g') LIKE '%' || regexp_replace($1, '[^0-9]', '', 'g') || '%') THEN 3
           ELSE 999
         END as match_priority`
     }
 
-    query += ` FROM sales_tracking`
+    query += ` FROM sales_tracking st
+      LEFT JOIN (
+        SELECT sales_tracking_id, MAX(round) as latest_round
+        FROM sales_tracking_history
+        GROUP BY sales_tracking_id
+      ) h ON h.sales_tracking_id = st.id`
 
     const whereConditions: string[] = []
 
@@ -138,66 +144,81 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       const paramIdx2 = params.length - 1
       const paramIdx3 = params.length
       whereConditions.push(`(
-        (manager_name = $${paramIdx1} OR company_name = $${paramIdx1} OR account_id = $${paramIdx1} OR customer_name = $${paramIdx1} OR industry = $${paramIdx1} OR phone = $${paramIdx1}
-         OR (regexp_replace($${paramIdx1}, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace($${paramIdx1}, '[^0-9]', '', 'g'))) OR
-        (manager_name ILIKE $${paramIdx2} OR company_name ILIKE $${paramIdx2} OR account_id ILIKE $${paramIdx2} OR customer_name ILIKE $${paramIdx2} OR industry ILIKE $${paramIdx2} OR phone ILIKE $${paramIdx2}
-         OR (regexp_replace($${paramIdx2}, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE regexp_replace($${paramIdx2}, '[^0-9]', '', 'g') || '')) OR
-        (manager_name ILIKE $${paramIdx3} OR company_name ILIKE $${paramIdx3} OR account_id ILIKE $${paramIdx3} OR customer_name ILIKE $${paramIdx3} OR industry ILIKE $${paramIdx3} OR phone ILIKE $${paramIdx3}
-         OR (regexp_replace($${paramIdx1}, '[^0-9]', '', 'g') <> '' AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || regexp_replace($${paramIdx1}, '[^0-9]', '', 'g') || '%'))
+        (st.manager_name = $${paramIdx1} OR st.company_name = $${paramIdx1} OR st.account_id = $${paramIdx1} OR st.customer_name = $${paramIdx1} OR st.industry = $${paramIdx1} OR st.phone = $${paramIdx1}
+         OR (regexp_replace($${paramIdx1}, '[^0-9]', '', 'g') <> '' AND regexp_replace(st.phone, '[^0-9]', '', 'g') = regexp_replace($${paramIdx1}, '[^0-9]', '', 'g'))) OR
+        (st.manager_name ILIKE $${paramIdx2} OR st.company_name ILIKE $${paramIdx2} OR st.account_id ILIKE $${paramIdx2} OR st.customer_name ILIKE $${paramIdx2} OR st.industry ILIKE $${paramIdx2} OR st.phone ILIKE $${paramIdx2}
+         OR (regexp_replace($${paramIdx2}, '[^0-9]', '', 'g') <> '' AND regexp_replace(st.phone, '[^0-9]', '', 'g') LIKE regexp_replace($${paramIdx2}, '[^0-9]', '', 'g') || '')) OR
+        (st.manager_name ILIKE $${paramIdx3} OR st.company_name ILIKE $${paramIdx3} OR st.account_id ILIKE $${paramIdx3} OR st.customer_name ILIKE $${paramIdx3} OR st.industry ILIKE $${paramIdx3} OR st.phone ILIKE $${paramIdx3}
+         OR (regexp_replace($${paramIdx1}, '[^0-9]', '', 'g') <> '' AND regexp_replace(st.phone, '[^0-9]', '', 'g') LIKE '%' || regexp_replace($${paramIdx1}, '[^0-9]', '', 'g') || '%'))
       )`)
-      orderClause = ` ORDER BY match_priority, date DESC, COALESCE(occurred_at, date::timestamp) DESC`
+      orderClause = ` ORDER BY match_priority, st.date DESC, COALESCE(st.occurred_at, st.date::timestamp) DESC`
     } else {
-      orderClause = ` ORDER BY date DESC, COALESCE(occurred_at, date::timestamp) DESC`
+      orderClause = ` ORDER BY st.date DESC, COALESCE(st.occurred_at, st.date::timestamp) DESC`
     }
 
     // Date range filtering (for record date)
     if (startDate) {
       params.push(startDate)
-      whereConditions.push(`date >= $${params.length}`)
+      whereConditions.push(`st.date >= $${params.length}`)
     }
     if (endDate) {
       params.push(endDate)
-      whereConditions.push(`date <= $${params.length}`)
+      whereConditions.push(`st.date <= $${params.length}`)
     }
 
     // Last contact date filtering
     if (lastContactStartDate) {
       params.push(lastContactStartDate)
-      whereConditions.push(`last_contact_at >= $${params.length}::date`)
+      whereConditions.push(`st.last_contact_at >= $${params.length}::date`)
     }
     if (lastContactEndDate) {
       params.push(lastContactEndDate)
-      whereConditions.push(`last_contact_at < ($${params.length}::date + interval '1 day')`)
+      whereConditions.push(`st.last_contact_at < ($${params.length}::date + interval '1 day')`)
     }
 
     // 담당자 필터
     if (managerFilter && managerFilter !== 'all') {
       params.push(managerFilter)
-      whereConditions.push(`manager_name = $${params.length}`)
+      whereConditions.push(`st.manager_name = $${params.length}`)
     }
 
     // 진행현황 필터
     if (statusFilter && statusFilter !== 'all') {
       params.push(statusFilter)
-      whereConditions.push(`status = $${params.length}`)
+      whereConditions.push(`st.status = $${params.length}`)
     }
 
     // 영업방법 필터
     if (contactMethodFilter && contactMethodFilter !== 'all') {
       if (contactMethodFilter === 'none') {
-        whereConditions.push(`(contact_method IS NULL OR TRIM(contact_method) = '')`)
+        whereConditions.push(`(st.contact_method IS NULL OR TRIM(st.contact_method) = '')`)
       } else {
         params.push(contactMethodFilter)
-        whereConditions.push(`contact_method = $${params.length}`)
+        whereConditions.push(`st.contact_method = $${params.length}`)
       }
     }
 
     // 리타겟팅 이동 여부 필터
     if (movedToRetargetingFilter && movedToRetargetingFilter !== 'all') {
       if (movedToRetargetingFilter === 'moved') {
-        whereConditions.push(`moved_to_retargeting = TRUE`)
+        whereConditions.push(`st.moved_to_retargeting = TRUE`)
       } else if (movedToRetargetingFilter === 'notMoved') {
-        whereConditions.push(`(moved_to_retargeting IS NULL OR moved_to_retargeting = FALSE)`)
+        whereConditions.push(`(st.moved_to_retargeting IS NULL OR st.moved_to_retargeting = FALSE)`)
+      }
+    }
+
+    // 차수 필터
+    const roundFilter = (req.query.round as string || '').trim()
+    if (roundFilter && roundFilter !== 'all') {
+      const roundNum = parseInt(roundFilter, 10)
+      if (!isNaN(roundNum)) {
+        if (roundNum === 0) {
+          // 0차 = 히스토리가 없는 레코드
+          whereConditions.push(`h.latest_round IS NULL`)
+        } else {
+          params.push(roundNum)
+          whereConditions.push(`h.latest_round = $${params.length}`)
+        }
       }
     }
 
@@ -208,7 +229,12 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     }
 
     // COUNT 쿼리 (LIMIT/OFFSET 적용 전에 실행)
-    const countQuery = `SELECT COUNT(*) FROM sales_tracking${whereClause}`
+    const countQuery = `SELECT COUNT(*) FROM sales_tracking st
+      LEFT JOIN (
+        SELECT sales_tracking_id, MAX(round) as latest_round
+        FROM sales_tracking_history
+        GROUP BY sales_tracking_id
+      ) h ON h.sales_tracking_id = st.id${whereClause}`
     const countParams = [...params] // LIMIT/OFFSET 추가 전의 파라미터 복사
     const countResult = await pool.query(countQuery, countParams)
     const totalCount = parseInt(countResult.rows[0].count, 10)
@@ -1440,6 +1466,202 @@ router.get('/stats/daily', authMiddleware, async (req: AuthRequest, res: Respons
     res.json(rows)
   } catch (error: any) {
     console.error('Error fetching daily stats:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// ===== 히스토리 API =====
+
+// Get history for a sales tracking record
+router.get('/:id/history', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    
+    const result = await pool.query(
+      `SELECT id, sales_tracking_id, round, contact_date, content, user_id, user_name, created_at
+       FROM sales_tracking_history
+       WHERE sales_tracking_id = $1
+       ORDER BY round DESC, contact_date DESC`,
+      [id]
+    )
+    
+    res.json(result.rows)
+  } catch (error) {
+    console.error('Error fetching sales tracking history:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// Add history entry to a sales tracking record
+router.post('/:id/history', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect()
+  try {
+    const { id } = req.params
+    const { round, content } = req.body
+    
+    if (!round || round < 1) {
+      return res.status(400).json({ message: 'Valid round number is required' })
+    }
+    
+    // Check if record exists and get user_id
+    const recordResult = await client.query(
+      'SELECT user_id FROM sales_tracking WHERE id = $1',
+      [id]
+    )
+    
+    if (recordResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Record not found' })
+    }
+    
+    // Check if user is the owner (or admin)
+    const recordUserId = recordResult.rows[0].user_id
+    if (req.user?.role !== 'admin' && req.user?.id !== recordUserId) {
+      return res.status(403).json({ message: 'You can only add history to your own records' })
+    }
+    
+    await client.query('BEGIN')
+    
+    // Insert history entry (contact_date is automatically set to current timestamp)
+    const historyResult = await client.query(
+      `INSERT INTO sales_tracking_history (sales_tracking_id, round, content, user_id, user_name)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [id, round, content || null, req.user?.id, req.user?.name || '']
+    )
+    
+    // Update last_contact_at in sales_tracking
+    await client.query(
+      `UPDATE sales_tracking 
+       SET last_contact_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1`,
+      [id]
+    )
+    
+    await client.query('COMMIT')
+    
+    res.json({
+      success: true,
+      history: historyResult.rows[0]
+    })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('Error adding sales tracking history:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  } finally {
+    client.release()
+  }
+})
+
+// Bulk add history entries to multiple sales tracking records
+router.post('/bulk-history', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect()
+  try {
+    const { ids, round, content } = req.body
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: '선택된 항목이 없습니다' })
+    }
+    
+    if (!round || round < 1) {
+      return res.status(400).json({ message: '차수를 입력해주세요' })
+    }
+    
+    // Get records owned by the user
+    const recordsResult = await client.query(
+      `SELECT id FROM sales_tracking WHERE id = ANY($1) AND user_id = $2`,
+      [ids, req.user?.id]
+    )
+    
+    if (recordsResult.rows.length === 0) {
+      return res.status(400).json({ message: '수정할 수 있는 항목이 없습니다' })
+    }
+    
+    const validIds = recordsResult.rows.map(r => r.id)
+    
+    await client.query('BEGIN')
+    
+    // Insert history entries for all valid records
+    const insertPromises = validIds.map(recordId => 
+      client.query(
+        `INSERT INTO sales_tracking_history (sales_tracking_id, round, content, user_id, user_name)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [recordId, round, content || null, req.user?.id, req.user?.name || '']
+      )
+    )
+    await Promise.all(insertPromises)
+    
+    // Update last_contact_at for all valid records
+    await client.query(
+      `UPDATE sales_tracking 
+       SET last_contact_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ANY($1)`,
+      [validIds]
+    )
+    
+    await client.query('COMMIT')
+    
+    res.json({
+      success: true,
+      updated: validIds.length,
+      message: `${validIds.length}건의 연락 기록을 추가했습니다`
+    })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('Bulk history add error:', error)
+    res.status(500).json({ message: '일괄 기록 추가에 실패했습니다' })
+  } finally {
+    client.release()
+  }
+})
+
+// Delete a history entry
+router.delete('/history/:historyId', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { historyId } = req.params
+    
+    // Get history entry and check ownership through sales_tracking
+    const historyResult = await pool.query(
+      `SELECT h.id, h.sales_tracking_id, st.user_id
+       FROM sales_tracking_history h
+       JOIN sales_tracking st ON h.sales_tracking_id = st.id
+       WHERE h.id = $1`,
+      [historyId]
+    )
+    
+    if (historyResult.rows.length === 0) {
+      return res.status(404).json({ message: 'History entry not found' })
+    }
+    
+    // Check if user is the owner (or admin)
+    const recordUserId = historyResult.rows[0].user_id
+    if (req.user?.role !== 'admin' && req.user?.id !== recordUserId) {
+      return res.status(403).json({ message: 'You can only delete history from your own records' })
+    }
+    
+    await pool.query('DELETE FROM sales_tracking_history WHERE id = $1', [historyId])
+    
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting history entry:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// Get next round number for a sales tracking record
+router.get('/:id/next-round', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    
+    const result = await pool.query(
+      `SELECT COALESCE(MAX(round), 0) + 1 as next_round
+       FROM sales_tracking_history
+       WHERE sales_tracking_id = $1`,
+      [id]
+    )
+    
+    res.json({ nextRound: result.rows[0].next_round })
+  } catch (error) {
+    console.error('Error getting next round:', error)
     res.status(500).json({ message: 'Internal server error' })
   }
 })

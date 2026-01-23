@@ -12,6 +12,7 @@ import { Phone, PhoneOff, MessageSquare, FileText, Target, ExternalLink, Copy, P
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
 import { getMarketerNames } from '../utils/userUtils'
 import { DatePickerInput } from '../components/ui/date-picker-input'
+import SalesHistoryTimeline from '../components/SalesHistoryTimeline'
 
 const RETARGETING_TARGET = 500
 
@@ -1547,6 +1548,14 @@ export default function RetargetingPage() {
                       />
                       <Button onClick={handleAddHistory} className="w-full">{t('add')}</Button>
                     </div>
+
+                    {/* 영업 이력 히스토리 (영업 이력에서 온 경우) */}
+                    {selectedCustomer && (
+                      <SalesHistoryTimeline 
+                        entityType="retargeting" 
+                        entityId={selectedCustomer.id} 
+                      />
+                    )}
                     
                     {/* History Timeline */}
                     <div className="space-y-2">
