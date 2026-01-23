@@ -132,31 +132,75 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
       }
 
       // === 성능 최적화: 모든 API를 병렬로 호출 ===
-      const [targetsRes, logsRes, salesTrackingStatsRes, allPerformanceRes, weeklySumRes] = await Promise.all([
-        // 목표 데이터 로드
+      // 필수 API들
+      const [targetsRes, logsRes, salesTrackingStatsRes] = await Promise.all([
         api.get('/meeting/targets', { params: { periodType, year, weekOrMonth } }),
-        // 회의 로그 로드
         api.get('/meeting/logs', { params: { meetingType: tab, year, weekOrMonth } }),
-        // 영업 이력 히스토리 기반 실적 집계
-        api.get('/meeting/sales-tracking-stats', { params: { periodType, year, weekOrMonth } }),
-        // 모든 마케터 실적 데이터 (벌크 API) - 기존 순차 호출 대체
-        api.get('/meeting/all-marketers-performance', { params: { startDate, endDate } }),
-        // 월간 회의용 주간 합산 데이터 (월간일 때만 의미있지만 병렬로 미리 호출)
-        tab === 'monthly' 
-          ? api.get('/meeting/weekly-sum-for-month', { params: { year, month: weekOrMonth } })
-          : Promise.resolve({ data: { weeks: [], data: {} } })
+        api.get('/meeting/sales-tracking-stats', { params: { periodType, year, weekOrMonth } })
       ])
 
-      const salesTrackingStats: Record<string, number> = salesTrackingStatsRes.data?.stats || {}
-      const performanceByUser = allPerformanceRes.data?.performanceByUser || {}
+      // 벌크 API 시도 (실패시 기존 방식으로 폴백)
+      let performanceByUser: Record<string, any> = {}
+      let useBulkApi = false
+      
+      try {
+        const allPerformanceRes = await api.get('/meeting/all-marketers-performance', { params: { startDate, endDate } })
+        performanceByUser = allPerformanceRes.data?.performanceByUser || {}
+        useBulkApi = Object.keys(performanceByUser).length > 0
+      } catch (bulkError) {
+        console.warn('Bulk API failed, falling back to individual calls:', bulkError)
+        useBulkApi = false
+      }
 
-      // 데이터 매핑 (한 번에 처리)
+      // 월간 회의용 주간 합산 데이터
+      let weeklySumRes = { data: { weeks: [], data: {} } }
+      if (tab === 'monthly') {
+        try {
+          weeklySumRes = await api.get('/meeting/weekly-sum-for-month', { params: { year, month: weekOrMonth } })
+        } catch (e) {
+          console.warn('Weekly sum API failed:', e)
+        }
+      }
+
+      const salesTrackingStats: Record<string, number> = salesTrackingStatsRes.data?.stats || {}
+
+      // 데이터 매핑
       const targetsMap = new Map<string, UserTarget>()
       const logsMap = new Map<string, MeetingLog>()
       const alertsMap = new Map<string, any>()
 
+      // 벌크 API 실패 시 기존 방식으로 개별 호출
+      if (!useBulkApi) {
+        const performancePromises = marketers.map(user => 
+          api.get('/dashboard/performance-stats', {
+            params: { startDate, endDate, manager: user.name }
+          }).then(res => ({ userId: user.id, userName: user.name, data: res.data }))
+            .catch(() => ({ userId: user.id, userName: user.name, data: null }))
+        )
+        const performanceResults = await Promise.all(performancePromises)
+        
+        for (const { userId, userName, data } of performanceResults) {
+          let stat = null
+          if (data?.managerStats && data.managerStats.length > 0) {
+            stat = data.managerStats.find((s: any) => s.managerName === userName)
+            if (!stat) {
+              const normalizedUserName = userName.replace(/﨑/g, '崎')
+              stat = data.managerStats.find((s: any) => 
+                s.managerName.replace(/﨑/g, '崎') === normalizedUserName
+              )
+            }
+          }
+          if (stat) {
+            performanceByUser[userId] = {
+              ...stat,
+              retargetingAlert: data?.retargetingAlert || { dueThisWeek: 0, overdue: 0, upcoming: 0 }
+            }
+          }
+        }
+      }
+
       for (const user of marketers) {
-        // 벌크 API 결과에서 해당 담당자 데이터 추출
+        // 벌크 API 또는 폴백 결과에서 해당 담당자 데이터 추출
         const stat = performanceByUser[user.id]
 
         // 실제 성과 데이터 추출
@@ -194,7 +238,7 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
           }
         }
 
-        // 담당자별 리타겟팅 알림 저장 (벌크 API에서 가져옴)
+        // 담당자별 리타겟팅 알림 저장
         alertsMap.set(user.id, stat?.retargetingAlert || { dueThisWeek: 0, overdue: 0, upcoming: 0 })
 
         // 목표 데이터
