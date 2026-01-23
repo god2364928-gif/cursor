@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, TrendingUp, TrendingDown, Minus, Target, Users, CheckCircle2, AlertCircle, Activity, Zap } from 'lucide-react'
+import { X, TrendingUp, TrendingDown, Minus, Target, Users, CheckCircle2, AlertCircle, Activity, Zap, Link2 } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
@@ -142,6 +142,12 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
         endDate = monthEnd.toISOString().split('T')[0]
       }
 
+      // 영업 이력 히스토리 기반 실적 집계 (sales_tracking_history)
+      const salesTrackingStatsRes = await api.get('/meeting/sales-tracking-stats', {
+        params: { periodType, year, weekOrMonth }
+      })
+      const salesTrackingStats: Record<string, number> = salesTrackingStatsRes.data?.stats || {}
+
       // 데이터 매핑
       const targetsMap = new Map<string, UserTarget>()
       const logsMap = new Map<string, MeetingLog>()
@@ -227,7 +233,8 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
           targetPhone: targetData?.target_phone || 0,
           targetEmail: targetData?.target_email || 0,
           ...actual,
-          actualRetargetingCustomers: targetData?.actual_retargeting_customers || 0 // 담당자가 직접 입력한 실적
+          // 영업 이력 히스토리에서 자동 집계된 고유 고객 수 (중복 제거됨)
+          actualRetargetingCustomers: salesTrackingStats[user.id] || 0
         })
 
         // 로그 데이터
@@ -784,9 +791,13 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
                       <div className="mt-6">
                         {tab === 'weekly' ? (
                           <>
-                            {/* 주간회의: 직접 입력 방식 */}
+                            {/* 주간회의: 영업 이력 연동 자동 집계 */}
                             <h4 className="font-bold text-lg mb-3 flex items-center gap-2">
                               👥 {t('totalRetargetingCustomers')}
+                              <span className="flex items-center gap-1 text-xs font-normal text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                                <Link2 className="w-3 h-3" />
+                                {t('salesTrackingLinked') || '영업 이력 연동'}
+                              </span>
                             </h4>
                             <div className="grid grid-cols-2 gap-4">
                               {/* 목표 리타겟팅 고객 수 */}
@@ -809,15 +820,11 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
                                     <span>{t('people')}</span>
                                   </div>
                                   <div className="flex items-center justify-between text-xs">
-                                    <span>{t('actual')}:</span>
-                                    <input
-                                      type="number"
-                                      value={target.actualRetargetingCustomers}
-                                      onChange={(e) => saveTarget(user.id, 'actualRetargetingCustomers', parseInt(e.target.value) || 0)}
-                                      readOnly={!canEditTarget}
-                                      className={`w-16 px-1 border rounded text-right ${!canEditTarget ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                      title={!canEditTarget ? t('cannotEditPastOrOthers') : ''}
-                                    />
+                                    <span className="flex items-center gap-1">
+                                      {t('actual')}:
+                                      <Link2 className="w-3 h-3 text-blue-500" title={t('autoFromSalesTracking') || '영업 이력에서 자동 집계'} />
+                                    </span>
+                                    <span className="font-bold bg-blue-50 px-2 py-0.5 rounded text-blue-700">{target.actualRetargetingCustomers}</span>
                                     <span>{t('people')}</span>
                                   </div>
                                   <div className="text-right">
@@ -828,12 +835,15 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
                                 </div>
                               </div>
                               
-                              {/* 설명 카드 - 주간 단위 안내 */}
-                              <div className="border-2 border-amber-200 rounded-lg p-4 bg-amber-50">
-                                <div className="text-sm text-amber-800">
-                                  <p className="font-medium mb-2">📝 {t('managedSeparately')}</p>
-                                  <p className="text-xs">• {t('enterManually')}</p>
-                                  <p className="text-xs">• {t('notAutoCalculated')}</p>
+                              {/* 설명 카드 - 자동 집계 안내 */}
+                              <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                                <div className="text-sm text-blue-800">
+                                  <p className="font-medium mb-2 flex items-center gap-1">
+                                    <Link2 className="w-4 h-4" />
+                                    {t('autoAggregatedFromHistory') || '영업 이력에서 자동 집계'}
+                                  </p>
+                                  <p className="text-xs">• {t('uniqueCustomersOnly') || '해당 주간 연락한 고유 고객 수'}</p>
+                                  <p className="text-xs">• {t('duplicatesRemoved') || '같은 고객에게 여러 번 연락해도 1명으로 집계'}</p>
                                 </div>
                               </div>
                             </div>

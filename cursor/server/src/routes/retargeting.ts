@@ -472,14 +472,14 @@ router.post('/:id/convert', authMiddleware, async (req: AuthRequest, res: Respon
       return res.status(403).json({ message: 'You can only convert retargeting customers assigned to you' })
     }
     
-    // Insert into customers table
+    // Insert into customers table (sales_tracking_id 포함하여 히스토리 연결)
     const customerResult = await pool.query(
       `INSERT INTO customers (
         company_name, industry, customer_name, phone1,
         region, inflow_path, manager, manager_team,
         monthly_budget, contract_start_date, contract_expiration_date,
-        status, homepage, instagram, main_keywords, memo
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        status, homepage, instagram, main_keywords, memo, sales_tracking_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [
         retargetingCustomer.company_name,
@@ -497,7 +497,8 @@ router.post('/:id/convert', authMiddleware, async (req: AuthRequest, res: Respon
         retargetingCustomer.homepage,
         retargetingCustomer.instagram,
         retargetingCustomer.main_keywords,
-        retargetingCustomer.memo
+        retargetingCustomer.memo,
+        retargetingCustomer.sales_tracking_id || null  // 영업 이력 ID 전달
       ]
     )
     
@@ -808,6 +809,45 @@ router.delete('/:id/files/:fileId', authMiddleware, async (req: AuthRequest, res
     res.json({ success: true })
   } catch (error) {
     console.error('Error deleting file:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// Get sales tracking history for a retargeting customer
+// 영업 이력에서 가져온 연락 히스토리 조회
+router.get('/:id/sales-history', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    
+    // 리타겟팅 고객의 sales_tracking_id 조회
+    const retargetingResult = await pool.query(
+      'SELECT sales_tracking_id FROM retargeting_customers WHERE id = $1',
+      [id]
+    )
+    
+    if (retargetingResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Retargeting customer not found' })
+    }
+    
+    const salesTrackingId = retargetingResult.rows[0].sales_tracking_id
+    
+    if (!salesTrackingId) {
+      // 영업 이력에서 온 고객이 아닌 경우 빈 배열 반환
+      return res.json([])
+    }
+    
+    // sales_tracking_history에서 히스토리 조회
+    const historyResult = await pool.query(
+      `SELECT id, sales_tracking_id, round, contact_date, content, user_id, user_name, created_at
+       FROM sales_tracking_history
+       WHERE sales_tracking_id = $1
+       ORDER BY round DESC, contact_date DESC`,
+      [salesTrackingId]
+    )
+    
+    res.json(historyResult.rows)
+  } catch (error) {
+    console.error('Error fetching sales history for retargeting:', error)
     res.status(500).json({ message: 'Internal server error' })
   }
 })

@@ -12,8 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Plus, Edit, Trash2, X, BarChart3, Search, ArrowRight, UtensilsCrossed, MoreVertical, RefreshCw, Copy } from 'lucide-react'
 import GlobalSearch from '../components/GlobalSearch'
 import RestaurantDrawer from '../components/RestaurantDrawer'
+import SalesTrackingDrawer from '../components/SalesTrackingDrawer'
+import BulkHistoryModal from '../components/BulkHistoryModal'
 import { getMarketerNames } from '../utils/userUtils'
 import { DatePickerInput } from '../components/ui/date-picker-input'
+import { MessageSquare } from 'lucide-react'
 
 interface SalesTrackingRecord {
   id: string
@@ -35,6 +38,7 @@ interface SalesTrackingRecord {
   moved_to_retargeting?: boolean
   restaurant_id?: number // Reference to restaurants table for records from Recruit search
   last_contact_at?: string // Last contact timestamp
+  latest_round?: number // 최신 연락 차수
 }
 
 const PAGE_SIZE = 100
@@ -52,7 +56,7 @@ interface MonthlyStats {
 }
 
 export default function SalesTrackingPage() {
-  const { t } = useI18nStore()
+  const { t, language } = useI18nStore()
   const user = useAuthStore((state) => state.user)
   const { showToast } = useToast()
   const location = useLocation()
@@ -75,6 +79,7 @@ export default function SalesTrackingPage() {
   const [movedToRetargetingFilter, setMovedToRetargetingFilter] = useState<'all' | 'moved' | 'notMoved'>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [contactMethodFilter, setContactMethodFilter] = useState<string>('all')
+  const [roundFilter, setRoundFilter] = useState<string>('all') // 차수 필터
   // Daily stats state
   const [dailyStart, setDailyStart] = useState<string>('')
   const [dailyEnd, setDailyEnd] = useState<string>('')
@@ -105,7 +110,17 @@ export default function SalesTrackingPage() {
   // 리쿠르트 음식점 상세 보기
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(null)
 
-  // 날짜 필터 상태
+  // 영업 이력 상세 Drawer
+  const [selectedRecord, setSelectedRecord] = useState<SalesTrackingRecord | null>(null)
+
+  // 일괄 연락 기록 모달
+  const [showBulkHistoryModal, setShowBulkHistoryModal] = useState(false)
+
+  // 날짜 필터 상태 (날짜/시간 컬럼 필터)
+  const [dateStartFilter, setDateStartFilter] = useState<string>('')
+  const [dateEndFilter, setDateEndFilter] = useState<string>('')
+  
+  // 마지막 연락일 필터 상태
   const [filterStartDate, setFilterStartDate] = useState<string>('')
   const [filterEndDate, setFilterEndDate] = useState<string>('')
 
@@ -186,6 +201,13 @@ export default function SalesTrackingPage() {
       if (searchQuery.trim()) {
         params.search = searchQuery.trim()
       }
+      // 날짜/시간(date) 필터
+      if (dateStartFilter) {
+        params.startDate = dateStartFilter
+      }
+      if (dateEndFilter) {
+        params.endDate = dateEndFilter
+      }
       // 마지막 연락일 기준 필터
       if (filterStartDate) {
         params.lastContactStartDate = filterStartDate
@@ -205,6 +227,9 @@ export default function SalesTrackingPage() {
       }
       if (movedToRetargetingFilter && movedToRetargetingFilter !== 'all') {
         params.movedToRetargeting = movedToRetargetingFilter
+      }
+      if (roundFilter && roundFilter !== 'all') {
+        params.round = roundFilter
       }
       const config: any = { params }
       if (signal) {
@@ -241,7 +266,7 @@ export default function SalesTrackingPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, filterStartDate, filterEndDate, managerFilter, statusFilter, contactMethodFilter, movedToRetargetingFilter, showToast, t])
+  }, [searchQuery, dateStartFilter, dateEndFilter, filterStartDate, filterEndDate, managerFilter, statusFilter, contactMethodFilter, movedToRetargetingFilter, roundFilter, showToast, t])
 
   useEffect(() => {
     if (abortControllerRef.current) {
@@ -377,7 +402,7 @@ export default function SalesTrackingPage() {
       showToast(t('saved'), 'success')
       setShowAddForm(false)
       resetForm()
-      fetchRecords(false, 0)
+      fetchRecords(currentPage)
     } catch (error: any) {
       console.error('Failed to add record:', error)
       showToast(error.response?.data?.message || t('addFailed'), 'error')
@@ -390,7 +415,7 @@ export default function SalesTrackingPage() {
       showToast(t('updated'), 'success')
       setEditingId(null)
       resetForm()
-      fetchRecords(false, 0, undefined, true)
+      fetchRecords(currentPage)
     } catch (error: any) {
       console.error('Failed to update record:', error)
       showToast(error.response?.data?.message || t('updateFailed'), 'error')
@@ -403,7 +428,7 @@ export default function SalesTrackingPage() {
     try {
       await api.delete(`/sales-tracking/${id}`)
       showToast(t('deleted'), 'success')
-      fetchRecords(false, 0)
+      fetchRecords(currentPage)
     } catch (error: any) {
       console.error('Failed to delete record:', error)
       showToast(error.response?.data?.message || t('deleteFailed'), 'error')
@@ -416,7 +441,7 @@ export default function SalesTrackingPage() {
     try {
       await api.post(`/sales-tracking/${record.id}/move-to-retargeting`)
       showToast(t('movedToRetargeting'), 'success')
-      fetchRecords(false, 0)
+      fetchRecords(currentPage)
     } catch (error: any) {
       if (error.response?.status === 403) {
         showToast(t('onlyOwnerCanModify'), 'error')
@@ -532,7 +557,7 @@ export default function SalesTrackingPage() {
       setSelectedIds(new Set())
       setBulkMemo('')
       setShowBulkMemoForm(false)
-      fetchRecords(false, 0, undefined, true)
+      fetchRecords(currentPage)
     } catch (error: any) {
       showToast(error.response?.data?.message || t('bulkMemoUpdateFailed'), 'error')
     } finally {
@@ -555,7 +580,7 @@ export default function SalesTrackingPage() {
       
       showToast(`${selectedIds.size}${t('bulkMovedToRetargeting')}`, 'success')
       setSelectedIds(new Set())
-      fetchRecords(false, 0)
+      fetchRecords(currentPage)
     } catch (error: any) {
       showToast(error.response?.data?.message || t('bulkMoveToRetargetingFailed'), 'error')
     }
@@ -1073,6 +1098,70 @@ export default function SalesTrackingPage() {
           </select>
         </div>
 
+        {/* 차수 필터 */}
+        <div>
+          <label className="text-sm text-gray-600 mb-2 block">{language === 'ja' ? '連絡回数' : '차수'}</label>
+          <select
+            className="border rounded px-3 py-2 min-w-[80px]"
+            value={roundFilter}
+            onChange={e => {
+              setRoundFilter(e.target.value)
+              setCurrentPage(1)
+            }}
+          >
+            <option value="all">{t('all')}</option>
+            <option value="0">{language === 'ja' ? '未連絡' : '미연락'}</option>
+            <option value="1">1{language === 'ja' ? '次' : '차'}</option>
+            <option value="2">2{language === 'ja' ? '次' : '차'}</option>
+            <option value="3">3{language === 'ja' ? '次' : '차'}</option>
+            <option value="4">4{language === 'ja' ? '次' : '차'}</option>
+            <option value="5">5{language === 'ja' ? '次以上' : '차 이상'}</option>
+          </select>
+        </div>
+
+        {/* 날짜/시간 필터 */}
+        <div className="flex items-end gap-2">
+          <div>
+            <label className="text-sm text-gray-600 mb-2 block">{language === 'ja' ? '日付/時間' : '날짜/시간'}</label>
+            <div className="flex items-center gap-2">
+              <DatePickerInput
+                value={dateStartFilter}
+                onChange={(value) => {
+                  setDateStartFilter(value)
+                  setCurrentPage(1)
+                }}
+                className="w-[120px]"
+                popperPlacement="top-start"
+              />
+              <span className="text-gray-400">~</span>
+              <DatePickerInput
+                value={dateEndFilter}
+                onChange={(value) => {
+                  setDateEndFilter(value)
+                  setCurrentPage(1)
+                }}
+                className="w-[120px]"
+                popperPlacement="top-start"
+              />
+            </div>
+          </div>
+          {(dateStartFilter || dateEndFilter) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDateStartFilter('')
+                setDateEndFilter('')
+                setCurrentPage(1)
+              }}
+              className="h-8 px-2 text-gray-500 hover:text-gray-700"
+              title={t('clearFilter')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
         {/* 마지막 연락일 필터 */}
         <div className="flex items-end gap-2">
           <div>
@@ -1191,6 +1280,15 @@ export default function SalesTrackingPage() {
                 </span>
                 {!showBulkMemoForm && (
                   <>
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      className="bg-blue-600 hover:bg-blue-700 flex items-center gap-1"
+                      onClick={() => setShowBulkHistoryModal(true)}
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      {language === 'ja' ? '一括連絡記録' : '일괄 연락 기록'}
+                    </Button>
                     <Button size="sm" onClick={() => setShowBulkMemoForm(true)}>
                       {t('bulkMemoChange')}
                     </Button>
@@ -1479,8 +1577,9 @@ export default function SalesTrackingPage() {
                   <th className="px-2 py-3 text-left font-medium border-r w-32">{t('phone')}</th>
                   <th className="px-2 py-3 text-left font-medium border-r w-28">{t('accountId')}</th>
                   <th className="px-2 py-3 text-left font-medium border-r w-20">{t('status')}</th>
-                  <th className="px-2 py-3 text-left font-medium border-r w-28">{t('lastContactTime')}</th>
-                  <th className="px-2 py-3 text-left font-medium border-r w-[200px] max-w-[200px]">{t('memo')}</th>
+                  <th className="px-2 py-3 text-left font-medium border-r w-24">{t('lastContactTime')}</th>
+                  <th className="px-2 py-3 text-center font-medium border-r w-14">{language === 'ja' ? '回数' : '차수'}</th>
+                  <th className="px-2 py-3 text-left font-medium border-r w-[160px] max-w-[160px]">{t('memo')}</th>
                   <th className="px-2 py-3 text-center font-medium w-10">{t('actions')}</th>
                 </tr>
               </thead>
@@ -1506,7 +1605,7 @@ export default function SalesTrackingPage() {
                         highlightRecordId === record.id
                           ? 'bg-yellow-100 animate-pulse'
                           : record.moved_to_retargeting 
-                            ? 'bg-gray-50 text-gray-500' 
+                            ? 'bg-gray-200 text-gray-500' 
                             : 'hover:bg-gray-50'
                       }`}
                     >
@@ -1528,7 +1627,12 @@ export default function SalesTrackingPage() {
                       <td className="px-2 py-2 border-r whitespace-nowrap overflow-hidden text-xs">{formatDateTime(record.date, record.occurred_at)}</td>
                       <td className="px-2 py-2 border-r truncate overflow-hidden text-xs">{record.manager_name}</td>
                       <td className="px-2 py-2 border-r overflow-hidden" title={!record.moved_to_retargeting ? (record.company_name || '-') : undefined}>
-                        <div className="line-clamp-2 text-xs">{record.company_name || '-'}</div>
+                        <button
+                          onClick={() => setSelectedRecord(record)}
+                          className="line-clamp-2 text-xs text-left text-blue-600 font-semibold hover:underline cursor-pointer w-full transition-colors"
+                        >
+                          {record.company_name || '-'}
+                        </button>
                       </td>
                       {/* 업종 + 영업방법 합친 컬럼 */}
                       <td className="px-2 py-2 border-r overflow-hidden">
@@ -1577,96 +1681,28 @@ export default function SalesTrackingPage() {
                           {translateStatusLabel(record.status as any)}
                         </span>
                       </td>
-                      {/* 마지막 연락 시간 + Update 버튼 */}
-                      <td className="px-2 py-2 border-r overflow-visible">
-                        <div className="flex items-center gap-1 relative">
-                          <span className="text-xs text-gray-600">{formatLastContact(record.last_contact_at)}</span>
-                          {canEdit(record) && (
-                            <div className="relative">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  if (confirmUpdateId === record.id) {
-                                    setConfirmUpdateId(null)
-                                    setConfirmPopoverCoords(null)
-                                  } else {
-                                    // 버튼 위치 기준으로 팝오버 방향 및 좌표 결정
-                                    const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                    const spaceBelow = window.innerHeight - buttonRect.bottom
-                                    const isTop = spaceBelow < 120
-                                    setConfirmPopoverPosition(isTop ? 'top' : 'bottom')
-                                    setConfirmPopoverCoords({
-                                      top: isTop ? buttonRect.top - 8 : buttonRect.bottom + 8,
-                                      left: buttonRect.left + buttonRect.width / 2
-                                    })
-                                    setConfirmUpdateId(record.id)
-                                  }
-                                }}
-                                disabled={updatingContactId === record.id}
-                                className="h-5 w-5 p-0 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-full"
-                                title={t('updateContact')}
-                              >
-                                <RefreshCw className={`h-3 w-3 ${updatingContactId === record.id ? 'animate-spin' : ''}`} />
-                              </Button>
-                              {/* 인라인 확인 팝오버 - fixed 위치로 테이블 밖에서도 보이도록 */}
-                              {confirmUpdateId === record.id && confirmPopoverCoords && (
-                                <div 
-                                  className="fixed z-[9999] -translate-x-1/2"
-                                  style={{
-                                    top: confirmPopoverPosition === 'top' ? 'auto' : confirmPopoverCoords.top,
-                                    bottom: confirmPopoverPosition === 'top' ? window.innerHeight - confirmPopoverCoords.top : 'auto',
-                                    left: confirmPopoverCoords.left
-                                  }}
-                                  data-popover-container
-                                >
-                                  {/* 말풍선 꼬리 */}
-                                  {confirmPopoverPosition === 'bottom' ? (
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[-1px]">
-                                      <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-gray-200"></div>
-                                      <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px] border-b-white absolute top-[1px] left-1/2 -translate-x-1/2"></div>
-                                    </div>
-                                  ) : (
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-[-1px]">
-                                      <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-gray-200"></div>
-                                      <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px] border-t-white absolute bottom-[1px] left-1/2 -translate-x-1/2"></div>
-                                    </div>
-                                  )}
-                                  <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 min-w-[180px]">
-                                    <p className="text-xs text-gray-700 mb-2 whitespace-nowrap">{t('confirmUpdateContact')}</p>
-                                    <div className="flex gap-2 justify-end">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                          setConfirmUpdateId(null)
-                                          setConfirmPopoverCoords(null)
-                                        }}
-                                        className="h-6 px-2 text-xs"
-                                      >
-                                        {t('cancel')}
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => {
-                                          setConfirmUpdateId(null)
-                                          setConfirmPopoverCoords(null)
-                                          handleUpdateContact(record.id)
-                                        }}
-                                        className="h-6 px-2 text-xs bg-blue-600 hover:bg-blue-700"
-                                      >
-                                        {t('confirm')}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                      {/* 마지막 연락 시간 (히스토리에서 자동 갱신됨) */}
+                      <td className="px-2 py-2 border-r">
+                        <span className="text-xs text-gray-600">{formatLastContact(record.last_contact_at)}</span>
+                      </td>
+                      {/* 차수 컬럼 */}
+                      <td className="px-2 py-2 border-r text-center">
+                        {record.latest_round && record.latest_round > 0 ? (
+                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                            record.latest_round === 1 ? 'bg-blue-100 text-blue-700' :
+                            record.latest_round === 2 ? 'bg-emerald-100 text-emerald-700' :
+                            record.latest_round === 3 ? 'bg-amber-100 text-amber-700' :
+                            record.latest_round === 4 ? 'bg-purple-100 text-purple-700' :
+                            'bg-rose-100 text-rose-700'
+                          }`}>
+                            {record.latest_round}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
                       </td>
                       <td className="px-2 py-2 border-r" title={!record.moved_to_retargeting ? (record.memo || '') : undefined}>
-                        <div className="flex items-center gap-1 max-w-[200px]">
+                        <div className="flex items-center gap-1 max-w-[160px]">
                           <div className="text-xs truncate flex-1">{record.memo || '-'}</div>
                           {record.restaurant_id && (
                           <Button
@@ -2075,7 +2111,36 @@ export default function SalesTrackingPage() {
         <RestaurantDrawer
           restaurantId={selectedRestaurantId}
           onClose={() => setSelectedRestaurantId(null)}
-          onUpdate={() => fetchRecords(false, 0)}
+          onUpdate={() => fetchRecords(currentPage)}
+        />
+      )}
+
+      {/* Sales Tracking Drawer - for viewing contact history */}
+      {selectedRecord && (
+        <SalesTrackingDrawer
+          record={selectedRecord}
+          onClose={() => setSelectedRecord(null)}
+          onUpdate={() => {
+            fetchRecords(currentPage)
+            // 선택한 레코드의 last_contact_at 업데이트
+            setRecords(prev => prev.map(r => 
+              r.id === selectedRecord.id 
+                ? { ...r, last_contact_at: new Date().toISOString() }
+                : r
+            ))
+          }}
+        />
+      )}
+
+      {/* Bulk History Modal - for adding contact history to multiple records */}
+      {showBulkHistoryModal && (
+        <BulkHistoryModal
+          selectedIds={Array.from(selectedIds)}
+          onClose={() => setShowBulkHistoryModal(false)}
+          onSuccess={() => {
+            setSelectedIds(new Set())
+            fetchRecords(currentPage)
+          }}
         />
       )}
     </div>
