@@ -105,17 +105,6 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
       const weekOrMonth = tab === 'weekly' ? reviewWeek : reviewMonth
       const year = reviewYear
 
-      // 목표 데이터 로드
-      const targetsRes = await api.get('/meeting/targets', {
-        params: { periodType, year, weekOrMonth }
-      })
-
-      // 회의 로그 로드
-      const logsRes = await api.get('/meeting/logs', {
-        params: { meetingType: tab, year, weekOrMonth }
-      })
-
-      // 해당 주차/월의 실적 데이터 로드
       // 주차/월의 시작일과 종료일 계산
       let startDate: string
       let endDate: string
@@ -142,39 +131,33 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
         endDate = monthEnd.toISOString().split('T')[0]
       }
 
-      // 영업 이력 히스토리 기반 실적 집계 (sales_tracking_history)
-      const salesTrackingStatsRes = await api.get('/meeting/sales-tracking-stats', {
-        params: { periodType, year, weekOrMonth }
-      })
-      const salesTrackingStats: Record<string, number> = salesTrackingStatsRes.data?.stats || {}
+      // === 성능 최적화: 모든 API를 병렬로 호출 ===
+      const [targetsRes, logsRes, salesTrackingStatsRes, allPerformanceRes, weeklySumRes] = await Promise.all([
+        // 목표 데이터 로드
+        api.get('/meeting/targets', { params: { periodType, year, weekOrMonth } }),
+        // 회의 로그 로드
+        api.get('/meeting/logs', { params: { meetingType: tab, year, weekOrMonth } }),
+        // 영업 이력 히스토리 기반 실적 집계
+        api.get('/meeting/sales-tracking-stats', { params: { periodType, year, weekOrMonth } }),
+        // 모든 마케터 실적 데이터 (벌크 API) - 기존 순차 호출 대체
+        api.get('/meeting/all-marketers-performance', { params: { startDate, endDate } }),
+        // 월간 회의용 주간 합산 데이터 (월간일 때만 의미있지만 병렬로 미리 호출)
+        tab === 'monthly' 
+          ? api.get('/meeting/weekly-sum-for-month', { params: { year, month: weekOrMonth } })
+          : Promise.resolve({ data: { weeks: [], data: {} } })
+      ])
 
-      // 데이터 매핑
+      const salesTrackingStats: Record<string, number> = salesTrackingStatsRes.data?.stats || {}
+      const performanceByUser = allPerformanceRes.data?.performanceByUser || {}
+
+      // 데이터 매핑 (한 번에 처리)
       const targetsMap = new Map<string, UserTarget>()
       const logsMap = new Map<string, MeetingLog>()
       const alertsMap = new Map<string, any>()
 
-      // 각 담당자별로 실적 데이터 가져오기
       for (const user of marketers) {
-        // 담당자별 실적 데이터
-        const performanceRes = await api.get('/dashboard/performance-stats', {
-          params: { startDate, endDate, manager: user.name }
-        })
-
-        // managerStats에서 해당 담당자 찾기 (특수 문자 매칭 포함)
-        let stat = null
-        if (performanceRes.data?.managerStats && performanceRes.data.managerStats.length > 0) {
-          // 정확한 이름 매칭 시도
-          stat = performanceRes.data.managerStats.find((s: any) => s.managerName === user.name)
-          
-          // 매칭 실패 시 특수 문자 변환하여 재시도
-          if (!stat) {
-            const normalizedUserName = user.name.replace(/﨑/g, '崎')
-            stat = performanceRes.data.managerStats.find((s: any) => {
-              const normalizedStatName = s.managerName.replace(/﨑/g, '崎')
-              return normalizedStatName === normalizedUserName
-            })
-          }
-        }
+        // 벌크 API 결과에서 해당 담당자 데이터 추출
+        const stat = performanceByUser[user.id]
 
         // 실제 성과 데이터 추출
         let actual = {
@@ -199,10 +182,10 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
             actualRetargeting: stat.retargetingContacts || 0,
             actualExisting: stat.existingContacts || 0,
             actualRevenue: stat.totalSales || 0,
-            actualContracts: (stat.newContractCount || 0) + (stat.renewalCount || 0) + (stat.terminationCount || 0), // 총 거래 건수 (신규+연장+해지)
+            actualContracts: (stat.newContractCount || 0) + (stat.renewalCount || 0) + (stat.terminationCount || 0),
             actualNewRevenue: stat.newSales || 0,
             actualNewContracts: stat.newContractCount || 0,
-            actualRetargetingCustomers: 0, // 담당자가 직접 입력
+            actualRetargetingCustomers: 0,
             actualForm: stat.formCount || 0,
             actualDm: stat.dmCount || 0,
             actualLine: stat.lineCount || 0,
@@ -211,8 +194,8 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
           }
         }
 
-        // 담당자별 리타겟팅 알림 저장
-        alertsMap.set(user.id, performanceRes.data?.retargetingAlert || { dueThisWeek: 0, overdue: 0, upcoming: 0 })
+        // 담당자별 리타겟팅 알림 저장 (벌크 API에서 가져옴)
+        alertsMap.set(user.id, stat?.retargetingAlert || { dueThisWeek: 0, overdue: 0, upcoming: 0 })
 
         // 목표 데이터
         const targetData = targetsRes.data.find((t: any) => t.user_id === user.id)
@@ -250,21 +233,7 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
       setTargets(targetsMap)
       setLogs(logsMap)
       setRetargetingAlerts(alertsMap)
-
-      // 월간 회의인 경우 주간 합산 데이터 로드
-      if (tab === 'monthly') {
-        try {
-          const weeklySumRes = await api.get('/meeting/weekly-sum-for-month', {
-            params: { year, month: weekOrMonth }
-          })
-          setMonthlyWeeklySum(weeklySumRes.data)
-        } catch (error) {
-          console.error('Failed to load weekly sum data:', error)
-          setMonthlyWeeklySum({ weeks: [], data: {} })
-        }
-      } else {
-        setMonthlyWeeklySum({ weeks: [], data: {} })
-      }
+      setMonthlyWeeklySum(weeklySumRes.data)
     } catch (error) {
       console.error('Failed to load meeting data:', error)
     } finally {
