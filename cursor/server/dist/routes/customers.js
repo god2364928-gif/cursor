@@ -718,5 +718,32 @@ router.delete('/:id/files/:fileId', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+// Get sales tracking history for a customer
+// 영업 이력에서 가져온 연락 히스토리 조회
+router.get('/:id/sales-history', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // 고객의 sales_tracking_id 조회
+        const customerResult = await db_1.pool.query('SELECT sales_tracking_id FROM customers WHERE id = $1', [id]);
+        if (customerResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Customer not found' });
+        }
+        const salesTrackingId = customerResult.rows[0].sales_tracking_id;
+        if (!salesTrackingId) {
+            // 영업 이력에서 온 고객이 아닌 경우 빈 배열 반환
+            return res.json([]);
+        }
+        // sales_tracking_history에서 히스토리 조회
+        const historyResult = await db_1.pool.query(`SELECT id, sales_tracking_id, round, contact_date, content, user_id, user_name, created_at
+       FROM sales_tracking_history
+       WHERE sales_tracking_id = $1
+       ORDER BY round DESC, contact_date DESC`, [salesTrackingId]);
+        res.json(historyResult.rows);
+    }
+    catch (error) {
+        console.error('Error fetching sales history for customer:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=customers.js.map
