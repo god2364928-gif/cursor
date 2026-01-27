@@ -14,7 +14,8 @@
     "check:status": "node database/check-status-values.js",
     "migrate": "node-pg-migrate",
     "import:payments": "tsx scripts/import-payments.ts",
-    "import:csv": "tsx scripts/import-csv.ts"
+    "import:csv": "tsx scripts/import-csv.ts",
+    "delete:test-data": "node scripts/delete-test-data.js"
   },
   "dependencies": {
     "@slack/web-api": "^7.12.0",
@@ -36,6 +37,7 @@
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
     "google-trends-api": "^4.9.2",
+    "googleapis": "^170.1.0",
     "iconv-lite": "^0.7.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",

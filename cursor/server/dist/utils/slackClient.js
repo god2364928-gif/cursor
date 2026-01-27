@@ -7,11 +7,13 @@ exports.sendReceiptNotification = sendReceiptNotification;
 exports.sendInvoiceCancelNotification = sendInvoiceCancelNotification;
 exports.sendPaypalInvoiceNotification = sendPaypalInvoiceNotification;
 exports.testSlackConnection = testSlackConnection;
+exports.sendDepositNotification = sendDepositNotification;
 const web_api_1 = require("@slack/web-api");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
 const SLACK_CHANNEL_ID = process.env.SLACK_CHANNEL_ID || '#general';
+const DEPOSIT_SLACK_CHANNEL_ID = process.env.DEPOSIT_SLACK_CHANNEL_ID || SLACK_CHANNEL_ID;
 let slackClient = null;
 /**
  * 슬랙 클라이언트 초기화
@@ -336,6 +338,57 @@ async function testSlackConnection() {
     }
     catch (error) {
         console.error('❌ Slack connection test failed:', error.message);
+        return false;
+    }
+}
+/**
+ * 입금 알림을 슬랙으로 전송 (별도 채널)
+ */
+async function sendDepositNotification(depositData) {
+    const client = getSlackClient();
+    if (!client) {
+        console.log('⚠️ Slack client not available, skipping notification');
+        return false;
+    }
+    try {
+        const { depositor_name, amount, email_subject, email_date } = depositData;
+        // 슬랙 메시지 구성
+        const message = {
+            channel: DEPOSIT_SLACK_CHANNEL_ID,
+            text: `💰 입금이 확인되었습니다`,
+            blocks: [
+                {
+                    type: 'header',
+                    text: {
+                        type: 'plain_text',
+                        text: '💰 입금 알림',
+                        emoji: true
+                    }
+                },
+                {
+                    type: 'section',
+                    fields: [
+                        {
+                            type: 'mrkdwn',
+                            text: `*입금자명:*\n${depositor_name}`
+                        },
+                        {
+                            type: 'mrkdwn',
+                            text: `*금액:*\n${amount}`
+                        }
+                    ]
+                },
+                {
+                    type: 'divider'
+                }
+            ]
+        };
+        await client.chat.postMessage(message);
+        console.log(`✅ Slack deposit notification sent: ${depositor_name} - ${amount}`);
+        return true;
+    }
+    catch (error) {
+        console.error('❌ Failed to send Slack deposit notification:', error.message);
         return false;
     }
 }

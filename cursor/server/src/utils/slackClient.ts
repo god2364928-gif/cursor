@@ -5,6 +5,7 @@ dotenv.config()
 
 const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN
 const SLACK_CHANNEL_ID = process.env.SLACK_CHANNEL_ID || '#general'
+const DEPOSIT_SLACK_CHANNEL_ID = process.env.DEPOSIT_SLACK_CHANNEL_ID || SLACK_CHANNEL_ID
 
 let slackClient: WebClient | null = null
 
@@ -384,6 +385,68 @@ export async function testSlackConnection(): Promise<boolean> {
     return false
   }
 }
+
+/**
+ * 입금 알림을 슬랙으로 전송 (별도 채널)
+ */
+export async function sendDepositNotification(depositData: {
+  depositor_name: string
+  amount: string
+  email_subject?: string
+  email_date?: string
+}): Promise<boolean> {
+  const client = getSlackClient()
+
+  if (!client) {
+    console.log('⚠️ Slack client not available, skipping notification')
+    return false
+  }
+
+  try {
+    const { depositor_name, amount, email_subject, email_date } = depositData
+
+    // 슬랙 메시지 구성
+    const message = {
+      channel: DEPOSIT_SLACK_CHANNEL_ID,
+      text: `💰 입금이 확인되었습니다`,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '💰 입금 알림',
+            emoji: true
+          }
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: `*입금자명:*\n${depositor_name}`
+            },
+            {
+              type: 'mrkdwn',
+              text: `*금액:*\n${amount}`
+            }
+          ]
+        },
+        {
+          type: 'divider'
+        }
+      ]
+    }
+
+    await client.chat.postMessage(message)
+
+    console.log(`✅ Slack deposit notification sent: ${depositor_name} - ${amount}`)
+    return true
+  } catch (error: any) {
+    console.error('❌ Failed to send Slack deposit notification:', error.message)
+    return false
+  }
+}
+
 
 
 
