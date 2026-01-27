@@ -500,65 +500,161 @@ export default function EmployeesTab({ isAdmin }: EmployeesTabProps) {
                 <div className="mt-6">
                   <h3 className="text-lg font-semibold mb-4">{language === 'ja' ? 'ファイル管理' : '파일 관리'}</h3>
                   
-                  {/* 파일 업로드 */}
-                  <div className="mb-4">
-                    <label className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600 w-fit">
-                      <Upload className="h-4 w-4" />
-                      {language === 'ja' ? 'ファイルをアップロード' : '파일 업로드'}
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) {
-                            handleUploadEmployeeFile('개인서류', file)
-                            e.target.value = ''
-                          }
-                        }}
-                        disabled={uploadingFile}
-                      />
-                    </label>
-                  </div>
-
-                  {/* 파일 목록 */}
-                  {employeeFiles.length > 0 ? (
-                    <div className="space-y-2">
-                      {employeeFiles.map((file: any) => (
-                        <div key={file.id} className="flex items-center gap-2 p-3 border rounded hover:bg-gray-50">
-                          <FileText className="h-5 w-5 text-blue-500 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{file.fileName || file.originalName}</p>
-                            {file.fileCategory && (
-                              <p className="text-xs text-gray-500">{file.fileCategory}</p>
+                  {/* 필수 서류 섹션 */}
+                  <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold mb-3 text-blue-900">
+                      {language === 'ja' ? '必須書類' : '필수 서류'}
+                    </h4>
+                    <div className="space-y-3">
+                      {[
+                        { category: '이력서', label: language === 'ja' ? '履歴書' : '이력서' },
+                        { category: '계약서', label: language === 'ja' ? '契約書' : '계약서' },
+                        { category: '인사기록카드', label: language === 'ja' ? '人事記録カード' : '인사기록카드' },
+                        { category: '비밀유지계약서', label: language === 'ja' ? '秘密保持契約書' : '비밀유지계약서' },
+                        { category: '녹취파일', label: language === 'ja' ? '録音ファイル' : '녹취파일' },
+                      ].map(({ category, label }) => {
+                        const categoryFiles = employeeFiles.filter((f: any) => f.fileCategory === category)
+                        return (
+                          <div key={category} className="bg-white p-3 rounded border">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{label}</span>
+                                {categoryFiles.length > 0 ? (
+                                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                    {categoryFiles.length}개
+                                  </span>
+                                ) : (
+                                  <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">
+                                    {language === 'ja' ? '未登録' : '미등록'}
+                                  </span>
+                                )}
+                              </div>
+                              <label className="flex items-center gap-1 px-3 py-1 bg-blue-500 text-white text-xs rounded cursor-pointer hover:bg-blue-600">
+                                <Upload className="h-3 w-3" />
+                                {language === 'ja' ? 'アップロード' : '업로드'}
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) {
+                                      handleUploadEmployeeFile(category, file)
+                                      e.target.value = ''
+                                    }
+                                  }}
+                                  disabled={uploadingFile}
+                                />
+                              </label>
+                            </div>
+                            {categoryFiles.length > 0 && (
+                              <div className="space-y-1 mt-2">
+                                {categoryFiles.map((file: any) => (
+                                  <div key={file.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs">
+                                    <FileText className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                                    <span className="flex-1 truncate">{file.fileName || file.originalName}</span>
+                                    <span className="text-gray-500 flex-shrink-0">
+                                      {((file.fileSize || 0) / 1024).toFixed(1)} KB
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDownloadEmployeeFile(file.id, file.fileName || file.originalName)}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteEmployeeFile(file.id)}
+                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
-                          <span className="text-xs text-gray-500 flex-shrink-0">
-                            {((file.fileSize || 0) / 1024).toFixed(1)} KB
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDownloadEmployeeFile(file.id, file.fileName || file.originalName)}
-                            className="flex-shrink-0"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteEmployeeFile(file.id)}
-                            className="flex-shrink-0 text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-8">
-                      {language === 'ja' ? 'ファイルがありません' : '등록된 파일이 없습니다'}
-                    </p>
-                  )}
+                  </div>
+
+                  {/* 일반 서류 섹션 */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h4 className="font-semibold mb-3 text-gray-900">
+                      {language === 'ja' ? '一般書類' : '일반 서류'}
+                    </h4>
+                    <div className="space-y-3">
+                      {[
+                        { category: '교통비', label: language === 'ja' ? '交通費' : '교통비' },
+                        { category: '진단서', label: language === 'ja' ? '診断書' : '진단서' },
+                        { category: '기타', label: language === 'ja' ? 'その他' : '기타' },
+                      ].map(({ category, label }) => {
+                        const categoryFiles = employeeFiles.filter((f: any) => f.fileCategory === category)
+                        return (
+                          <div key={category} className="bg-white p-3 rounded border">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{label}</span>
+                                {categoryFiles.length > 0 && (
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                    {categoryFiles.length}개
+                                  </span>
+                                )}
+                              </div>
+                              <label className="flex items-center gap-1 px-3 py-1 bg-gray-500 text-white text-xs rounded cursor-pointer hover:bg-gray-600">
+                                <Upload className="h-3 w-3" />
+                                {language === 'ja' ? 'アップロード' : '업로드'}
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) {
+                                      handleUploadEmployeeFile(category, file)
+                                      e.target.value = ''
+                                    }
+                                  }}
+                                  disabled={uploadingFile}
+                                />
+                              </label>
+                            </div>
+                            {categoryFiles.length > 0 && (
+                              <div className="space-y-1 mt-2">
+                                {categoryFiles.map((file: any) => (
+                                  <div key={file.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs">
+                                    <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                    <span className="flex-1 truncate">{file.fileName || file.originalName}</span>
+                                    <span className="text-gray-500 flex-shrink-0">
+                                      {((file.fileSize || 0) / 1024).toFixed(1)} KB
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDownloadEmployeeFile(file.id, file.fileName || file.originalName)}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteEmployeeFile(file.id)}
+                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
