@@ -32,6 +32,9 @@ import restaurantsRoutes from './routes/restaurants'
 import inquiryLeadsRoutes from './routes/inquiryLeads'
 import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields } from './migrations/autoMigrate'
+import { checkDepositEmails, markAsRead } from './services/gmailService'
+import { parseDepositEmail } from './utils/depositParser'
+import { sendDepositNotification } from './utils/slackClient'
 
 dotenv.config()
 
@@ -178,6 +181,77 @@ app.listen(PORT, '0.0.0.0', () => {
     if (enableCpiScheduler && (!token || !base)) {
       console.warn('⚠️  CPI scheduler requested but CPI_API_TOKEN or CPI_API_BASE is missing')
     }
+  }
+
+  // Gmail 입금 알림 체크 스케줄러
+  // - 개발서버에서는 기본 OFF
+  // - 운영에서는 기본 ON
+  // - 강제 ON/OFF: ENABLE_GMAIL_DEPOSIT_CHECK=1 또는 0
+  const enableGmailDepositCheck =
+    typeof process.env.ENABLE_GMAIL_DEPOSIT_CHECK === 'string'
+      ? process.env.ENABLE_GMAIL_DEPOSIT_CHECK === '1'
+      : nodeEnv === 'production'
+
+  if (enableGmailDepositCheck) {
+    console.log('Gmail deposit check scheduler enabled (every 5 min)')
+    
+    // 즉시 한 번 실행
+    checkDepositEmailsAndNotify()
+    
+    // 5분마다 실행
+    setInterval(async () => {
+      await checkDepositEmailsAndNotify()
+    }, 5 * 60 * 1000) // 5분 = 300,000ms
+  } else {
+    console.log('Gmail deposit check scheduler disabled')
+  }
+}
+
+/**
+ * 입금 메일 체크 및 Slack 알림 전송
+ */
+async function checkDepositEmailsAndNotify() {
+  try {
+    const emails = await checkDepositEmails()
+    
+    if (emails.length === 0) {
+      return
+    }
+
+    console.log(`📬 Processing ${emails.length} deposit email(s)...`)
+
+    for (const email of emails) {
+      try {
+        // 메일 본문 파싱
+        const depositInfo = parseDepositEmail(email.body)
+        
+        if (!depositInfo) {
+          console.log(`⚠️ Could not parse email: ${email.subject}`)
+          // 파싱 실패해도 읽음 처리 (반복 알림 방지)
+          await markAsRead(email.id)
+          continue
+        }
+
+        // Slack 알림 전송
+        const sent = await sendDepositNotification({
+          depositor_name: depositInfo.depositor_name,
+          amount: depositInfo.amount,
+          email_subject: email.subject,
+          email_date: email.date
+        })
+
+        if (sent) {
+          // 성공적으로 전송했으면 메일을 읽음으로 표시
+          await markAsRead(email.id)
+        }
+      } catch (error: any) {
+        console.error(`❌ Failed to process email ${email.id}:`, error.message)
+      }
+    }
+
+    console.log(`✅ Processed ${emails.length} deposit email(s)`)
+  } catch (error: any) {
+    console.error('[Gmail] Deposit check error:', error.message)
   }
 }
 

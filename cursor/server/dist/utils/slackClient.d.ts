@@ -37,4 +37,13 @@ export declare function sendPaypalInvoiceNotification(invoiceData: {
  * 슬랙 연결 테스트
  */
 export declare function testSlackConnection(): Promise<boolean>;
+/**
+ * 입금 알림을 슬랙으로 전송 (별도 채널)
+ */
+export declare function sendDepositNotification(depositData: {
+    depositor_name: string;
+    amount: string;
+    email_subject?: string;
+    email_date?: string;
+}): Promise<boolean>;
 //# sourceMappingURL=slackClient.d.ts.map

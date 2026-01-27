@@ -690,7 +690,7 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
 
   try {
     // DB의 payment_bank_info 우선 사용, 없으면 기본값
-    const defaultPaymentInfo = 'PayPay銀行\nビジネス営業部支店（005）\n普通　7136331\nカブシキガイシャホットセラー'
+    const defaultPaymentInfo = '三井住友銀行\nトランクＮＯＲＴＨ支店（403）\n普通　0122078\n(株) ホットセラー'
     const paymentInfo = paymentBankInfoFromDb || invoice.bank_account_to_transfer || defaultPaymentInfo
     
     console.log(`💳 Using payment info: ${paymentInfo.substring(0, 30)}...`)

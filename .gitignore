@@ -20,6 +20,12 @@ dev_db_complete_dump.sql
 .env.local
 .env.production
 
+# Gmail API credentials
+gmail-credentials.json
+gmail-token.json
+cursor/server/gmail-credentials.json
+cursor/server/gmail-token.json
+
 # Logs
 *.log
 npm-debug.log*

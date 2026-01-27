@@ -36,6 +36,9 @@ const restaurants_1 = __importDefault(require("./routes/restaurants"));
 const inquiryLeads_1 = __importDefault(require("./routes/inquiryLeads"));
 const cpiImportService_1 = require("./services/cpiImportService");
 const autoMigrate_1 = require("./migrations/autoMigrate");
+const gmailService_1 = require("./services/gmailService");
+const depositParser_1 = require("./utils/depositParser");
+const slackClient_1 = require("./utils/slackClient");
 dotenv_1.default.config();
 // Debug: Check if globalSearch.js has correct code (only in production)
 if (process.env.NODE_ENV === 'production' || true) {
@@ -172,6 +175,67 @@ async function startServer() {
         if (enableCpiScheduler && (!token || !base)) {
             console.warn('⚠️  CPI scheduler requested but CPI_API_TOKEN or CPI_API_BASE is missing');
         }
+    }
+    // Gmail 입금 알림 체크 스케줄러
+    // - 개발서버에서는 기본 OFF
+    // - 운영에서는 기본 ON
+    // - 강제 ON/OFF: ENABLE_GMAIL_DEPOSIT_CHECK=1 또는 0
+    const enableGmailDepositCheck = typeof process.env.ENABLE_GMAIL_DEPOSIT_CHECK === 'string'
+        ? process.env.ENABLE_GMAIL_DEPOSIT_CHECK === '1'
+        : nodeEnv === 'production';
+    if (enableGmailDepositCheck) {
+        console.log('Gmail deposit check scheduler enabled (every 5 min)');
+        // 즉시 한 번 실행
+        checkDepositEmailsAndNotify();
+        // 5분마다 실행
+        setInterval(async () => {
+            await checkDepositEmailsAndNotify();
+        }, 5 * 60 * 1000); // 5분 = 300,000ms
+    }
+    else {
+        console.log('Gmail deposit check scheduler disabled');
+    }
+}
+/**
+ * 입금 메일 체크 및 Slack 알림 전송
+ */
+async function checkDepositEmailsAndNotify() {
+    try {
+        const emails = await (0, gmailService_1.checkDepositEmails)();
+        if (emails.length === 0) {
+            return;
+        }
+        console.log(`📬 Processing ${emails.length} deposit email(s)...`);
+        for (const email of emails) {
+            try {
+                // 메일 본문 파싱
+                const depositInfo = (0, depositParser_1.parseDepositEmail)(email.body);
+                if (!depositInfo) {
+                    console.log(`⚠️ Could not parse email: ${email.subject}`);
+                    // 파싱 실패해도 읽음 처리 (반복 알림 방지)
+                    await (0, gmailService_1.markAsRead)(email.id);
+                    continue;
+                }
+                // Slack 알림 전송
+                const sent = await (0, slackClient_1.sendDepositNotification)({
+                    depositor_name: depositInfo.depositor_name,
+                    amount: depositInfo.amount,
+                    email_subject: email.subject,
+                    email_date: email.date
+                });
+                if (sent) {
+                    // 성공적으로 전송했으면 메일을 읽음으로 표시
+                    await (0, gmailService_1.markAsRead)(email.id);
+                }
+            }
+            catch (error) {
+                console.error(`❌ Failed to process email ${email.id}:`, error.message);
+            }
+        }
+        console.log(`✅ Processed ${emails.length} deposit email(s)`);
+    }
+    catch (error) {
+        console.error('[Gmail] Deposit check error:', error.message);
     }
 }
 startServer().catch((error) => {
