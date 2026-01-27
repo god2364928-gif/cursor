@@ -42,29 +42,23 @@ export function parseDepositEmail(emailBody: string): DepositInfo | null {
     // 입금자명 추출
     let depositorName = '알 수 없음'
 
-    // 패턴 1: "内容 ： 振込　[입금자명]" 형식
-    const contentPattern = /内容\s*[：:]\s*振込\s+(.+?)(?:\n|$)/
-    const contentMatch = emailBody.match(contentPattern)
-    if (contentMatch) {
-      depositorName = contentMatch[1].trim()
-    } else {
-      // 패턴 2: 금액 바로 위 줄 (예: "ラスタジオヤマダマコト\n55,000円")
+    // 패턴 1: "内容 ： [입금자명]" 형식 (전각/반각 공백, 콜론 모두 허용)
+    const contentPattern1 = /内容[\s　]*[：:]+[\s　]*(.+?)[\s　]*$/m
+    const contentMatch1 = emailBody.match(contentPattern1)
+    if (contentMatch1) {
+      // "振込" 제거하고 실제 입금자명만 추출
+      depositorName = contentMatch1[1].replace(/^振込[\s　]*/, '').trim()
+    }
+    
+    // 패턴 2: 금액 바로 위 줄 (예: "ラスタジオヤマダマコト\n55,000円")
+    if (depositorName === '알 수 없음') {
       const linesBeforeAmount = emailBody.substring(0, amountMatch.index).split('\n')
       const lastLine = linesBeforeAmount[linesBeforeAmount.length - 1]?.trim()
       
-      if (lastLine && lastLine.length > 0 && !lastLine.includes('：') && !lastLine.includes(':')) {
+      if (lastLine && lastLine.length > 0 && lastLine.length < 100 && !lastLine.includes('：') && !lastLine.includes(':')) {
         // 일본어 카타카나/히라가나/한자가 포함된 경우
         if (/[ァ-ヶぁ-ん一-龯]/.test(lastLine)) {
           depositorName = lastLine
-        }
-      }
-
-      // 패턴 3: 메일 본문에 "カ)" 또는 "株式" 등이 포함된 경우
-      if (depositorName === '알 수 없음') {
-        const companyPattern = /([カ株][）)][^\n]+)/
-        const companyMatch = emailBody.match(companyPattern)
-        if (companyMatch) {
-          depositorName = companyMatch[1].trim()
         }
       }
     }
