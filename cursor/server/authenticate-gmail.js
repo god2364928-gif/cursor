@@ -4,7 +4,7 @@ const readline = require('readline');
 
 const CREDENTIALS_PATH = './gmail-credentials.json';
 const TOKEN_PATH = './gmail-token.json';
-const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
+const SCOPES = ['https://www.googleapis.com/auth/gmail.modify'];
 
 async function authenticate() {
   console.log('📧 Gmail API 인증 시작...\n');
