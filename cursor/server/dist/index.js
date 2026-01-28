@@ -34,6 +34,7 @@ const hotpepper_1 = __importDefault(require("./routes/hotpepper"));
 const recruit_1 = __importDefault(require("./routes/recruit"));
 const restaurants_1 = __importDefault(require("./routes/restaurants"));
 const inquiryLeads_1 = __importDefault(require("./routes/inquiryLeads"));
+const exam_1 = __importDefault(require("./routes/exam"));
 const cpiImportService_1 = require("./services/cpiImportService");
 const autoMigrate_1 = require("./migrations/autoMigrate");
 const gmailService_1 = require("./services/gmailService");
@@ -120,6 +121,7 @@ app.use('/api/hotpepper', hotpepper_1.default); // 하위 호환성 유지
 app.use('/api/recruit', recruit_1.default); // 통합 API
 app.use('/api/restaurants', restaurants_1.default); // 음식점 CRM
 app.use('/api/inquiry-leads', inquiryLeads_1.default); // 문의 배정 시스템
+app.use('/api/exam', exam_1.default); // 역량 평가 시험
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
