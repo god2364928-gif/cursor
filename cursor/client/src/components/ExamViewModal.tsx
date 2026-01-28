@@ -6,6 +6,7 @@ import { Button } from './ui/button'
 import { Label } from './ui/label'
 import { Textarea } from './ui/textarea'
 import { ScrollArea } from './ui/scroll-area'
+import { Copy } from 'lucide-react'
 
 interface ExamViewModalProps {
   open: boolean
@@ -68,6 +69,30 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
     })
   }
 
+  const handleCopyAll = () => {
+    if (!isSubmitted) return
+
+    let copyText = `${userName || userInfo?.name || ''} - ${t('examTitle')}\n`
+    copyText += `${t('examSubmitted')}: ${formatDate(submittedAt)}\n\n`
+    copyText += '='.repeat(50) + '\n\n'
+
+    EXAM_QUESTIONS.forEach((qNum) => {
+      const question = t(`exam${qNum}` as any)
+      const answer = answers[qNum] || t('examNoAnswer')
+      
+      copyText += `${qNum}. ${question}\n\n`
+      copyText += `[${t('examAnswer')}]\n${answer}\n\n`
+      copyText += '-'.repeat(50) + '\n\n'
+    })
+
+    navigator.clipboard.writeText(copyText).then(() => {
+      alert(t('copied'))
+    }).catch((err) => {
+      console.error('Failed to copy:', err)
+      alert('복사에 실패했습니다')
+    })
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
@@ -120,7 +145,15 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
           )}
         </ScrollArea>
 
-        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+        <div className="flex justify-between gap-2 mt-4 pt-4 border-t">
+          <div>
+            {isSubmitted && (
+              <Button variant="outline" onClick={handleCopyAll}>
+                <Copy className="w-4 h-4 mr-2" />
+                {t('examCopyAll')}
+              </Button>
+            )}
+          </div>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             {t('close')}
           </Button>
