@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Edit2, Trash2, X, RefreshCw } from 'lucide-react'
+import { Edit2, Trash2, X, RefreshCw, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import ExamModal from '../components/ExamModal'
+import ExamViewModal from '../components/ExamViewModal'
 
 interface User {
   id: string
@@ -49,6 +51,10 @@ export default function SettingsPage() {
     newManager: ''
   })
   const [changingManager, setChangingManager] = useState(false)
+  const [showExamModal, setShowExamModal] = useState(false)
+  const [showExamViewModal, setShowExamViewModal] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [selectedUserName, setSelectedUserName] = useState<string>('')
 
   useEffect(() => {
     if (isAdmin) {
@@ -189,6 +195,12 @@ export default function SettingsPage() {
     }
   }
 
+  const handleViewExamAnswers = (userId: string, userName: string) => {
+    setSelectedUserId(userId)
+    setSelectedUserName(userName)
+    setShowExamViewModal(true)
+  }
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -217,6 +229,14 @@ export default function SettingsPage() {
                 <div>
                   <Button onClick={() => setShowPasswordChange(!showPasswordChange)} variant="outline">
                     {t('changePassword')}
+                  </Button>
+                  <Button 
+                    onClick={() => setShowExamModal(true)} 
+                    variant="outline"
+                    className="ml-2"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    {t('examStart')}
                   </Button>
                 </div>
               </div>
@@ -478,6 +498,14 @@ export default function SettingsPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                onClick={() => handleViewExamAnswers(u.id, u.name)}
+                                title={t('examAnswers')}
+                              >
+                                <FileText className="h-4 w-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => startEdit(u)}
                                 disabled={editingId !== null && editingId !== u.id}
                               >
@@ -504,6 +532,17 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* 역량 평가 시험 모달 */}
+      <ExamModal open={showExamModal} onOpenChange={setShowExamModal} />
+      
+      {/* 어드민 - 직원 답변 조회 모달 */}
+      <ExamViewModal 
+        open={showExamViewModal} 
+        onOpenChange={setShowExamViewModal}
+        userId={selectedUserId}
+        userName={selectedUserName}
+      />
     </div>
   )
 }
