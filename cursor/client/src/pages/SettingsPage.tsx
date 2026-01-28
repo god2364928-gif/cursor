@@ -55,12 +55,24 @@ export default function SettingsPage() {
   const [showExamViewModal, setShowExamViewModal] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedUserName, setSelectedUserName] = useState<string>('')
+  const [examSubmitted, setExamSubmitted] = useState(false)
 
   useEffect(() => {
     if (isAdmin) {
       fetchUsers()
     }
+    // 본인의 제출 상태 확인
+    checkExamStatus()
   }, [isAdmin])
+
+  const checkExamStatus = async () => {
+    try {
+      const response = await api.get('/exam/my-answers')
+      setExamSubmitted(response.data.isSubmitted || false)
+    } catch (error) {
+      console.error('Failed to check exam status:', error)
+    }
+  }
 
   const fetchUsers = async () => {
     try {
@@ -230,14 +242,21 @@ export default function SettingsPage() {
                   <Button onClick={() => setShowPasswordChange(!showPasswordChange)} variant="outline">
                     {t('changePassword')}
                   </Button>
-                  <Button 
-                    onClick={() => setShowExamModal(true)} 
-                    variant="outline"
-                    className="ml-2"
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    {t('examStart')}
-                  </Button>
+                  {!examSubmitted && (
+                    <Button 
+                      onClick={() => setShowExamModal(true)} 
+                      variant="outline"
+                      className="ml-2"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      {t('examStart')}
+                    </Button>
+                  )}
+                  {examSubmitted && (
+                    <span className="ml-2 text-sm text-green-600 font-medium">
+                      ✓ {t('examSubmitted')}
+                    </span>
+                  )}
                 </div>
               </div>
               {showPasswordChange && (
@@ -534,7 +553,13 @@ export default function SettingsPage() {
       </div>
 
       {/* 역량 평가 시험 모달 */}
-      <ExamModal open={showExamModal} onOpenChange={setShowExamModal} />
+      <ExamModal 
+        open={showExamModal} 
+        onOpenChange={(open) => {
+          setShowExamModal(open)
+          if (!open) checkExamStatus() // 모달 닫을 때 제출 상태 다시 확인
+        }} 
+      />
       
       {/* 어드민 - 직원 답변 조회 모달 */}
       <ExamViewModal 
