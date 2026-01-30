@@ -224,28 +224,39 @@ async function checkDepositEmailsAndNotify() {
 
     for (const email of emails) {
       try {
-        // 메일 본문 파싱
-        const depositInfo = parseDepositEmail(email.body)
+        // 메일 본문 파싱 (여러 건 가능)
+        const depositInfos = parseDepositEmail(email.body)
         
-        if (!depositInfo) {
+        if (depositInfos.length === 0) {
           console.log(`⚠️ Could not parse email: ${email.subject}`)
           // 파싱 실패해도 읽음 처리 (반복 알림 방지)
           await markAsRead(email.id)
           continue
         }
 
-        // Slack 알림 전송
-        const sent = await sendDepositNotification({
-          depositor_name: depositInfo.depositor_name,
-          amount: depositInfo.amount,
-          email_subject: email.subject,
-          email_date: email.date
-        })
+        console.log(`💰 Found ${depositInfos.length} deposit(s) in email: ${email.subject}`)
 
-        if (sent) {
-          // 성공적으로 전송했으면 메일을 읽음으로 표시
-          await markAsRead(email.id)
+        // 각 입금 내역마다 개별 Slack 알림 전송
+        for (const depositInfo of depositInfos) {
+          try {
+            const sent = await sendDepositNotification({
+              depositor_name: depositInfo.depositor_name,
+              amount: depositInfo.amount,
+              email_subject: email.subject,
+            })
+
+            if (sent) {
+              console.log(`✅ Slack notification sent: ${depositInfo.depositor_name} - ${depositInfo.amount}`)
+            } else {
+              console.log(`⚠️ Failed to send Slack notification: ${depositInfo.depositor_name}`)
+            }
+          } catch (notifError) {
+            console.error(`❌ Error sending notification for ${depositInfo.depositor_name}:`, notifError)
+          }
         }
+
+        // 모든 알림 전송 후 메일 읽음 처리
+        await markAsRead(email.id)
       } catch (error: any) {
         console.error(`❌ Failed to process email ${email.id}:`, error.message)
       }
