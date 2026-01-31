@@ -16,7 +16,8 @@ import {
   Users,
   ArrowUpRight,
   ArrowDownRight,
-  Calendar
+  Calendar,
+  X
 } from 'lucide-react'
 import MeetingModal from '../components/MeetingModal'
 import { DatePickerInput } from '../components/ui/date-picker-input'
@@ -31,7 +32,9 @@ import {
   CartesianGrid, 
   Tooltip, 
   Legend, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  LineChart,
+  Line
 } from 'recharts'
 import { format, subDays, subWeeks, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 
@@ -72,6 +75,8 @@ export default function DashboardPage() {
   const [performanceData, setPerformanceData] = useState<PerformanceStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
+  const [showSalesTrendModal, setShowSalesTrendModal] = useState(false)
+  const [salesTrendData, setSalesTrendData] = useState<any>(null)
 
   // 날짜 초기 설정
   useEffect(() => {
@@ -115,6 +120,24 @@ export default function DashboardPage() {
       setLoading(false)
     }
   }, [startDate, endDate, managerFilter])
+
+  // 12개월 매출 추이 가져오기
+  const fetchSalesTrend = useCallback(async () => {
+    try {
+      const response = await api.get('/dashboard/sales-trend', {
+        params: { manager: managerFilter }
+      })
+      setSalesTrendData(response.data)
+    } catch (error) {
+      console.error('Failed to fetch sales trend:', error)
+    }
+  }, [managerFilter])
+
+  // 매출 카드 클릭 핸들러
+  const handleSalesCardClick = () => {
+    fetchSalesTrend()
+    setShowSalesTrendModal(true)
+  }
 
   useEffect(() => {
     fetchUsers()
@@ -320,7 +343,10 @@ export default function DashboardPage() {
         {/* Top Summary Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* 총 매출액 */}
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+            onClick={handleSalesCardClick}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{t('totalSales')}</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -767,6 +793,185 @@ export default function DashboardPage() {
           performanceData={performanceData}
           users={users}
         />
+      )}
+
+      {/* 월별 매출 추이 모달 */}
+      {showSalesTrendModal && salesTrendData && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowSalesTrendModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="sticky top-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-t-2xl flex justify-between items-center z-10">
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {language === 'ko' ? '월별 매출 추이' : '月別売上推移'}
+                </h2>
+                <p className="text-blue-100 text-sm mt-1">
+                  {language === 'ko' ? '최근 12개월간' : '最近12ヶ月間'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSalesTrendModal(false)}
+                className="hover:bg-white/20 rounded-full p-2 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* 모달 콘텐츠 */}
+            <div className="p-6 space-y-6">
+              {/* 그래프 */}
+              <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-xl shadow-sm">
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={
+                    managerFilter === 'all' 
+                      ? salesTrendData.totalSales 
+                      : Array.isArray(salesTrendData) 
+                        ? salesTrendData 
+                        : []
+                  }>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+                    <XAxis 
+                      dataKey="month" 
+                      tick={{ fontSize: 12 }}
+                      stroke="#666"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      stroke="#666"
+                      tickFormatter={(value) => formatNumber(value)}
+                    />
+                    <Tooltip 
+                      formatter={(value: any) => formatNumber(value) + t('yen')}
+                      contentStyle={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: 'white'
+                      }}
+                    />
+                    <Legend />
+                    {managerFilter === 'all' ? (
+                      <Line 
+                        type="monotone" 
+                        dataKey="amount" 
+                        name={language === 'ko' ? '전체 매출' : '全体売上'}
+                        stroke="#3b82f6" 
+                        strokeWidth={3}
+                        dot={{ fill: '#3b82f6', r: 6 }}
+                        activeDot={{ r: 8 }}
+                      />
+                    ) : (
+                      <>
+                        <Line 
+                          type="monotone" 
+                          dataKey="personalSales" 
+                          name={language === 'ko' ? '개인 매출' : '個人売上'}
+                          stroke="#10b981" 
+                          strokeWidth={3}
+                          dot={{ fill: '#10b981', r: 6 }}
+                          activeDot={{ r: 8 }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="totalSales" 
+                          name={language === 'ko' ? '전체 매출' : '全体売上'}
+                          stroke="#3b82f6" 
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          dot={{ fill: '#3b82f6', r: 4 }}
+                        />
+                      </>
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* 월별 데이터 테이블 */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-3 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {language === 'ko' ? '월별 상세 데이터' : '月別詳細データ'}
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {language === 'ko' ? '월' : '月'}
+                        </th>
+                        {managerFilter !== 'all' && (
+                          <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            {language === 'ko' ? '개인 매출' : '個人売上'}
+                          </th>
+                        )}
+                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {managerFilter === 'all' 
+                            ? (language === 'ko' ? '매출' : '売上')
+                            : (language === 'ko' ? '전체 매출' : '全体売上')
+                          }
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {(managerFilter === 'all' 
+                        ? salesTrendData.totalSales 
+                        : Array.isArray(salesTrendData) ? salesTrendData : []
+                      ).map((item: any, index: number) => (
+                        <tr 
+                          key={item.month}
+                          className={`hover:bg-blue-50 transition-colors ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          }`}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {item.month}
+                          </td>
+                          {managerFilter !== 'all' && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-green-600">
+                              {formatNumber(item.personalSales)}{t('yen')}
+                            </td>
+                          )}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-blue-600">
+                            {formatNumber(managerFilter === 'all' ? item.amount : item.totalSales)}{t('yen')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gradient-to-r from-blue-50 to-purple-50 border-t-2 border-blue-200">
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                          {language === 'ko' ? '합계' : '合計'}
+                        </td>
+                        {managerFilter !== 'all' && (
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-green-700">
+                            {formatNumber(
+                              (Array.isArray(salesTrendData) ? salesTrendData : []).reduce((sum: number, item: any) => sum + (item.personalSales || 0), 0)
+                            )}{t('yen')}
+                          </td>
+                        )}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-blue-700">
+                          {formatNumber(
+                            (managerFilter === 'all' 
+                              ? salesTrendData.totalSales 
+                              : Array.isArray(salesTrendData) ? salesTrendData : []
+                            ).reduce((sum: number, item: any) => sum + (managerFilter === 'all' ? item.amount : item.totalSales || 0), 0)
+                          )}{t('yen')}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
