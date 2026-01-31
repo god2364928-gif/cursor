@@ -30,6 +30,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [nameFilter, setNameFilter] = useState<string>('all')
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all')
+  const [bankNameFilter, setBankNameFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
   
   // 폼
@@ -51,6 +52,11 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
   
   // CSV 업로드
   const [uploadingCsv, setUploadingCsv] = useState(false)
+  
+  // SMBC 붙여넣기
+  const [showSmbcPasteDialog, setShowSmbcPasteDialog] = useState(false)
+  const [smbcPasteText, setSmbcPasteText] = useState('')
+  const [uploadingSmbc, setUploadingSmbc] = useState(false)
   
   // 메모 편집
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
@@ -357,6 +363,37 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
     }
   }
 
+  const handleSmbcPasteUpload = async () => {
+    if (!smbcPasteText.trim()) {
+      alert(language === 'ja' ? 'テキストを入力してください' : '텍스트를 입력하세요')
+      return
+    }
+
+    setUploadingSmbc(true)
+    try {
+      const response = await api.post('/accounting/transactions/smbc-paste', {
+        pastedText: smbcPasteText
+      })
+      
+      fetchTransactions()
+      onTransactionChange?.()
+      setShowSmbcPasteDialog(false)
+      setSmbcPasteText('')
+      
+      const { imported, errors } = response.data
+      alert(
+        language === 'ja' 
+          ? `${imported}件アップロード成功${errors > 0 ? ` (${errors}件エラー)` : ''}` 
+          : `${imported}건 업로드 성공${errors > 0 ? ` (${errors}건 오류)` : ''}`
+      )
+    } catch (error) {
+      console.error('SMBC paste upload error:', error)
+      alert(language === 'ja' ? 'アップロード失敗' : '업로드 실패')
+    } finally {
+      setUploadingSmbc(false)
+    }
+  }
+
   const handleMemoEdit = (id: string, currentMemo: string | null) => {
     setEditingMemoId(id)
     setMemoDrafts({ ...memoDrafts, [id]: currentMemo || '' })
@@ -424,7 +461,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
       startDate, 
       endDate, 
       totalTransactions: transactions.length,
-      filters: { transactionTypeFilter, categoryFilter, nameFilter, paymentMethodFilter, searchQuery }
+      filters: { transactionTypeFilter, categoryFilter, nameFilter, paymentMethodFilter, bankNameFilter, searchQuery }
     })
     
     const filtered = transactions.filter(tx => {
@@ -461,7 +498,12 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
         return false
       }
       
-      // 7. 검색어 필터
+      // 7. 은행명 필터
+      if (bankNameFilter !== 'all' && tx.bankName !== bankNameFilter) {
+        return false
+      }
+      
+      // 8. 검색어 필터
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         const itemMatch = tx.itemName?.toLowerCase().includes(query)
@@ -484,7 +526,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
       .reduce((sum, tx) => sum + tx.amount, 0)
     
     return { filtered, incomeTotal, expenseTotal }
-  }, [transactions, startDate, endDate, transactionTypeFilter, categoryFilter, nameFilter, paymentMethodFilter, searchQuery])
+  }, [transactions, startDate, endDate, transactionTypeFilter, categoryFilter, nameFilter, paymentMethodFilter, bankNameFilter, searchQuery])
 
   return (
     <div className="space-y-4">
@@ -584,6 +626,18 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
               </select>
             </div>
             <div>
+              <label className="block text-sm font-medium mb-1">{language === 'ja' ? '銀行' : '은행'}</label>
+              <select
+                value={bankNameFilter}
+                onChange={(e) => setBankNameFilter(e.target.value)}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="all">{language === 'ja' ? '全て' : '전체'}</option>
+                <option value="PayPay">PayPay</option>
+                <option value="SMBC">SMBC</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium mb-1">{language === 'ja' ? '検索' : '검색'}</label>
               <Input
                 type="text"
@@ -592,54 +646,63 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex items-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setTransactionTypeFilter('all')
-                  setCategoryFilter('all')
-                  setNameFilter('all')
-                  setPaymentMethodFilter('all')
-                  setSearchQuery('')
-                }}
-                className="h-10"
-              >
-                {language === 'ja' ? 'リセット' : '초기화'}
-              </Button>
-            </div>
           </div>
-          <div className="flex gap-2 justify-end">
+          <div className="flex gap-2 justify-between items-center">
             <Button
               variant="outline"
-              onClick={() => setShowAutoMatchDialog(true)}
-            >
-              {language === 'ja' ? '自動マッチング設定' : '자동 매칭 설정'}
-            </Button>
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleCsvUpload}
-                className="hidden"
-                disabled={uploadingCsv}
-              />
-              <div className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 ${uploadingCsv ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                <Upload className="h-4 w-4 mr-2" />
-                {uploadingCsv ? (language === 'ja' ? 'アップロード中...' : '업로드 중...') : (language === 'ja' ? 'CSV アップロード' : 'CSV 업로드')}
-              </div>
-            </label>
-            <Button
               onClick={() => {
-                if (showTransactionForm && !editingTransaction) {
-                  closeTransactionForm()
-                } else {
-                  openTransactionForm()
-                }
+                setTransactionTypeFilter('all')
+                setCategoryFilter('all')
+                setNameFilter('all')
+                setPaymentMethodFilter('all')
+                setBankNameFilter('all')
+                setSearchQuery('')
               }}
+              className="h-10"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              {language === 'ja' ? '追加' : '추가'}
+              {language === 'ja' ? 'リセット' : '초기화'}
             </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowAutoMatchDialog(true)}
+              >
+                {language === 'ja' ? '自動マッチング設定' : '자동 매칭 설정'}
+              </Button>
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCsvUpload}
+                  className="hidden"
+                  disabled={uploadingCsv}
+                />
+                <div className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 ${uploadingCsv ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {uploadingCsv ? (language === 'ja' ? 'アップロード中...' : '업로드 중...') : (language === 'ja' ? 'CSV (PayPay)' : 'CSV (PayPay)')}
+                </div>
+              </label>
+              <Button
+                variant="outline"
+                onClick={() => setShowSmbcPasteDialog(true)}
+                disabled={uploadingSmbc}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {language === 'ja' ? '貼り付け (SMBC)' : '붙여넣기 (SMBC)'}
+              </Button>
+              <Button
+                onClick={() => {
+                  if (showTransactionForm && !editingTransaction) {
+                    closeTransactionForm()
+                  } else {
+                    openTransactionForm()
+                  }
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {language === 'ja' ? '追加' : '추가'}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -874,6 +937,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                   <th className="px-3 py-3 text-left" style={{ width: '120px' }}>{language === 'ja' ? '名前' : '이름'}</th>
                   <th className="px-3 py-3 text-right" style={{ width: '120px' }}>{language === 'ja' ? '金額' : '금액'}</th>
                   <th className="px-3 py-3 text-left" style={{ width: '80px' }}>{language === 'ja' ? '決済' : '결제'}</th>
+                  <th className="px-3 py-3 text-left" style={{ width: '70px' }}>{language === 'ja' ? '銀行' : '은행'}</th>
                   <th className="px-3 py-3 text-left" style={{ width: '150px' }}>{language === 'ja' ? 'メモ' : '메모'}</th>
                   <th className="px-3 py-3 text-center" style={{ width: '60px' }}>{language === 'ja' ? '操作' : '조작'}</th>
                 </tr>
@@ -946,6 +1010,13 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                     </td>
                     <td className="px-3 py-2 text-right font-semibold text-sm">{formatCurrency(tx.amount)}</td>
                     <td className="px-3 py-2 text-sm">{tx.paymentMethod}</td>
+                    <td className="px-3 py-2 text-sm">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                        tx.bankName === 'SMBC' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                      }`}>
+                        {tx.bankName || 'PayPay'}
+                      </span>
+                    </td>
                     <td className="px-3 py-2" style={{ maxWidth: '250px' }}>
                       {editingMemoId === tx.id ? (
                         <div className="flex items-center gap-2">
@@ -1075,6 +1146,83 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                   </Button>
                   <Button onClick={handleBulkEdit}>
                     {language === 'ja' ? '適用' : '적용'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* SMBC 붙여넣기 모달 */}
+      {showSmbcPasteDialog && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowSmbcPasteDialog(false)
+            }
+          }}
+        >
+          <Card className="w-full max-w-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <span className="inline-block px-3 py-1 rounded text-sm font-medium bg-blue-100 text-blue-800">
+                  SMBC
+                </span>
+                {language === 'ja' ? '銀行明細を貼り付け' : '은행 내역 붙여넣기'}
+              </CardTitle>
+              <p className="text-sm text-gray-600 mt-2">
+                {language === 'ja' 
+                  ? 'SMBC銀行のウェブサイトから明細をコピーして、下のボックスに貼り付けてください。'
+                  : 'SMBC 은행 웹사이트에서 내역을 복사한 후 아래 박스에 붙여넣으세요.'}
+              </p>
+              <div className="bg-gray-50 p-3 rounded mt-2 text-xs">
+                <div className="font-medium mb-1">{language === 'ja' ? '例' : '예시'}:</div>
+                <pre className="text-gray-600 whitespace-pre-wrap">
+                  入金{'\n'}
+                  振込{'\n'}
+                  2026/1/30{'\n'}
+                  2026/1/30{'\n'}
+                  ｶ)ｼｴﾙ{'\n'}
+                  99,000{'\n'}
+                  円{'\n'}
+                  0{'\n'}
+                  円{'\n'}
+                  30000002
+                </pre>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <textarea
+                    value={smbcPasteText}
+                    onChange={(e) => setSmbcPasteText(e.target.value)}
+                    placeholder={language === 'ja' ? 'ここに貼り付けてください...' : '여기에 붙여넣으세요...'}
+                    className="w-full border rounded px-3 py-2 h-64 font-mono text-sm"
+                    disabled={uploadingSmbc}
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowSmbcPasteDialog(false)
+                      setSmbcPasteText('')
+                    }}
+                    disabled={uploadingSmbc}
+                  >
+                    {language === 'ja' ? 'キャンセル' : '취소'}
+                  </Button>
+                  <Button 
+                    onClick={handleSmbcPasteUpload}
+                    disabled={uploadingSmbc || !smbcPasteText.trim()}
+                  >
+                    {uploadingSmbc 
+                      ? (language === 'ja' ? 'アップロード中...' : '업로드 중...') 
+                      : (language === 'ja' ? 'アップロード' : '업로드')}
                   </Button>
                 </div>
               </div>
