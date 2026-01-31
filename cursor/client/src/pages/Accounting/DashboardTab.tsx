@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import api from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, X } from 'lucide-react'
 import { Bar, Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -66,6 +66,9 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
   const { startDate, endDate, fiscalYear, setStartDate, setEndDate, setFiscalYear, setDateRange } = useAccountingStore()
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showSalesModal, setShowSalesModal] = useState(false)
+  const [showExpensesModal, setShowExpensesModal] = useState(false)
+  const [showProfitModal, setShowProfitModal] = useState(false)
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true)
@@ -302,7 +305,10 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+          onClick={() => setShowSalesModal(true)}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -318,7 +324,10 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+          onClick={() => setShowExpensesModal(true)}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -334,7 +343,10 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+          onClick={() => setShowProfitModal(true)}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -435,6 +447,525 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* 월별 매출 추이 모달 */}
+      {showSalesModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowSalesModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="sticky top-0 bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-6 rounded-t-2xl flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {language === 'ja' ? '月別売上推移' : '월별 매출 추이'}
+                </h2>
+                <p className="text-emerald-100 text-sm mt-1">
+                  {language === 'ja' ? '最近12ヶ月間' : '최근 12개월간'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSalesModal(false)}
+                className="hover:bg-white/20 rounded-full p-2 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* 모달 콘텐츠 */}
+            <div className="p-6 space-y-6">
+              {/* 그래프 */}
+              <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-xl shadow-sm">
+                <div style={{ height: '400px' }}>
+                  {monthlyChartData && (
+                    <Line 
+                      data={{
+                        labels: dashboard.monthlyData.map((d) => d.month),
+                        datasets: [
+                          {
+                            label: language === 'ja' ? '月別売上' : '월별 매출',
+                            data: dashboard.monthlyData.map((d) => d.sales),
+                            borderColor: 'rgb(16, 185, 129)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: 'rgb(16, 185, 129)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                          },
+                        ],
+                      }} 
+                      options={{ 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                              font: {
+                                size: 14,
+                                weight: 'bold'
+                              },
+                              padding: 20,
+                            }
+                          },
+                          tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                              size: 14,
+                            },
+                            bodyFont: {
+                              size: 13,
+                            },
+                            callbacks: {
+                              label: function(context) {
+                                return ' ' + formatCurrency(context.parsed.y)
+                              }
+                            }
+                          }
+                        },
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            ticks: {
+                              callback: function(value) {
+                                return formatCurrency(value as number)
+                              },
+                              font: {
+                                size: 12
+                              }
+                            },
+                            grid: {
+                              color: 'rgba(0, 0, 0, 0.05)',
+                            }
+                          },
+                          x: {
+                            ticks: {
+                              font: {
+                                size: 12
+                              }
+                            },
+                            grid: {
+                              display: false,
+                            }
+                          }
+                        }
+                      }} 
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* 월별 데이터 테이블 */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-3 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {language === 'ja' ? '月別詳細データ' : '월별 상세 데이터'}
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {language === 'ja' ? '月' : '월'}
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {language === 'ja' ? '売上' : '매출'}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {dashboard.monthlyData.map((item, index) => (
+                        <tr 
+                          key={item.month}
+                          className={`hover:bg-emerald-50 transition-colors ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          }`}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {item.month}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-emerald-600">
+                            {formatCurrency(item.sales)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gradient-to-r from-emerald-50 to-teal-50 border-t-2 border-emerald-200">
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                          {language === 'ja' ? '合計' : '합계'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-emerald-700">
+                          {formatCurrency(dashboard.monthlyData.reduce((sum, item) => sum + item.sales, 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 월별 지출 추이 모달 */}
+      {showExpensesModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowExpensesModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="sticky top-0 bg-gradient-to-r from-red-500 to-orange-600 text-white p-6 rounded-t-2xl flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {language === 'ja' ? '月別支出推移' : '월별 지출 추이'}
+                </h2>
+                <p className="text-red-100 text-sm mt-1">
+                  {language === 'ja' ? '最近12ヶ月間' : '최근 12개월간'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowExpensesModal(false)}
+                className="hover:bg-white/20 rounded-full p-2 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* 모달 콘텐츠 */}
+            <div className="p-6 space-y-6">
+              {/* 그래프 */}
+              <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-xl shadow-sm">
+                <div style={{ height: '400px' }}>
+                  {monthlyChartData && (
+                    <Line 
+                      data={{
+                        labels: dashboard.monthlyData.map((d) => d.month),
+                        datasets: [
+                          {
+                            label: language === 'ja' ? '月別支出' : '월별 지출',
+                            data: dashboard.monthlyData.map((d) => d.expenses),
+                            borderColor: 'rgb(239, 68, 68)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: 'rgb(239, 68, 68)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                          },
+                        ],
+                      }} 
+                      options={{ 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                              font: {
+                                size: 14,
+                                weight: 'bold'
+                              },
+                              padding: 20,
+                            }
+                          },
+                          tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                              size: 14,
+                            },
+                            bodyFont: {
+                              size: 13,
+                            },
+                            callbacks: {
+                              label: function(context) {
+                                return ' ' + formatCurrency(context.parsed.y)
+                              }
+                            }
+                          }
+                        },
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            ticks: {
+                              callback: function(value) {
+                                return formatCurrency(value as number)
+                              },
+                              font: {
+                                size: 12
+                              }
+                            },
+                            grid: {
+                              color: 'rgba(0, 0, 0, 0.05)',
+                            }
+                          },
+                          x: {
+                            ticks: {
+                              font: {
+                                size: 12
+                              }
+                            },
+                            grid: {
+                              display: false,
+                            }
+                          }
+                        }
+                      }} 
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* 월별 데이터 테이블 */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-3 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {language === 'ja' ? '月別詳細データ' : '월별 상세 데이터'}
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {language === 'ja' ? '月' : '월'}
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {language === 'ja' ? '支出' : '지출'}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {dashboard.monthlyData.map((item, index) => (
+                        <tr 
+                          key={item.month}
+                          className={`hover:bg-red-50 transition-colors ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          }`}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {item.month}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-red-600">
+                            {formatCurrency(item.expenses)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gradient-to-r from-red-50 to-orange-50 border-t-2 border-red-200">
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                          {language === 'ja' ? '合計' : '합계'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-red-700">
+                          {formatCurrency(dashboard.monthlyData.reduce((sum, item) => sum + item.expenses, 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 월별 순이익 추이 모달 */}
+      {showProfitModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowProfitModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="sticky top-0 bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6 rounded-t-2xl flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {language === 'ja' ? '月別純利益推移' : '월별 순이익 추이'}
+                </h2>
+                <p className="text-blue-100 text-sm mt-1">
+                  {language === 'ja' ? '最近12ヶ月間' : '최근 12개월간'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowProfitModal(false)}
+                className="hover:bg-white/20 rounded-full p-2 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* 모달 콘텐츠 */}
+            <div className="p-6 space-y-6">
+              {/* 그래프 */}
+              <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-xl shadow-sm">
+                <div style={{ height: '400px' }}>
+                  {monthlyChartData && (
+                    <Line 
+                      data={{
+                        labels: dashboard.monthlyData.map((d) => d.month),
+                        datasets: [
+                          {
+                            label: language === 'ja' ? '月別純利益' : '월별 순이익',
+                            data: dashboard.monthlyData.map((d) => d.profit),
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: 'rgb(59, 130, 246)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                          },
+                        ],
+                      }} 
+                      options={{ 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                              font: {
+                                size: 14,
+                                weight: 'bold'
+                              },
+                              padding: 20,
+                            }
+                          },
+                          tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                              size: 14,
+                            },
+                            bodyFont: {
+                              size: 13,
+                            },
+                            callbacks: {
+                              label: function(context) {
+                                return ' ' + formatCurrency(context.parsed.y)
+                              }
+                            }
+                          }
+                        },
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            ticks: {
+                              callback: function(value) {
+                                return formatCurrency(value as number)
+                              },
+                              font: {
+                                size: 12
+                              }
+                            },
+                            grid: {
+                              color: 'rgba(0, 0, 0, 0.05)',
+                            }
+                          },
+                          x: {
+                            ticks: {
+                              font: {
+                                size: 12
+                              }
+                            },
+                            grid: {
+                              display: false,
+                            }
+                          }
+                        }
+                      }} 
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* 월별 데이터 테이블 */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-3 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {language === 'ja' ? '月別詳細データ' : '월별 상세 데이터'}
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {language === 'ja' ? '月' : '월'}
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {language === 'ja' ? '純利益' : '순이익'}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {dashboard.monthlyData.map((item, index) => (
+                        <tr 
+                          key={item.month}
+                          className={`hover:bg-blue-50 transition-colors ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          }`}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {item.month}
+                          </td>
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-semibold ${
+                            item.profit >= 0 ? 'text-blue-600' : 'text-red-600'
+                          }`}>
+                            {formatCurrency(item.profit)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t-2 border-blue-200">
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                          {language === 'ja' ? '合計' : '합계'}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${
+                          dashboard.monthlyData.reduce((sum, item) => sum + item.profit, 0) >= 0 
+                            ? 'text-blue-700' 
+                            : 'text-red-700'
+                        }`}>
+                          {formatCurrency(dashboard.monthlyData.reduce((sum, item) => sum + item.profit, 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
