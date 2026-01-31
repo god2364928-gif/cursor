@@ -41,6 +41,7 @@ export interface Transaction {
   assignedUserId?: string | null
   assignedUserName?: string | null
   memo?: string | null
+  bankName?: string
   createdAt: string
 }
 

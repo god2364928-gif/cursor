@@ -26,8 +26,8 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
 
     let query = `
       SELECT 
-        t.id, t.transaction_date, t.transaction_time, t.fiscal_year, t.transaction_type, t.category,
-        t.payment_method, t.item_name, t.amount, t.memo, t.attachment_url,
+        t.id, TO_CHAR(t.transaction_date, 'YYYY-MM-DD') as transaction_date, t.transaction_time, t.fiscal_year, t.transaction_type, t.category,
+        t.payment_method, t.item_name, t.amount, t.memo, t.attachment_url, t.bank_name,
         t.created_at,
         e.name as employee_name,
         c.account_name,
@@ -93,7 +93,7 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
 
     res.json(result.rows.map((r: any) => ({
       id: r.id,
-      transactionDate: formatDate(r.transaction_date),
+      transactionDate: r.transaction_date,  // 이미 TO_CHAR로 문자열 형태
       transactionTime: formatTime(r.transaction_time),
       fiscalYear: r.fiscal_year,
       transactionType: r.transaction_type,
@@ -107,6 +107,7 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
       assignedUserName: r.assigned_user_name,
       memo: r.memo,
       attachmentUrl: r.attachment_url,
+      bankName: r.bank_name,
       createdAt: r.created_at,
     })))
   } catch (error) {
@@ -130,6 +131,7 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
       assignedUserId,
       memo,
       attachmentUrl,
+      bankName,
     } = req.body
 
     const normalizeTime = (value?: string | null) => {
@@ -149,8 +151,8 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
 
     const result = await pool.query(
       `INSERT INTO accounting_transactions 
-       (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, employee_id, account_id, assigned_user_id, memo, attachment_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, employee_id, account_id, assigned_user_id, memo, attachment_url, bank_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [
         transactionDate,
@@ -165,6 +167,7 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
         assignedUserId || null,
         memo || null,
         attachmentUrl || null,
+        bankName || 'PayPay',
       ]
     )
 
@@ -240,8 +243,8 @@ router.post('/transactions/bulk', authMiddleware, adminOnly, async (req: AuthReq
         
         const result = await pool.query(
           `INSERT INTO accounting_transactions 
-           (transaction_date, transaction_type, category, payment_method, item_name, amount, memo, assigned_user_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           (transaction_date, transaction_type, category, payment_method, item_name, amount, memo, assigned_user_id, bank_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING *`,
           [
             transactionDate,
@@ -251,7 +254,8 @@ router.post('/transactions/bulk', authMiddleware, adminOnly, async (req: AuthReq
             itemName,
             amount,
             memo || null,
-            assignedUserId || null
+            assignedUserId || null,
+            'PayPay',
           ]
         )
         
@@ -662,10 +666,10 @@ router.post('/transactions/csv-upload', authMiddleware, adminOnly, upload.single
         // DB 삽입
         const result = await pool.query(
           `INSERT INTO accounting_transactions 
-           (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, assigned_user_id, memo)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, assigned_user_id, memo, bank_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING *`,
-          [transactionDate, transactionTime, transactionType, category, paymentMethod, itemName, amount, assignedUserId, memoClean]
+          [transactionDate, transactionTime, transactionType, category, paymentMethod, itemName, amount, assignedUserId, memoClean, 'PayPay']
         )
 
         imported.push(result.rows[0])
@@ -696,6 +700,186 @@ router.delete('/transactions/all', authMiddleware, adminOnly, async (_req: AuthR
   } catch (error) {
     console.error('Transaction bulk delete error:', error)
     res.status(500).json({ error: '거래내역 초기화에 실패했습니다' })
+  }
+})
+
+// ========== SMBC 은행 붙여넣기 업로드 ==========
+router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { pastedText } = req.body
+
+    if (!pastedText || typeof pastedText !== 'string') {
+      return res.status(400).json({ error: '붙여넣기 내용이 없습니다' })
+    }
+
+    console.log('=== SMBC Paste Upload Started ===')
+    console.log('Pasted text length:', pastedText.length)
+
+    // 자동 매칭 규칙 로드
+    const matchRulesResult = await pool.query(
+      `SELECT keyword, category, assigned_user_id, payment_method, priority
+       FROM accounting_auto_match_rules
+       WHERE is_active = true
+       ORDER BY priority DESC, keyword ASC`
+    )
+    const matchRules = matchRulesResult.rows
+    console.log(`Loaded ${matchRules.length} auto-match rules`)
+
+    // 자동 매칭 함수
+    const applyAutoMatch = (itemName: string) => {
+      const lowerItemName = itemName.toLowerCase()
+      for (const rule of matchRules) {
+        if (lowerItemName.includes(rule.keyword.toLowerCase())) {
+          console.log(`Auto-match: "${itemName}" matched with keyword "${rule.keyword}"`)
+          return {
+            category: rule.category || undefined,
+            assignedUserId: rule.assigned_user_id || undefined,
+            paymentMethod: rule.payment_method || undefined
+          }
+        }
+      }
+      return {}
+    }
+
+    // 라인별로 파싱
+    const lines = pastedText.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+    
+    console.log('=== SMBC Paste Lines ===')
+    console.log('Total lines:', lines.length)
+    lines.forEach((line, idx) => console.log(`[${idx}]: "${line}"`))
+    
+    const imported: any[] = []
+    const errors: any[] = []
+
+    // SMBC 은행 내역 파싱 - 유연한 방식으로 변경
+    // "入金" 또는 "出金"을 찾아서 시작
+    let i = 0
+    while (i < lines.length) {
+      try {
+        // 입금/출금 라인 찾기
+        const transactionTypeText = lines[i]
+        if (!transactionTypeText || (!transactionTypeText.includes('入金') && !transactionTypeText.includes('出金'))) {
+          i++
+          continue
+        }
+
+        console.log(`\n=== Processing transaction starting at line ${i} ===`)
+        console.log('Transaction type:', transactionTypeText)
+
+        // 다음 항목들 순서대로 찾기
+        let idx = i + 1
+        
+        // 방법 (振込 등)
+        const method = lines[idx] || ''
+        console.log(`[${idx}] Method:`, method)
+        idx++
+        
+        // 날짜 1 (YYYY/M/D 형식)
+        let date1 = lines[idx] || ''
+        console.log(`[${idx}] Date1:`, date1)
+        idx++
+        
+        // 날짜 2 (보통 같음)
+        let date2 = lines[idx] || ''
+        console.log(`[${idx}] Date2:`, date2)
+        idx++
+        
+        // 이름
+        const name = lines[idx] || ''
+        console.log(`[${idx}] Name:`, name)
+        idx++
+        
+        // 금액 (숫자와 쉼표)
+        const amountText = lines[idx] || ''
+        console.log(`[${idx}] Amount:`, amountText)
+        idx++
+
+        // 날짜 파싱
+        const dateParts = date1.split('/')
+        if (dateParts.length !== 3) {
+          console.log('Invalid date format, skipping')
+          i++
+          continue
+        }
+        
+        const year = dateParts[0]
+        const month = dateParts[1].padStart(2, '0')
+        const day = dateParts[2].padStart(2, '0')
+        const transactionDate = `${year}-${month}-${day}`
+        console.log('Parsed date:', transactionDate)
+
+        // 입금/출금 판단
+        const transactionType = transactionTypeText.includes('入金') ? '입금' : '출금'
+        
+        // 금액 파싱
+        const amount = Number(amountText.replace(/,/g, ''))
+        if (isNaN(amount) || amount === 0) {
+          console.log('Invalid amount, skipping')
+          i++
+          continue
+        }
+        console.log('Parsed amount:', amount)
+
+        // 항목명 생성
+        const itemName = `${method} ${name}`.trim()
+
+        // 카테고리 자동 추론
+        let category = '기타'
+        if (transactionType === '입금') {
+          if (name.includes('ココ') || name.includes('ｺｺ') || name.toUpperCase().includes('COCO')) {
+            category = '코코마케'
+          } else {
+            category = '셀마플'
+          }
+        } else {
+          category = '운영비'
+        }
+
+        // 결제수단
+        let paymentMethod = '계좌이체'
+
+        // 자동 매칭 규칙 적용
+        const autoMatch = applyAutoMatch(itemName)
+        if (autoMatch.category) category = autoMatch.category
+        if (autoMatch.paymentMethod) paymentMethod = autoMatch.paymentMethod
+        const assignedUserId = autoMatch.assignedUserId || null
+
+        console.log(`✅ Importing: ${itemName} | ${transactionDate} | ${amount} | ${category}`)
+
+        // DB 삽입
+        const result = await pool.query(
+          `INSERT INTO accounting_transactions 
+           (transaction_date, transaction_type, category, payment_method, item_name, amount, assigned_user_id, memo, bank_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING *`,
+          [transactionDate, transactionType, category, paymentMethod, itemName, amount, assignedUserId, null, 'SMBC']
+        )
+
+        imported.push(result.rows[0])
+        
+        // 다음 "入金" 또는 "出金" 찾기
+        i = idx
+        while (i < lines.length && !lines[i].includes('入金') && !lines[i].includes('出金')) {
+          i++
+        }
+      } catch (lineError) {
+        console.error('SMBC line parse error:', lineError)
+        errors.push({ line: i, error: String(lineError) })
+        i++
+      }
+    }
+
+    console.log(`Import completed: ${imported.length} imported, ${errors.length} errors`)
+
+    res.json({
+      success: true,
+      imported: imported.length,
+      errors: errors.length,
+      details: errors.length > 0 ? errors.slice(0, 5) : undefined,
+    })
+  } catch (error) {
+    console.error('SMBC paste upload error:', error)
+    res.status(500).json({ error: 'SMBC 붙여넣기 업로드에 실패했습니다' })
   }
 })
 
