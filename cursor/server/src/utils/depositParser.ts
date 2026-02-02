@@ -62,26 +62,26 @@ export function parseDepositEmail(emailBody: string): DepositInfo[] {
     for (const match of allMatches) {
       let depositorName = '알 수 없음'
       
-      // 해당 금액 주변 텍스트 추출 (앞 500자)
+      // 금액 앞뒤로 넓은 범위의 텍스트 추출
       const startPos = Math.max(0, match.index - 500)
-      const contextBefore = emailBody.substring(startPos, match.index)
+      const endPos = Math.min(emailBody.length, match.index + 500)
+      const contextAround = emailBody.substring(startPos, endPos)
       
-      // 패턴 1: "内容 ： [입금자명]" 형식 (해당 금액과 가장 가까운 것)
-      const contentPattern = /内容[\s　]*[：:]+[\s　]*(.+?)[\s　]*$/m
-      const lines = contextBefore.split('\n')
+      // 패턴 1: "内容 ： 振込 [입금자명]" 형식
+      // 금액 앞뒤 모두에서 찾기
+      const contentPattern = /内容[\s　]*[：:]+[\s　]*振込[\s　]+([^\n\r]+)/
+      const contentMatch = contextAround.match(contentPattern)
       
-      // 금액 바로 위부터 역순으로 "内容" 찾기
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const line = lines[i]
-        const contentMatch = line.match(contentPattern)
-        if (contentMatch) {
-          depositorName = contentMatch[1].replace(/^振込[\s　]*/, '').trim()
-          break
-        }
+      if (contentMatch) {
+        depositorName = contentMatch[1]
+          .replace(/[\s　]+/g, ' ')  // 연속된 공백을 하나로
+          .trim()
       }
       
       // 패턴 2: 금액 바로 위 줄 (예: "ラスタジオヤマダマコト\n55,000円")
       if (depositorName === '알 수 없음') {
+        const contextBefore = emailBody.substring(startPos, match.index)
+        const lines = contextBefore.split('\n')
         const lastLine = lines[lines.length - 1]?.trim()
         
         if (lastLine && lastLine.length > 0 && lastLine.length < 100 && 
