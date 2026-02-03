@@ -22,6 +22,8 @@ interface MonthlyData {
   strip_fee: number
   strip1: number
   strip1_fee: number
+  strip2: number
+  strip2_fee: number
   coconala: number
 }
 
@@ -95,6 +97,8 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
         'strip_fee': { paymentMethod: 'strip', isFee: true },
         'strip1': { paymentMethod: 'strip1', isFee: false },
         'strip1_fee': { paymentMethod: 'strip1', isFee: true },
+        'strip2': { paymentMethod: 'strip2', isFee: false },
+        'strip2_fee': { paymentMethod: 'strip2', isFee: true },
         'coconala': { paymentMethod: 'coconala', isFee: false },
       }
       
@@ -216,6 +220,8 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                 {renderPaymentRow(language === 'ja' ? 'strip 手数料' : 'strip 수수료', 'strip_fee')}
                 {renderPaymentRow('strip1', 'strip1')}
                 {renderPaymentRow(language === 'ja' ? 'strip1 手数料' : 'strip1 수수료', 'strip1_fee')}
+                {renderPaymentRow('strip2', 'strip2')}
+                {renderPaymentRow(language === 'ja' ? 'strip2 手数料' : 'strip2 수수료', 'strip2_fee')}
                 {renderPaymentRow(language === 'ja' ? 'ココナラ' : '코코나라', 'coconala')}
                 
                 {/* 매출 합계 행 */}
@@ -224,7 +230,7 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                   {months.map(month => {
                     const sales = getValue(month, 'bank_transfer') + getValue(month, 'paypay') + 
                                  getValue(month, 'paypal') + getValue(month, 'strip') + 
-                                 getValue(month, 'strip1') + getValue(month, 'coconala')
+                                 getValue(month, 'strip1') + getValue(month, 'strip2') + getValue(month, 'coconala')
                     return (
                       <td key={month} className="px-2 py-2 text-right text-sm border">
                         {formatCurrency(sales)}
@@ -235,7 +241,7 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                     {formatCurrency(
                       getRowTotal('bank_transfer') + getRowTotal('paypay') + 
                       getRowTotal('paypal') + getRowTotal('strip') + 
-                      getRowTotal('strip1') + getRowTotal('coconala')
+                      getRowTotal('strip1') + getRowTotal('strip2') + getRowTotal('coconala')
                     )}
                   </td>
                 </tr>
@@ -246,7 +252,7 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                   {months.map(month => {
                     const fees = getValue(month, 'bank_transfer_fee') + getValue(month, 'paypay_fee') + 
                                 getValue(month, 'paypal_fee') + getValue(month, 'strip_fee') + 
-                                getValue(month, 'strip1_fee')
+                                getValue(month, 'strip1_fee') + getValue(month, 'strip2_fee')
                     return (
                       <td key={month} className="px-2 py-2 text-right text-sm border">
                         {formatCurrency(fees)}
@@ -257,7 +263,7 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                     {formatCurrency(
                       getRowTotal('bank_transfer_fee') + getRowTotal('paypay_fee') + 
                       getRowTotal('paypal_fee') + getRowTotal('strip_fee') + 
-                      getRowTotal('strip1_fee')
+                      getRowTotal('strip1_fee') + getRowTotal('strip2_fee')
                     )}
                   </td>
                 </tr>
@@ -271,10 +277,10 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                     
                     const sales = getValue(month, 'bank_transfer') + getValue(month, 'paypay') + 
                                  getValue(month, 'paypal') + getValue(month, 'strip') + 
-                                 getValue(month, 'strip1') + getValue(month, 'coconala')
+                                 getValue(month, 'strip1') + getValue(month, 'strip2') + getValue(month, 'coconala')
                     const fees = getValue(month, 'bank_transfer_fee') + getValue(month, 'paypay_fee') + 
                                 getValue(month, 'paypal_fee') + getValue(month, 'strip_fee') + 
-                                getValue(month, 'strip1_fee')
+                                getValue(month, 'strip1_fee') + getValue(month, 'strip2_fee')
                     
                     return (
                       <td key={month} className="px-2 py-2 text-right text-sm border">
@@ -284,8 +290,8 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                   })}
                   <td className="px-4 py-2 text-right text-sm bg-green-200 border font-extrabold">
                     {formatCurrency(
-                      (getRowTotal('bank_transfer') + getRowTotal('paypay') + getRowTotal('paypal') + getRowTotal('strip') + getRowTotal('strip1') + getRowTotal('coconala')) -
-                      (getRowTotal('bank_transfer_fee') + getRowTotal('paypay_fee') + getRowTotal('paypal_fee') + getRowTotal('strip_fee') + getRowTotal('strip1_fee'))
+                      (getRowTotal('bank_transfer') + getRowTotal('paypay') + getRowTotal('paypal') + getRowTotal('strip') + getRowTotal('strip1') + getRowTotal('strip2') + getRowTotal('coconala')) -
+                      (getRowTotal('bank_transfer_fee') + getRowTotal('paypay_fee') + getRowTotal('paypal_fee') + getRowTotal('strip_fee') + getRowTotal('strip1_fee') + getRowTotal('strip2_fee'))
                     )}
                   </td>
                 </tr>

@@ -31,6 +31,8 @@ router.get('/:fiscalYear', auth_1.authMiddleware, adminOnly_1.adminOnly, async (
                     strip_fee: 0,
                     strip1: 0,
                     strip1_fee: 0,
+                    strip2: 0,
+                    strip2_fee: 0,
                     coconala: 0
                 };
             }
@@ -68,6 +70,14 @@ router.get('/:fiscalYear', auth_1.authMiddleware, adminOnly_1.adminOnly, async (
                 }
                 else {
                     monthlyData[month].strip1 = amount;
+                }
+            }
+            else if (paymentMethod === 'strip2') {
+                if (isFee) {
+                    monthlyData[month].strip2_fee = amount;
+                }
+                else {
+                    monthlyData[month].strip2 = amount;
                 }
             }
             else if (paymentMethod === 'strip' || paymentMethod === 'stripe') {
