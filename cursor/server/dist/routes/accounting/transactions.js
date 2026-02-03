@@ -12,6 +12,7 @@ const iconv_lite_1 = __importDefault(require("iconv-lite"));
 const sync_1 = require("csv-parse/sync");
 const dateValidator_1 = require("../../utils/dateValidator");
 const dateHelper_1 = require("../../utils/dateHelper");
+// SMBC bank integration
 const router = (0, express_1.Router)();
 const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 router.get('/transactions', auth_1.authMiddleware, adminOnly_1.adminOnly, async (req, res) => {
