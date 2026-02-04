@@ -1,3 +1,6 @@
+-- 기존 테이블 삭제 후 DB 저장 방식으로 재생성
+DROP TABLE IF EXISTS monthly_payroll_files CASCADE;
+
 -- 월별 급여명세서 파일 관리 테이블 (DB 저장 방식)
 CREATE TABLE IF NOT EXISTS monthly_payroll_files (
     id SERIAL PRIMARY KEY,

@@ -2,34 +2,12 @@ import { Router, Response } from 'express'
 import { AuthRequest, authMiddleware } from '../middleware/auth'
 import { pool } from '../db'
 import multer from 'multer'
-import fs from 'fs'
-import path from 'path'
 
 const router = Router()
 
-// 파일 저장 설정
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const { fiscalYear, month } = req.body
-    const uploadDir = path.join(__dirname, '../../uploads/payroll', fiscalYear.toString(), month.toString())
-    
-    // 디렉토리가 없으면 생성
-    fs.mkdirSync(uploadDir, { recursive: true })
-    cb(null, uploadDir)
-  },
-  filename: (req, file, cb) => {
-    // 파일명을 안전하게 처리 (원본 파일명 유지하되 중복 방지)
-    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8')
-    const timestamp = Date.now()
-    const ext = path.extname(originalName)
-    const nameWithoutExt = path.basename(originalName, ext)
-    const safeFileName = `${nameWithoutExt}_${timestamp}${ext}`
-    cb(null, safeFileName)
-  }
-})
-
+// 파일을 메모리에 임시 저장 (DB에 Base64로 저장)
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 50 * 1024 * 1024 // 50MB 제한
   },
@@ -353,7 +331,7 @@ router.post('/fix-base-salary', authMiddleware, adminOnly, async (req: AuthReque
 
 // ========== 급여명세서 파일 관리 ==========
 
-// 파일 업로드
+// 파일 업로드 (DB 저장)
 router.post('/file/upload', authMiddleware, adminOnly, upload.single('file'), async (req: AuthRequest, res: Response) => {
   try {
     const { fiscalYear, month } = req.body
@@ -364,8 +342,6 @@ router.post('/file/upload', authMiddleware, adminOnly, upload.single('file'), as
     }
     
     if (!fiscalYear || !month) {
-      // 업로드된 파일 삭제
-      fs.unlinkSync(file.path)
       return res.status(400).json({ message: '연도와 월을 입력해주세요' })
     }
     
@@ -373,32 +349,28 @@ router.post('/file/upload', authMiddleware, adminOnly, upload.single('file'), as
     try {
       await client.query('BEGIN')
       
-      // 기존 파일 확인
+      // 기존 파일 확인 후 삭제
       const existingResult = await client.query(
-        `SELECT id, file_path FROM monthly_payroll_files WHERE fiscal_year = $1 AND month = $2`,
+        `SELECT id FROM monthly_payroll_files WHERE fiscal_year = $1 AND month = $2`,
         [fiscalYear, month]
       )
       
-      // 기존 파일이 있으면 삭제
       if (existingResult.rows.length > 0) {
-        const oldFilePath = existingResult.rows[0].file_path
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath)
-        }
-        
-        // DB에서 기존 레코드 삭제
         await client.query(
           `DELETE FROM monthly_payroll_files WHERE fiscal_year = $1 AND month = $2`,
           [fiscalYear, month]
         )
       }
       
-      // 새 파일 정보 저장
+      // 파일을 Base64로 인코딩
+      const fileDataBase64 = file.buffer.toString('base64')
       const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8')
+      
+      // DB에 파일 저장
       await client.query(
-        `INSERT INTO monthly_payroll_files (fiscal_year, month, file_name, file_path, file_size, mime_type, uploaded_by)
+        `INSERT INTO monthly_payroll_files (fiscal_year, month, file_name, file_data, file_size, mime_type, uploaded_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [fiscalYear, month, originalName, file.path, file.size, file.mimetype, req.user?.id]
+        [fiscalYear, month, originalName, fileDataBase64, file.size, file.mimetype, req.user?.id]
       )
       
       await client.query('COMMIT')
@@ -413,10 +385,6 @@ router.post('/file/upload', authMiddleware, adminOnly, upload.single('file'), as
       })
     } catch (error) {
       await client.query('ROLLBACK')
-      // 업로드된 파일 삭제
-      if (file && fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path)
-      }
       throw error
     } finally {
       client.release()
@@ -460,13 +428,13 @@ router.get('/file/:fiscalYear/:month', authMiddleware, adminOnly, async (req: Au
   }
 })
 
-// 파일 다운로드
+// 파일 다운로드 (DB에서 조회)
 router.get('/file/download/:fiscalYear/:month', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
     const { fiscalYear, month } = req.params
     
     const result = await pool.query(
-      `SELECT file_name, file_path, mime_type FROM monthly_payroll_files
+      `SELECT file_name, file_data, mime_type FROM monthly_payroll_files
        WHERE fiscal_year = $1 AND month = $2`,
       [fiscalYear, month]
     )
@@ -475,49 +443,35 @@ router.get('/file/download/:fiscalYear/:month', authMiddleware, adminOnly, async
       return res.status(404).json({ message: '파일을 찾을 수 없습니다' })
     }
     
-    const { file_name, file_path, mime_type } = result.rows[0]
+    const { file_name, file_data, mime_type } = result.rows[0]
     
-    if (!fs.existsSync(file_path)) {
-      return res.status(404).json({ message: '파일이 서버에 존재하지 않습니다' })
-    }
+    // Base64 디코딩
+    const fileBuffer = Buffer.from(file_data, 'base64')
     
     res.setHeader('Content-Type', mime_type || 'application/octet-stream')
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file_name)}"`)
+    res.setHeader('Content-Length', fileBuffer.length.toString())
     
-    const fileStream = fs.createReadStream(file_path)
-    fileStream.pipe(res)
+    res.send(fileBuffer)
   } catch (error) {
     console.error('File download error:', error)
     res.status(500).json({ message: '파일 다운로드에 실패했습니다' })
   }
 })
 
-// 파일 삭제
+// 파일 삭제 (DB에서 삭제)
 router.delete('/file/:fiscalYear/:month', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
     const { fiscalYear, month } = req.params
     
     const result = await pool.query(
-      `SELECT file_path FROM monthly_payroll_files WHERE fiscal_year = $1 AND month = $2`,
+      `DELETE FROM monthly_payroll_files WHERE fiscal_year = $1 AND month = $2 RETURNING id`,
       [fiscalYear, month]
     )
     
     if (result.rows.length === 0) {
       return res.status(404).json({ message: '파일을 찾을 수 없습니다' })
     }
-    
-    const filePath = result.rows[0].file_path
-    
-    // 파일 삭제
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath)
-    }
-    
-    // DB에서 삭제
-    await pool.query(
-      `DELETE FROM monthly_payroll_files WHERE fiscal_year = $1 AND month = $2`,
-      [fiscalYear, month]
-    )
     
     res.json({ success: true, message: '파일이 삭제되었습니다' })
   } catch (error) {
