@@ -55,7 +55,9 @@ export default function SettingsPage() {
   const [showExamViewModal, setShowExamViewModal] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedUserName, setSelectedUserName] = useState<string>('')
-  const [examSubmitted, setExamSubmitted] = useState(false)
+  const [exam1Submitted, setExam1Submitted] = useState(false)
+  const [exam2Submitted, setExam2Submitted] = useState(false)
+  const [currentExamRound, setCurrentExamRound] = useState(1)
 
   useEffect(() => {
     if (isAdmin) {
@@ -67,8 +69,13 @@ export default function SettingsPage() {
 
   const checkExamStatus = async () => {
     try {
-      const response = await api.get('/exam/my-answers')
-      setExamSubmitted(response.data.isSubmitted || false)
+      // 1차 시험 상태 확인
+      const response1 = await api.get('/exam/my-answers?round=1')
+      setExam1Submitted(response1.data.isSubmitted || false)
+      
+      // 2차 시험 상태 확인
+      const response2 = await api.get('/exam/my-answers?round=2')
+      setExam2Submitted(response2.data.isSubmitted || false)
     } catch (error) {
       console.error('Failed to check exam status:', error)
     }
@@ -207,6 +214,11 @@ export default function SettingsPage() {
     }
   }
 
+  const handleStartExam = (round: number) => {
+    setCurrentExamRound(round)
+    setShowExamModal(true)
+  }
+
   const handleViewExamAnswers = (userId: string, userName: string) => {
     setSelectedUserId(userId)
     setSelectedUserName(userName)
@@ -242,21 +254,36 @@ export default function SettingsPage() {
                   <Button onClick={() => setShowPasswordChange(!showPasswordChange)} variant="outline">
                     {t('changePassword')}
                   </Button>
-                  {!examSubmitted && (
-                    <Button 
-                      onClick={() => setShowExamModal(true)} 
-                      variant="outline"
-                      className="ml-2"
-                    >
-                      <FileText className="w-4 h-4 mr-2" />
-                      {t('examStart')}
-                    </Button>
-                  )}
-                  {examSubmitted && (
-                    <span className="ml-2 text-sm text-green-600 font-medium">
-                      ✓ {t('examSubmitted')}
-                    </span>
-                  )}
+                  <div className="mt-2 space-x-2">
+                    {!exam1Submitted && (
+                      <Button 
+                        onClick={() => handleStartExam(1)} 
+                        variant="outline"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        1차 {t('examStart')}
+                      </Button>
+                    )}
+                    {exam1Submitted && !exam2Submitted && (
+                      <Button 
+                        onClick={() => handleStartExam(2)} 
+                        variant="outline"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        2차 {t('examStart')}
+                      </Button>
+                    )}
+                    {exam1Submitted && (
+                      <span className="inline-block text-sm text-green-600 font-medium">
+                        ✓ 1차 {t('examSubmitted')}
+                      </span>
+                    )}
+                    {exam2Submitted && (
+                      <span className="inline-block ml-2 text-sm text-green-600 font-medium">
+                        ✓ 2차 {t('examSubmitted')}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               {showPasswordChange && (
@@ -558,7 +585,8 @@ export default function SettingsPage() {
         onOpenChange={(open) => {
           setShowExamModal(open)
           if (!open) checkExamStatus() // 모달 닫을 때 제출 상태 다시 확인
-        }} 
+        }}
+        examRound={currentExamRound}
       />
       
       {/* 어드민 - 직원 답변 조회 모달 */}

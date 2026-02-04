@@ -19,9 +19,13 @@ const EXAM_QUESTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
 export default function ExamViewModal({ open, onOpenChange, userId, userName }: ExamViewModalProps) {
   const { t } = useI18nStore()
-  const [answers, setAnswers] = useState<Record<number, string>>({})
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [submittedAt, setSubmittedAt] = useState<string | null>(null)
+  const [exams, setExams] = useState<Array<{
+    answers: Record<number, string>
+    examRound: number
+    isSubmitted: boolean
+    submittedAt: string | null
+  }>>([])
+  const [selectedRound, setSelectedRound] = useState(1)
   const [loading, setLoading] = useState(false)
   const [userInfo, setUserInfo] = useState<{ name: string; email: string; role: string } | null>(null)
 
@@ -37,18 +41,33 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
     setLoading(true)
     try {
       const response = await api.get(`/exam/user/${userId}/answers`)
-      if (response.data.answers) {
-        // JSONB에서 number 키를 string으로 저장했으므로 변환
-        const loadedAnswers: Record<number, string> = {}
-        Object.keys(response.data.answers).forEach((key) => {
-          loadedAnswers[parseInt(key)] = response.data.answers[key]
+      
+      if (response.data.exams && response.data.exams.length > 0) {
+        // 각 시험 회차의 답변을 변환
+        const loadedExams = response.data.exams.map((exam: any) => {
+          const loadedAnswers: Record<number, string> = {}
+          if (exam.answers) {
+            Object.keys(exam.answers).forEach((key) => {
+              loadedAnswers[parseInt(key)] = exam.answers[key]
+            })
+          }
+          return {
+            answers: loadedAnswers,
+            examRound: exam.examRound,
+            isSubmitted: exam.isSubmitted,
+            submittedAt: exam.submittedAt
+          }
         })
-        setAnswers(loadedAnswers)
+        setExams(loadedExams)
+        
+        // 기본적으로 첫 번째 회차 선택
+        if (loadedExams.length > 0) {
+          setSelectedRound(loadedExams[0].examRound)
+        }
       } else {
-        setAnswers({})
+        setExams([])
       }
-      setIsSubmitted(response.data.isSubmitted || false)
-      setSubmittedAt(response.data.submittedAt || null)
+      
       setUserInfo(response.data.user || null)
     } catch (error) {
       console.error('Failed to load user exam answers:', error)
@@ -70,15 +89,16 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
   }
 
   const handleCopyAll = () => {
-    if (!isSubmitted) return
+    const currentExam = exams.find(e => e.examRound === selectedRound)
+    if (!currentExam || !currentExam.isSubmitted) return
 
-    let copyText = `${userName || userInfo?.name || ''} - ${t('examTitle')}\n`
-    copyText += `${t('examSubmitted')}: ${formatDate(submittedAt)}\n\n`
+    let copyText = `${userName || userInfo?.name || ''} - ${t('examTitle')} ${selectedRound}차\n`
+    copyText += `${t('examSubmitted')}: ${formatDate(currentExam.submittedAt)}\n\n`
     copyText += '='.repeat(50) + '\n\n'
 
     EXAM_QUESTIONS.forEach((qNum) => {
       const question = t(`exam${qNum}` as any)
-      const answer = answers[qNum] || t('examNoAnswer')
+      const answer = currentExam.answers[qNum] || t('examNoAnswer')
       
       copyText += `${qNum}. ${question}\n\n`
       copyText += `[${t('examAnswer')}]\n${answer}\n\n`
@@ -92,6 +112,8 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
       alert('복사에 실패했습니다')
     })
   }
+
+  const currentExam = exams.find(e => e.examRound === selectedRound)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -107,14 +129,37 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
                 <p>{t('role')}: {userInfo.role}</p>
               </>
             )}
-            {isSubmitted ? (
-              <p className="text-green-600 font-medium">
-                ✓ {t('examSubmitted')} ({formatDate(submittedAt)})
-              </p>
-            ) : (
-              <p className="text-orange-600 font-medium">{t('examNotSubmitted')}</p>
-            )}
           </div>
+          
+          {/* 회차 선택 탭 */}
+          {exams.length > 0 && (
+            <div className="flex gap-2 mt-4">
+              {exams.map((exam) => (
+                <Button
+                  key={exam.examRound}
+                  variant={selectedRound === exam.examRound ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedRound(exam.examRound)}
+                >
+                  {exam.examRound}차 시험
+                  {exam.isSubmitted && <span className="ml-1">✓</span>}
+                </Button>
+              ))}
+            </div>
+          )}
+          
+          {/* 선택된 회차의 제출 상태 */}
+          {currentExam && (
+            <div className="mt-2">
+              {currentExam.isSubmitted ? (
+                <p className="text-sm text-green-600 font-medium">
+                  ✓ {t('examSubmitted')} ({formatDate(currentExam.submittedAt)})
+                </p>
+              ) : (
+                <p className="text-sm text-orange-600 font-medium">{t('examNotSubmitted')}</p>
+              )}
+            </div>
+          )}
         </DialogHeader>
 
         <ScrollArea className="h-[60vh] pr-4">
@@ -122,7 +167,11 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
             <div className="flex justify-center items-center h-40">
               <p>{t('loading')}</p>
             </div>
-          ) : !isSubmitted ? (
+          ) : !currentExam ? (
+            <div className="flex flex-col items-center justify-center h-40 text-gray-500">
+              <p>{t('examNoAnswer')}</p>
+            </div>
+          ) : !currentExam.isSubmitted ? (
             <div className="flex flex-col items-center justify-center h-40 text-gray-500">
               <p>{t('examNoAnswer')}</p>
             </div>
@@ -134,7 +183,7 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
                     {qNum}. {t(`exam${qNum}` as any)}
                   </Label>
                   <Textarea
-                    value={answers[qNum] || ''}
+                    value={currentExam.answers[qNum] || ''}
                     disabled
                     className="min-h-[120px] bg-gray-50 cursor-default"
                     placeholder={t('examNoAnswer')}
@@ -147,7 +196,7 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
 
         <div className="flex justify-between gap-2 mt-4 pt-4 border-t">
           <div>
-            {isSubmitted && (
+            {currentExam?.isSubmitted && (
               <Button variant="outline" onClick={handleCopyAll}>
                 <Copy className="w-4 h-4 mr-2" />
                 {t('examCopyAll')}
