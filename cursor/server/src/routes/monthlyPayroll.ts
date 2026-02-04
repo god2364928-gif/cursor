@@ -1,8 +1,57 @@
 import { Router, Response } from 'express'
 import { AuthRequest, authMiddleware } from '../middleware/auth'
 import { pool } from '../db'
+import multer from 'multer'
+import fs from 'fs'
+import path from 'path'
 
 const router = Router()
+
+// 파일 저장 설정
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const { fiscalYear, month } = req.body
+    const uploadDir = path.join(__dirname, '../../uploads/payroll', fiscalYear.toString(), month.toString())
+    
+    // 디렉토리가 없으면 생성
+    fs.mkdirSync(uploadDir, { recursive: true })
+    cb(null, uploadDir)
+  },
+  filename: (req, file, cb) => {
+    // 파일명을 안전하게 처리 (원본 파일명 유지하되 중복 방지)
+    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8')
+    const timestamp = Date.now()
+    const ext = path.extname(originalName)
+    const nameWithoutExt = path.basename(originalName, ext)
+    const safeFileName = `${nameWithoutExt}_${timestamp}${ext}`
+    cb(null, safeFileName)
+  }
+})
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB 제한
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      'application/pdf',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'application/zip',
+      'application/x-zip-compressed'
+    ]
+    
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('허용되지 않는 파일 형식입니다. PDF, Excel, 이미지, ZIP 파일만 업로드 가능합니다.'))
+    }
+  }
+})
 
 // 관리자 전용 미들웨어
 const adminOnly = (req: AuthRequest, res: Response, next: any) => {
@@ -299,6 +348,181 @@ router.post('/fix-base-salary', authMiddleware, adminOnly, async (req: AuthReque
   } catch (error) {
     console.error('Base salary fix error:', error)
     res.status(500).json({ message: '기본급 수정에 실패했습니다' })
+  }
+})
+
+// ========== 급여명세서 파일 관리 ==========
+
+// 파일 업로드
+router.post('/file/upload', authMiddleware, adminOnly, upload.single('file'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { fiscalYear, month } = req.body
+    const file = req.file
+    
+    if (!file) {
+      return res.status(400).json({ message: '파일이 없습니다' })
+    }
+    
+    if (!fiscalYear || !month) {
+      // 업로드된 파일 삭제
+      fs.unlinkSync(file.path)
+      return res.status(400).json({ message: '연도와 월을 입력해주세요' })
+    }
+    
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      
+      // 기존 파일 확인
+      const existingResult = await client.query(
+        `SELECT id, file_path FROM monthly_payroll_files WHERE fiscal_year = $1 AND month = $2`,
+        [fiscalYear, month]
+      )
+      
+      // 기존 파일이 있으면 삭제
+      if (existingResult.rows.length > 0) {
+        const oldFilePath = existingResult.rows[0].file_path
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath)
+        }
+        
+        // DB에서 기존 레코드 삭제
+        await client.query(
+          `DELETE FROM monthly_payroll_files WHERE fiscal_year = $1 AND month = $2`,
+          [fiscalYear, month]
+        )
+      }
+      
+      // 새 파일 정보 저장
+      const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8')
+      await client.query(
+        `INSERT INTO monthly_payroll_files (fiscal_year, month, file_name, file_path, file_size, mime_type, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [fiscalYear, month, originalName, file.path, file.size, file.mimetype, req.user?.id]
+      )
+      
+      await client.query('COMMIT')
+      
+      res.json({ 
+        success: true, 
+        message: '파일이 업로드되었습니다',
+        file: {
+          name: originalName,
+          size: file.size
+        }
+      })
+    } catch (error) {
+      await client.query('ROLLBACK')
+      // 업로드된 파일 삭제
+      if (file && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path)
+      }
+      throw error
+    } finally {
+      client.release()
+    }
+  } catch (error) {
+    console.error('File upload error:', error)
+    res.status(500).json({ message: '파일 업로드에 실패했습니다' })
+  }
+})
+
+// 파일 정보 조회
+router.get('/file/:fiscalYear/:month', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { fiscalYear, month } = req.params
+    
+    const result = await pool.query(
+      `SELECT id, fiscal_year, month, file_name, file_size, mime_type, created_at
+       FROM monthly_payroll_files
+       WHERE fiscal_year = $1 AND month = $2`,
+      [fiscalYear, month]
+    )
+    
+    if (result.rows.length === 0) {
+      return res.json({ file: null })
+    }
+    
+    res.json({ 
+      file: {
+        id: result.rows[0].id,
+        fiscalYear: result.rows[0].fiscal_year,
+        month: result.rows[0].month,
+        fileName: result.rows[0].file_name,
+        fileSize: result.rows[0].file_size,
+        mimeType: result.rows[0].mime_type,
+        createdAt: result.rows[0].created_at
+      }
+    })
+  } catch (error) {
+    console.error('File info fetch error:', error)
+    res.status(500).json({ message: '파일 정보 조회에 실패했습니다' })
+  }
+})
+
+// 파일 다운로드
+router.get('/file/download/:fiscalYear/:month', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { fiscalYear, month } = req.params
+    
+    const result = await pool.query(
+      `SELECT file_name, file_path, mime_type FROM monthly_payroll_files
+       WHERE fiscal_year = $1 AND month = $2`,
+      [fiscalYear, month]
+    )
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: '파일을 찾을 수 없습니다' })
+    }
+    
+    const { file_name, file_path, mime_type } = result.rows[0]
+    
+    if (!fs.existsSync(file_path)) {
+      return res.status(404).json({ message: '파일이 서버에 존재하지 않습니다' })
+    }
+    
+    res.setHeader('Content-Type', mime_type || 'application/octet-stream')
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file_name)}"`)
+    
+    const fileStream = fs.createReadStream(file_path)
+    fileStream.pipe(res)
+  } catch (error) {
+    console.error('File download error:', error)
+    res.status(500).json({ message: '파일 다운로드에 실패했습니다' })
+  }
+})
+
+// 파일 삭제
+router.delete('/file/:fiscalYear/:month', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { fiscalYear, month } = req.params
+    
+    const result = await pool.query(
+      `SELECT file_path FROM monthly_payroll_files WHERE fiscal_year = $1 AND month = $2`,
+      [fiscalYear, month]
+    )
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: '파일을 찾을 수 없습니다' })
+    }
+    
+    const filePath = result.rows[0].file_path
+    
+    // 파일 삭제
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath)
+    }
+    
+    // DB에서 삭제
+    await pool.query(
+      `DELETE FROM monthly_payroll_files WHERE fiscal_year = $1 AND month = $2`,
+      [fiscalYear, month]
+    )
+    
+    res.json({ success: true, message: '파일이 삭제되었습니다' })
+  } catch (error) {
+    console.error('File delete error:', error)
+    res.status(500).json({ message: '파일 삭제에 실패했습니다' })
   }
 })
 
