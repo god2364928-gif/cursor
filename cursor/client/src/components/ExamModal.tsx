@@ -10,27 +10,35 @@ import { ScrollArea } from './ui/scroll-area'
 interface ExamModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  examRound?: number
 }
 
 const EXAM_QUESTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
-export default function ExamModal({ open, onOpenChange }: ExamModalProps) {
+export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamModalProps) {
   const { t } = useI18nStore()
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [currentRound, setCurrentRound] = useState(examRound)
+
+  useEffect(() => {
+    if (open) {
+      setCurrentRound(examRound)
+    }
+  }, [open, examRound])
 
   useEffect(() => {
     if (open) {
       loadExamAnswers()
     }
-  }, [open])
+  }, [open, currentRound])
 
   const loadExamAnswers = async () => {
     setLoading(true)
     try {
-      const response = await api.get('/exam/my-answers')
+      const response = await api.get(`/exam/my-answers?round=${currentRound}`)
       if (response.data.answers) {
         // JSONB에서 number 키를 string으로 저장했으므로 변환
         const loadedAnswers: Record<number, string> = {}
@@ -38,6 +46,8 @@ export default function ExamModal({ open, onOpenChange }: ExamModalProps) {
           loadedAnswers[parseInt(key)] = response.data.answers[key]
         })
         setAnswers(loadedAnswers)
+      } else {
+        setAnswers({}) // 새로운 회차는 빈 답변으로 시작
       }
       setIsSubmitted(response.data.isSubmitted || false)
     } catch (error) {
@@ -63,7 +73,7 @@ export default function ExamModal({ open, onOpenChange }: ExamModalProps) {
         answersForServer[key] = answers[parseInt(key)]
       })
 
-      await api.post('/exam/save-answers', { answers: answersForServer })
+      await api.post('/exam/save-answers', { answers: answersForServer, examRound: currentRound })
       alert(t('saved'))
     } catch (error: any) {
       alert(error.response?.data?.message || t('saveFailed'))
@@ -87,7 +97,7 @@ export default function ExamModal({ open, onOpenChange }: ExamModalProps) {
         answersForServer[key] = answers[parseInt(key)]
       })
 
-      await api.post('/exam/submit-answers', { answers: answersForServer })
+      await api.post('/exam/submit-answers', { answers: answersForServer, examRound: currentRound })
       setIsSubmitted(true)
       alert(t('examSubmitted'))
     } catch (error: any) {
@@ -102,7 +112,7 @@ export default function ExamModal({ open, onOpenChange }: ExamModalProps) {
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
-            {t('examTitle')}
+            {t('examTitle')} - {currentRound}차
             {isSubmitted && (
               <span className="ml-3 text-sm font-normal text-green-600">
                 ✓ {t('examSubmitted')}
