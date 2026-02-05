@@ -108,7 +108,7 @@ export default function AccountOptimizationPage2() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('accountOpt2SearchPlaceholder')}
+                placeholder=""
                 disabled={loading}
                 className="pl-10 h-12 text-base"
               />
