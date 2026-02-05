@@ -20,6 +20,8 @@ const salesTracking_1 = __importDefault(require("./routes/salesTracking"));
 const globalSearch_1 = __importDefault(require("./routes/globalSearch"));
 const integrations_1 = __importDefault(require("./routes/integrations"));
 const accountOptimization_1 = __importDefault(require("./routes/accountOptimization"));
+const accountOptimization2_1 = __importDefault(require("./routes/accountOptimization2"));
+const imageConverter_1 = __importDefault(require("./routes/imageConverter"));
 const meeting_1 = __importDefault(require("./routes/meeting"));
 const keywordAnalysis_1 = __importDefault(require("./routes/keywordAnalysis"));
 const index_1 = __importDefault(require("./routes/accounting/index"));
@@ -77,14 +79,16 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['Content-Disposition'],
     preflightContinue: false,
     optionsSuccessStatus: 200,
     maxAge: 86400
 };
 app.use((0, cors_1.default)(corsOptions));
 app.options('*', (0, cors_1.default)(corsOptions));
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '50mb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '50mb' }));
 // Add request logging for debugging
 app.use((req, res, next) => {
     const startTime = Date.now();
@@ -107,6 +111,8 @@ app.use('/api/sales-tracking', salesTracking_1.default);
 app.use('/api/global-search', globalSearch_1.default);
 app.use('/api/integrations', integrations_1.default);
 app.use('/api/account-optimization', accountOptimization_1.default);
+app.use('/api/account-optimization-2', accountOptimization2_1.default);
+app.use('/api/convert-image-to-base64', imageConverter_1.default);
 app.use('/api/meeting', meeting_1.default);
 app.use('/api/keyword-analysis', keywordAnalysis_1.default);
 app.use('/api/accounting', index_1.default);

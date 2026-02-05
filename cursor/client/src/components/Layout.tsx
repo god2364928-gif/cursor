@@ -18,6 +18,7 @@ import {
   FileText,
   UtensilsCrossed,
   ClipboardList,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from './ui/button'
 
@@ -32,6 +33,7 @@ const navigation = [
   { name: 'invoices', href: '/invoices', icon: FileText },
   { name: 'settings', href: '/settings', icon: Settings },
   { name: 'accountOptimization', href: '/settings/account-optimization', icon: Gauge, nested: true },
+  { name: 'accountOptimization2', href: '/settings/account-optimization-2', icon: Sparkles, nested: true },
   { name: 'keywordAnalysisMenu', href: '/settings/keyword-analysis', icon: TrendingUp, nested: true },
 ]
 
@@ -105,7 +107,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top bar with accounting tabs, accounting button and language switcher */}
-      <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-10">
+      <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-10 print:hidden hide-on-pdf">
         {/* 회계 페이지일 때만 탭 표시 */}
         {isAccountingPage && (
           <nav className="flex gap-2">
@@ -155,7 +157,7 @@ export default function Layout() {
 
       {/* Password Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 print:hidden hide-on-pdf">
           <div className="bg-white rounded-xl p-6 w-96 shadow-2xl">
             <h2 className="text-xl font-bold mb-4">{language === 'ja' ? '会計パスワード' : '회계 비밀번호'}</h2>
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
@@ -188,7 +190,7 @@ export default function Layout() {
       )}
 
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col">
+      <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col print:hidden hide-on-pdf">
         {/* Logo & User Name */}
         <div className="h-20 flex flex-col items-center justify-center border-b border-gray-200 p-3">
           <h1 className="text-xl font-bold text-blue-600">マーケティング CRM</h1>
@@ -234,8 +236,8 @@ export default function Layout() {
       </div>
 
       {/* Main content */}
-      <div className="pl-64 pt-16">
-        <main className="p-8">
+      <div className="pl-64 pt-16 print:pl-0 print:pt-0">
+        <main className="p-8 print:p-0">
           <Outlet />
         </main>
       </div>

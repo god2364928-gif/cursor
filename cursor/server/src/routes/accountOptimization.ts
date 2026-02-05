@@ -69,6 +69,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
           status: payload?.status,
           hasResult: !!payload?.result 
         })
+        // 실제 응답 구조 확인을 위한 로그 (개발용)
+        console.log('[AccountOptimization] Full response structure:', JSON.stringify(payload, null, 2).substring(0, 2000))
       } catch (parseError) {
         console.error('[AccountOptimization] Failed to parse response JSON', parseError)
         console.error('[AccountOptimization] Raw text (first 500 chars):', rawText.substring(0, 500))
