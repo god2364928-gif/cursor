@@ -16,6 +16,8 @@ import salesTrackingRoutes from './routes/salesTracking'
 import globalSearchRoutes from './routes/globalSearch'
 import integrationsRoutes from './routes/integrations'
 import accountOptimizationRoutes from './routes/accountOptimization'
+import accountOptimization2Routes from './routes/accountOptimization2'
+import imageConverterRoutes from './routes/imageConverter'
 import meetingRoutes from './routes/meeting'
 import keywordAnalysisRoutes from './routes/keywordAnalysis'
 import accountingRoutes from './routes/accounting/index'
@@ -111,6 +113,8 @@ app.use('/api/sales-tracking', salesTrackingRoutes)
 app.use('/api/global-search', globalSearchRoutes)
 app.use('/api/integrations', integrationsRoutes)
 app.use('/api/account-optimization', accountOptimizationRoutes)
+app.use('/api/account-optimization-2', accountOptimization2Routes)
+app.use('/api/convert-image-to-base64', imageConverterRoutes)
 app.use('/api/meeting', meetingRoutes)
 app.use('/api/keyword-analysis', keywordAnalysisRoutes)
 app.use('/api/accounting', accountingRoutes)

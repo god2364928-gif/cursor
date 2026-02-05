@@ -9,6 +9,7 @@ import SalesPage from './pages/SalesPage'
 import SalesTrackingPage from './pages/SalesTrackingPage'
 import SettingsPage from './pages/SettingsPage'
 import AccountOptimizationPage from './pages/AccountOptimizationPage'
+import AccountOptimizationPage2 from './pages/AccountOptimizationPage2'
 import KeywordAnalysisPage from './pages/KeywordAnalysisPage'
 import AccountingPage from './pages/AccountingPage'
 import InvoicePage from './pages/InvoicePage'
@@ -43,6 +44,7 @@ function App() {
           <Route path="invoices/create" element={<InvoiceCreatePage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="settings/account-optimization" element={<AccountOptimizationPage />} />
+          <Route path="settings/account-optimization-2" element={<AccountOptimizationPage2 />} />
           <Route path="settings/keyword-analysis" element={<KeywordAnalysisPage />} />
           <Route path="accounting" element={<AccountingPage />} />
           <Route path="hotpepper" element={<HotpepperPage />} />
