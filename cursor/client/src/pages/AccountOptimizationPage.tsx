@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react'
-import { Loader2, Sparkle, AlertCircle, Hash, Copy, Download } from 'lucide-react'
+import { Loader2, Sparkle, AlertCircle, Hash, Copy, Download, Printer } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { useClipboardCapture } from '../hooks/useClipboardCapture'
+import { exportReportToPdf } from '../utils/pdfExport'
 
 interface HashtagInfo {
   hashtag: string
@@ -116,6 +117,7 @@ export default function AccountOptimizationPage() {
   const [result, setResult] = useState<AccountAnalyticsResult | null>(null)
   const [searchedId, setSearchedId] = useState<string | null>(null)
   const [history, setHistory] = useState<string[]>([])
+  const [pdfExporting, setPdfExporting] = useState(false)
   const resultRef = useRef<HTMLDivElement>(null)
   const { copyFeedback, copyToClipboard, downloadAsImage } = useClipboardCapture(language)
 
@@ -177,6 +179,27 @@ export default function AccountOptimizationPage() {
       setResult(null)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handlePdfExport = async () => {
+    if (!searchedId || !result) return
+    
+    setPdfExporting(true)
+    try {
+      // 회사명 추출 (full_name 또는 username 사용)
+      const companyName = result.full_name || result.username || searchedId
+      
+      await exportReportToPdf({
+        accountId: searchedId,
+        companyName: companyName,
+        date: new Date().toISOString().split('T')[0],
+        language: language
+      })
+    } catch (err: any) {
+      setError(err.message || 'PDF 저장에 실패했습니다.')
+    } finally {
+      setPdfExporting(false)
     }
   }
 
@@ -374,9 +397,29 @@ export default function AccountOptimizationPage() {
                 <Download className="h-4 w-4" />
                 {t('accountOptimizationDownload')}
               </Button>
+              <Button
+                onClick={handlePdfExport}
+                disabled={pdfExporting}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 disabled:opacity-50"
+              >
+                {pdfExporting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    PDF 생성 중...
+                  </>
+                ) : (
+                  <>
+                    <Printer className="h-4 w-4" />
+                    PDF 다운로드
+                  </>
+                )}
+              </Button>
             </div>
           </div>
           <div
+            id="report-root"
             ref={resultRef}
             className="space-y-6 bg-white p-6 rounded-xl border border-gray-200 shadow-md"
           >
