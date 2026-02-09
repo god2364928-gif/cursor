@@ -57,6 +57,7 @@ export default function SettingsPage() {
   const [selectedUserName, setSelectedUserName] = useState<string>('')
   const [exam1Submitted, setExam1Submitted] = useState(false)
   const [exam2Submitted, setExam2Submitted] = useState(false)
+  const [exam3Submitted, setExam3Submitted] = useState(false)
   const [currentExamRound, setCurrentExamRound] = useState(1)
 
   useEffect(() => {
@@ -76,6 +77,10 @@ export default function SettingsPage() {
       // 2차 시험 상태 확인
       const response2 = await api.get('/exam/my-answers?round=2')
       setExam2Submitted(response2.data.isSubmitted || false)
+      
+      // 3차 시험 상태 확인
+      const response3 = await api.get('/exam/my-answers?round=3')
+      setExam3Submitted(response3.data.isSubmitted || false)
     } catch (error) {
       console.error('Failed to check exam status:', error)
     }
@@ -273,6 +278,15 @@ export default function SettingsPage() {
                         2차 {t('examStart')}
                       </Button>
                     )}
+                    {exam2Submitted && !exam3Submitted && (
+                      <Button 
+                        onClick={() => handleStartExam(3)} 
+                        variant="outline"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        3차 {t('examStart')}
+                      </Button>
+                    )}
                     {exam1Submitted && (
                       <span className="inline-block text-sm text-green-600 font-medium">
                         ✓ 1차 {t('examSubmitted')}
@@ -281,6 +295,11 @@ export default function SettingsPage() {
                     {exam2Submitted && (
                       <span className="inline-block ml-2 text-sm text-green-600 font-medium">
                         ✓ 2차 {t('examSubmitted')}
+                      </span>
+                    )}
+                    {exam3Submitted && (
+                      <span className="inline-block ml-2 text-sm text-green-600 font-medium">
+                        ✓ 3차 {t('examSubmitted')}
                       </span>
                     )}
                   </div>
