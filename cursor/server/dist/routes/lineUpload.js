@@ -8,6 +8,7 @@ const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
 const multer_1 = __importDefault(require("multer"));
 const lineParser_1 = require("../utils/lineParser");
+const dateHelper_1 = require("../utils/dateHelper");
 const router = (0, express_1.Router)();
 const upload = (0, multer_1.default)({
     storage: multer_1.default.memoryStorage(),
@@ -119,7 +120,7 @@ async function handleSalesHistory(parsed, req) {
         req.user?.name || 'Unknown',
         req.user?.team || null,
         '시작',
-        new Date().toISOString().split('T')[0],
+        (0, dateHelper_1.getJSTTodayString)(),
         memo,
         'LINE 대화'
     ]);
@@ -151,7 +152,7 @@ async function handleRetargeting(parsed, req) {
       retargeting_customer_id, user_id, user_name, type, content
     ) VALUES ($1, $2, $3, $4, $5)`, [customer.id, req.user?.id, req.user?.name, 'line_chat', historyContent]);
     // 마지막 연락일 업데이트
-    const lastDate = parsed.dateRange.end || new Date().toISOString().split('T')[0];
+    const lastDate = parsed.dateRange.end || (0, dateHelper_1.getJSTTodayString)();
     await db_1.pool.query('UPDATE retargeting_customers SET last_contact_date = $1 WHERE id = $2', [lastDate, customer.id]);
     return {
         action: 'updated',
@@ -182,7 +183,7 @@ async function handleCustomerManagement(parsed, req) {
       customer_id, user_id, type, content
     ) VALUES ($1, $2, $3, $4)`, [customer.id, req.user?.id, 'line_chat', historyContent]);
     // 마지막 연락일 업데이트
-    const lastDate = parsed.dateRange.end || new Date().toISOString().split('T')[0];
+    const lastDate = parsed.dateRange.end || (0, dateHelper_1.getJSTTodayString)();
     await db_1.pool.query('UPDATE customers SET last_contact = $1 WHERE id = $2', [lastDate, customer.id]);
     return {
         action: 'updated',
