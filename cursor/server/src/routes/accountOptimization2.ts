@@ -111,6 +111,7 @@ async function translateApiResponse(data: any): Promise<any> {
           '일': '日',
           '시간': '時間',
           '분': '分',
+          '건': '件',
         }
         const koreanUnit = category.current_status.unit
         if (unitMap[koreanUnit]) {
@@ -166,7 +167,68 @@ async function translateApiResponse(data: any): Promise<any> {
   
   console.log('[Translation] Translation completed')
   
+  // 번역 후 일본어 교정 (OpenAI 번역 오류 보정)
+  postTranslationFix(data)
+  
   return data
+}
+
+// 번역 후 일본어 교정 함수
+function postTranslationFix(data: any): void {
+  if (!data || !data.result) return
+
+  const fixes: [string, string][] = [
+    ['探索タブ', '発見タブ'],
+    ['リルス', 'リール'],
+    ['私の投稿の上位拡散作業', '投稿上位拡散作業'],
+  ]
+
+  function applyFixes(text: string): string {
+    let fixed = text
+    for (const [from, to] of fixes) {
+      fixed = fixed.split(from).join(to)
+    }
+    return fixed
+  }
+
+  const result = data.result
+
+  // 상위 레벨 텍스트 필드
+  const topKeys = [
+    'analytics_message', 'content_briefing', 'grade_action',
+    'grade_text', 'distribution_advice', 'distribution_text', 'reaction_status',
+  ]
+  for (const key of topKeys) {
+    if (typeof result[key] === 'string') {
+      result[key] = applyFixes(result[key])
+    }
+  }
+
+  // recommend_service_message
+  if (Array.isArray(result.recommend_service_message)) {
+    result.recommend_service_message = result.recommend_service_message.map(
+      (msg: any) => typeof msg === 'string' ? applyFixes(msg) : msg
+    )
+  }
+
+  // category_data
+  if (Array.isArray(result.category_data)) {
+    for (const category of result.category_data) {
+      if (typeof category.title === 'string') category.title = applyFixes(category.title)
+      if (typeof category.desc === 'string') category.desc = applyFixes(category.desc)
+      if (typeof category.know_how === 'string') category.know_how = applyFixes(category.know_how)
+      if (typeof category.insight === 'string') category.insight = applyFixes(category.insight)
+      if (typeof category.current_status?.text === 'string') {
+        category.current_status.text = applyFixes(category.current_status.text)
+      }
+      if (Array.isArray(category.action?.recommendations)) {
+        for (const rec of category.action.recommendations) {
+          if (typeof rec.title === 'string') rec.title = applyFixes(rec.title)
+          if (typeof rec.description === 'string') rec.description = applyFixes(rec.description)
+        }
+      }
+    }
+  }
 }
 
 // API 응답 내 "한국인" → "일본인" 치환 함수
