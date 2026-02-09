@@ -169,6 +169,63 @@ async function translateApiResponse(data: any): Promise<any> {
   return data
 }
 
+// API 응답 내 "한국인" → "일본인" 치환 함수
+function replaceTextInPayload(payload: any): void {
+  if (!payload || !payload.result) return
+
+  const result = payload.result
+  const replacements: [string, string][] = [
+    ['한국인', '일본인'],
+    ['韓国人', '日本人'],
+  ]
+
+  function replaceInString(text: string): string {
+    let replaced = text
+    for (const [from, to] of replacements) {
+      replaced = replaced.split(from).join(to)
+    }
+    return replaced
+  }
+
+  // 상위 레벨 텍스트 필드
+  const topLevelKeys = [
+    'analytics_message', 'content_briefing', 'grade_action',
+    'grade_text', 'distribution_advice', 'distribution_text', 'reaction_status',
+  ]
+  for (const key of topLevelKeys) {
+    if (typeof result[key] === 'string') {
+      result[key] = replaceInString(result[key])
+    }
+  }
+
+  // recommend_service_message 배열
+  if (Array.isArray(result.recommend_service_message)) {
+    result.recommend_service_message = result.recommend_service_message.map(
+      (msg: any) => typeof msg === 'string' ? replaceInString(msg) : msg
+    )
+  }
+
+  // category_data 내부 텍스트
+  if (Array.isArray(result.category_data)) {
+    for (const category of result.category_data) {
+      if (typeof category.title === 'string') category.title = replaceInString(category.title)
+      if (typeof category.desc === 'string') category.desc = replaceInString(category.desc)
+      if (typeof category.know_how === 'string') category.know_how = replaceInString(category.know_how)
+      if (typeof category.insight === 'string') category.insight = replaceInString(category.insight)
+      if (typeof category.current_status?.text === 'string') {
+        category.current_status.text = replaceInString(category.current_status.text)
+      }
+      // action.recommendations
+      if (Array.isArray(category.action?.recommendations)) {
+        for (const rec of category.action.recommendations) {
+          if (typeof rec.title === 'string') rec.title = replaceInString(rec.title)
+          if (typeof rec.description === 'string') rec.description = replaceInString(rec.description)
+        }
+      }
+    }
+  }
+}
+
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const id = String(req.query.id ?? '').trim()
   const lang = String(req.query.lang ?? 'ko').trim() // 언어 파라미터 받기 (기본값: ko)
@@ -258,6 +315,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         .status(502)
         .json(createErrorResponse('빈 응답을 받았습니다.'))
     }
+
+    // API 응답 내 "한국인" → "일본인" 치환 (GrowthCore API가 한국 기준으로 반환하므로)
+    replaceTextInPayload(payload)
 
     // 일본어 요청인 경우 번역 수행
     if (lang === 'ja') {
