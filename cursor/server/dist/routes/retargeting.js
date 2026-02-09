@@ -170,7 +170,7 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
         manager, manager_team, status, registered_at, contract_history_category
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`, [safeCompanyName, safeIndustry, safeCustomerName, safePhone, region || null, inflowPath || null,
-            manager, managerTeam || null, status || '시작', registeredAt || new Date().toISOString().split('T')[0], contractHistoryCategory || null]);
+            manager, managerTeam || null, status || '시작', registeredAt || (0, dateHelper_1.getKSTTodayString)(), contractHistoryCategory || null]);
         const customer = result.rows[0];
         const camelCaseCustomer = {
             id: customer.id,

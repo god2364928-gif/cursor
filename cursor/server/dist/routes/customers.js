@@ -7,6 +7,7 @@ const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
 const nullSafe_1 = require("../utils/nullSafe");
+const dateHelper_1 = require("../utils/dateHelper");
 const multer_1 = __importDefault(require("multer"));
 const router = (0, express_1.Router)();
 // Helper function to decode file name
@@ -467,14 +468,12 @@ router.post('/:id/extend', auth_1.authMiddleware, async (req, res) => {
         }
         const oldExpirationDate = customer.contract_expiration_date;
         // 날짜를 YYYY-MM-DD 형식으로 변환
-        const formattedOldDate = oldExpirationDate instanceof Date
-            ? oldExpirationDate.toISOString().split('T')[0]
-            : oldExpirationDate.split('T')[0] || oldExpirationDate;
+        const formattedOldDate = (0, dateHelper_1.toJSTDateString)(oldExpirationDate) || oldExpirationDate;
         const oldDate = new Date(formattedOldDate);
         // Add 1 month
         const newDate = new Date(oldDate);
         newDate.setMonth(newDate.getMonth() + 1);
-        const newExpirationDate = newDate.toISOString().split('T')[0];
+        const newExpirationDate = (0, dateHelper_1.toJSTDateString)(newDate) || '';
         // Update expiration date
         await db_1.pool.query('UPDATE customers SET contract_expiration_date = $1 WHERE id = $2', [newExpirationDate, id]);
         // Add history entry

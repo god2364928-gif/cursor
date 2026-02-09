@@ -4,11 +4,12 @@ exports.importRecentCalls = importRecentCalls;
 const db_1 = require("../db");
 const cpiClient_1 = require("../integrations/cpiClient");
 const nullSafe_1 = require("../utils/nullSafe");
+const dateHelper_1 = require("../utils/dateHelper");
 // CPI created_at은 KST 형식 문자열(예: 2025-11-07T11:13:25.xxx)로 반환됨.
 // 타임존 오프셋을 추가하지 않고 'YYYY-MM-DD'만 안정적으로 추출한다.
 function toDateString(isoLike) {
     if (!isoLike)
-        return new Date().toISOString().split('T')[0];
+        return (0, dateHelper_1.getJSTTodayString)();
     const i = isoLike.indexOf('T');
     return i > 0 ? isoLike.slice(0, i) : isoLike.slice(0, 10);
 }

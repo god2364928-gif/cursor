@@ -307,3 +307,4 @@ process.on('unhandledRejection', (reason, promise) => {
 // Force rebuild 1766393763
 // Deploy 1766448614
 // Tue Dec 23 09:44:44 JST 2025
+// Deploy: 2026-02-09 - 날짜 타임존 수정 + 월별통계 성능개선 재배포
