@@ -1,7 +1,7 @@
 import { google } from 'googleapis'
 import fs from 'fs'
-import path from 'path'
 import dotenv from 'dotenv'
+import iconv from 'iconv-lite'
 
 dotenv.config()
 
@@ -49,6 +49,85 @@ function getGmailClient() {
     console.error('❌ Failed to initialize Gmail client:', error.message)
     return null
   }
+}
+
+/**
+ * 메일 헤더에서 charset 추출
+ */
+function getCharsetFromHeaders(headers: Array<{ name?: string | null; value?: string | null }> | undefined | null): string | null {
+  if (!headers) return null
+  const contentType = headers.find(h => h.name?.toLowerCase() === 'content-type')
+  if (!contentType?.value) return null
+  const charsetMatch = contentType.value.match(/charset\s*=\s*"?([^";\s]+)"?/i)
+  return charsetMatch ? charsetMatch[1] : null
+}
+
+/**
+ * base64 인코딩된 메일 본문을 올바른 문자셋으로 디코딩
+ * 1) Content-Type 헤더의 charset이 있으면 그걸 사용
+ * 2) 없으면 여러 인코딩을 시도해서 일본어가 가장 많이 인식되는 것을 선택
+ */
+function decodeBodyData(data: string, charset: string | null): string {
+  const buffer = Buffer.from(data, 'base64')
+
+  // 1) 헤더에 charset이 명시된 경우
+  if (charset) {
+    const normalized = charset.toUpperCase().replace(/[^A-Z0-9-]/g, '')
+    if (iconv.encodingExists(normalized)) {
+      const decoded = iconv.decode(buffer, normalized)
+      console.log(`📝 Decoded email body with charset: ${normalized}`)
+      return decoded
+    }
+  }
+
+  // 2) charset 없음 → 여러 인코딩 시도 후 최적 선택
+  const encodings = ['UTF-8', 'ISO-2022-JP', 'SHIFT_JIS', 'CP932', 'EUC-JP']
+  let bestResult = ''
+  let bestEncoding = 'UTF-8'
+  let maxJapaneseChars = 0
+
+  for (const encoding of encodings) {
+    try {
+      const decoded = iconv.decode(buffer, encoding)
+      const japaneseCount = (decoded.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\uFF61-\uFF9F]/g) || []).length
+      if (japaneseCount > maxJapaneseChars) {
+        maxJapaneseChars = japaneseCount
+        bestResult = decoded
+        bestEncoding = encoding
+      }
+    } catch {
+      // skip
+    }
+  }
+
+  if (maxJapaneseChars > 0) {
+    console.log(`📝 Auto-detected encoding: ${bestEncoding} (${maxJapaneseChars} Japanese chars)`)
+    return bestResult
+  }
+
+  // 일본어가 하나도 없으면 UTF-8 폴백
+  return buffer.toString('utf-8')
+}
+
+/**
+ * 멀티파트 메일에서 text/plain 본문을 재귀적으로 탐색
+ */
+function findTextPlainBody(payload: any): string {
+  // 단일 파트에 본문이 있는 경우
+  if (payload.mimeType === 'text/plain' && payload.body?.data) {
+    const charset = getCharsetFromHeaders(payload.headers)
+    return decodeBodyData(payload.body.data, charset)
+  }
+
+  // 하위 파트 재귀 탐색
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      const result = findTextPlainBody(part)
+      if (result) return result
+    }
+  }
+
+  return ''
 }
 
 /**
@@ -103,18 +182,10 @@ export async function checkDepositEmails(): Promise<Array<{
         const dateHeader = headers.find(h => h.name?.toLowerCase() === 'date')
         const date = dateHeader?.value || ''
 
-        // 본문 추출
+        // 본문 추출 (인코딩 자동 감지)
         let body = ''
-        if (msg.data.payload?.body?.data) {
-          body = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8')
-        } else if (msg.data.payload?.parts) {
-          // 멀티파트 메일 처리
-          for (const part of msg.data.payload.parts) {
-            if (part.mimeType === 'text/plain' && part.body?.data) {
-              body = Buffer.from(part.body.data, 'base64').toString('utf-8')
-              break
-            }
-          }
+        if (msg.data.payload) {
+          body = findTextPlainBody(msg.data.payload)
         }
 
         depositEmails.push({
