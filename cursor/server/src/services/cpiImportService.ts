@@ -43,25 +43,28 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
       const existingRecord = await pool.query('SELECT id FROM sales_tracking WHERE external_call_id = $1 LIMIT 1', [externalId])
       const hasExisting = (existingRecord.rowCount ?? 0) > 0
 
-      // 첫콜+OUT (type=1) 우선, 분류없음(type=8)은 같은 번호가 이전에 없을 때만 허용
+      // 첫콜+OUT (type=1) 우선, 그 외 타입은 재직 중인 직원의 이력이 없을 때만 허용
+      // (퇴사자가 이전에 전화한 번호라도 현재 직원이 다시 전화하면 등록 가능)
       if (!hasExisting && r.type !== 1) {
-        if (r.type === 8) {
-          if (!rawPhoneDigits) {
-            skipped++
-            continue
-          }
-          const existingSamePhone = await pool.query(
-            `SELECT 1 FROM sales_tracking WHERE external_source = 'cpi' AND regexp_replace(phone, '[^0-9]', '', 'g') = $1 LIMIT 1`,
-            [rawPhoneDigits]
-          )
-          if ((existingSamePhone.rowCount ?? 0) > 0) {
-            skipped++
-            continue
-          }
-        } else {
+        if (!rawPhoneDigits) {
           skipped++
           continue
         }
+        // 같은 번호의 기존 CPI 기록 중 현재 재직 중인 직원의 기록이 있는지 확인
+        const activeEmployeeRecord = await pool.query(
+          `SELECT 1 FROM sales_tracking st
+           INNER JOIN users u ON st.user_id = u.id
+           WHERE st.external_source = 'cpi'
+             AND regexp_replace(st.phone, '[^0-9]', '', 'g') = $1
+             AND COALESCE(u.employment_status, '입사중') != '퇴사'
+           LIMIT 1`,
+          [rawPhoneDigits]
+        )
+        if ((activeEmployeeRecord.rowCount ?? 0) > 0) {
+          skipped++
+          continue
+        }
+        // 퇴사자 기록만 있거나 기록이 없는 경우 → 등록 진행
       }
 
       const rawManagerName = r.username?.trim()
