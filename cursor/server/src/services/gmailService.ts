@@ -64,34 +64,64 @@ function getCharsetFromHeaders(headers: Array<{ name?: string | null; value?: st
 
 /**
  * base64 인코딩된 메일 본문을 올바른 문자셋으로 디코딩
- * 1) Content-Type 헤더의 charset이 있으면 그걸 사용
- * 2) 없으면 여러 인코딩을 시도해서 일본어가 가장 많이 인식되는 것을 선택
+ *
+ * 전략:
+ * 1) UTF-8 우선 시도 (Gmail API가 UTF-8로 변환하는 경우가 많음)
+ * 2) UTF-8이 깨지면 헤더 charset 시도
+ * 3) 그래도 안 되면 여러 인코딩을 시도해서 가장 깨끗한 것 선택
+ *
+ * "깨끗함" 판단: 일본어 글자 수는 많고, 깨진 글자(mojibake)는 없어야 함
  */
 function decodeBodyData(data: string, charset: string | null): string {
   const buffer = Buffer.from(data, 'base64')
 
-  // 1) 헤더에 charset이 명시된 경우
+  // 잘못된 인코딩 선택 시 자주 나타나는 깨짐 문자 패턴
+  const GARBLE_PATTERN = /[縺繧繝笏笳ｫｬｭｮｯｰｱｲｳｴｵ]/g
+  const JP_PATTERN = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\uFF61-\uFF9F]/g
+
+  // 1) UTF-8 우선 시도 (은행 메일이 헤더와 다른 인코딩을 쓰는 경우 대응)
+  const utf8Result = buffer.toString('utf-8')
+  const utf8JpCount = (utf8Result.match(JP_PATTERN) || []).length
+  const utf8GarbleCount = (utf8Result.match(GARBLE_PATTERN) || []).length
+
+  if (utf8JpCount > 0 && utf8GarbleCount === 0) {
+    console.log(`📝 Decoded as UTF-8 (${utf8JpCount} Japanese chars)`)
+    return utf8Result
+  }
+
+  // 2) 헤더 charset 시도 (UTF-8이 아닌 경우만)
   if (charset) {
     const normalized = charset.toUpperCase().replace(/[^A-Z0-9-]/g, '')
-    if (iconv.encodingExists(normalized)) {
-      const decoded = iconv.decode(buffer, normalized)
-      console.log(`📝 Decoded email body with charset: ${normalized}`)
-      return decoded
+    if (normalized !== 'UTF-8' && normalized !== 'UTF8' && iconv.encodingExists(normalized)) {
+      try {
+        const decoded = iconv.decode(buffer, normalized)
+        const jpCount = (decoded.match(JP_PATTERN) || []).length
+        const garbleCount = (decoded.match(GARBLE_PATTERN) || []).length
+        if (jpCount > 0 && garbleCount === 0) {
+          console.log(`📝 Decoded with header charset: ${normalized} (${jpCount} Japanese chars)`)
+          return decoded
+        }
+      } catch {
+        // skip
+      }
     }
   }
 
-  // 2) charset 없음 → 여러 인코딩 시도 후 최적 선택
-  const encodings = ['UTF-8', 'ISO-2022-JP', 'SHIFT_JIS', 'CP932', 'EUC-JP']
+  // 3) 여러 인코딩 시도 → 깨짐 없이 일본어가 가장 많은 것 선택
+  const encodings = ['ISO-2022-JP', 'SHIFT_JIS', 'CP932', 'EUC-JP']
   let bestResult = ''
-  let bestEncoding = 'UTF-8'
-  let maxJapaneseChars = 0
+  let bestEncoding = ''
+  let bestScore = 0
 
   for (const encoding of encodings) {
     try {
       const decoded = iconv.decode(buffer, encoding)
-      const japaneseCount = (decoded.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\uFF61-\uFF9F]/g) || []).length
-      if (japaneseCount > maxJapaneseChars) {
-        maxJapaneseChars = japaneseCount
+      const jpCount = (decoded.match(JP_PATTERN) || []).length
+      const garbleCount = (decoded.match(GARBLE_PATTERN) || []).length
+      // 깨진 글자가 있으면 점수를 크게 깎음
+      const score = jpCount - garbleCount * 5
+      if (score > bestScore) {
+        bestScore = score
         bestResult = decoded
         bestEncoding = encoding
       }
@@ -100,13 +130,13 @@ function decodeBodyData(data: string, charset: string | null): string {
     }
   }
 
-  if (maxJapaneseChars > 0) {
-    console.log(`📝 Auto-detected encoding: ${bestEncoding} (${maxJapaneseChars} Japanese chars)`)
+  if (bestScore > 0) {
+    console.log(`📝 Auto-detected encoding: ${bestEncoding} (score: ${bestScore})`)
     return bestResult
   }
 
-  // 일본어가 하나도 없으면 UTF-8 폴백
-  return buffer.toString('utf-8')
+  // 최종 폴백: UTF-8
+  return utf8Result
 }
 
 /**
