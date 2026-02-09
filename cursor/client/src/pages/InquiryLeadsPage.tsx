@@ -6,6 +6,7 @@ import { useToast } from '../components/ui/toast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Card, CardContent } from '../components/ui/card'
+import { getLocalToday } from '../utils/dateUtils'
 import { 
   Users, 
   CheckCircle2, 
@@ -173,7 +174,7 @@ export default function InquiryLeadsPage() {
     try {
       await api.put(`/inquiry-leads/${id}`, { status })
       const completedStatuses = ['COMPLETED', 'NO_SITE', 'NO_FORM', 'ETC']
-      const newSentDate = completedStatuses.includes(status) ? new Date().toISOString().split('T')[0] : null
+      const newSentDate = completedStatuses.includes(status) ? getLocalToday() : null
       setLeads(prev => prev.map(lead => 
         lead.id === id ? { ...lead, status, sentDate: completedStatuses.includes(status) ? newSentDate : lead.sentDate } : lead
       ))

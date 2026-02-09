@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { useClipboardCapture } from '../hooks/useClipboardCapture'
 import { exportReportToPdf } from '../utils/pdfExport'
+import { getLocalToday } from '../utils/dateUtils'
 
 interface HashtagInfo {
   hashtag: string
@@ -193,7 +194,7 @@ export default function AccountOptimizationPage() {
       await exportReportToPdf({
         accountId: searchedId,
         companyName: companyName,
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalToday(),
         language: language
       })
     } catch (err: any) {

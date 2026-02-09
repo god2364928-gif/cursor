@@ -1,4 +1,5 @@
 import { useI18nStore } from '../../i18n'
+import { getLocalToday } from '../../utils/dateUtils'
 
 interface PrintPageFooterProps {
   pageNumber: number
@@ -14,7 +15,7 @@ export default function PrintPageFooter({
   accountId 
 }: PrintPageFooterProps) {
   const { t } = useI18nStore()
-  const currentDate = analysisDate || new Date().toISOString().split('T')[0]
+  const currentDate = analysisDate || getLocalToday()
   const accountName = accountId || t('accountOpt2ProfilePosts')
   
   return (

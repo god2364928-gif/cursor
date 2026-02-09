@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { safeString, safeStringWithLength, formatPhoneNumber } from '../utils/nullSafe'
+import { toJSTDateString, getJSTTodayString } from '../utils/dateHelper'
 import multer from 'multer'
 
 const router = Router()
@@ -553,9 +554,7 @@ router.post('/:id/extend', authMiddleware, async (req: AuthRequest, res: Respons
     
     const oldExpirationDate = customer.contract_expiration_date
     // 날짜를 YYYY-MM-DD 형식으로 변환
-    const formattedOldDate = oldExpirationDate instanceof Date 
-      ? oldExpirationDate.toISOString().split('T')[0] 
-      : oldExpirationDate.split('T')[0] || oldExpirationDate
+    const formattedOldDate = toJSTDateString(oldExpirationDate) || oldExpirationDate
     
     const oldDate = new Date(formattedOldDate)
     
@@ -563,7 +562,7 @@ router.post('/:id/extend', authMiddleware, async (req: AuthRequest, res: Respons
     const newDate = new Date(oldDate)
     newDate.setMonth(newDate.getMonth() + 1)
     
-    const newExpirationDate = newDate.toISOString().split('T')[0]
+    const newExpirationDate = toJSTDateString(newDate) || ''
     
     // Update expiration date
     await pool.query(

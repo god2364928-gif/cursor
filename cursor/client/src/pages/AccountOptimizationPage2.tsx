@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Search, Loader2, AlertCircle, Printer } from 'lucide-react'
 import api from '../lib/api'
 import { useI18nStore } from '../i18n'
+import { getLocalToday } from '../utils/dateUtils'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import PDFStyleHeader from './AccountOptimization2/PDFStyleHeader'
@@ -74,7 +75,7 @@ export default function AccountOptimizationPage2() {
       await exportReportToPdf({
         accountId: searchedId,
         companyName: companyName,
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalToday(),
         language: language
       })
     } catch (err: any) {

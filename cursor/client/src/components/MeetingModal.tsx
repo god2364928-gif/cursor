@@ -109,6 +109,14 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
       let startDate: string
       let endDate: string
       
+      // 로컬 날짜를 YYYY-MM-DD 형식으로 변환 (UTC 변환 없이 로컬 시간 기준)
+      const formatLocalDate = (d: Date) => {
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${day}`
+      }
+
       if (tab === 'weekly') {
         // 주차의 시작일과 종료일 계산 (월요일 시작)
         const firstDayOfYear = new Date(year, 0, 1)
@@ -121,14 +129,14 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
         
         const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000)
         
-        startDate = weekStart.toISOString().split('T')[0]
-        endDate = weekEnd.toISOString().split('T')[0]
+        startDate = formatLocalDate(weekStart)
+        endDate = formatLocalDate(weekEnd)
       } else {
         // 월의 시작일과 종료일
         const monthStart = new Date(year, weekOrMonth - 1, 1)
         const monthEnd = new Date(year, weekOrMonth, 0)
-        startDate = monthStart.toISOString().split('T')[0]
-        endDate = monthEnd.toISOString().split('T')[0]
+        startDate = formatLocalDate(monthStart)
+        endDate = formatLocalDate(monthEnd)
       }
 
       // === 성능 최적화: 모든 API를 병렬로 호출 ===

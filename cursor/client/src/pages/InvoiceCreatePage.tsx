@@ -10,6 +10,7 @@ import ExcludedPartnersModal from '../components/ExcludedPartnersModal'
 import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
 import { DatePickerInput } from '../components/ui/date-picker-input'
+import { getLocalToday } from '../utils/dateUtils'
 
 export default function InvoiceCreatePage() {
   const navigate = useNavigate()
@@ -40,7 +41,7 @@ export default function InvoiceCreatePage() {
     partner_name: '',
     partner_title: '様',
     invoice_title: 'COCOマーケご利用料',
-    invoice_date: new Date().toISOString().split('T')[0],
+    invoice_date: getLocalToday(),
     due_date: '',
     tax_entry_method: 'exclusive',
     line_items: [

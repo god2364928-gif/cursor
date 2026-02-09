@@ -2,7 +2,7 @@ import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { safeString, safeStringWithLength, firstValidString, formatPhoneNumber } from '../utils/nullSafe'
-import { toKSTDateString } from '../utils/dateHelper'
+import { toKSTDateString, getKSTTodayString } from '../utils/dateHelper'
 import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { parse as parseCsvSync } from 'csv-parse/sync'
@@ -156,7 +156,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [safeCompanyName, safeIndustry, safeCustomerName, safePhone, region || null, inflowPath || null,
-       manager, managerTeam || null, status || '시작', registeredAt || new Date().toISOString().split('T')[0], contractHistoryCategory || null]
+       manager, managerTeam || null, status || '시작', registeredAt || getKSTTodayString(), contractHistoryCategory || null]
     )
     
     const customer = result.rows[0]
