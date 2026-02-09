@@ -12,6 +12,7 @@ import { Phone, PhoneOff, MessageSquare, FileText, Target, ExternalLink, Copy, P
 import { formatNumber, parseFormattedNumber } from '../lib/utils'
 import { getMarketerNames } from '../utils/userUtils'
 import { DatePickerInput } from '../components/ui/date-picker-input'
+import { getLocalToday } from '../utils/dateUtils'
 import SalesHistoryTimeline from '../components/SalesHistoryTimeline'
 
 const RETARGETING_TARGET = 500
@@ -570,9 +571,7 @@ export default function RetargetingPage() {
         
         // 마지막 연락일 업데이트 (통화성공일 때만)
         if (historyType === 'call_success') {
-          const now = new Date()
-          const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000))
-          const today = koreaTime.toISOString().split('T')[0]
+          const today = getLocalToday()
           const updatedCustomer = {...selectedCustomer, lastContactDate: today}
           await api.put(`/retargeting/${selectedCustomer.id}`, updatedCustomer)
           setSelectedCustomer(updatedCustomer)
@@ -602,9 +601,7 @@ export default function RetargetingPage() {
       
       // 마지막 연락일 업데이트 (라인일 때만)
       if (historyType === 'line') {
-        const now = new Date()
-        const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000))
-        const today = koreaTime.toISOString().split('T')[0]
+        const today = getLocalToday()
         const updatedCustomer = {...selectedCustomer, lastContactDate: today}
         await api.put(`/retargeting/${selectedCustomer.id}`, updatedCustomer)
         setSelectedCustomer(updatedCustomer)
@@ -652,10 +649,7 @@ export default function RetargetingPage() {
     const inflowPath = (document.getElementById('new-inflowPath') as HTMLSelectElement)?.value
     
     try {
-      // 한국 시간 기준으로 오늘 날짜 생성
-      const now = new Date()
-      const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)) // UTC+9
-      const today = koreaTime.toISOString().split('T')[0]
+      const today = getLocalToday()
       await api.post('/retargeting', {
         companyName,
         industry,
@@ -1631,7 +1625,10 @@ export default function RetargetingPage() {
                     if (startDate) {
                       const date = new Date(startDate)
                       date.setMonth(date.getMonth() + 1)
-                      expirationDate = date.toISOString().split('T')[0]
+                      const y = date.getFullYear()
+                      const m = String(date.getMonth() + 1).padStart(2, '0')
+                      const day = String(date.getDate()).padStart(2, '0')
+                      expirationDate = `${y}-${m}-${day}`
                     }
                     setConvertData({...convertData, contractStartDate: startDate, contractExpirationDate: expirationDate})
                   }}

@@ -8,6 +8,7 @@ import {
   validateInsertValues, 
   formatPhoneNumber 
 } from '../utils/nullSafe'
+import { toJSTDateString, getJSTTodayString } from '../utils/dateHelper'
 import { toSeoulTimestampString } from '../utils/dateHelper'
 
 const router = Router()
@@ -403,7 +404,7 @@ router.post('/bulk-move-to-retargeting', authMiddleware, async (req: AuthRequest
     // 각 레코드를 리타겟팅으로 이동
     for (const record of recordsResult.rows) {
       try {
-        const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+        const registeredAtDate = (record.date ? toJSTDateString(record.date) : null) || getJSTTodayString()
         
         // 리타겟팅 고객으로 추가
         const inflowPath = mapInflowPathFromContactMethod(record.contact_method)
@@ -824,7 +825,7 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
     try {
       await client.query('BEGIN')
       
-      const registeredAtDate = record.date ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      const registeredAtDate = (record.date ? toJSTDateString(record.date) : null) || getJSTTodayString()
       const lastContactDate = new Date().toISOString() // 이동한 날짜를 마지막 연락일로 설정
       
       // memo: 빈 값 허용
@@ -965,338 +966,76 @@ router.post('/:id/move-to-retargeting', authMiddleware, async (req: AuthRequest,
 
 // Get monthly statistics per manager
 router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Response) => {
-  // 강제로 stdout에 즉시 출력 (Railway 로그 확인용)
-  process.stdout.write('\n=== 월별 통계 API 호출됨 ===\n')
-  console.error('\n=== 월별 통계 API 호출됨 (stderr) ===\n')
-  
   try {
     const { month, year } = req.query
-    
-    process.stdout.write(`요청 파라미터: year=${year}, month=${month}\n`)
-    console.error(`요청 파라미터: year=${year}, month=${month}`)
-    
+
     if (!month || !year) {
-      process.stdout.write('❌ Month and year are required\n')
       return res.status(400).json({ message: 'Month and year are required' })
     }
-    
+
     const yearNum = parseInt(String(year), 10)
     const monthNum = parseInt(String(month), 10)
-    
+
     if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
-      process.stdout.write(`❌ Invalid year or month: ${yearNum}, ${monthNum}\n`)
       return res.status(400).json({ message: 'Invalid year or month' })
     }
-    
-    // 월별 통계 집계
-    // CSV 집계 로직:
-    // - 電話数: contact_method = '電話'인 건수
-    // - 送付数: contact_method IN ('DM', 'LINE', 'メール', 'フォーム')인 건수
-    // - 合計数: 電話数 + 送付数
-    // - 返信数: status = '返信済み'인 건수
-    // - 返信率: (返信数 / 合計数) * 100
-    // - リタ獲得数: 合計수 (동일)
-    // - 商談中: status = '商談中'인 건수
-    // - 契約: status = '契約'인 건수
-    // - NG: status = 'NG'인 건수
-    
-    process.stdout.write('\n=== 월별 통계 조회 시작 ===\n')
-    console.log('=== 월별 통계 조회 시작 ===')
-    console.log(`조회 년도: ${yearNum}, 월: ${monthNum}`)
-    process.stdout.write(`조회 년도: ${yearNum}, 월: ${monthNum}\n`)
-    
-    // 디버깅: 선택한 월의 status 값 확인 (2025년 11월 기준)
-    const debugResult = await pool.query(`
-      SELECT DISTINCT status, COUNT(*) as count
-      FROM sales_tracking
-      WHERE 
-        EXTRACT(YEAR FROM date) = $1 AND
-        EXTRACT(MONTH FROM date) = $2
-      GROUP BY status
-      ORDER BY status
-    `, [yearNum, monthNum])
-    console.log(`📊 ${yearNum}년 ${monthNum}월의 status 값 목록:`)
-    if (debugResult.rows.length === 0) {
-      console.log('  ⚠️ 해당 월에 데이터가 없습니다.')
-    } else {
-      debugResult.rows.forEach(row => {
-        const isReply = row.status && row.status.includes('返信') && row.status !== '未返信'
-        console.log(`  - "${row.status}": ${row.count}건 ${isReply ? '✅ (회신)' : ''}`)
-      })
-    }
-    
-    // 전체 레코드 수 확인
-    const totalRecordsResult = await pool.query(`
-      SELECT COUNT(*) as total
-      FROM sales_tracking
-      WHERE 
-        EXTRACT(YEAR FROM date) = $1 AND
-        EXTRACT(MONTH FROM date) = $2
-    `, [yearNum, monthNum])
-    console.log(`📈 전체 레코드 수: ${totalRecordsResult.rows[0].total}`)
-    
-    // 회신수 집계를 위한 테스트 쿼리 - 모든 "返信" 포함 상태 확인
-    const replyTestResult = await pool.query(`
-      SELECT 
-        manager_name,
-        status,
-        COUNT(*) as count
-      FROM sales_tracking
-      WHERE 
-        EXTRACT(YEAR FROM date) = $1 AND
-        EXTRACT(MONTH FROM date) = $2
-        AND (status LIKE '%返信%' OR status = '返信あり' OR status = '返信済み')
-        AND status != '未返信'
-      GROUP BY manager_name, status
-      ORDER BY manager_name, status
-    `, [yearNum, monthNum])
-    
-    console.log('🔍 "返信"이 포함된 레코드 상세 (未返信 제외):')
-    if (replyTestResult.rows.length === 0) {
-      console.log('  ⚠️ 해당 월에 "返信"이 포함된 레코드가 없습니다.')
-    } else {
-      replyTestResult.rows.forEach(row => {
-        console.log(`  ${row.manager_name} - "${row.status}": ${row.count}건`)
-      })
-    }
-    
-    // 실제 데이터베이스의 status 값 바이트 확인 (디버깅용)
-    const byteCheckResult = await pool.query(`
-      SELECT DISTINCT 
-        status,
-        encode(status::bytea, 'hex') as status_bytes,
-        length(status) as status_length,
-        COUNT(*) as count
-      FROM sales_tracking
-      WHERE 
-        EXTRACT(YEAR FROM date) = $1 AND
-        EXTRACT(MONTH FROM date) = $2
-        AND status LIKE '%返%' OR status LIKE '%信%'
-      GROUP BY status
-      ORDER BY status
-    `, [yearNum, monthNum])
-    
-    console.log('🔤 Status 값의 바이트 확인 (返 또는 信 포함):')
-    byteCheckResult.rows.forEach(row => {
-      console.log(`  "${row.status}" (길이: ${row.status_length}, 바이트: ${row.status_bytes}): ${row.count}건`)
-    })
-    
-    // 집계 쿼리: 가장 단순한 방법으로 회신수 집계
-    // 먼저 실제로 회신 레코드가 있는지 확인
-    const replyCheckQuery = await pool.query(`
-      SELECT 
-        manager_name,
-        status,
-        COUNT(*) as count
-      FROM sales_tracking
-      WHERE 
-        EXTRACT(YEAR FROM date) = $1 AND
-        EXTRACT(MONTH FROM date) = $2
-        AND status != '未返信'
-        AND (status LIKE '%返%' OR status LIKE '%信%')
-      GROUP BY manager_name, status
-      ORDER BY manager_name, status
-    `, [yearNum, monthNum])
-    
-    console.log('🔍 회신 가능한 모든 레코드 (未返信 제외, 返 또는 信 포함):')
-    replyCheckQuery.rows.forEach(row => {
-      console.log(`  ${row.manager_name} - "${row.status}": ${row.count}건`)
-    })
-    
-    // 실제로 石黒杏奈의 11월 返信あり 레코드 확인
-    const ishiguroReplyCheck = await pool.query(`
-      SELECT 
-        id,
-        date,
-        status,
-        customer_name,
-        account_id,
-        encode(status::bytea, 'hex') as status_bytes
-      FROM sales_tracking
-      WHERE 
-        manager_name = '石黒杏奈'
-        AND EXTRACT(YEAR FROM date) = $1
-        AND EXTRACT(MONTH FROM date) = $2
-        AND status LIKE '%返信%'
-      ORDER BY date
-      LIMIT 20
-    `, [yearNum, monthNum])
-    
-    process.stdout.write(`\n🔍 石黒杏奈의 11월 返信 레코드 (${ishiguroReplyCheck.rows.length}건):\n`)
-    console.error(`\n🔍 石黒杏奈의 11월 返信 레코드 (${ishiguroReplyCheck.rows.length}건):`)
-    ishiguroReplyCheck.rows.forEach((record, idx) => {
-      process.stdout.write(`  ${idx + 1}. ID: ${record.id}, Date: ${record.date}, Status: "${record.status}", Customer: ${record.customer_name || record.account_id || 'N/A'}, Bytes: ${record.status_bytes}\n`)
-      console.error(`  ${idx + 1}. ID: ${record.id}, Date: ${record.date}, Status: "${record.status}", Customer: ${record.customer_name || record.account_id || 'N/A'}, Bytes: ${record.status_bytes}`)
-    })
-    
-    // 返信あり 정확히 일치하는 레코드 확인
-    const exactMatchCheck = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM sales_tracking
-      WHERE 
-        manager_name = '石黒杏奈'
-        AND EXTRACT(YEAR FROM date) = $1
-        AND EXTRACT(MONTH FROM date) = $2
-        AND status = '返信あり'
-    `, [yearNum, monthNum])
-    
-    process.stdout.write(`\n✅ 石黒杏奈의 11월 status = '返信あり' 정확 일치: ${exactMatchCheck.rows[0].count}건\n`)
-    console.error(`\n✅ 石黒杏奈의 11월 status = '返信あり' 정확 일치: ${exactMatchCheck.rows[0].count}건`)
-    
+
+    // 날짜 범위 계산 (EXTRACT 대신 인덱스 활용 가능한 범위 비교)
+    const startDate = `${yearNum}-${String(monthNum).padStart(2, '0')}-01`
+    const nextMonth = monthNum === 12 ? 1 : monthNum + 1
+    const nextYear = monthNum === 12 ? yearNum + 1 : yearNum
+    const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`
+
+    // 단일 쿼리: 통계 집계 + 리타겟팅 획득수를 CTE로 결합
     const result = await pool.query(`
+      WITH stats AS (
+        SELECT 
+          st.manager_name,
+          COUNT(*) FILTER (WHERE st.contact_method = '電話') as phone_count,
+          COUNT(*) FILTER (
+            WHERE st.contact_method IN ('DM', 'LINE', 'メール', 'フォーム')
+              OR st.contact_method IS NULL
+              OR TRIM(COALESCE(st.contact_method, '')) = ''
+          ) as send_count,
+          COUNT(*) as total_count,
+          COUNT(*) FILTER (
+            WHERE st.status LIKE '%返信%'
+              AND st.status NOT LIKE '未返信%'
+          ) as reply_count,
+          COUNT(*) FILTER (WHERE st.status = '商談中') as negotiation_count,
+          COUNT(*) FILTER (WHERE st.status = '契約') as contract_count
+        FROM sales_tracking st
+        WHERE st.date >= $1::date AND st.date < $2::date
+        GROUP BY st.manager_name
+      ),
+      retarget AS (
+        SELECT 
+          st.manager_name,
+          COUNT(DISTINCT rc.id) as retargeting_count
+        FROM sales_tracking st
+        INNER JOIN retargeting_customers rc ON rc.sales_tracking_id = st.id
+        WHERE st.date >= $1::date AND st.date < $2::date
+        GROUP BY st.manager_name
+      )
       SELECT 
-        st.manager_name,
-        COUNT(*) FILTER (WHERE st.contact_method = '電話') as phone_count,
-        COUNT(*) FILTER (
-          WHERE st.contact_method IN ('DM', 'LINE', 'メール', 'フォーム')
-            OR st.contact_method IS NULL
-            OR TRIM(COALESCE(st.contact_method, '')) = ''
-        ) as send_count,
-        COUNT(*) as total_count,
-        -- 회신수: 返信あり를 찾기 위한 다양한 조건
-        COUNT(*) FILTER (WHERE st.status = '返信あり') as reply_count_exact,
-        COUNT(*) FILTER (WHERE st.status LIKE '%返信あり%') as reply_count_like_ari,
-        COUNT(*) FILTER (
-          WHERE st.status LIKE '%返信%'
-            AND st.status NOT LIKE '未返信%'
-        ) as reply_count_like_all,
-        COUNT(*) FILTER (WHERE st.status != '未返信') as reply_count_not_no_reply,
-        -- 최종 회신수: 返信あり를 찾기 (정확 일치 또는 포함)
-        COUNT(*) FILTER (
-          WHERE st.status LIKE '%返信%'
-            AND st.status NOT LIKE '未返信%'
-        ) as reply_count,
-        COUNT(*) FILTER (WHERE st.status = '商談中') as negotiation_count,
-        COUNT(*) FILTER (WHERE st.status = '契約') as contract_count
-      FROM sales_tracking st
-      WHERE 
-        EXTRACT(YEAR FROM st.date) = $1 AND
-        EXTRACT(MONTH FROM st.date) = $2
-      GROUP BY st.manager_name
-      ORDER BY st.manager_name
-    `, [yearNum, monthNum])
-    
-    // 리타획득수 집계: 작업에서 직접 리타겟팅으로 옮긴 건만 집계
-    // sales_tracking_id가 있는 retargeting_customers 레코드 중에서
-    // 해당 월의 sales_tracking 레코드와 매칭되는 것만 집계
-    const retargetingCountResult = await pool.query(`
-      SELECT 
-        st.manager_name,
-        COUNT(DISTINCT rc.id) as retargeting_count
-      FROM sales_tracking st
-      INNER JOIN retargeting_customers rc ON rc.sales_tracking_id = st.id
-      WHERE 
-        EXTRACT(YEAR FROM st.date) = $1 AND
-        EXTRACT(MONTH FROM st.date) = $2 AND
-        rc.sales_tracking_id IS NOT NULL
-      GROUP BY st.manager_name
-    `, [yearNum, monthNum])
-    
-    // 디버깅: 리타획득수 집계 결과 확인
-    process.stdout.write(`\n📊 리타획득수 집계 결과: ${retargetingCountResult.rows.length}명의 담당자\n`)
-    console.error(`\n📊 리타획득수 집계 결과: ${retargetingCountResult.rows.length}명의 담당자`)
-    retargetingCountResult.rows.forEach(row => {
-      process.stdout.write(`   - ${row.manager_name}: ${row.retargeting_count}건\n`)
-      console.error(`   - ${row.manager_name}: ${row.retargeting_count}건`)
-    })
-    
-    // 리타획득수를 맵으로 변환하여 빠른 조회 가능하도록
-    const retargetingCountMap = new Map<string, number>()
-    retargetingCountResult.rows.forEach(row => {
-      const count = parseInt(row.retargeting_count) || 0
-      retargetingCountMap.set(row.manager_name, count)
-      // 디버깅: 맵에 저장된 값 확인
-      process.stdout.write(`   [맵 저장] ${row.manager_name} => ${count}\n`)
-      console.error(`   [맵 저장] ${row.manager_name} => ${count}`)
-    })
-    
-    // 추가 디버깅: 각 담당자별로 status 분포 확인 (마케터만)
-    console.log('📊 담당자별 status 분포 (마케터만):')
-    const statusDistribution = await pool.query(`
-      SELECT 
-        st.manager_name,
-        st.status,
-        COUNT(*) as count
-      FROM sales_tracking st
-      WHERE 
-        EXTRACT(YEAR FROM st.date) = $1 AND
-        EXTRACT(MONTH FROM st.date) = $2
-      GROUP BY st.manager_name, st.status
-      ORDER BY st.manager_name, st.status
-    `, [yearNum, monthNum])
-    
-    statusDistribution.rows.forEach(row => {
-      const isReply = row.status && row.status.includes('返信') && row.status !== '未返信'
-      console.log(`  ${row.manager_name} - "${row.status}": ${row.count}건 ${isReply ? '✅ (회신)' : ''}`)
-    })
-    
-    console.log('📋 집계 결과 (상세):')
-    result.rows.forEach(row => {
-      process.stdout.write(`  ${row.manager_name}:\n`)
-      process.stdout.write(`    - 총: ${row.total_count}건\n`)
-      process.stdout.write(`    - reply_count (최종): ${row.reply_count}건\n`)
-      process.stdout.write(`    - reply_count_exact (status = '返信あり'): ${row.reply_count_exact}건\n`)
-      process.stdout.write(`    - reply_count_like_ari ('%返信あり%'): ${row.reply_count_like_ari}건\n`)
-      process.stdout.write(`    - reply_count_like_all ('%返信%'): ${row.reply_count_like_all}건\n`)
-      console.error(`  ${row.manager_name}:`)
-      console.error(`    - 총: ${row.total_count}건`)
-      console.error(`    - reply_count (최종): ${row.reply_count}건`)
-      console.error(`    - reply_count_exact (status = '返信あり'): ${row.reply_count_exact}건`)
-      console.error(`    - reply_count_like_ari ('%返信あり%'): ${row.reply_count_like_ari}건`)
-      console.error(`    - reply_count_like_all ('%返信%'): ${row.reply_count_like_all}건`)
-    })
-    
-    // 추가: 각 담당자별로 실제 회신 레코드 확인 (LIKE 검색으로 한자 차이 문제 해결)
-    console.log('🔍 실제 회신 레코드 확인 (담당자별):')
-    for (const row of result.rows) {
-      const replyRecords = await pool.query(`
-        SELECT id, date, status, customer_name, encode(status::bytea, 'hex') as status_bytes
-        FROM sales_tracking
-        WHERE 
-          manager_name = $1
-          AND EXTRACT(YEAR FROM date) = $2
-          AND EXTRACT(MONTH FROM date) = $3
-          AND status LIKE '%返%'
-          AND status LIKE '%信%'
-          AND status NOT LIKE '%未返信%'
-        LIMIT 5
-      `, [row.manager_name, yearNum, monthNum])
-      
-      if (replyRecords.rows.length > 0) {
-        console.log(`  ${row.manager_name}: ${replyRecords.rows.length}건의 회신 레코드 발견`)
-        replyRecords.rows.forEach(record => {
-          console.log(`    - ID: ${record.id}, Status: "${record.status}" (바이트: ${record.status_bytes}), Customer: ${record.customer_name || 'N/A'}`)
-        })
-      } else {
-        console.log(`  ${row.manager_name}: 회신 레코드 없음 (집계된 회신수: ${row.reply_count})`)
-      }
-    }
-    
-    console.log('=== 월별 통계 조회 완료 ===')
-    
-    // 계산 필드 추가
+        s.manager_name,
+        s.phone_count,
+        s.send_count,
+        s.total_count,
+        s.reply_count,
+        s.negotiation_count,
+        s.contract_count,
+        COALESCE(r.retargeting_count, 0) as retargeting_count
+      FROM stats s
+      LEFT JOIN retarget r ON s.manager_name = r.manager_name
+      ORDER BY s.manager_name
+    `, [startDate, endDate])
+
     const stats = result.rows.map(row => {
       const total = parseInt(row.total_count) || 0
-      // reply_count 사용 (status = '返信あり' OR status LIKE '%返信あり%')
-      let reply = parseInt(row.reply_count) || 0
-      
-      // 디버깅: 각 담당자별 집계 값 로그
-      process.stdout.write(`  [${row.manager_name}] exact: ${row.reply_count_exact}, like_ari: ${row.reply_count_like_ari}, like_all: ${row.reply_count_like_all}, 최종: ${reply}\n`)
-      console.error(`  [${row.manager_name}] exact: ${row.reply_count_exact}, like_ari: ${row.reply_count_like_ari}, like_all: ${row.reply_count_like_all}, 최종: ${reply}`)
-      
+      const reply = parseInt(row.reply_count) || 0
       const replyRate = total > 0 ? ((reply / total) * 100).toFixed(1) : '0.0'
-      
-      // 리타획득수: 맵에서 조회, 없으면 0 (작업에서 직접 이동한 건만 집계)
-      let retargetingCount = 0
-      if (retargetingCountMap.has(row.manager_name)) {
-        const mapValue = retargetingCountMap.get(row.manager_name)
-        retargetingCount = (mapValue !== undefined && mapValue !== null && !isNaN(mapValue)) ? parseInt(String(mapValue)) : 0
-      }
-      
-      // 디버깅: 각 담당자별 리타획득수 확인
-      process.stdout.write(`   [${row.manager_name}] 리타획득수: ${retargetingCount} (맵에 존재: ${retargetingCountMap.has(row.manager_name)})\n`)
-      console.error(`   [${row.manager_name}] 리타획득수: ${retargetingCount} (맵에 존재: ${retargetingCountMap.has(row.manager_name)})`)
-      
+
       return {
         manager: row.manager_name,
         phoneCount: parseInt(row.phone_count) || 0,
@@ -1304,52 +1043,13 @@ router.get('/stats/monthly', authMiddleware, async (req: AuthRequest, res: Respo
         totalCount: total,
         replyCount: reply,
         replyRate: `${replyRate}%`,
-        retargetingCount: retargetingCount, // 작업에서 직접 이동한 건만 집계
+        retargetingCount: parseInt(row.retargeting_count) || 0,
         negotiationCount: parseInt(row.negotiation_count) || 0,
         contractCount: parseInt(row.contract_count) || 0
       }
     })
-    
-    // 디버깅 정보를 응답에 포함 (항상 포함하여 문제 진단)
-    const debugInfo = {
-      statusValues: debugResult.rows.map(r => ({ status: r.status, count: parseInt(r.count) })),
-      replyTestResults: replyTestResult.rows.map(r => ({ manager: r.manager_name, status: r.status, count: parseInt(r.count) })),
-      statusDistribution: statusDistribution.rows.map(r => ({ 
-        manager: r.manager_name, 
-        status: r.status, 
-        count: parseInt(r.count),
-        isReply: r.status && r.status.includes('返信') && r.status !== '未返信'
-      })),
-      totalRecords: parseInt(totalRecordsResult.rows[0].total),
-      ishiguroReplyCount: ishiguroReplyCheck.rows.length,
-      ishiguroExactMatch: parseInt(exactMatchCheck.rows[0].count),
-      ishiguroReplyRecords: ishiguroReplyCheck.rows.map(r => ({
-        id: r.id,
-        date: r.date,
-        status: r.status,
-        statusBytes: r.status_bytes,
-        customer: r.customer_name || r.account_id || 'N/A'
-      }))
-    }
-    
-    process.stdout.write(`\n📤 응답 전송: stats=${stats.length}개, debug 정보 포함\n`)
-    console.error(`\n📤 응답 전송: stats=${stats.length}개, debug 정보 포함`)
-    
-    // 디버깅: 각 담당자별 리타획득수 확인
-    process.stdout.write(`\n📊 최종 응답에 포함될 리타획득수:\n`)
-    console.error(`\n📊 최종 응답에 포함될 리타획득수:`)
-    stats.forEach(stat => {
-      process.stdout.write(`   - ${stat.manager}: ${stat.retargetingCount}\n`)
-      console.error(`   - ${stat.manager}: ${stat.retargetingCount}`)
-    })
-    
-    // 응답 구조: stats 배열과 debug 정보를 함께 반환
-    const responseData = {
-      stats,
-      debug: debugInfo
-    }
-    
-    res.json(responseData)
+
+    res.json({ stats })
   } catch (error) {
     console.error('Error fetching monthly stats:', error)
     res.status(500).json({ message: 'Internal server error' })
@@ -1451,7 +1151,7 @@ router.get('/stats/daily', authMiddleware, async (req: AuthRequest, res: Respons
     const result = await pool.query(query, params)
 
     const rows = result.rows.map((row: any) => ({
-      date: row.date?.toISOString?.() ? row.date.toISOString().split('T')[0] : row.date,
+      date: row.date instanceof Date ? (toJSTDateString(row.date) || row.date) : row.date,
       manager: row.manager,
       phoneCount: parseInt(row.phone_count) || 0,
       sendCount: parseInt(row.send_count) || 0,

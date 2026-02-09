@@ -11,6 +11,7 @@ import { Input } from '../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Plus, Edit, Trash2, X, BarChart3, Search, ArrowRight, UtensilsCrossed, MoreVertical, RefreshCw, Copy } from 'lucide-react'
 import GlobalSearch from '../components/GlobalSearch'
+import { getLocalToday, formatLocalDate } from '../utils/dateUtils'
 import RestaurantDrawer from '../components/RestaurantDrawer'
 import SalesTrackingDrawer from '../components/SalesTrackingDrawer'
 import BulkHistoryModal from '../components/BulkHistoryModal'
@@ -139,7 +140,7 @@ export default function SalesTrackingPage() {
 
   // Form state
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalToday(),
     managerName: user?.name || '',
     companyName: '',
     accountId: '',
@@ -353,8 +354,8 @@ export default function SalesTrackingPage() {
     const end = new Date()
     const start = new Date(end)
     start.setDate(end.getDate() - 13)
-    const startStr = start.toISOString().split('T')[0]
-    const endStr = end.toISOString().split('T')[0]
+    const startStr = formatLocalDate(start)
+    const endStr = formatLocalDate(end)
     setDailyStart(startStr)
     setDailyEnd(endStr)
     const userName = user?.name || ''
@@ -588,7 +589,7 @@ export default function SalesTrackingPage() {
 
   const resetForm = () => {
     setFormData({
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalToday(),
       managerName: user?.name || '',
       companyName: '',
       accountId: '',
@@ -720,123 +721,12 @@ export default function SalesTrackingPage() {
       if (year !== undefined && !isNaN(year)) setSelectedYear(Number(year))
       if (month !== undefined && !isNaN(month)) setSelectedMonth(Number(month))
       
-      console.log('Fetching monthly stats:', { year: finalYear, month: finalMonth })
-      
       const response = await api.get('/sales-tracking/stats/monthly', {
         params: { year: finalYear, month: finalMonth }
       })
-      
-      // 디버깅: 응답 데이터 확인 (강화)
-      console.log('========================================')
-      console.log('📊 월별 통계 API 응답 전체:', response.data)
-      console.log('📊 응답 타입:', typeof response.data)
-      console.log('📊 응답이 배열인가?', Array.isArray(response.data))
-      console.log('📊 응답 키:', Object.keys(response.data))
-      console.log('📊 response.data.stats 존재?', !!response.data.stats)
-      console.log('📊 response.data.debug 존재?', !!response.data.debug)
-      console.log('========================================')
-      
-      // 응답 구조 확인 - 더 명확하게
-      let statsData
-      let debugData
-      
-      if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-        // 객체 형태인 경우
-        statsData = response.data.stats || response.data
-        debugData = response.data.debug
-        console.log('✅ 응답이 객체 형태입니다.')
-      } else if (Array.isArray(response.data)) {
-        // 배열 형태인 경우 (구버전 호환)
-        statsData = response.data
-        debugData = null
-        console.warn('⚠️ 응답이 배열 형태입니다. (구버전 호환)')
-      } else {
-        statsData = response.data
-        debugData = null
-        console.warn('⚠️ 응답 구조를 알 수 없습니다.')
-      }
-      
-      console.log('📊 통계 데이터:', statsData)
-      console.log('📊 디버그 데이터:', debugData)
-      
-      // 각 담당자별 회신수 확인
-      if (Array.isArray(statsData)) {
-        console.log('\n📋 담당자별 회신수 현황:')
-        statsData.forEach((stat: any) => {
-          console.log(`  ${stat.manager}: 총 ${stat.totalCount}건, 회신 ${stat.replyCount}건 (${stat.replyRate}), 리타획득수: ${stat.retargetingCount}`)
-          // 리타획득수 확인
-          if (stat.retargetingCount !== undefined && stat.retargetingCount !== 0) {
-            console.warn(`  ⚠️ ${stat.manager}의 리타획득수가 0이 아닙니다: ${stat.retargetingCount}`)
-            console.warn(`     totalCount: ${stat.totalCount}, retargetingCount: ${stat.retargetingCount}`)
-          }
-        })
-      }
-      
-      if (debugData) {
-        console.log('\n🔍 디버그 정보:', debugData)
-        
-        // 石黒杏奈의 返信 레코드 확인
-        if (debugData.ishiguroReplyCount !== undefined) {
-          console.log(`\n📊 石黒杏奈의 11월 返信 레코드: ${debugData.ishiguroReplyCount}건`)
-          console.log(`📊 石黒杏奈의 11월 status = '返信あり' 정확 일치: ${debugData.ishiguroExactMatch}건`)
-          
-          if (debugData.ishiguroReplyRecords && debugData.ishiguroReplyRecords.length > 0) {
-            console.log('\n📋 石黒杏奈의 실제 返信 레코드 목록:')
-            debugData.ishiguroReplyRecords.forEach((r: any, idx: number) => {
-              console.log(`  ${idx + 1}. ID: ${r.id}, Date: ${r.date}, Status: "${r.status}", Bytes: ${r.statusBytes}, Customer: ${r.customer}`)
-            })
-          }
-        }
-        
-        // Status 값 목록
-        if (debugData.statusValues) {
-          console.log('\n📋 Status 값 목록 (DB에 저장된 모든 status):')
-          debugData.statusValues.forEach((s: any) => {
-            const isReply = s.status && s.status.includes('返信') && s.status !== '未返信'
-            console.log(`  - "${s.status}": ${s.count}건 ${isReply ? '✅ (회신)' : ''}`)
-          })
-        }
-        
-        // Status 분포
-        if (debugData.statusDistribution) {
-          console.log('\n📊 담당자별 status 분포:')
-          debugData.statusDistribution.forEach((d: any) => {
-            console.log(`  ${d.manager} - "${d.status}": ${d.count}건 ${d.isReply ? '✅ (회신)' : ''}`)
-          })
-        }
-        
-        // 회신 테스트 결과
-        if (debugData.replyTestResults) {
-          console.log('\n🔍 "返信" 포함 레코드 (담당자별):')
-          if (debugData.replyTestResults.length === 0) {
-            console.warn('  ⚠️ 해당 월에 "返信"이 포함된 레코드가 없습니다!')
-          } else {
-            debugData.replyTestResults.forEach((r: any) => {
-              console.log(`  ${r.manager} - "${r.status}": ${r.count}건`)
-            })
-          }
-        }
-        
-        // 회신 관련 status 확인
-        if (debugData.statusValues) {
-          const replyStatuses = debugData.statusValues.filter((s: any) => 
-            s.status && s.status.includes('返信') && s.status !== '未返信'
-          )
-          console.log('\n✅ "返信"이 포함된 status 값들 (未返信 제외):', replyStatuses)
-          
-          if (replyStatuses.length === 0) {
-            console.warn('\n⚠️ 경고: 데이터베이스에 "返信"이 포함된 status 값이 없습니다!')
-            console.warn('   (단, 未返信은 제외)')
-          }
-        }
-      } else {
-        console.warn('\n⚠️ 디버그 정보가 응답에 포함되어 있지 않습니다.')
-        console.warn('   응답 구조:', response.data ? Object.keys(response.data) : 'null')
-        console.warn('   응답 데이터:', response.data)
-      }
-      
-      console.log('========================================\n')
-      
+
+      // 응답 구조: { stats: [...] } 또는 배열 직접
+      const statsData = response.data?.stats || (Array.isArray(response.data) ? response.data : [])
       setMonthlyStats(Array.isArray(statsData) ? statsData : [])
       setShowStatsModal(true)
     } catch (error: any) {

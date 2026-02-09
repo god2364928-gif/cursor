@@ -1,6 +1,7 @@
 import { toPng } from 'html-to-image'
 import jsPDF from 'jspdf'
 import api from '../lib/api'
+import { getLocalToday } from './dateUtils'
 
 const IMAGE_PREFIX = 'data:image/jpeg;base64,'
 
@@ -12,7 +13,7 @@ interface PdfExportOptions {
 }
 
 export async function exportReportToPdf({ accountId, companyName, date, language = 'ko' }: PdfExportOptions) {
-  const currentDate = date || new Date().toISOString().split('T')[0]
+  const currentDate = date || getLocalToday()
   const company = companyName || (language === 'ja' ? '会社名' : '회사명')
   const analysisText = language === 'ja' ? 'アカウント分析' : '계정분석'
   const filename = `${company}_@${accountId}_${analysisText}_${currentDate}.pdf`

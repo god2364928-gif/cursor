@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import api from '../lib/api'
+import { getLocalToday } from '../utils/dateUtils'
 
 export type ClipboardFeedback = { type: 'success' | 'error'; message: string } | null
 
@@ -138,7 +139,7 @@ export function useClipboardCapture(language: string) {
 
       const baseName =
         options.fileName ||
-        `report_${new Date().toISOString().split('T')[0]}`
+        `report_${getLocalToday()}`
 
       link.href = url
       link.download = `${baseName}.png`

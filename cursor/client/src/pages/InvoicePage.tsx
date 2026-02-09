@@ -7,6 +7,7 @@ import { FileText, Plus, Download, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { DatePickerInput } from '../components/ui/date-picker-input'
+import { getLocalToday } from '../utils/dateUtils'
 
 // 청구서 취소 확인 모달 컴포넌트
 function CancelConfirmModal({
@@ -83,7 +84,7 @@ function ReceiptModal({
   onClose: () => void
   language: string
 }) {
-  const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0])
+  const [issueDate, setIssueDate] = useState(getLocalToday())
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')

@@ -3,6 +3,7 @@ import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import multer from 'multer'
 import { parseLineChat, formatChatForHistory } from '../utils/lineParser'
+import { getJSTTodayString } from '../utils/dateHelper'
 
 const router = Router()
 
@@ -127,7 +128,7 @@ async function handleSalesHistory(parsed: any, req: AuthRequest) {
       req.user?.name || 'Unknown',
       req.user?.team || null,
       '시작',
-      new Date().toISOString().split('T')[0],
+      getJSTTodayString(),
       memo,
       'LINE 대화'
     ]
@@ -174,7 +175,7 @@ async function handleRetargeting(parsed: any, req: AuthRequest) {
   )
 
   // 마지막 연락일 업데이트
-  const lastDate = parsed.dateRange.end || new Date().toISOString().split('T')[0]
+  const lastDate = parsed.dateRange.end || getJSTTodayString()
   await pool.query(
     'UPDATE retargeting_customers SET last_contact_date = $1 WHERE id = $2',
     [lastDate, customer.id]
@@ -222,7 +223,7 @@ async function handleCustomerManagement(parsed: any, req: AuthRequest) {
   )
 
   // 마지막 연락일 업데이트
-  const lastDate = parsed.dateRange.end || new Date().toISOString().split('T')[0]
+  const lastDate = parsed.dateRange.end || getJSTTodayString()
   await pool.query(
     'UPDATE customers SET last_contact = $1 WHERE id = $2',
     [lastDate, customer.id]

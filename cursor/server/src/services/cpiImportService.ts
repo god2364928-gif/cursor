@@ -1,11 +1,12 @@
 import { pool } from '../db'
 import { fetchFirstOutCalls } from '../integrations/cpiClient'
 import { formatPhoneNumber } from '../utils/nullSafe'
+import { getJSTTodayString } from '../utils/dateHelper'
 
 // CPI created_at은 KST 형식 문자열(예: 2025-11-07T11:13:25.xxx)로 반환됨.
 // 타임존 오프셋을 추가하지 않고 'YYYY-MM-DD'만 안정적으로 추출한다.
 function toDateString(isoLike: string): string {
-  if (!isoLike) return new Date().toISOString().split('T')[0]
+  if (!isoLike) return getJSTTodayString()
   const i = isoLike.indexOf('T')
   return i > 0 ? isoLike.slice(0, i) : isoLike.slice(0, 10)
 }

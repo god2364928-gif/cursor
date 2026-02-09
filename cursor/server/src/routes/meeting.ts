@@ -486,7 +486,7 @@ router.get('/all-marketers-performance', authMiddleware, async (req: AuthRequest
         SELECT u.id as user_id, u.name as manager_name, 'retargeting_contacts' as metric_type, COUNT(*) as value
         FROM retargeting_history rh
         LEFT JOIN users u ON rh.user_id = u.id
-        WHERE rh.created_at BETWEEN $1 AND $2 AND u.name IS NOT NULL AND u.role = 'marketer'
+        WHERE DATE(rh.created_at) BETWEEN $1 AND $2 AND u.name IS NOT NULL AND u.role = 'marketer'
         GROUP BY u.id, u.name
         
         UNION ALL
@@ -496,7 +496,7 @@ router.get('/all-marketers-performance', authMiddleware, async (req: AuthRequest
         FROM customer_history ch
         JOIN customers c ON ch.customer_id = c.id
         LEFT JOIN users u ON ch.user_id = u.id
-        WHERE ch.created_at BETWEEN $1 AND $2 
+        WHERE DATE(ch.created_at) BETWEEN $1 AND $2 
         AND (TRIM(c.status) IN ('契約中', '購入', '계약중') OR c.status ILIKE '%契約中%' OR c.status ILIKE '%購入%' OR c.status ILIKE '%계약%')
         AND u.name IS NOT NULL AND u.role = 'marketer'
         GROUP BY u.id, u.name
