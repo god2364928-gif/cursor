@@ -14,7 +14,7 @@ const ALLOWED_IMAGE_HOSTS = [
   'facebook.com',
 ]
 
-router.get('/image-proxy', authMiddleware, async (req: Request, res: Response) => {
+router.get('/image-proxy', async (req: Request, res: Response) => {
   const imageUrl = String(req.query.url ?? '').trim()
 
   if (!imageUrl) {
