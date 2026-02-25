@@ -1,4 +1,4 @@
-import { Router, Response } from 'express'
+import { Router, Request, Response } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 
 const router = Router()
@@ -6,6 +6,50 @@ const router = Router()
 const DECAGO_API_BASE = 'https://ig-parser.decago.co.kr/api/instagram/v3/hashtag'
 
 const VALID_TABS = ['popular', 'foryou', 'top', 'recent'] as const
+
+const ALLOWED_IMAGE_HOSTS = [
+  'scontent.cdninstagram.com',
+  'instagram.com',
+  'cdninstagram.com',
+]
+
+router.get('/image-proxy', authMiddleware, async (req: Request, res: Response) => {
+  const imageUrl = String(req.query.url ?? '').trim()
+
+  if (!imageUrl) {
+    return res.status(400).json({ error: 'url parameter is required' })
+  }
+
+  try {
+    const parsed = new URL(imageUrl)
+    const isAllowed = ALLOWED_IMAGE_HOSTS.some(h => parsed.hostname.endsWith(h))
+    if (!isAllowed) {
+      return res.status(403).json({ error: 'Host not allowed' })
+    }
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15000)
+
+    const upstream = await fetch(imageUrl, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    })
+    clearTimeout(timeout)
+
+    if (!upstream.ok) {
+      return res.status(upstream.status).end()
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'image/jpeg'
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+
+    const buffer = Buffer.from(await upstream.arrayBuffer())
+    return res.send(buffer)
+  } catch {
+    return res.status(502).end()
+  }
+})
 
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const hashtag = String(req.query.hashtag ?? '').trim()
