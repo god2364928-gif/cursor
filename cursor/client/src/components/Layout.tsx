@@ -19,6 +19,7 @@ import {
   UtensilsCrossed,
   ClipboardList,
   Sparkles,
+  Hash,
 } from 'lucide-react'
 import { Button } from './ui/button'
 
@@ -34,6 +35,8 @@ const navigation = [
   { name: 'settings', href: '/settings', icon: Settings },
   { name: 'accountOptimization', href: '/settings/account-optimization', icon: Gauge, nested: true },
   { name: 'accountOptimization2', href: '/settings/account-optimization-2', icon: Sparkles, nested: true },
+  { name: 'hashtagAnalysis', href: '/settings/hashtag-analysis', icon: Hash, nested: true },
+  { name: 'hashtagBulk', href: '/settings/hashtag-bulk', icon: Hash, nested: true },
   { name: 'keywordAnalysisMenu', href: '/settings/keyword-analysis', icon: TrendingUp, nested: true },
 ]
 

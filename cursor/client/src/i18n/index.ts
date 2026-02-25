@@ -483,6 +483,29 @@ const translations: Record<Language, Translation> = {
     accountOpt2SinglePhotoLabel: '単一写真',
     accountOpt2TotalPosts: '全体投稿',
 
+    // Navigation - Hashtag
+    hashtagAnalysis: 'ハッシュタグ分析',
+    hashtagBulk: 'ハッシュタグ一括照会',
+
+    // Hashtag Analysis Page
+    hashtagAnalysisTitle: 'ハッシュタグ分析',
+    hashtagAnalysisSubtitle: 'ハッシュタグを入力すると、投稿数・関連タグ・人気投稿を確認できます',
+    hashtagAnalysisSearch: '分析する',
+    hashtagAnalysisRecent: '最近の検索',
+    hashtagAnalysisRelated: '関連ハッシュタグ',
+    hashtagAnalysisRelation: '連想ハッシュタグ',
+    hashtagAnalysisPosts: '人気投稿',
+    hashtagAnalysisEmptyTitle: 'まだ分析を実行していません',
+    hashtagAnalysisEmptyDesc: 'ハッシュタグを入力して分析ボタンを押してください',
+
+    // Hashtag Bulk Page
+    hashtagBulkTitle: 'ハッシュタグ一括照会',
+    hashtagBulkSubtitle: '複数のハッシュタグを一度に入力して、投稿数をまとめて確認できます',
+    hashtagBulkInputLabel: 'ハッシュタグ入力（1行に1つ、またはカンマ区切り）',
+    hashtagBulkStart: '一括照会',
+    hashtagBulkEmptyTitle: 'まだ照会を開始していません',
+    hashtagBulkEmptyDesc: 'ハッシュタグを入力して一括照会ボタンを押してください',
+
     // Keyword Analysis Section
     keywordAnalysisHeading: 'キーワードトレンド分析',
     keywordAnalysisSubheading: '地域別の検索トレンド・検索量・店舗密度をまとめて確認できます。',
@@ -1417,6 +1440,29 @@ const translations: Record<Language, Translation> = {
     accountOpt2ReelsLabel: '릴스',
     accountOpt2SinglePhotoLabel: '단일 사진',
     accountOpt2TotalPosts: '전체 게시물',
+
+    // Navigation - Hashtag
+    hashtagAnalysis: '해시태그 분석',
+    hashtagBulk: '해시태그 일괄 조회',
+
+    // Hashtag Analysis Page
+    hashtagAnalysisTitle: '해시태그 분석',
+    hashtagAnalysisSubtitle: '해시태그를 입력하면 게시물 수, 연관 태그, 인기 게시물을 확인할 수 있습니다',
+    hashtagAnalysisSearch: '분석하기',
+    hashtagAnalysisRecent: '최근 검색',
+    hashtagAnalysisRelated: '연관 해시태그',
+    hashtagAnalysisRelation: '연상 해시태그',
+    hashtagAnalysisPosts: '인기 게시물',
+    hashtagAnalysisEmptyTitle: '아직 분석을 실행하지 않았습니다',
+    hashtagAnalysisEmptyDesc: '해시태그를 입력하고 분석하기 버튼을 눌러주세요',
+
+    // Hashtag Bulk Page
+    hashtagBulkTitle: '해시태그 일괄 조회',
+    hashtagBulkSubtitle: '여러 해시태그를 한 번에 입력하여 게시물 수를 한눈에 확인할 수 있습니다',
+    hashtagBulkInputLabel: '해시태그 입력 (줄바꿈 또는 쉼표로 구분)',
+    hashtagBulkStart: '일괄 조회',
+    hashtagBulkEmptyTitle: '아직 조회를 시작하지 않았습니다',
+    hashtagBulkEmptyDesc: '해시태그를 입력하고 일괄 조회 버튼을 눌러주세요',
 
     // Keyword Analysis Section
     keywordAnalysisHeading: '키워드 트렌드 분석',
