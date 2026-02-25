@@ -101,6 +101,19 @@ export const invoiceAPI = {
     api.post(`/invoices/${invoiceDbId}/cancel`),
 }
 
+// Quote API functions
+export const quoteAPI = {
+  getQuoteList: () => api.get('/quotes/list'),
+
+  createQuote: (data: any) => api.post('/quotes/create', data),
+
+  downloadPdf: (quoteId: string) =>
+    api.get(`/quotes/${quoteId}/pdf`, { responseType: 'blob' }),
+
+  cancelQuote: (quoteId: string) =>
+    api.post(`/quotes/${quoteId}/cancel`),
+}
+
 // Auth API functions
 export const authAPI = {
   // 담당자 일괄 변경

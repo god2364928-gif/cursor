@@ -14,6 +14,8 @@ import KeywordAnalysisPage from './pages/KeywordAnalysisPage'
 import AccountingPage from './pages/AccountingPage'
 import InvoicePage from './pages/InvoicePage'
 import InvoiceCreatePage from './pages/InvoiceCreatePage'
+import QuotePage from './pages/QuotePage'
+import QuoteCreatePage from './pages/QuoteCreatePage'
 import HotpepperPage from './pages/HotpepperPage'
 import InquiryLeadsPage from './pages/InquiryLeadsPage'
 import HashtagAnalysisPage from './pages/HashtagAnalysisPage'
@@ -44,6 +46,8 @@ function App() {
           <Route path="sales-tracking" element={<SalesTrackingPage />} />
           <Route path="invoices" element={<InvoicePage />} />
           <Route path="invoices/create" element={<InvoiceCreatePage />} />
+          <Route path="quotes" element={<QuotePage />} />
+          <Route path="quotes/create" element={<QuoteCreatePage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="settings/account-optimization" element={<AccountOptimizationPage />} />
           <Route path="settings/account-optimization-2" element={<AccountOptimizationPage2 />} />
