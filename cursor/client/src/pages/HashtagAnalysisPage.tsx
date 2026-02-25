@@ -302,7 +302,7 @@ export default function HashtagAnalysisPage() {
                 )}
 
                 {/* Post Stats Summary */}
-                {data.post_list?.length > 0 && (
+                {data.post_list?.some(p => p.like_count > 0 || p.comment_count > 0 || p.play_count > 0) && (
                   <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-700">
                     <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                       {isJa ? '投稿統計サマリー' : '게시물 통계 요약'}
@@ -336,32 +336,40 @@ export default function HashtagAnalysisPage() {
             </div>
 
             {/* Posts Grid */}
-            {data.post_list?.length > 0 && (
+            {data.post_list?.filter(p => p.thumbnail_url || p.owner || p.contents).length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <Image className="w-5 h-5 text-violet-500" />
                   <h3 className="font-semibold text-gray-900 dark:text-white">
                     {t('hashtagAnalysisPosts')}
                   </h3>
-                  <span className="text-xs text-gray-400 ml-auto">{data.post_list.length}{isJa ? '件' : '개'}</span>
+                  <span className="text-xs text-gray-400 ml-auto">{data.post_list.filter(p => p.thumbnail_url || p.owner || p.contents).length}{isJa ? '件' : '개'}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {data.post_list.map(post => (
+                  {data.post_list
+                    .filter(post => post.thumbnail_url || post.owner || post.contents)
+                    .map(post => (
                     <a
                       key={post.post_pk}
-                      href={`https://www.instagram.com/p/${post.shortcode}/`}
+                      href={post.shortcode ? `https://www.instagram.com/p/${post.shortcode}/` : '#'}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="group border border-gray-100 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
                     >
                       <div className="aspect-square bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
-                        <img
-                          src={post.thumbnail_url}
-                          alt=""
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          loading="lazy"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                        />
+                        {post.thumbnail_url ? (
+                          <img
+                            src={post.thumbnail_url}
+                            alt=""
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Image className="w-10 h-10 text-gray-300 dark:text-gray-600" />
+                          </div>
+                        )}
                         {post.media_type === 'GraphVideo' && (
                           <div className="absolute top-2 right-2 bg-black/60 rounded-full p-1">
                             <Play className="w-3 h-3 text-white fill-white" />
@@ -370,22 +378,28 @@ export default function HashtagAnalysisPage() {
                       </div>
                       <div className="p-3">
                         <div className="flex items-center gap-2 mb-2">
-                          <img
-                            src={post.owner.thumbnail_url}
-                            alt=""
-                            className="w-6 h-6 rounded-full object-cover"
-                            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                          />
+                          {post.owner?.thumbnail_url ? (
+                            <img
+                              src={post.owner.thumbnail_url}
+                              alt=""
+                              className="w-6 h-6 rounded-full object-cover"
+                              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600" />
+                          )}
                           <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
-                            @{post.owner.username}
+                            {post.owner?.username ? `@${post.owner.username}` : '-'}
                           </span>
-                          <span className="text-xs text-gray-400 ml-auto flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {timeAgo(post.post_time, language)}
-                          </span>
+                          {post.post_time && (
+                            <span className="text-xs text-gray-400 ml-auto flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {timeAgo(post.post_time, language)}
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 min-h-[2rem]">
-                          {post.contents?.slice(0, 100)}
+                          {post.contents?.slice(0, 100) || '-'}
                         </p>
                         <div className="flex items-center gap-3 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
