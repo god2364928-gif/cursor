@@ -326,6 +326,57 @@ export interface ManagerPerformance {
   totalSales: number  // 매출 합계
 }
 
+// Quote (見積書) Types
+export interface QuoteLineItem {
+  name: string
+  quantity: number
+  unit_price: number | ''
+  tax: number
+  tax_rate: number
+}
+
+export interface QuoteFormData {
+  partner_name: string
+  partner_title: '御中' | '様' | ''
+  quote_title: string
+  quote_date: string
+  delivery_date: string
+  quote_expiry: string
+  tax_entry_method: 'inclusive' | 'exclusive'
+  line_items: QuoteLineItem[]
+  memo: string
+  contact_tel: string
+  contact_person: string
+}
+
+export interface Quote {
+  id: string
+  quote_number: string
+  partner_name: string
+  partner_title: string
+  quote_title: string
+  quote_date: string
+  delivery_date?: string
+  quote_expiry?: string
+  total_amount: number
+  tax_amount: number
+  tax_entry_method: 'inclusive' | 'exclusive'
+  memo?: string
+  issued_by_user_id: string
+  issued_by_user_name: string
+  is_cancelled?: boolean
+  cancelled_at?: string
+  cancelled_by_user_name?: string
+  created_at: string
+  items: Array<{
+    id: number
+    item_name: string
+    quantity: number
+    unit_price: number
+    tax_rate: number
+  }>
+}
+
 // Meeting Modal Types
 export interface UserTarget {
   userId: string

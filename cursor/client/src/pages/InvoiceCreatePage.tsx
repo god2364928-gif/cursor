@@ -803,6 +803,7 @@ export default function InvoiceCreatePage() {
                         type="number"
                         value={item.quantity}
                         onChange={(e) => handleLineItemChange(index, 'quantity', Number(e.target.value))}
+                        onWheel={(e) => e.currentTarget.blur()}
                         className="w-full border rounded px-2 py-1 text-sm"
                         min="1"
                         required
@@ -811,11 +812,14 @@ export default function InvoiceCreatePage() {
                     <div className="md:col-span-2">
                       <label className="block text-xs mb-1">{language === 'ja' ? '単価' : '단가'}</label>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         value={item.unit_price}
-                        onChange={(e) => handleLineItemChange(index, 'unit_price', e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '')
+                          handleLineItemChange(index, 'unit_price', val)
+                        }}
                         className="w-full border rounded px-2 py-1 text-sm"
-                        min="0"
                         placeholder="0"
                         required
                       />
