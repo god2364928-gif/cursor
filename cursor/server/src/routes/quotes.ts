@@ -19,8 +19,6 @@ router.get('/list', authMiddleware, async (req: AuthRequest, res: Response) => {
         q.quote_title,
         q.quote_date,
         q.delivery_date,
-        q.delivery_place,
-        q.payment_terms,
         q.quote_expiry,
         q.total_amount,
         q.tax_amount,

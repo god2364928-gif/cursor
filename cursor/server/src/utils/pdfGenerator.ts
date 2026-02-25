@@ -3,11 +3,21 @@ import chromium from '@sparticuz/chromium'
 import fs from 'fs'
 
 async function launchBrowser() {
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) {
+    console.log('☁️ Railway detected — using @sparticuz/chromium')
+    const executablePath = await chromium.executablePath()
+    console.log(`☁️ Chromium path: ${executablePath}`)
+    return puppeteer.launch({
+      args: chromium.args,
+      executablePath,
+      headless: chromium.headless,
+    })
+  }
+
   const localChromePaths = [
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     '/usr/bin/google-chrome-stable',
     '/usr/bin/google-chrome',
-    '/usr/bin/chromium-browser',
   ]
   const localPath = localChromePaths.find(p => fs.existsSync(p))
 
@@ -20,11 +30,10 @@ async function launchBrowser() {
     })
   }
 
-  console.log('☁️ Using @sparticuz/chromium for serverless environment')
+  console.log('☁️ Fallback — using @sparticuz/chromium')
   const executablePath = await chromium.executablePath()
-  console.log(`☁️ Chromium path: ${executablePath}`)
   return puppeteer.launch({
-    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--single-process'],
+    args: chromium.args,
     executablePath,
     headless: chromium.headless,
   })
