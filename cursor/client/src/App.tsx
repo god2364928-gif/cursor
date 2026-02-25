@@ -16,6 +16,8 @@ import InvoicePage from './pages/InvoicePage'
 import InvoiceCreatePage from './pages/InvoiceCreatePage'
 import HotpepperPage from './pages/HotpepperPage'
 import InquiryLeadsPage from './pages/InquiryLeadsPage'
+import HashtagAnalysisPage from './pages/HashtagAnalysisPage'
+import HashtagBulkPage from './pages/HashtagBulkPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token)
@@ -46,6 +48,8 @@ function App() {
           <Route path="settings/account-optimization" element={<AccountOptimizationPage />} />
           <Route path="settings/account-optimization-2" element={<AccountOptimizationPage2 />} />
           <Route path="settings/keyword-analysis" element={<KeywordAnalysisPage />} />
+          <Route path="settings/hashtag-analysis" element={<HashtagAnalysisPage />} />
+          <Route path="settings/hashtag-bulk" element={<HashtagBulkPage />} />
           <Route path="accounting" element={<AccountingPage />} />
           <Route path="hotpepper" element={<HotpepperPage />} />
           <Route path="inquiry-leads" element={<InquiryLeadsPage />} />
