@@ -12,6 +12,7 @@ async function launchBrowser() {
   const localPath = localChromePaths.find(p => fs.existsSync(p))
 
   if (localPath) {
+    console.log(`🖥️ Using local Chrome: ${localPath}`)
     return puppeteer.launch({
       executablePath: localPath,
       headless: true,
@@ -19,9 +20,11 @@ async function launchBrowser() {
     })
   }
 
+  console.log('☁️ Using @sparticuz/chromium for serverless environment')
   const executablePath = await chromium.executablePath()
+  console.log(`☁️ Chromium path: ${executablePath}`)
   return puppeteer.launch({
-    args: chromium.args,
+    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--single-process'],
     executablePath,
     headless: chromium.headless,
   })
