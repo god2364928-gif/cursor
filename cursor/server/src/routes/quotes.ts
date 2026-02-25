@@ -218,7 +218,8 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
     res.setHeader('Content-Disposition', `attachment; filename="quote_${quote.quote_number}.pdf"`)
     res.send(pdfBuffer)
   } catch (error: any) {
-    console.error('Error generating quote PDF:', error)
+    console.error('❌ Error generating quote PDF:', error.message)
+    console.error('Stack:', error.stack)
     res.status(500).json({ error: error.message || 'Failed to generate PDF' })
   }
 })
