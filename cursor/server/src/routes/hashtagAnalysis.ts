@@ -8,9 +8,10 @@ const DECAGO_API_BASE = 'https://ig-parser.decago.co.kr/api/instagram/v3/hashtag
 const VALID_TABS = ['popular', 'foryou', 'top', 'recent'] as const
 
 const ALLOWED_IMAGE_HOSTS = [
-  'scontent.cdninstagram.com',
-  'instagram.com',
   'cdninstagram.com',
+  'instagram.com',
+  'fbcdn.net',
+  'facebook.com',
 ]
 
 router.get('/image-proxy', authMiddleware, async (req: Request, res: Response) => {
@@ -24,15 +25,20 @@ router.get('/image-proxy', authMiddleware, async (req: Request, res: Response) =
     const parsed = new URL(imageUrl)
     const isAllowed = ALLOWED_IMAGE_HOSTS.some(h => parsed.hostname.endsWith(h))
     if (!isAllowed) {
-      return res.status(403).json({ error: 'Host not allowed' })
+      console.log('[ImageProxy] Blocked host:', parsed.hostname)
+      return res.status(403).json({ error: 'Host not allowed', host: parsed.hostname })
     }
 
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 15000)
+    const timeout = setTimeout(() => controller.abort(), 20000)
 
     const upstream = await fetch(imageUrl, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Referer': 'https://www.instagram.com/',
+      },
     })
     clearTimeout(timeout)
 

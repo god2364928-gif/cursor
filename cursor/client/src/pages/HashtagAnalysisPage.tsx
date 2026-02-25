@@ -75,8 +75,7 @@ function timeAgo(timestamp: number, lang: string): string {
 }
 
 function proxyImg(url: string | null | undefined): string {
-  if (!url) return ''
-  if (!url.includes('cdninstagram.com') && !url.includes('instagram.com')) return url
+  if (!url || !url.startsWith('http')) return ''
   const base = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? '/api'
     : 'https://cursor-production-1d92.up.railway.app/api'
