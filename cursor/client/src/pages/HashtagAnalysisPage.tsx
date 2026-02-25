@@ -74,6 +74,15 @@ function timeAgo(timestamp: number, lang: string): string {
   return lang === 'ja' ? '数分前' : '방금 전'
 }
 
+function proxyImg(url: string | null | undefined): string {
+  if (!url) return ''
+  if (!url.includes('cdninstagram.com') && !url.includes('instagram.com')) return url
+  const base = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? '/api'
+    : 'https://cursor-production-1d92.up.railway.app/api'
+  return `${base}/hashtag-analysis/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 export default function HashtagAnalysisPage() {
   const { language, t } = useI18nStore()
   const [query, setQuery] = useState('')
@@ -359,7 +368,7 @@ export default function HashtagAnalysisPage() {
                       <div className="aspect-square bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
                         {post.thumbnail_url ? (
                           <img
-                            src={post.thumbnail_url}
+                            src={proxyImg(post.thumbnail_url)}
                             alt=""
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             loading="lazy"
@@ -380,7 +389,7 @@ export default function HashtagAnalysisPage() {
                         <div className="flex items-center gap-2 mb-2">
                           {post.owner?.thumbnail_url ? (
                             <img
-                              src={post.owner.thumbnail_url}
+                              src={proxyImg(post.owner.thumbnail_url)}
                               alt=""
                               className="w-6 h-6 rounded-full object-cover"
                               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
