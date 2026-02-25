@@ -2,7 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm ci --include=dev && npm run build && echo '=== Build completed ===' && ls -la dist/ && ls -la dist/utils/ && ls -la dist/utils/dateHelper.*"
+    "buildCommand": "npm ci --include=dev && npm run build && echo '=== Build completed ===' && ls -la dist/routes/ && echo '=== Checking hashtagAnalysis ===' && cat dist/routes/hashtagAnalysis.js | head -5 && echo '=== Checking index.js for hashtag ===' && grep -c 'hashtagAnalysis' dist/index.js"
   },
   "deploy": {
     "startCommand": "npm start",

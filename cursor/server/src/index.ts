@@ -135,7 +135,7 @@ app.use('/api/hashtag-analysis', hashtagAnalysisRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' })
+  res.json({ status: 'ok', version: '2026-02-25-v2', routes: ['hashtag-analysis'] })
 })
 
 // Temporary test endpoint to check data
