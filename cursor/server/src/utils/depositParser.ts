@@ -59,35 +59,39 @@ export function parseDepositEmail(emailBody: string): DepositInfo[] {
     console.log(`📊 Found ${allMatches.length} amount(s) in email`)
 
     // 각 금액에 대해 입금자명 추출
-    for (const match of allMatches) {
+    for (let i = 0; i < allMatches.length; i++) {
+      const match = allMatches[i]
       let depositorName = '알 수 없음'
       
-      // 금액 앞뒤로 넓은 범위의 텍스트 추출
-      const startPos = Math.max(0, match.index - 500)
-      const endPos = Math.min(emailBody.length, match.index + 500)
-      const contextAround = emailBody.substring(startPos, endPos)
+      // 각 입금 건의 영역을 구분하여 이름 혼선 방지
+      const sectionStart = i > 0
+        ? allMatches[i - 1].index
+        : Math.max(0, match.index - 500)
+      const sectionEnd = i + 1 < allMatches.length
+        ? allMatches[i + 1].index
+        : Math.min(emailBody.length, match.index + 500)
       
       // 패턴 1: "内容 ： 振込 [입금자명]" 형식
-      // 금액 앞뒤 모두에서 찾기
+      // 금액 뒤에서 찾기 (메일 형식상 内容은 金額 다음에 표시됨)
+      const contextAfter = emailBody.substring(match.index, sectionEnd)
       const contentPattern = /内容[\s　]*[：:]+[\s　]*振込[\s　]+([^\n\r]+)/
-      const contentMatch = contextAround.match(contentPattern)
+      const contentMatch = contextAfter.match(contentPattern)
       
       if (contentMatch) {
         depositorName = contentMatch[1]
-          .replace(/[\s　]+/g, ' ')  // 연속된 공백을 하나로
+          .replace(/[\s　]+/g, ' ')
           .trim()
       }
       
       // 패턴 2: 금액 바로 위 줄 (예: "ラスタジオヤマダマコト\n55,000円")
       if (depositorName === '알 수 없음') {
-        const contextBefore = emailBody.substring(startPos, match.index)
+        const contextBefore = emailBody.substring(sectionStart, match.index)
         const lines = contextBefore.split('\n')
         const lastLine = lines[lines.length - 1]?.trim()
         
         if (lastLine && lastLine.length > 0 && lastLine.length < 100 && 
             !lastLine.includes('：') && !lastLine.includes(':') &&
             !lastLine.includes('金額')) {
-          // 일본어 카타카나/히라가나/한자가 포함된 경우
           if (/[ァ-ヶぁ-ん一-龯]/.test(lastLine)) {
             depositorName = lastLine
           }
