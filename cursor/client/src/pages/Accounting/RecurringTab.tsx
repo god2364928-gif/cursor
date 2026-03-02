@@ -203,7 +203,7 @@ const RecurringTab: React.FC<RecurringTabProps> = ({ language, isAdmin }) => {
                   {exp.paymentDay}{language === 'ja' ? '日' : '일'}
                 </td>
                 <td className="px-4 py-3 text-sm truncate overflow-hidden">{exp.itemName}</td>
-                <td className="px-4 py-3 text-sm truncate overflow-hidden">{formatCurrency(exp.monthlyAmount)}</td>
+                <td className="px-4 py-3 text-sm truncate overflow-hidden tabular-nums">{formatCurrency(exp.monthlyAmount)}</td>
                 <td className="px-4 py-3 text-sm truncate overflow-hidden">{exp.paymentMethod}</td>
                 <td className="px-4 py-3 text-center">
                   <div className="flex gap-1 justify-center">
@@ -231,7 +231,7 @@ const RecurringTab: React.FC<RecurringTabProps> = ({ language, isAdmin }) => {
               <td className="px-4 py-3 text-sm" colSpan={2}>
                 {language === 'ja' ? '合計' : '합계'}
               </td>
-              <td className="px-4 py-3 text-sm">
+              <td className="px-4 py-3 text-sm tabular-nums">
                 {formatCurrency(recurringExpenses.reduce((sum, exp) => sum + exp.monthlyAmount, 0))}
               </td>
               <td className="px-4 py-3" colSpan={2}></td>

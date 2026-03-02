@@ -462,7 +462,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
                     {renderEditableCell(row, 'business_trip', row.business_trip)}
                     {renderEditableCell(row, 'rent', row.rent)}
                     {renderEditableCell(row, 'other', row.other)}
-                    <td className="px-4 py-3 text-right font-semibold bg-emerald-50">
+                    <td className="px-4 py-3 text-right font-semibold bg-emerald-50 tabular-nums">
                       {formatCurrency(
                         (parseFloat(row.coconala) || 0) +
                         (parseFloat(row.bonus) || 0) +
@@ -489,7 +489,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
                 {/* 합계 행 */}
                 <tr className="border-t-2 border-gray-300 bg-slate-100 font-bold">
                   <td className="px-4 py-3 text-gray-800">{language === 'ja' ? '合計' : '계'}</td>
-                  <td className="px-4 py-3 text-right bg-blue-100 text-blue-900">
+                  <td className="px-4 py-3 text-right bg-blue-100 text-blue-900 tabular-nums">
                     {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.base_salary) || 0), 0))}
                   </td>
                   <td className="px-4 py-3 text-right border-l-2 border-gray-200"></td>
@@ -498,7 +498,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
                   <td className="px-4 py-3 text-right"></td>
                   <td className="px-4 py-3 text-right"></td>
                   <td className="px-4 py-3 text-right"></td>
-                  <td className="px-4 py-3 text-right bg-emerald-100 text-emerald-900">
+                  <td className="px-4 py-3 text-right bg-emerald-100 text-emerald-900 tabular-nums">
                     {formatCurrency(
                       monthlyPayrollData.reduce((sum, r) =>
                         sum +

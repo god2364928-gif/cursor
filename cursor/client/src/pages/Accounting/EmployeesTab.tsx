@@ -524,7 +524,7 @@ export default function EmployeesTab({ isAdmin }: EmployeesTabProps) {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">{language === 'ja' ? '基本給' : '기본급'}</p>
-                    <p className="font-medium">
+                    <p className="font-medium tabular-nums">
                       {(selectedEmployee.baseSalary || selectedEmployee.base_salary) 
                         ? formatCurrency(selectedEmployee.baseSalary || selectedEmployee.base_salary || 0) 
                         : '-'}
