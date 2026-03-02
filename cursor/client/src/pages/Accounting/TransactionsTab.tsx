@@ -3,7 +3,7 @@ import api from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Upload, Trash2, TrendingUp, TrendingDown, Pencil } from 'lucide-react'
+import { Plus, Upload, Trash2, TrendingUp, TrendingDown, Pencil, RotateCcw } from 'lucide-react'
 import { useAccountingStore } from '@/store/accountingStore'
 import { Transaction, SimpleUser, AutoMatchRule } from './types'
 import { CATEGORY_OPTIONS } from './constants'
@@ -647,22 +647,24 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
               />
             </div>
           </div>
-          <div className="flex gap-2 justify-between items-center">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setTransactionTypeFilter('all')
-                setCategoryFilter('all')
-                setNameFilter('all')
-                setPaymentMethodFilter('all')
-                setBankNameFilter('all')
-                setSearchQuery('')
-              }}
-              className="h-10"
-            >
-              {language === 'ja' ? 'リセット' : '초기화'}
-            </Button>
+          <div className="flex gap-2 justify-end items-center">
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                title={language === 'ja' ? 'リセット' : '필터 초기화'}
+                onClick={() => {
+                  setTransactionTypeFilter('all')
+                  setCategoryFilter('all')
+                  setNameFilter('all')
+                  setPaymentMethodFilter('all')
+                  setBankNameFilter('all')
+                  setSearchQuery('')
+                }}
+                className="h-9 w-9 text-gray-500 hover:text-gray-800"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowAutoMatchDialog(true)}
@@ -943,8 +945,8 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                 </tr>
               </thead>
               <tbody>
-                {filteredTransactionsSummary.filtered.map((tx) => (
-                  <tr key={tx.id} className="border-t hover:bg-gray-50">
+                {filteredTransactionsSummary.filtered.map((tx, idx) => (
+                  <tr key={tx.id} className={`border-t transition-colors hover:bg-blue-50/40 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}`}>
                     <td className="px-3 py-2 text-center">
                       <input
                         type="checkbox"
@@ -964,8 +966,8 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                       )}
                     </td>
                     <td className="px-3 py-2 text-center">
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${
-                        tx.transactionType === '입금' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide ${
+                        tx.transactionType === '입금' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'
                       }`}>
                         {tx.transactionType === '입금' ? (language === 'ja' ? '入' : '입') : (language === 'ja' ? '出' : '출')}
                       </span>
@@ -1008,7 +1010,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                         ))}
                       </select>
                     </td>
-                    <td className="px-3 py-2 text-right font-semibold text-sm">{formatCurrency(tx.amount)}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-sm tabular-nums">{formatCurrency(tx.amount)}</td>
                     <td className="px-3 py-2 text-sm">{tx.paymentMethod}</td>
                     <td className="px-3 py-2 text-sm">
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
@@ -1064,8 +1066,9 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                         variant="ghost"
                         onClick={() => handleDeleteTransaction(tx.id)}
                         aria-label={language === 'ja' ? '削除' : '삭제'}
+                        className="text-gray-300 hover:text-rose-500 transition-colors"
                       >
-                        <Trash2 className="h-4 w-4 text-red-600" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
                   </tr>

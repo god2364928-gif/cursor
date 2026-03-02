@@ -63,7 +63,7 @@ export default function HashtagBulkPage() {
 
       try {
         const res = await api.get('/hashtag-analysis', {
-          params: { hashtag: tags[i], tab },
+          params: { hashtag: tags[i], tab, source: 'bulk' },
         })
         setResults(prev => prev.map((r, idx) =>
           idx === i ? { ...r, status: 'done', post_count: res.data.post_count ?? 0 } : r

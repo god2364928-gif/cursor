@@ -137,7 +137,7 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
     return (
       <td
         key={`${month}-${field}`}
-        className={`px-2 py-2 text-right cursor-pointer hover:bg-blue-50 text-xs border ${className}`}
+        className={`px-2 py-2 text-right cursor-pointer hover:bg-blue-50 text-xs border tabular-nums ${className}`}
         onClick={() => handleCellClick(month, field, value)}
       >
         {isEditing ? (
@@ -164,10 +164,10 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
   }
   
   const renderPaymentRow = (label: string, field: keyof MonthlyData, bgColor: string = '') => (
-    <tr key={field} className={`border-t ${bgColor}`}>
+    <tr key={field} className={`border-t group hover:bg-blue-50/40 transition-colors ${bgColor}`}>
       <td className="px-4 py-2 font-medium text-sm border">{label}</td>
       {months.map(month => renderEditableCell(month, field))}
-      <td className="px-4 py-2 text-right font-semibold text-sm bg-gray-100 border">
+      <td className="px-4 py-2 text-right font-semibold text-sm bg-gray-100 border tabular-nums">
         {formatCurrency(getRowTotal(field))}
       </td>
     </tr>
@@ -225,19 +225,19 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                 {renderPaymentRow(language === 'ja' ? 'ココナラ' : '코코나라', 'coconala')}
                 
                 {/* 매출 합계 행 */}
-                <tr className="border-t-2 bg-red-100 font-bold">
-                  <td className="px-4 py-2 text-sm border">{language === 'ja' ? '売上' : '매출'}</td>
+                <tr className="border-t-2 border-slate-400 font-bold bg-slate-50">
+                  <td className="px-4 py-2 text-sm border text-slate-700">{language === 'ja' ? '売上' : '매출'}</td>
                   {months.map(month => {
                     const sales = getValue(month, 'bank_transfer') + getValue(month, 'paypay') + 
                                  getValue(month, 'paypal') + getValue(month, 'strip') + 
                                  getValue(month, 'strip1') + getValue(month, 'strip2') + getValue(month, 'coconala')
                     return (
-                      <td key={month} className="px-2 py-2 text-right text-sm border">
+                      <td key={month} className="px-2 py-2 text-right text-sm border text-slate-700 tabular-nums">
                         {formatCurrency(sales)}
                       </td>
                     )
                   })}
-                  <td className="px-4 py-2 text-right text-sm bg-red-200 border">
+                  <td className="px-4 py-2 text-right text-sm border font-extrabold text-slate-800 tabular-nums">
                     {formatCurrency(
                       getRowTotal('bank_transfer') + getRowTotal('paypay') + 
                       getRowTotal('paypal') + getRowTotal('strip') + 
@@ -247,19 +247,19 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                 </tr>
                 
                 {/* 수수료 합계 행 */}
-                <tr className="bg-yellow-100 font-bold">
-                  <td className="px-4 py-2 text-sm border">{language === 'ja' ? '手数料' : '수수료'}</td>
+                <tr className="border-t border-amber-300 font-bold bg-amber-50/50">
+                  <td className="px-4 py-2 text-sm border text-amber-700">{language === 'ja' ? '手数料' : '수수료'}</td>
                   {months.map(month => {
                     const fees = getValue(month, 'bank_transfer_fee') + getValue(month, 'paypay_fee') + 
                                 getValue(month, 'paypal_fee') + getValue(month, 'strip_fee') + 
                                 getValue(month, 'strip1_fee') + getValue(month, 'strip2_fee')
                     return (
-                      <td key={month} className="px-2 py-2 text-right text-sm border">
+                      <td key={month} className="px-2 py-2 text-right text-sm border text-amber-700 tabular-nums">
                         {formatCurrency(fees)}
                       </td>
                     )
                   })}
-                  <td className="px-4 py-2 text-right text-sm bg-yellow-200 border">
+                  <td className="px-4 py-2 text-right text-sm border font-extrabold text-amber-800 tabular-nums">
                     {formatCurrency(
                       getRowTotal('bank_transfer_fee') + getRowTotal('paypay_fee') + 
                       getRowTotal('paypal_fee') + getRowTotal('strip_fee') + 
@@ -269,11 +269,11 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                 </tr>
                 
                 {/* 매출합계 (매출 - 수수료) 행 */}
-                <tr className="bg-green-100 font-bold border-t-2">
-                  <td className="px-4 py-2 text-sm border">{language === 'ja' ? '売上合計' : '매출합계'}</td>
+                <tr className="border-t-2 border-emerald-500 font-bold bg-emerald-50/60">
+                  <td className="px-4 py-2 text-sm border text-emerald-800">{language === 'ja' ? '売上合計' : '매출합계'}</td>
                   {months.map(month => {
                     const data = getMonthData(month)
-                    if (!data) return <td key={month} className="px-2 py-2 text-right text-sm border">¥0</td>
+                    if (!data) return <td key={month} className="px-2 py-2 text-right text-sm border tabular-nums">¥0</td>
                     
                     const sales = getValue(month, 'bank_transfer') + getValue(month, 'paypay') + 
                                  getValue(month, 'paypal') + getValue(month, 'strip') + 
@@ -283,12 +283,12 @@ const TotalSalesTab: React.FC<TotalSalesTabProps> = ({ language, isAdmin }) => {
                                 getValue(month, 'strip1_fee') + getValue(month, 'strip2_fee')
                     
                     return (
-                      <td key={month} className="px-2 py-2 text-right text-sm border">
+                      <td key={month} className="px-2 py-2 text-right text-sm border text-emerald-700 tabular-nums">
                         {formatCurrency(sales - fees)}
                       </td>
                     )
                   })}
-                  <td className="px-4 py-2 text-right text-sm bg-green-200 border font-extrabold">
+                  <td className="px-4 py-2 text-right text-sm border font-extrabold text-emerald-800 tabular-nums">
                     {formatCurrency(
                       (getRowTotal('bank_transfer') + getRowTotal('paypay') + getRowTotal('paypal') + getRowTotal('strip') + getRowTotal('strip1') + getRowTotal('strip2') + getRowTotal('coconala')) -
                       (getRowTotal('bank_transfer_fee') + getRowTotal('paypay_fee') + getRowTotal('paypal_fee') + getRowTotal('strip_fee') + getRowTotal('strip1_fee') + getRowTotal('strip2_fee'))

@@ -1,6 +1,7 @@
 import { Router, Response } from 'express'
 import { fetch } from 'undici'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { logFeatureUsage } from '../utils/logFeatureUsage'
 
 const router = Router()
 
@@ -100,6 +101,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     }
 
     console.log('[AccountOptimization] Returning successful response')
+    if (req.user?.id) {
+      logFeatureUsage(req.user.id, '계정최적화조회')
+    }
     return res.json(payload)
   } catch (error) {
     console.error('[AccountOptimization] Request failed:', error)

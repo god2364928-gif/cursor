@@ -3,6 +3,7 @@ import path from 'path'
 import { spawn } from 'child_process'
 import googleTrends from 'google-trends-api'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { logFeatureUsage } from '../utils/logFeatureUsage'
 
 const router = Router()
 
@@ -38,6 +39,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const pythonResult = await runPythonSummary(trimmedKeyword, geoCode, language, timeRange)
     if (pythonResult?.status === 'success') {
+      if (req.user?.id) logFeatureUsage(req.user.id, '키워드트렌드분석')
       return res.json(pythonResult)
     }
     console.warn('[KeywordAnalysis] Python summary unavailable, attempting Node fallback', pythonResult)
@@ -47,6 +49,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
   try {
     const fallbackResult = await buildFallbackSummary(trimmedKeyword, geoCode, language, timeRange)
+    if (req.user?.id) logFeatureUsage(req.user.id, '키워드트렌드분석')
     return res.json(fallbackResult)
   } catch (error) {
     console.error('[KeywordAnalysis] Fallback summary failed', error)

@@ -310,13 +310,18 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">{language === 'ja' ? '給与管理' : '급여 관리'}</h2>
+      <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">{language === 'ja' ? '給与管理' : '급여 관리'}</h2>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {selectedPayrollYear}{language === 'ja' ? '年' : '년'} {selectedPayrollMonth}{language === 'ja' ? '月' : '월'}
+          </p>
+        </div>
         <div className="flex gap-2 items-center">
           <select
-            className="border rounded px-3 py-2"
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm"
             value={selectedPayrollYear}
             onChange={(e) => setSelectedPayrollYear(Number(e.target.value))}
           >
@@ -327,7 +332,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
             ))}
           </select>
           <select
-            className="border rounded px-3 py-2"
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm"
             value={selectedPayrollMonth}
             onChange={(e) => setSelectedPayrollMonth(Number(e.target.value))}
           >
@@ -341,7 +346,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
             <Plus className="h-4 w-4 mr-1" />
             {language === 'ja' ? '従業員追加' : '직원 추가'}
           </Button>
-          <Button 
+          <Button
             onClick={handleGeneratePayroll}
             variant="outline"
             className="bg-green-50 hover:bg-green-100"
@@ -352,11 +357,11 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
       </div>
 
       {/* File Upload Section */}
-      <Card>
+      <Card className="rounded-xl shadow-sm border border-gray-100">
         <CardContent className="py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <FileText className="h-5 w-5 text-gray-500" />
+              <FileText className="h-5 w-5 text-gray-400" />
               <div>
                 <div className="font-medium text-sm">
                   {language === 'ja' ? '給与明細書' : '급여명세서'}
@@ -376,33 +381,20 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
             <div className="flex gap-2">
               {payrollFile ? (
                 <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleFileDownload}
-                  >
+                  <Button size="sm" variant="outline" onClick={handleFileDownload}>
                     <Download className="h-4 w-4 mr-1" />
                     {language === 'ja' ? 'ダウンロード' : '다운로드'}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleFileDelete}
-                    className="text-red-600 hover:text-red-700"
-                  >
+                  <Button size="sm" variant="outline" onClick={handleFileDelete} className="text-red-600 hover:text-red-700">
                     <X className="h-4 w-4 mr-1" />
                     {language === 'ja' ? '削除' : '삭제'}
                   </Button>
                 </>
               ) : null}
-              <Button
-                size="sm"
-                onClick={handleFileUploadClick}
-                disabled={isUploadingFile}
-              >
+              <Button size="sm" onClick={handleFileUploadClick} disabled={isUploadingFile}>
                 <Upload className="h-4 w-4 mr-1" />
-                {isUploadingFile 
-                  ? (language === 'ja' ? 'アップロード中...' : '업로드 중...') 
+                {isUploadingFile
+                  ? (language === 'ja' ? 'アップロード中...' : '업로드 중...')
                   : (language === 'ja' ? 'アップロード' : '업로드')}
               </Button>
               <input
@@ -417,62 +409,60 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
         </CardContent>
       </Card>
 
-      {/* History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">{language === 'ja' ? '履歴メモ' : '히스토리'}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <textarea
-              className="flex-1 border rounded px-3 py-2 text-sm resize-none"
-              rows={Math.min(15, Math.max(3, (monthlyPayrollHistory?.split('\n').length || 0) + 1))}
-              value={monthlyPayrollHistory}
-              onChange={(e) => setMonthlyPayrollHistory(e.target.value)}
-              placeholder={language === 'ja' ? '履歴を入力...' : '히스토리를 입력...'}
-              style={{ maxHeight: '400px', overflowY: 'auto' }}
-            />
-            <Button onClick={handleSavePayrollHistory} size="sm">
-              {language === 'ja' ? '保存' : '저장'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Payroll Table */}
-      <Card>
+      <Card className="rounded-xl shadow-sm border border-gray-100">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left">{language === 'ja' ? '従業員名' : '직원명'}</th>
-                  <th className="px-4 py-3 text-right bg-blue-50">{language === 'ja' ? '基本給' : '기본급'}</th>
-                  <th className="px-4 py-3 text-right border-l-2 border-gray-300">{language === 'ja' ? 'ココナラ' : '코코나라'}</th>
-                  <th className="px-4 py-3 text-right">{language === 'ja' ? '賞与金' : '상여금'}</th>
-                  <th className="px-4 py-3 text-right">{language === 'ja' ? 'インセンティブ' : '인센티브'}</th>
-                  <th className="px-4 py-3 text-right">{language === 'ja' ? '出張費' : '출장비'}</th>
-                  <th className="px-4 py-3 text-right">{language === 'ja' ? '家賃' : '집세'}</th>
-                  <th className="px-4 py-3 text-right">{language === 'ja' ? 'その他' : '기타'}</th>
-                  <th className="px-4 py-3 text-right font-semibold bg-green-50">{language === 'ja' ? 'インセンティブ合計' : '인센티브 합계'}</th>
-                  <th className="px-4 py-3 text-left">{language === 'ja' ? '備考' : '비고'}</th>
-                  <th className="px-4 py-3 text-center" style={{ width: '60px' }}>
+              <thead>
+                <tr className="bg-slate-50 border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {language === 'ja' ? '従業員名' : '직원명'}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide bg-blue-50">
+                    {language === 'ja' ? '基本給' : '기본급'}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide border-l-2 border-gray-200">
+                    {language === 'ja' ? 'ココナラ' : '코코나라'}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {language === 'ja' ? '賞与金' : '상여금'}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {language === 'ja' ? 'インセンティブ' : '인센티브'}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {language === 'ja' ? '出張費' : '출장비'}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {language === 'ja' ? '家賃' : '집세'}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {language === 'ja' ? 'その他' : '기타'}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide bg-emerald-50">
+                    {language === 'ja' ? 'インセンティブ合計' : '인센티브 합계'}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {language === 'ja' ? '備考' : '비고'}
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide" style={{ width: '60px' }}>
                     {language === 'ja' ? '操作' : '조작'}
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-100">
                 {monthlyPayrollData.map((row) => (
-                  <tr key={row.id} className="border-t hover:bg-gray-50">
+                  <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium">{row.employee_name}</td>
                     {renderEditableCell(row, 'base_salary', row.base_salary, 'bg-blue-50')}
-                    {renderEditableCell(row, 'coconala', row.coconala, 'border-l-2 border-gray-300')}
+                    {renderEditableCell(row, 'coconala', row.coconala, 'border-l-2 border-gray-200')}
                     {renderEditableCell(row, 'bonus', row.bonus)}
                     {renderEditableCell(row, 'incentive', row.incentive)}
                     {renderEditableCell(row, 'business_trip', row.business_trip)}
                     {renderEditableCell(row, 'rent', row.rent)}
                     {renderEditableCell(row, 'other', row.other)}
-                    <td className="px-4 py-3 text-right font-semibold bg-green-50">
+                    <td className="px-4 py-3 text-right font-semibold bg-emerald-50">
                       {formatCurrency(
                         (parseFloat(row.coconala) || 0) +
                         (parseFloat(row.bonus) || 0) +
@@ -490,28 +480,28 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
                         onClick={() => handleDeletePayrollEmployee(row.id)}
                         aria-label={language === 'ja' ? '削除' : '삭제'}
                       >
-                        <Trash2 className="h-4 w-4 text-red-600" />
+                        <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </td>
                   </tr>
                 ))}
-                
-                {/* Total Row */}
-                <tr className="border-t-2 bg-blue-50 font-semibold">
-                  <td className="px-4 py-3">{language === 'ja' ? '合計' : '계'}</td>
-                  <td className="px-4 py-3 text-right bg-blue-100">
+
+                {/* 합계 행 */}
+                <tr className="border-t-2 border-gray-300 bg-slate-100 font-bold">
+                  <td className="px-4 py-3 text-gray-800">{language === 'ja' ? '合計' : '계'}</td>
+                  <td className="px-4 py-3 text-right bg-blue-100 text-blue-900">
                     {formatCurrency(monthlyPayrollData.reduce((sum, r) => sum + (parseFloat(r.base_salary) || 0), 0))}
                   </td>
-                  <td className="px-4 py-3 text-right border-l-2 border-gray-300"></td>
+                  <td className="px-4 py-3 text-right border-l-2 border-gray-200"></td>
                   <td className="px-4 py-3 text-right"></td>
                   <td className="px-4 py-3 text-right"></td>
                   <td className="px-4 py-3 text-right"></td>
                   <td className="px-4 py-3 text-right"></td>
                   <td className="px-4 py-3 text-right"></td>
-                  <td className="px-4 py-3 text-right bg-green-100">
+                  <td className="px-4 py-3 text-right bg-emerald-100 text-emerald-900">
                     {formatCurrency(
-                      monthlyPayrollData.reduce((sum, r) => 
-                        sum + 
+                      monthlyPayrollData.reduce((sum, r) =>
+                        sum +
                         (parseFloat(r.coconala) || 0) +
                         (parseFloat(r.bonus) || 0) +
                         (parseFloat(r.incentive) || 0) +
@@ -525,6 +515,28 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* History - 테이블 하단 배치 */}
+      <Card className="rounded-xl shadow-sm border border-gray-100">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm text-gray-700">{language === 'ja' ? '履歴メモ' : '히스토리'}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <textarea
+              className="flex-1 border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-200"
+              rows={Math.min(15, Math.max(3, (monthlyPayrollHistory?.split('\n').length || 0) + 1))}
+              value={monthlyPayrollHistory}
+              onChange={(e) => setMonthlyPayrollHistory(e.target.value)}
+              placeholder={language === 'ja' ? '履歴を入力...' : '히스토리를 입력...'}
+              style={{ maxHeight: '400px', overflowY: 'auto' }}
+            />
+            <Button onClick={handleSavePayrollHistory} size="sm">
+              {language === 'ja' ? '保存' : '저장'}
+            </Button>
           </div>
         </CardContent>
       </Card>

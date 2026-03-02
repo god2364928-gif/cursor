@@ -1,8 +1,7 @@
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
-import api from '../lib/api'
 import {
   LayoutDashboard,
   Users,
@@ -14,7 +13,6 @@ import {
   TrendingUp,
   LogOut,
   Languages,
-  Calculator,
   FileText,
   ClipboardCheck,
   UtensilsCrossed,
@@ -44,24 +42,9 @@ const navigation = [
 
 export default function Layout() {
   const location = useLocation()
-  const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   const { language, setLanguage, t } = useI18nStore()
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [password, setPassword] = useState('')
-  const [passwordError, setPasswordError] = useState('')
-  
-  // 회계 페이지 확인 및 활성 탭 상태
-  const isAccountingPage = location.pathname === '/accounting'
-  const [activeAccountingTab, setActiveAccountingTab] = useState('dashboard')
-  
-  // 회계 탭 변경 핸들러
-  const handleAccountingTabClick = (tabKey: string) => {
-    setActiveAccountingTab(tabKey)
-    const event = new CustomEvent('accounting-tab-change', { detail: tabKey })
-    window.dispatchEvent(event)
-  }
 
   // 언어 변경 시 HTML lang 속성 업데이트
   useEffect(() => {
@@ -72,127 +55,20 @@ export default function Layout() {
     setLanguage(language === 'ja' ? 'ko' : 'ja')
   }
 
-  const handleAccountingClick = () => {
-    if (user?.role === 'admin') {
-      setShowPasswordModal(true)
-      setPassword('')
-      setPasswordError('')
-    }
-  }
-
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setPasswordError('')
-    
-    try {
-      const response = await api.post('/accounting/verify-password', { password })
-      if (response.data.success) {
-        setShowPasswordModal(false)
-        navigate('/accounting')
-      } else {
-        setPasswordError(response.data.error || '비밀번호가 일치하지 않습니다')
-      }
-    } catch (error: any) {
-      setPasswordError(error.response?.data?.error || '인증에 실패했습니다')
-    }
-  }
-
-  // 회계 탭 목록
-  const accountingTabs = [
-    { key: 'dashboard', label: language === 'ja' ? 'ダッシュボード' : '대시보드' },
-    { key: 'transactions', label: language === 'ja' ? '取引履歴' : '거래내역' },
-    { key: 'totalsales', label: language === 'ja' ? '全体売上' : '전체매출' },
-    { key: 'paypay', label: 'PayPay' },
-    { key: 'employees', label: language === 'ja' ? '従業員' : '직원' },
-    { key: 'payroll', label: language === 'ja' ? '給与' : '급여' },
-    { key: 'recurring', label: language === 'ja' ? '定期支出' : '정기지출' },
-    { key: 'capital', label: language === 'ja' ? '資本金' : '자본금' },
-  ]
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar with accounting tabs, accounting button and language switcher */}
-      <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-10 print:hidden hide-on-pdf">
-        {/* 회계 페이지일 때만 탭 표시 */}
-        {isAccountingPage && (
-          <nav className="flex gap-2">
-            {accountingTabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => handleAccountingTabClick(tab.key)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                  activeAccountingTab === tab.key
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        )}
-        
-        {/* 회계 페이지가 아닐 때는 빈 공간 */}
-        {!isAccountingPage && <div />}
-        
-        {/* 오른쪽 버튼들 */}
-        <div className="flex items-center gap-3">
-          {user?.role === 'admin' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAccountingClick}
-              className="flex items-center gap-2"
-            >
-              <Calculator className="h-4 w-4" />
-              {language === 'ja' ? '会計' : '회계'}
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleLanguage}
-            className="flex items-center gap-2"
-          >
-            <Languages className="h-4 w-4" />
-            {language === 'ja' ? t('korean') : t('japanese')}
-          </Button>
-        </div>
+      {/* Top bar with language switcher */}
+      <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-end px-6 z-10 print:hidden hide-on-pdf">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleLanguage}
+          className="flex items-center gap-2"
+        >
+          <Languages className="h-4 w-4" />
+          {language === 'ja' ? t('korean') : t('japanese')}
+        </Button>
       </div>
-
-      {/* Password Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 print:hidden hide-on-pdf">
-          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl">
-            <h2 className="text-xl font-bold mb-4">{language === 'ja' ? '会計パスワード' : '회계 비밀번호'}</h2>
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {language === 'ja' ? 'パスワード' : '비밀번호'}
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  autoFocus
-                />
-                {passwordError && (
-                  <p className="text-sm text-red-600 mt-1">{passwordError}</p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" className="flex-1">
-                  {language === 'ja' ? '確認' : '확인'}
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setShowPasswordModal(false)}>
-                  {language === 'ja' ? 'キャンセル' : '취소'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Sidebar */}
       <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col print:hidden hide-on-pdf">

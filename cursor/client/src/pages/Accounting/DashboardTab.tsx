@@ -334,7 +334,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
                 <p className="text-sm font-medium text-gray-600">
                   {language === 'ja' ? '総支出（取引履歴基準）' : '총 지출 (거래내역 기반)'}
                 </p>
-                <p className="text-2xl font-bold text-red-600 mt-1">
+                <p className="text-2xl font-bold text-rose-500 mt-1">
                   {formatCurrency(dashboard.totalExpenses)}
                 </p>
               </div>
@@ -396,12 +396,12 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
                   {formatCurrency(dashboard.totalDeposits || 0)}
                 </span>
               </div>
-              <div className="pt-3 border-t border-gray-200">
+              <div className="pt-3 border-t-2 border-purple-200">
                 <div className="flex justify-between items-center">
-                  <span className="text-base font-semibold">
+                  <span className="text-base font-bold text-gray-800">
                     {language === 'ja' ? '合計' : '합계'}
                   </span>
-                  <span className="text-2xl font-bold text-purple-600">
+                  <span className="text-3xl font-extrabold text-purple-700 tabular-nums">
                     {formatCurrency(dashboard.totalAssets)}
                   </span>
                 </div>
@@ -418,7 +418,26 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
             {language === 'ja' ? '月別推移' : '월별 추이'}
           </h3>
           <div style={{ height: '300px' }}>
-            {monthlyChartData && <Bar data={monthlyChartData} options={{ responsive: true, maintainAspectRatio: false }} />}
+            {monthlyChartData && (
+              <Bar
+                data={monthlyChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  datasets: { bar: { barPercentage: 0.75, categoryPercentage: 0.55, borderRadius: 4 } } as any,
+                  plugins: {
+                    legend: { position: 'top' },
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      grid: { color: 'rgba(0,0,0,0.04)' },
+                    },
+                    x: { grid: { display: false } },
+                  },
+                }}
+              />
+            )}
           </div>
         </CardContent>
       </Card>
@@ -431,7 +450,17 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
               {language === 'ja' ? 'カテゴリー別売上' : '카테고리별 매출'}
             </h3>
             <div style={{ height: '250px' }}>
-              {salesByCategoryData && <Bar data={salesByCategoryData} options={{ responsive: true, maintainAspectRatio: false }} />}
+              {salesByCategoryData && (
+                <Bar
+                  data={salesByCategoryData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    datasets: { bar: { barPercentage: 0.75, categoryPercentage: 0.55, borderRadius: 4 } } as any,
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { grid: { display: false } } },
+                  }}
+                />
+              )}
             </div>
           </CardContent>
         </Card>
@@ -442,7 +471,17 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
               {language === 'ja' ? 'カテゴリー別支出' : '카테고리별 지출'}
             </h3>
             <div style={{ height: '250px' }}>
-              {expensesByCategoryData && <Bar data={expensesByCategoryData} options={{ responsive: true, maintainAspectRatio: false }} />}
+              {expensesByCategoryData && (
+                <Bar
+                  data={expensesByCategoryData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    datasets: { bar: { barPercentage: 0.75, categoryPercentage: 0.55, borderRadius: 4 } } as any,
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { grid: { display: false } } },
+                  }}
+                />
+              )}
             </div>
           </CardContent>
         </Card>

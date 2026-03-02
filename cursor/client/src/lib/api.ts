@@ -26,7 +26,8 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    // 일반 토큰 우선, 없으면 어드민 토큰 fallback (회계 등 어드민 전용 페이지용)
+    const token = localStorage.getItem('token') || localStorage.getItem('admin_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -120,4 +121,31 @@ export const authAPI = {
   bulkChangeManager: (oldManager: string, newManager: string) => 
     api.post('/auth/bulk-change-manager', { oldManager, newManager }),
 }
+
+// Admin API (super_admin JWT 사용)
+const adminApi = axios.create({
+  baseURL: getApiUrl(),
+  headers: { 'Content-Type': 'application/json' },
+})
+
+adminApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('admin_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+adminApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && localStorage.getItem('admin_token')) {
+      localStorage.removeItem('admin_token')
+      window.location.href = '/admin/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
+export { adminApi }
 
