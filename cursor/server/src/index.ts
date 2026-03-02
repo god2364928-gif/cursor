@@ -140,6 +140,38 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', version: '2026-02-25-v2', routes: ['hashtag-analysis'] })
 })
 
+// 입금 알림 진단 엔드포인트 (읽음처리/Slack 발송 없음)
+app.get('/api/debug/deposit', async (req, res) => {
+  try {
+    const gmailEnv = {
+      GMAIL_CREDENTIALS_JSON: !!process.env.GMAIL_CREDENTIALS_JSON,
+      GMAIL_TOKEN_JSON: !!process.env.GMAIL_TOKEN_JSON,
+      GMAIL_CREDENTIALS_PATH: process.env.GMAIL_CREDENTIALS_PATH || '(default)',
+      GMAIL_TOKEN_PATH: process.env.GMAIL_TOKEN_PATH || '(default)',
+      SLACK_BOT_TOKEN: !!process.env.SLACK_BOT_TOKEN,
+      DEPOSIT_SLACK_CHANNEL_ID: process.env.DEPOSIT_SLACK_CHANNEL_ID || '(not set)',
+      SLACK_CHANNEL_ID: process.env.SLACK_CHANNEL_ID || '(not set)',
+      ENABLE_GMAIL_DEPOSIT_CHECK: process.env.ENABLE_GMAIL_DEPOSIT_CHECK || '(not set)',
+      NODE_ENV: process.env.NODE_ENV || '(not set)',
+    }
+
+    const emails = await checkDepositEmails()
+
+    const parsed = emails.map(email => ({
+      id: email.id,
+      subject: email.subject,
+      date: email.date,
+      bodyLength: email.body.length,
+      bodyPreview: email.body.substring(0, 300),
+      deposits: parseDepositEmail(email.body),
+    }))
+
+    res.json({ env: gmailEnv, emailsFound: emails.length, parsed })
+  } catch (error: any) {
+    res.status(500).json({ error: error.message, stack: error.stack })
+  }
+})
+
 // Temporary test endpoint to check data
 app.get('/api/test/customers', async (req, res) => {
   try {
