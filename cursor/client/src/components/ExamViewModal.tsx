@@ -13,11 +13,12 @@ interface ExamViewModalProps {
   onOpenChange: (open: boolean) => void
   userId: string | null
   userName?: string
+  initialRound?: number
 }
 
 const EXAM_QUESTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
-export default function ExamViewModal({ open, onOpenChange, userId, userName }: ExamViewModalProps) {
+export default function ExamViewModal({ open, onOpenChange, userId, userName, initialRound }: ExamViewModalProps) {
   const { t } = useI18nStore()
   const [exams, setExams] = useState<Array<{
     answers: Record<number, string>
@@ -33,7 +34,7 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
     if (open && userId) {
       loadUserExamAnswers()
     }
-  }, [open, userId])
+  }, [open, userId, initialRound])
 
   const loadUserExamAnswers = async () => {
     if (!userId) return
@@ -59,11 +60,12 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName }: 
           }
         })
         setExams(loadedExams)
-        
-        // 기본적으로 첫 번째 회차 선택
-        if (loadedExams.length > 0) {
-          setSelectedRound(loadedExams[0].examRound)
-        }
+
+        // initialRound가 있으면 그 회차로, 없으면 첫 번째 회차로
+        const targetRound = initialRound && loadedExams.some((e) => e.examRound === initialRound)
+          ? initialRound
+          : loadedExams[0]?.examRound
+        if (targetRound) setSelectedRound(targetRound)
       } else {
         setExams([])
       }

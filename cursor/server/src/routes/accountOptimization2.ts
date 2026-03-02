@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { fetch } from 'undici'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import OpenAI from 'openai'
+import { logFeatureUsage } from '../utils/logFeatureUsage'
 
 const router = Router()
 
@@ -388,6 +389,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     }
 
     console.log('[AccountOptimization2] Returning successful response')
+    if (req.user?.id) {
+      logFeatureUsage(req.user.id, '계정최적화조회2.0')
+    }
     return res.json(payload)
   } catch (error) {
     console.error('[AccountOptimization2] Request failed:', error)

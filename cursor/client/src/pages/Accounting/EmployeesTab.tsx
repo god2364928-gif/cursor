@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
-import { Plus, Pencil, Trash2, Upload, Download, FileText } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, Download, FileText, MoreVertical, Mail, CalendarDays, DollarSign } from 'lucide-react'
 import api from '../../lib/api'
 import { useI18nStore } from '../../i18n'
 import { Employee } from './types'
@@ -25,9 +25,21 @@ export default function EmployeesTab({ isAdmin }: EmployeesTabProps) {
   const [selectedYearMonth, setSelectedYearMonth] = useState('')
   const [selectedFileSubcategory, setSelectedFileSubcategory] = useState('')
   const [loading, setLoading] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchEmployees()
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const fetchEmployees = useCallback(async () => {
@@ -234,14 +246,20 @@ export default function EmployeesTab({ isAdmin }: EmployeesTabProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">{language === 'ja' ? '従業員管理' : '직원 관리'}</h2>
+    <div className="p-6 space-y-6">
+      {/* 헤더 */}
+      <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">{language === 'ja' ? '従業員管理' : '직원 관리'}</h2>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {filteredEmployees.length}{language === 'ja' ? '名' : '명'}
+          </p>
+        </div>
         <div className="flex gap-2 items-center">
           <select
             value={employeeStatusFilter}
             onChange={(e) => setEmployeeStatusFilter(e.target.value)}
-            className="border rounded px-3 py-2"
+            className="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm"
           >
             <option value="입사중">{language === 'ja' ? '入社中' : '입사중'}</option>
             <option value="입사전">{language === 'ja' ? '入社前' : '입사전'}</option>
@@ -384,75 +402,99 @@ export default function EmployeesTab({ isAdmin }: EmployeesTabProps) {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredEmployees.map((emp) => (
-          <Card key={emp.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEmployeeDetail(emp)}>
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-bold text-lg">{emp.name}</h3>
-                  <p className="text-sm text-gray-600">
-                    {emp.department || '-'} • {emp.position || '-'}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" ref={menuRef}>
+        {filteredEmployees.map((emp) => {
+          const status = (emp.employmentStatus || emp.employment_status) || '입사중'
+          const statusLabel = status === '입사중'
+            ? (language === 'ja' ? '入社中' : '입사중')
+            : status === '입사전'
+            ? (language === 'ja' ? '入社前' : '입사전')
+            : (language === 'ja' ? '退職' : '퇴사')
+          const statusClass = status === '입사중'
+            ? 'bg-emerald-100 text-emerald-700'
+            : status === '입사전'
+            ? 'bg-blue-100 text-blue-700'
+            : 'bg-gray-100 text-gray-600'
+
+          return (
+            <Card
+              key={emp.id}
+              className="cursor-pointer hover:shadow-md hover:border-blue-300 transition-all rounded-xl border border-gray-100 shadow-sm"
+              onClick={() => openEmployeeDetail(emp)}
+            >
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <h3 className="font-bold text-base truncate">{emp.name}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {emp.department || '-'} · {emp.position || '-'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusClass}`}>
+                      {statusLabel}
+                    </span>
+                    <div className="relative">
+                      <button
+                        className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                        onClick={() => setOpenMenuId(openMenuId === emp.id ? null : emp.id)}
+                        aria-label="메뉴"
+                      >
+                        <MoreVertical className="h-4 w-4 text-gray-400" />
+                      </button>
+                      {openMenuId === emp.id && (
+                        <div className="absolute right-0 top-7 bg-white border border-gray-100 rounded-lg shadow-lg z-20 py-1 min-w-[90px]">
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 text-gray-700"
+                            onClick={() => { openEmployeeForm(emp); setOpenMenuId(null) }}
+                          >
+                            <Pencil className="h-3.5 w-3.5 text-emerald-600" />
+                            {language === 'ja' ? '修正' : '수정'}
+                          </button>
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 text-red-600"
+                            onClick={() => { handleDeleteEmployee(emp.id); setOpenMenuId(null) }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {language === 'ja' ? '削除' : '삭제'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-gray-400 flex items-center gap-1.5 truncate">
+                    <Mail className="h-3 w-3 flex-shrink-0" />
                     {emp.email}
                   </p>
                 </div>
-                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-medium ${
-                      ((emp.employmentStatus || emp.employment_status) || '입사중') === '입사중' 
-                        ? 'bg-green-100 text-green-800' 
-                        : ((emp.employmentStatus || emp.employment_status) || '입사중') === '입사전'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {((emp.employmentStatus || emp.employment_status) || '입사중') === '입사중'
-                      ? (language === 'ja' ? '入社中' : '입사중')
-                      : ((emp.employmentStatus || emp.employment_status) || '입사중') === '입사전'
-                      ? (language === 'ja' ? '入社前' : '입사전')
-                      : (language === 'ja' ? '退職' : '퇴사')}
-                  </span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openEmployeeForm(emp)
-                    }}
-                    aria-label={language === 'ja' ? '修正' : '수정'}
-                  >
-                    <Pencil className="h-4 w-4 text-emerald-600" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteEmployee(emp.id)
-                    }}
-                    aria-label={language === 'ja' ? '削除' : '삭제'}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-600" />
-                  </Button>
+
+                <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <DollarSign className="h-3 w-3" />
+                      {language === 'ja' ? '基本給' : '기본급'}
+                    </p>
+                    <p className="font-bold text-sm mt-0.5 tabular-nums">
+                      {(emp.baseSalary || emp.base_salary) ? formatCurrency(emp.baseSalary || emp.base_salary || 0) : '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <CalendarDays className="h-3 w-3" />
+                      {language === 'ja' ? '入社日' : '입사일'}
+                    </p>
+                    <p className="font-semibold text-sm mt-0.5">
+                      {formatDateOnly(emp.hireDate || emp.hire_date) || '-'}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <p className="text-gray-600">{language === 'ja' ? '基本給' : '기본급'}</p>
-                  <p className="font-bold">{(emp.baseSalary || emp.base_salary) ? formatCurrency(emp.baseSalary || emp.base_salary || 0) : '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">{language === 'ja' ? '入社日' : '입사일'}</p>
-                  <p className="font-bold text-sm">
-                    {formatDateOnly(emp.hireDate || emp.hire_date) || '-'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {/* Employee Detail Modal - 여기에 상세 모달 로직 추가 필요 (원본 코드에서 복사) */}

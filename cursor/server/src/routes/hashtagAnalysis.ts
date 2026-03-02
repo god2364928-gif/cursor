@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { logFeatureUsage } from '../utils/logFeatureUsage'
 
 const router = Router()
 
@@ -60,6 +61,7 @@ router.get('/image-proxy', async (req: Request, res: Response) => {
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const hashtag = String(req.query.hashtag ?? '').trim()
   const tab = String(req.query.tab ?? 'popular').trim()
+  const source = String(req.query.source ?? 'single').trim()
 
   if (!hashtag) {
     return res.status(400).json({ error: 'hashtag parameter is required' })
@@ -92,6 +94,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     const data: any = await upstream.json()
     console.log('[HashtagAnalysis] Success for hashtag:', hashtag, '| post_count:', data?.post_count)
+    if (req.user?.id) {
+      const featureName = source === 'bulk' ? '해시태그일괄조회' : '해시태그분석'
+      logFeatureUsage(req.user.id, featureName)
+    }
     return res.json(data)
   } catch (error: any) {
     if (error.name === 'AbortError') {

@@ -106,6 +106,12 @@ router.post('/submit-answers', authMiddleware, async (req: AuthRequest, res: Res
       [userId, JSON.stringify(answers), round]
     )
 
+    // 제출 완료 후 해당 오픈 기록 삭제 (다시 응시 불가)
+    await pool.query(
+      `DELETE FROM exam_openings WHERE user_id = $1 AND exam_round = $2`,
+      [userId, round]
+    )
+
     res.json({
       message: 'Answers submitted successfully',
       data: result.rows[0]
@@ -120,7 +126,7 @@ router.post('/submit-answers', authMiddleware, async (req: AuthRequest, res: Res
 router.get('/user/:userId/answers', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     // 어드민 권한 확인
-    if (req.user?.role !== 'admin') {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
       return res.status(403).json({ message: 'Admin access required' })
     }
 
@@ -220,7 +226,7 @@ router.get('/user/:userId/answers', authMiddleware, async (req: AuthRequest, res
 router.get('/all-submission-status', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     // 어드민 권한 확인
-    if (req.user?.role !== 'admin') {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
       return res.status(403).json({ message: 'Admin access required' })
     }
 
@@ -263,6 +269,94 @@ router.get('/all-submission-status', authMiddleware, async (req: AuthRequest, re
     res.json(Array.from(userMap.values()))
   } catch (error) {
     console.error('Error fetching submission status:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// 전체 시험 오픈 현황 조회 (어드민 전용)
+router.get('/openings', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ message: 'Admin access required' })
+    }
+
+    const result = await pool.query(
+      `SELECT user_id, exam_round, opened_at FROM exam_openings ORDER BY user_id, exam_round`
+    )
+
+    const map: Record<string, number[]> = {}
+    result.rows.forEach((row) => {
+      if (!map[row.user_id]) map[row.user_id] = []
+      map[row.user_id].push(row.exam_round)
+    })
+
+    res.json(map)
+  } catch (error) {
+    console.error('Error fetching exam openings:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// 특정 직원 시험 오픈 (어드민 전용)
+router.post('/openings', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ message: 'Admin access required' })
+    }
+
+    const { userId, examRound } = req.body
+    if (!userId || !examRound) {
+      return res.status(400).json({ message: 'userId and examRound are required' })
+    }
+
+    await pool.query(
+      `INSERT INTO exam_openings (user_id, exam_round) VALUES ($1, $2)
+       ON CONFLICT (user_id, exam_round) DO NOTHING`,
+      [userId, examRound]
+    )
+
+    res.json({ message: 'Exam opened successfully' })
+  } catch (error) {
+    console.error('Error opening exam:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// 특정 직원 시험 닫기 (어드민 전용)
+router.delete('/openings', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ message: 'Admin access required' })
+    }
+
+    const { userId, examRound } = req.body
+    if (!userId || !examRound) {
+      return res.status(400).json({ message: 'userId and examRound are required' })
+    }
+
+    await pool.query(
+      `DELETE FROM exam_openings WHERE user_id = $1 AND exam_round = $2`,
+      [userId, examRound]
+    )
+
+    res.json({ message: 'Exam closed successfully' })
+  } catch (error) {
+    console.error('Error closing exam:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// 본인에게 오픈된 시험 차수 조회 (직원용)
+router.get('/my-openings', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id
+    const result = await pool.query(
+      `SELECT exam_round FROM exam_openings WHERE user_id = $1 ORDER BY exam_round`,
+      [userId]
+    )
+    res.json(result.rows.map((r) => r.exam_round))
+  } catch (error) {
+    console.error('Error fetching my openings:', error)
     res.status(500).json({ message: 'Internal server error' })
   }
 })

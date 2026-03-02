@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
+import { useAdminAuthStore } from './store/adminAuthStore'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -11,7 +12,6 @@ import SettingsPage from './pages/SettingsPage'
 import AccountOptimizationPage from './pages/AccountOptimizationPage'
 import AccountOptimizationPage2 from './pages/AccountOptimizationPage2'
 import KeywordAnalysisPage from './pages/KeywordAnalysisPage'
-import AccountingPage from './pages/AccountingPage'
 import InvoicePage from './pages/InvoicePage'
 import InvoiceCreatePage from './pages/InvoiceCreatePage'
 import QuotePage from './pages/QuotePage'
@@ -20,16 +20,32 @@ import HotpepperPage from './pages/HotpepperPage'
 import InquiryLeadsPage from './pages/InquiryLeadsPage'
 import HashtagAnalysisPage from './pages/HashtagAnalysisPage'
 import HashtagBulkPage from './pages/HashtagBulkPage'
+import AdminLoginPage from './pages/AdminLoginPage'
+import AdminPage from './pages/AdminPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token)
   return token ? <>{children}</> : <Navigate to="/login" />
 }
 
+function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
+  const token = useAdminAuthStore((state) => state.token)
+  return token ? <>{children}</> : <Navigate to="/admin/login" />
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route
+          path="/admin"
+          element={
+            <AdminProtectedRoute>
+              <AdminPage />
+            </AdminProtectedRoute>
+          }
+        />
         <Route path="/login" element={<LoginPage />} />
         <Route
           path="/"
@@ -54,7 +70,6 @@ function App() {
           <Route path="settings/keyword-analysis" element={<KeywordAnalysisPage />} />
           <Route path="settings/hashtag-analysis" element={<HashtagAnalysisPage />} />
           <Route path="settings/hashtag-bulk" element={<HashtagBulkPage />} />
-          <Route path="accounting" element={<AccountingPage />} />
           <Route path="hotpepper" element={<HotpepperPage />} />
           <Route path="inquiry-leads" element={<InquiryLeadsPage />} />
         </Route>

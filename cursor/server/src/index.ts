@@ -35,8 +35,12 @@ import inquiryLeadsRoutes from './routes/inquiryLeads'
 import examRoutes from './routes/exam'
 import hashtagAnalysisRoutes from './routes/hashtagAnalysis'
 import quotesRoutes from './routes/quotes'
+import adminAuthRoutes from './routes/adminAuth'
+import featureUsageRoutes from './routes/featureUsage'
 import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields } from './migrations/autoMigrate'
+import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
+import { autoMigrateExamOpenings } from './migrations/autoMigrateExamOpenings'
 import { checkDepositEmails, markAsRead } from './services/gmailService'
 import { parseDepositEmail } from './utils/depositParser'
 import { sendDepositNotification } from './utils/slackClient'
@@ -134,6 +138,8 @@ app.use('/api/inquiry-leads', inquiryLeadsRoutes) // 문의 배정 시스템
 app.use('/api/exam', examRoutes) // 역량 평가 시험
 app.use('/api/hashtag-analysis', hashtagAnalysisRoutes)
 app.use('/api/quotes', quotesRoutes)
+app.use('/api/admin', adminAuthRoutes)
+app.use('/api/admin/feature-usage', featureUsageRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -237,6 +243,8 @@ async function startServer() {
   await autoMigrateSalesTracking()
   await autoMigrateHotpepper()
   await autoMigrateSalesAmountFields()
+  await autoMigrateFeatureUsage()
+  await autoMigrateExamOpenings()
   
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`)

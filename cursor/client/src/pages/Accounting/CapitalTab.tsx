@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency } from './utils'
 import { CapitalBalance, Deposit } from './types'
+import { Pie } from 'react-chartjs-2'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
+
+ChartJS.register(ArcElement, Tooltip, Legend)
 
 interface CapitalTabProps {
   language: 'ja' | 'ko'
@@ -27,6 +31,25 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
   // 보증금 합계 계산 (메모이제이션)
   const totalDeposits = useMemo(() => {
     return deposits.reduce((sum, d) => sum + Number(d.amount || 0), 0)
+  }, [deposits])
+
+  // 파이 차트 데이터
+  const pieChartData = useMemo(() => {
+    if (deposits.length === 0) return null
+    const COLORS = [
+      'rgba(59,130,246,0.7)', 'rgba(16,185,129,0.7)', 'rgba(245,158,11,0.7)',
+      'rgba(139,92,246,0.7)', 'rgba(236,72,153,0.7)', 'rgba(20,184,166,0.7)',
+      'rgba(249,115,22,0.7)', 'rgba(99,102,241,0.7)',
+    ]
+    return {
+      labels: deposits.map(d => d.item_name),
+      datasets: [{
+        data: deposits.map(d => Number(d.amount || 0)),
+        backgroundColor: deposits.map((_, i) => COLORS[i % COLORS.length]),
+        borderWidth: 1,
+        borderColor: '#fff',
+      }],
+    }
   }, [deposits])
 
   // Data fetching
@@ -161,7 +184,7 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Capital Balance Section */}
         <Card>
           <CardHeader>
@@ -267,8 +290,8 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {capitalBalances.map((balance) => (
-                    <tr key={balance.id} className="border-t hover:bg-gray-50">
+                  {capitalBalances.map((balance, idx) => (
+                    <tr key={balance.id} className={`border-t transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                       <td className="px-4 py-3 text-sm">
                         {new Date(balance.balance_date).toLocaleDateString('ja-JP', {
                           year: 'numeric',
@@ -276,10 +299,10 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
                           day: '2-digit'
                         })}
                       </td>
-                      <td className="px-4 py-3 text-sm text-right font-medium">
+                      <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums">
                         {formatCurrency(balance.amount)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 truncate">
+                      <td className="px-4 py-3 text-sm text-gray-500 truncate">
                         {balance.note || '-'}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -289,16 +312,18 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
                             variant="ghost"
                             onClick={() => openCapitalForm(balance)}
                             aria-label={language === 'ja' ? '修正' : '수정'}
+                            className="text-gray-300 hover:text-emerald-600 transition-colors"
                           >
-                            <Pencil className="h-4 w-4 text-emerald-600" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
                             onClick={() => handleDeleteCapital(balance.id)}
                             aria-label={language === 'ja' ? '削除' : '삭제'}
+                            className="text-gray-300 hover:text-rose-500 transition-colors"
                           >
-                            <Trash2 className="h-4 w-4 text-red-600" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </td>
@@ -315,7 +340,8 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
           </CardContent>
         </Card>
 
-        {/* Deposit Section */}
+        {/* Deposit Section + Pie Chart */}
+        <div className="space-y-4">
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -400,11 +426,11 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {deposits.map((deposit) => (
-                    <tr key={deposit.id} className="border-t hover:bg-gray-50">
+                  {deposits.map((deposit, idx) => (
+                    <tr key={deposit.id} className={`border-t transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                       <td className="px-4 py-3 text-sm font-medium">{deposit.item_name}</td>
-                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(deposit.amount)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 truncate">
+                      <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums">{formatCurrency(deposit.amount)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500 truncate">
                         {deposit.note || '-'}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -414,16 +440,18 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
                             variant="ghost"
                             onClick={() => openDepositForm(deposit)}
                             aria-label={language === 'ja' ? '修正' : '수정'}
+                            className="text-gray-300 hover:text-emerald-600 transition-colors"
                           >
-                            <Pencil className="h-4 w-4 text-emerald-600" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
                             onClick={() => handleDeleteDeposit(deposit.id)}
                             aria-label={language === 'ja' ? '削除' : '삭제'}
+                            className="text-gray-300 hover:text-rose-500 transition-colors"
                           >
-                            <Trash2 className="h-4 w-4 text-red-600" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </td>
@@ -441,6 +469,43 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
             </div>
           </CardContent>
         </Card>
+
+        {/* 보증금 파이 차트 */}
+        {pieChartData && deposits.length > 0 && (
+          <Card className="rounded-xl shadow-sm border border-gray-100">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-gray-700">
+                {language === 'ja' ? '保証金 内訳' : '보증금 비중'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div style={{ height: '220px' }} className="flex items-center justify-center">
+                <Pie
+                  data={pieChartData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'right',
+                        labels: { font: { size: 11 }, padding: 10, boxWidth: 12 },
+                      },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => ` ${ctx.label}: ${formatCurrency(ctx.parsed)}`,
+                        },
+                      },
+                    },
+                  }}
+                />
+              </div>
+              <p className="text-center text-xs text-gray-500 mt-2 tabular-nums">
+                {language === 'ja' ? '合計: ' : '합계: '}{formatCurrency(totalDeposits)}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        </div>
       </div>
     </div>
   )
