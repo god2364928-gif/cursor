@@ -142,34 +142,83 @@ app.get('/api/health', (req, res) => {
 
 // 입금 알림 진단 엔드포인트 (읽음처리/Slack 발송 없음)
 app.get('/api/debug/deposit', async (req, res) => {
-  try {
-    const gmailEnv = {
-      GMAIL_CREDENTIALS_JSON: !!process.env.GMAIL_CREDENTIALS_JSON,
-      GMAIL_TOKEN_JSON: !!process.env.GMAIL_TOKEN_JSON,
-      GMAIL_CREDENTIALS_PATH: process.env.GMAIL_CREDENTIALS_PATH || '(default)',
-      GMAIL_TOKEN_PATH: process.env.GMAIL_TOKEN_PATH || '(default)',
-      SLACK_BOT_TOKEN: !!process.env.SLACK_BOT_TOKEN,
-      DEPOSIT_SLACK_CHANNEL_ID: process.env.DEPOSIT_SLACK_CHANNEL_ID || '(not set)',
-      SLACK_CHANNEL_ID: process.env.SLACK_CHANNEL_ID || '(not set)',
-      ENABLE_GMAIL_DEPOSIT_CHECK: process.env.ENABLE_GMAIL_DEPOSIT_CHECK || '(not set)',
-      NODE_ENV: process.env.NODE_ENV || '(not set)',
-    }
+  const result: Record<string, unknown> = {}
 
-    const emails = await checkDepositEmails()
-
-    const parsed = emails.map(email => ({
-      id: email.id,
-      subject: email.subject,
-      date: email.date,
-      bodyLength: email.body.length,
-      bodyPreview: email.body.substring(0, 300),
-      deposits: parseDepositEmail(email.body),
-    }))
-
-    res.json({ env: gmailEnv, emailsFound: emails.length, parsed })
-  } catch (error: any) {
-    res.status(500).json({ error: error.message, stack: error.stack })
+  result.env = {
+    GMAIL_CREDENTIALS_JSON: !!process.env.GMAIL_CREDENTIALS_JSON,
+    GMAIL_TOKEN_JSON: !!process.env.GMAIL_TOKEN_JSON,
+    SLACK_BOT_TOKEN: !!process.env.SLACK_BOT_TOKEN,
+    DEPOSIT_SLACK_CHANNEL_ID: process.env.DEPOSIT_SLACK_CHANNEL_ID || '(not set)',
+    SLACK_CHANNEL_ID: process.env.SLACK_CHANNEL_ID || '(not set)',
+    ENABLE_GMAIL_DEPOSIT_CHECK: process.env.ENABLE_GMAIL_DEPOSIT_CHECK || '(not set)',
+    NODE_ENV: process.env.NODE_ENV || '(not set)',
   }
+
+  // Gmail API 직접 테스트 (오류 메시지 포함)
+  try {
+    const { google } = await import('googleapis')
+    const fs = await import('fs')
+
+    const CREDENTIALS_PATH = process.env.GMAIL_CREDENTIALS_PATH || './gmail-credentials.json'
+    const TOKEN_PATH = process.env.GMAIL_TOKEN_PATH || './gmail-token.json'
+
+    result.credentialsFileExists = fs.existsSync(CREDENTIALS_PATH)
+    result.tokenFileExists = fs.existsSync(TOKEN_PATH)
+
+    if (!result.credentialsFileExists || !result.tokenFileExists) {
+      result.gmailStatus = 'FILE_MISSING'
+    } else {
+      const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf-8'))
+      const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf-8'))
+      const { client_secret, client_id, redirect_uris } = credentials.installed || credentials.web
+      const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0])
+      oAuth2Client.setCredentials(token)
+      const gmail = google.gmail({ version: 'v1', auth: oAuth2Client })
+
+      // 실제 Gmail API 호출 테스트
+      try {
+        const profileRes = await gmail.users.getProfile({ userId: 'me' })
+        result.gmailConnectedAs = profileRes.data.emailAddress
+        result.gmailStatus = 'OK'
+
+        // 미읽음 "振込入金" 검색
+        const listRes = await gmail.users.messages.list({
+          userId: 'me',
+          q: 'is:unread 振込入金',
+          maxResults: 10,
+        })
+        const messages = listRes.data.messages || []
+        result.emailsFound = messages.length
+
+        // 읽음/미읽음 관계없이 최근 "振込入金" 메일 확인
+        const allListRes = await gmail.users.messages.list({
+          userId: 'me',
+          q: '振込入金',
+          maxResults: 5,
+        })
+        result.recentDepositEmailsTotal = (allListRes.data.messages || []).length
+
+        const parsed = []
+        for (const msg of messages) {
+          const detail = await gmail.users.messages.get({ userId: 'me', id: msg.id!, format: 'full' })
+          const headers = detail.data.payload?.headers || []
+          const subject = headers.find(h => h.name?.toLowerCase() === 'subject')?.value || ''
+          const date = headers.find(h => h.name?.toLowerCase() === 'date')?.value || ''
+          parsed.push({ id: msg.id, subject, date })
+        }
+        result.parsedEmails = parsed
+      } catch (apiError: any) {
+        result.gmailStatus = 'API_ERROR'
+        result.gmailError = apiError.message
+        result.gmailErrorCode = apiError.code
+      }
+    }
+  } catch (error: any) {
+    result.gmailStatus = 'INIT_ERROR'
+    result.gmailError = error.message
+  }
+
+  res.json(result)
 })
 
 // Temporary test endpoint to check data
