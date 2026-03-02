@@ -404,7 +404,7 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
                       <td className="px-4 py-3">{sale.category}</td>
                       <td className="px-4 py-3">{sale.user_id}</td>
                       <td className="px-4 py-3">{sale.name}</td>
-                      <td className="px-4 py-3 text-right font-medium">{formatCurrency(sale.amount)}</td>
+                      <td className="px-4 py-3 text-right font-medium tabular-nums">{formatCurrency(sale.amount)}</td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex gap-1 justify-center">
                           <Button size="icon" variant="ghost" onClick={() => handlePaypaySaleMemo(sale)}>
@@ -482,7 +482,7 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
                     <tr key={expense.id} className="border-t hover:bg-gray-50">
                       <td className="px-4 py-3">{expense.date}</td>
                       <td className="px-4 py-3">{expense.item}</td>
-                      <td className="px-4 py-3 text-right font-medium">{formatCurrency(expense.amount)}</td>
+                      <td className="px-4 py-3 text-right font-medium tabular-nums">{formatCurrency(expense.amount)}</td>
                       <td className="px-4 py-3 text-gray-600">{expense.memo || '-'}</td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex gap-1 justify-center">
@@ -526,7 +526,7 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
                       <td className="px-2 py-2">{row.category}</td>
                       <td className="px-2 py-2">{row.user_id}</td>
                       <td className="px-2 py-2">{row.name}</td>
-                      <td className="px-2 py-2 text-right">{formatCurrency(row.amount)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{formatCurrency(row.amount)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -459,7 +459,7 @@ const CapitalTab: React.FC<CapitalTabProps> = ({ language, isAdmin }) => {
                   ))}
                   <tr className="border-t bg-gray-50 font-bold">
                     <td className="px-4 py-3 text-sm">{language === 'ja' ? '合計' : '합계'}</td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">
                       {formatCurrency(totalDeposits)}
                     </td>
                     <td className="px-4 py-3" colSpan={2}></td>

@@ -3,7 +3,7 @@ import api from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { TrendingUp, TrendingDown, DollarSign, X } from 'lucide-react'
-import { Bar, Line } from 'react-chartjs-2'
+import { Bar, Line, Doughnut } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,9 +11,11 @@ import {
   BarElement,
   LineElement,
   PointElement,
+  ArcElement,
   Title as ChartTitle,
   Tooltip,
   Legend,
+  Filler,
 } from 'chart.js'
 import { useAccountingStore } from '@/store/accountingStore'
 import { formatCurrency } from './utils'
@@ -26,10 +28,59 @@ ChartJS.register(
   BarElement,
   LineElement,
   PointElement,
+  ArcElement,
   ChartTitle,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 )
+
+const PASTEL_COLORS = [
+  'rgba(139, 92, 246, 0.8)',
+  'rgba(99, 102, 241, 0.8)',
+  'rgba(129, 140, 248, 0.8)',
+  'rgba(167, 139, 250, 0.8)',
+  'rgba(96, 165, 250, 0.8)',
+  'rgba(52, 211, 153, 0.8)',
+  'rgba(34, 211, 238, 0.8)',
+  'rgba(248, 113, 113, 0.8)',
+]
+
+const doughnutCenterPlugin = {
+  id: 'doughnutCenter',
+  afterDraw(chart: ChartJS) {
+    if ((chart.config as { type?: string }).type !== 'doughnut') return
+    const { ctx, chartArea } = chart
+    const total = (chart.data.datasets[0].data as number[]).reduce(
+      (a, b) => a + b,
+      0
+    )
+    const cx = chartArea.left + chartArea.width / 2
+    const cy = chartArea.top + chartArea.height / 2
+    ctx.save()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = 'bold 13px sans-serif'
+    ctx.fillStyle = '#7c3aed'
+    ctx.fillText(formatYAxis(total), cx, cy - 9)
+    ctx.font = '11px sans-serif'
+    ctx.fillStyle = '#9ca3af'
+    ctx.fillText('총매출', cx, cy + 10)
+    ctx.restore()
+  },
+}
+
+const formatYAxis = (value: number): string => {
+  const absValue = Math.abs(value)
+  if (absValue === 0) return '0'
+  if (absValue >= 100000000) {
+    return (value / 100000000).toFixed(1).replace(/\.0$/, '') + '억'
+  }
+  if (absValue >= 10000) {
+    return Math.round(value / 10000).toLocaleString() + '만'
+  }
+  return value.toLocaleString()
+}
 
 interface DashboardData {
   fiscalYear: number
@@ -167,29 +218,46 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
   // 차트 데이터 준비 (useMemo로 최적화) - early return 이전에 모든 hooks 호출
   const monthlyChartData = useMemo(() => {
     if (!dashboard) return null
+    const profitData = dashboard.monthlyData.map((d) => d.profit)
+    const pointColors = profitData.map((v) =>
+      v >= 0 ? 'rgba(59, 130, 246, 1)' : 'rgba(239, 68, 68, 1)'
+    )
     return {
       labels: dashboard.monthlyData.map((d) => d.month),
       datasets: [
         {
+          type: 'bar' as const,
           label: language === 'ja' ? '売上' : '매출',
           data: dashboard.monthlyData.map((d) => d.sales),
-          backgroundColor: 'rgba(34, 197, 94, 0.5)',
-          borderColor: 'rgba(34, 197, 94, 1)',
-          borderWidth: 2,
+          backgroundColor: 'rgba(34, 197, 94, 0.75)',
+          borderWidth: 0,
+          borderRadius: 4,
+          order: 2,
         },
         {
+          type: 'bar' as const,
           label: language === 'ja' ? '支出' : '지출',
           data: dashboard.monthlyData.map((d) => d.expenses),
-          backgroundColor: 'rgba(239, 68, 68, 0.5)',
-          borderColor: 'rgba(239, 68, 68, 1)',
-          borderWidth: 2,
+          backgroundColor: 'rgba(239, 68, 68, 0.75)',
+          borderWidth: 0,
+          borderRadius: 4,
+          order: 2,
         },
         {
+          type: 'line' as const,
           label: language === 'ja' ? '純利益' : '순이익',
-          data: dashboard.monthlyData.map((d) => d.profit),
-          backgroundColor: 'rgba(59, 130, 246, 0.5)',
+          data: profitData,
           borderColor: 'rgba(59, 130, 246, 1)',
-          borderWidth: 2,
+          backgroundColor: 'rgba(59, 130, 246, 0.08)',
+          borderWidth: 3,
+          fill: 'origin',
+          tension: 0.3,
+          pointRadius: 6,
+          pointHoverRadius: 9,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          order: 1,
         },
       ],
     }
@@ -203,13 +271,10 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
         {
           label: language === 'ja' ? 'カテゴリー別売上' : '카테고리별 매출',
           data: Object.values(dashboard.salesByCategory),
-          backgroundColor: [
-            'rgba(59, 130, 246, 0.5)',
-            'rgba(16, 185, 129, 0.5)',
-            'rgba(245, 158, 11, 0.5)',
-            'rgba(239, 68, 68, 0.5)',
-            'rgba(139, 92, 246, 0.5)',
-          ],
+          backgroundColor: PASTEL_COLORS,
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverOffset: 6,
         },
       ],
     }
@@ -217,19 +282,18 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
 
   const expensesByCategoryData = useMemo(() => {
     if (!dashboard) return null
+    const entries = Object.entries(dashboard.expensesByCategory).sort(
+      ([, a], [, b]) => b - a
+    )
     return {
-      labels: Object.keys(dashboard.expensesByCategory),
+      labels: entries.map(([k]) => k),
       datasets: [
         {
           label: language === 'ja' ? 'カテゴリー別支出' : '카테고리별 지출',
-          data: Object.values(dashboard.expensesByCategory),
-          backgroundColor: [
-            'rgba(239, 68, 68, 0.5)',
-            'rgba(249, 115, 22, 0.5)',
-            'rgba(234, 179, 8, 0.5)',
-            'rgba(168, 85, 247, 0.5)',
-            'rgba(236, 72, 153, 0.5)',
-          ],
+          data: entries.map(([, v]) => v),
+          backgroundColor: PASTEL_COLORS,
+          borderWidth: 0,
+          borderRadius: 6,
         },
       ],
     }
@@ -365,45 +429,48 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
 
       {/* 총자산 카드 */}
       {dashboard.totalAssets !== undefined && (
-        <Card className="bg-gradient-to-br from-purple-50 to-blue-50">
+        <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 shadow-sm">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">
-              {language === 'ja' ? '総資産' : '총자산'}
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">
-                  {language === 'ja' ? '口座残高（最新）' : '계좌잔액 (최신)'}
-                </span>
-                <span className="text-lg font-semibold text-blue-600">
-                  {formatCurrency(dashboard.latestCapitalBalance || 0)}
-                </span>
-              </div>
-              {dashboard.latestCapitalDate && (
-                <p className="text-xs text-gray-500">
-                  {new Date(dashboard.latestCapitalDate).toLocaleDateString('ko-KR', { 
-                    year: 'numeric', 
-                    month: '2-digit', 
-                    day: '2-digit' 
-                  }).replace(/\. /g, '-').replace('.', '')} {language === 'ja' ? '基準' : '기준'}
+            <div className="flex items-center justify-between gap-6">
+              {/* 좌측: 총자산 합계 강조 */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-purple-500 mb-1">
+                  {language === 'ja' ? '総資産' : '총자산'}
                 </p>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">
-                  {language === 'ja' ? '保証金合計' : '보증금 합계'}
-                </span>
-                <span className="text-lg font-semibold text-green-600">
-                  {formatCurrency(dashboard.totalDeposits || 0)}
-                </span>
+                <p className="text-4xl font-extrabold text-purple-700 tabular-nums leading-tight truncate">
+                  {formatCurrency(dashboard.totalAssets)}
+                </p>
               </div>
-              <div className="pt-3 border-t-2 border-purple-200">
-                <div className="flex justify-between items-center">
-                  <span className="text-base font-bold text-gray-800">
-                    {language === 'ja' ? '合計' : '합계'}
-                  </span>
-                  <span className="text-3xl font-extrabold text-purple-700 tabular-nums">
-                    {formatCurrency(dashboard.totalAssets)}
-                  </span>
+
+              {/* 구분선 */}
+              <div className="hidden sm:block w-px self-stretch bg-purple-200" />
+
+              {/* 우측: 상세 내역 */}
+              <div className="shrink-0 space-y-3 text-right">
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">
+                    {language === 'ja' ? '口座残高（最新）' : '계좌잔액 (최신)'}
+                    {dashboard.latestCapitalDate && (
+                      <span className="ml-1">
+                        · {new Date(dashboard.latestCapitalDate).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                          }).replace(/\. /g, '-').replace('.', '')} {language === 'ja' ? '基準' : '기준'}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-base font-semibold text-blue-600 tabular-nums">
+                    {formatCurrency(dashboard.latestCapitalBalance || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">
+                    {language === 'ja' ? '保証金合計' : '보증금 합계'}
+                  </p>
+                  <p className="text-base font-semibold text-emerald-600 tabular-nums">
+                    {formatCurrency(dashboard.totalDeposits || 0)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -417,21 +484,58 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
           <h3 className="text-lg font-semibold mb-4">
             {language === 'ja' ? '月別推移' : '월별 추이'}
           </h3>
-          <div style={{ height: '300px' }}>
-            {monthlyChartData && (
+          <div style={{ height: '320px' }}>
+            {monthlyChartData && dashboard && (
               <Bar
                 data={monthlyChartData}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
-                  datasets: { bar: { barPercentage: 0.75, categoryPercentage: 0.55, borderRadius: 4 } } as any,
+                  datasets: { bar: { barPercentage: 0.7, categoryPercentage: 0.6 } } as any,
                   plugins: {
                     legend: { position: 'top' },
+                    tooltip: {
+                      callbacks: {
+                        label: function(context) {
+                          const label = context.dataset.label || ''
+                          const value = context.parsed.y
+                          const formatted = formatCurrency(value)
+                          const isProfitLine =
+                            label === '순이익' || label === '純利益'
+                          if (isProfitLine) {
+                            const sales = dashboard.monthlyData[context.dataIndex]?.sales ?? 0
+                            const rate =
+                              sales > 0
+                                ? ((value / sales) * 100).toFixed(1)
+                                : '–'
+                            return [`${label}: ${formatted}`, `순이익률: ${rate}%`]
+                          }
+                          return `${label}: ${formatted}`
+                        },
+                      },
+                    },
                   },
                   scales: {
                     y: {
-                      beginAtZero: true,
-                      grid: { color: 'rgba(0,0,0,0.04)' },
+                      beginAtZero: false,
+                      grid: {
+                        color: (ctx) =>
+                          ctx.tick.value === 0
+                            ? 'rgba(0,0,0,0.25)'
+                            : 'rgba(0,0,0,0.04)',
+                        lineWidth: (ctx) =>
+                          ctx.tick.value === 0 ? 2 : 1,
+                      },
+                      ticks: {
+                        callback: (value) => formatYAxis(value as number),
+                        font: { size: 11 },
+                      },
+                      title: {
+                        display: true,
+                        text: language === 'ja' ? '(単位: 円)' : '(단위: 엔)',
+                        font: { size: 10 },
+                        color: 'rgba(0,0,0,0.4)',
+                      },
                     },
                     x: { grid: { display: false } },
                   },
@@ -449,15 +553,27 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
             <h3 className="text-lg font-semibold mb-4">
               {language === 'ja' ? 'カテゴリー別売上' : '카테고리별 매출'}
             </h3>
-            <div style={{ height: '250px' }}>
+            <div style={{ height: '260px' }}>
               {salesByCategoryData && (
-                <Bar
+                <Doughnut
                   data={salesByCategoryData}
+                  plugins={[doughnutCenterPlugin]}
                   options={{
                     responsive: true,
                     maintainAspectRatio: false,
-                    datasets: { bar: { barPercentage: 0.75, categoryPercentage: 0.55, borderRadius: 4 } } as any,
-                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { grid: { display: false } } },
+                    cutout: '60%',
+                    plugins: {
+                      legend: { position: 'right', labels: { boxWidth: 12, padding: 12, font: { size: 12 } } },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => {
+                            const total = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0)
+                            const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : '0'
+                            return ` ${ctx.label}: ${formatCurrency(ctx.parsed)} (${pct}%)`
+                          },
+                        },
+                      },
+                    },
                   }}
                 />
               )}
@@ -470,15 +586,33 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ language, isAdmin }) => {
             <h3 className="text-lg font-semibold mb-4">
               {language === 'ja' ? 'カテゴリー別支出' : '카테고리별 지출'}
             </h3>
-            <div style={{ height: '250px' }}>
+            <div style={{ height: '260px' }}>
               {expensesByCategoryData && (
                 <Bar
                   data={expensesByCategoryData}
                   options={{
+                    indexAxis: 'y' as const,
                     responsive: true,
                     maintainAspectRatio: false,
-                    datasets: { bar: { barPercentage: 0.75, categoryPercentage: 0.55, borderRadius: 4 } } as any,
-                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { grid: { display: false } } },
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          label: (ctx) => ` ${formatCurrency(ctx.parsed.x)}`,
+                        },
+                      },
+                    },
+                    scales: {
+                      x: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: {
+                          callback: (v) => formatYAxis(v as number),
+                          font: { size: 11 },
+                        },
+                      },
+                      y: { grid: { display: false }, ticks: { font: { size: 12 } } },
+                    },
                   }}
                 />
               )}
