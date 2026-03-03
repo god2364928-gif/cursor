@@ -102,7 +102,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     console.log('[AccountOptimization] Returning successful response')
     if (req.user?.id) {
-      logFeatureUsage(req.user.id, '계정최적화조회')
+      logFeatureUsage(req.user.id, '계정최적화조회', { query: id })
     }
     return res.json(payload)
   } catch (error) {
