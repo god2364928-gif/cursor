@@ -38,12 +38,20 @@ interface UsageRow {
   last_used_at: string | null
 }
 
+interface DetailRow {
+  id: string
+  user_name: string
+  feature_name: string
+  created_at: string
+}
+
 const FEATURE_LABELS: Record<string, string> = {
   '계정최적화조회': '계정최적화조회',
   '계정최적화조회2.0': '계정최적화조회 2.0',
   '해시태그분석': '해시태그분석',
   '해시태그일괄조회': '해시태그일괄조회',
   '키워드트렌드분석': '키워드트렌드분석',
+  '팔로워설정플래그조회': '팔로워 설정 플래그 조회',
 }
 
 const TABS = [
@@ -113,6 +121,7 @@ export default function AdminPage() {
 
   // ─── 기능 사용 현황 상태 ──────────────────────────────────
   const [usageRows, setUsageRows] = useState<UsageRow[]>([])
+  const [detailRows, setDetailRows] = useState<DetailRow[]>([])
   const [usageLoading, setUsageLoading] = useState(false)
   const [filterUser, setFilterUser] = useState('')
   const [filterFeature, setFilterFeature] = useState('')
@@ -145,8 +154,12 @@ export default function AdminPage() {
       if (filterFeature) params.feature = filterFeature
       if (filterFrom) params.from_date = filterFrom
       if (filterTo) params.to_date = filterTo
-      const res = await adminApi.get('/admin/feature-usage', { params })
-      setUsageRows(res.data)
+      const [summaryRes, detailRes] = await Promise.all([
+        adminApi.get('/admin/feature-usage', { params }),
+        adminApi.get('/admin/feature-usage/detail', { params: { ...params, limit: '500' } }),
+      ])
+      setUsageRows(summaryRes.data)
+      setDetailRows(detailRes.data)
     } catch {
       /* silent */
     } finally {
@@ -414,42 +427,80 @@ export default function AdminPage() {
                   </Button>
                 </div>
 
-                {/* 테이블 */}
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">직원</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">기능</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">오늘</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">이번달</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">전체</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">마지막 조회</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {usageRows.length === 0 ? (
+                {/* 통계 요약 테이블 */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">통계 요약</p>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
                         <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                            {usageLoading ? '불러오는 중...' : '조회된 데이터가 없습니다.'}
-                          </td>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">직원</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">기능</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">오늘</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">이번달</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">전체</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">마지막 조회</th>
                         </tr>
-                      ) : (
-                        usageRows.map((row, i) => (
-                          <tr key={i} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium">{row.user_name}</td>
-                            <td className="px-4 py-3">{FEATURE_LABELS[row.feature_name] || row.feature_name}</td>
-                            <td className="px-4 py-3 text-center">{row.today_count}</td>
-                            <td className="px-4 py-3 text-center">{row.month_count}</td>
-                            <td className="px-4 py-3 text-center font-semibold">{row.total_count}</td>
-                            <td className="px-4 py-3 text-gray-500">
-                              {row.last_used_at ? formatDateTime(row.last_used_at) : '-'}
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {usageRows.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                              {usageLoading ? '불러오는 중...' : '조회된 데이터가 없습니다.'}
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                        ) : (
+                          usageRows.map((row, i) => (
+                            <tr key={i} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium">{row.user_name}</td>
+                              <td className="px-4 py-3">{FEATURE_LABELS[row.feature_name] || row.feature_name}</td>
+                              <td className="px-4 py-3 text-center">{row.today_count}</td>
+                              <td className="px-4 py-3 text-center">{row.month_count}</td>
+                              <td className="px-4 py-3 text-center font-semibold">{row.total_count}</td>
+                              <td className="px-4 py-3 text-gray-500">
+                                {row.last_used_at ? formatDateTime(row.last_used_at) : '-'}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 전체 조회 내역 테이블 */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    전체 조회 내역 {detailRows.length > 0 && <span className="normal-case font-normal text-gray-400">({detailRows.length}건)</span>}
+                  </p>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">직원</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">기능</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">조회 시각</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {detailRows.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="px-4 py-8 text-center text-gray-400">
+                              {usageLoading ? '불러오는 중...' : '조회된 데이터가 없습니다.'}
+                            </td>
+                          </tr>
+                        ) : (
+                          detailRows.map((row) => (
+                            <tr key={row.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium">{row.user_name}</td>
+                              <td className="px-4 py-3">{FEATURE_LABELS[row.feature_name] || row.feature_name}</td>
+                              <td className="px-4 py-3 text-gray-500">{formatDateTime(row.created_at)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </CardContent>
             </Card>

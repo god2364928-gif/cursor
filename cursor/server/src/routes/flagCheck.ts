@@ -1,5 +1,6 @@
 import { Router, Response } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { logFeatureUsage } from '../utils/logFeatureUsage'
 
 const router = Router()
 
@@ -28,6 +29,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     }
 
     const data: any = await upstream.json()
+
+    if (req.user?.id) {
+      await logFeatureUsage(req.user.id, '팔로워설정플래그조회')
+    }
 
     return res.json({
       username,
