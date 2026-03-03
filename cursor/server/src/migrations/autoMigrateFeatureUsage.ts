@@ -14,6 +14,11 @@ export async function autoMigrateFeatureUsage(): Promise<void> {
 
     if (checkResult.rows[0].exists) {
       console.log('✓ feature_usage_logs table already exists')
+      await pool.query(`
+        ALTER TABLE feature_usage_logs
+        ADD COLUMN IF NOT EXISTS metadata JSONB;
+      `)
+      console.log('✓ feature_usage_logs metadata column ensured')
       return
     }
 
@@ -27,6 +32,7 @@ export async function autoMigrateFeatureUsage(): Promise<void> {
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
           feature_name VARCHAR(100) NOT NULL,
+          metadata JSONB,
           created_at TIMESTAMPTZ DEFAULT NOW()
         );
         CREATE INDEX idx_feature_usage_user_feature ON feature_usage_logs (user_id, feature_name, created_at);
