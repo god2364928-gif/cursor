@@ -42,6 +42,7 @@ interface DetailRow {
   id: string
   user_name: string
   feature_name: string
+  metadata: { username?: string } | null
   created_at: string
 }
 
@@ -479,13 +480,14 @@ export default function AdminPage() {
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">직원</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">기능</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">검색어</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">조회 시각</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {detailRows.length === 0 ? (
                           <tr>
-                            <td colSpan={3} className="px-4 py-8 text-center text-gray-400">
+                            <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
                               {usageLoading ? '불러오는 중...' : '조회된 데이터가 없습니다.'}
                             </td>
                           </tr>
@@ -494,6 +496,9 @@ export default function AdminPage() {
                             <tr key={row.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3 font-medium">{row.user_name}</td>
                               <td className="px-4 py-3">{FEATURE_LABELS[row.feature_name] || row.feature_name}</td>
+                              <td className="px-4 py-3 text-gray-700 font-mono text-xs">
+                                {row.metadata?.username ?? <span className="text-gray-300">-</span>}
+                              </td>
                               <td className="px-4 py-3 text-gray-500">{formatDateTime(row.created_at)}</td>
                             </tr>
                           ))

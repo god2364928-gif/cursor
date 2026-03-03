@@ -93,6 +93,7 @@ router.get('/detail', superAdminOnly, async (req: SuperAdminRequest, res: Respon
         f.id,
         u.name AS user_name,
         f.feature_name,
+        f.metadata,
         f.created_at
       FROM feature_usage_logs f
       JOIN users u ON f.user_id = u.id
