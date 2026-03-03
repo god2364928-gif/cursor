@@ -42,7 +42,7 @@ interface DetailRow {
   id: string
   user_name: string
   feature_name: string
-  metadata: { username?: string } | null
+  metadata: { query?: string } | null
   created_at: string
 }
 
@@ -497,7 +497,7 @@ export default function AdminPage() {
                               <td className="px-4 py-3 font-medium">{row.user_name}</td>
                               <td className="px-4 py-3">{FEATURE_LABELS[row.feature_name] || row.feature_name}</td>
                               <td className="px-4 py-3 text-gray-700 font-mono text-xs">
-                                {row.metadata?.username ?? <span className="text-gray-300">-</span>}
+                                {row.metadata?.query ?? <span className="text-gray-300">-</span>}
                               </td>
                               <td className="px-4 py-3 text-gray-500">{formatDateTime(row.created_at)}</td>
                             </tr>

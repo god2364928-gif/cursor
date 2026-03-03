@@ -96,7 +96,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     console.log('[HashtagAnalysis] Success for hashtag:', hashtag, '| post_count:', data?.post_count)
     if (req.user?.id) {
       const featureName = source === 'bulk' ? '해시태그일괄조회' : '해시태그분석'
-      logFeatureUsage(req.user.id, featureName)
+      logFeatureUsage(req.user.id, featureName, { query: hashtag })
     }
     return res.json(data)
   } catch (error: any) {

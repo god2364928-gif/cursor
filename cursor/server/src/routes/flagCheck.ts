@@ -31,7 +31,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const data: any = await upstream.json()
 
     if (req.user?.id) {
-      await logFeatureUsage(req.user.id, '팔로워설정플래그조회', { username })
+      await logFeatureUsage(req.user.id, '팔로워설정플래그조회', { query: username })
     }
 
     return res.json({
