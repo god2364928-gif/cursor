@@ -37,6 +37,7 @@ import hashtagAnalysisRoutes from './routes/hashtagAnalysis'
 import quotesRoutes from './routes/quotes'
 import adminAuthRoutes from './routes/adminAuth'
 import featureUsageRoutes from './routes/featureUsage'
+import flagCheckRoutes from './routes/flagCheck'
 import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields } from './migrations/autoMigrate'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
@@ -140,6 +141,7 @@ app.use('/api/hashtag-analysis', hashtagAnalysisRoutes)
 app.use('/api/quotes', quotesRoutes)
 app.use('/api/admin', adminAuthRoutes)
 app.use('/api/admin/feature-usage', featureUsageRoutes)
+app.use('/api/flag-check', flagCheckRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {

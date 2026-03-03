@@ -484,6 +484,25 @@ const translations: Record<Language, Translation> = {
     accountOpt2SinglePhotoLabel: '単一写真',
     accountOpt2TotalPosts: '全体投稿',
 
+    // Flag Check
+    flagCheck: 'フォロワー設定フラグ照会',
+    flagCheckTitle: 'フォロワー設定フラグ照会',
+    flagCheckSubtitle: 'インスタグラムIDを入力すると、スパムフォロワー設定のON/OFFを確認できます。',
+    flagCheckInputLabel: 'インスタグラムID',
+    flagCheckPlaceholder: '@を除いたIDを入力',
+    flagCheckHint: 'URLではなく、@を除いたユーザーネームを入力してください。',
+    flagCheckSearch: '照会する',
+    flagCheckSearching: '照会中...',
+    flagCheckOn: 'ON（有効）',
+    flagCheckOnDesc: 'フォロワー作業が遅くなる可能性があります。',
+    flagCheckOff: 'OFF（無効）',
+    flagCheckOffDesc: 'フォロワー作業が正常に進行されます。',
+    flagCheckUnknown: '確認不可',
+    flagCheckUnknownDesc: 'このアカウントのフラグ情報を取得できませんでした。',
+    flagCheckError: '照会に失敗しました。しばらくしてから再度お試しください。',
+    flagCheckEmptyTitle: 'まだ照会を実行していません',
+    flagCheckEmptyDesc: 'インスタグラムIDを入力して照会ボタンを押してください',
+
     // Navigation - Hashtag
     hashtagAnalysis: 'ハッシュタグ分析',
     hashtagBulk: 'ハッシュタグ一括照会',
@@ -1442,6 +1461,25 @@ const translations: Record<Language, Translation> = {
     accountOpt2ReelsLabel: '릴스',
     accountOpt2SinglePhotoLabel: '단일 사진',
     accountOpt2TotalPosts: '전체 게시물',
+
+    // Flag Check
+    flagCheck: '팔로워 설정 플래그 조회',
+    flagCheckTitle: '팔로워 설정 플래그 조회',
+    flagCheckSubtitle: '인스타그램 아이디를 입력하면 스팸 팔로워 설정 ON/OFF를 확인할 수 있습니다.',
+    flagCheckInputLabel: '인스타그램 아이디',
+    flagCheckPlaceholder: '@를 제외한 아이디 입력',
+    flagCheckHint: 'URL이 아니라 @를 제외한 아이디만 입력해주세요.',
+    flagCheckSearch: '조회하기',
+    flagCheckSearching: '조회 중...',
+    flagCheckOn: 'ON (활성화)',
+    flagCheckOnDesc: '팔로워 작업이 느릴 수 있습니다.',
+    flagCheckOff: 'OFF (비활성화)',
+    flagCheckOffDesc: '팔로워 작업이 정상적으로 진행됩니다.',
+    flagCheckUnknown: '확인 불가',
+    flagCheckUnknownDesc: '이 계정의 플래그 정보를 가져올 수 없습니다.',
+    flagCheckError: '조회에 실패했습니다. 잠시 후 다시 시도해주세요.',
+    flagCheckEmptyTitle: '아직 조회를 실행하지 않았습니다',
+    flagCheckEmptyDesc: '인스타그램 아이디를 입력하고 조회하기 버튼을 눌러주세요',
 
     // Navigation - Hashtag
     hashtagAnalysis: '해시태그 분석',

@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Sparkles,
   Hash,
+  ShieldQuestion,
 } from 'lucide-react'
 import { Button } from './ui/button'
 
@@ -38,6 +39,7 @@ const navigation = [
   { name: 'hashtagAnalysis', href: '/settings/hashtag-analysis', icon: Hash, nested: true },
   { name: 'hashtagBulk', href: '/settings/hashtag-bulk', icon: Hash, nested: true },
   { name: 'keywordAnalysisMenu', href: '/settings/keyword-analysis', icon: TrendingUp, nested: true },
+  { name: 'flagCheck', href: '/settings/flag-check', icon: ShieldQuestion, nested: true },
 ]
 
 export default function Layout() {
