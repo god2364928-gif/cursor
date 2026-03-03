@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAdminAuthStore } from '../store/adminAuthStore'
 import api, { adminApi, invoiceAPI } from '../lib/api'
 import { formatDateTime } from '../lib/utils'
@@ -81,11 +81,29 @@ const ACCOUNTING_SUBTABS: { key: AccountingSubTab; labelKo: string; labelJa: str
 
 export default function AdminPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const logout = useAdminAuthStore((s) => s.logout)
   const { language } = useI18nStore()
 
-  const [activeTab, setActiveTab] = useState<TabId>('accounting')
-  const [accountingSubTab, setAccountingSubTab] = useState<AccountingSubTab>('dashboard')
+  const initialTab = (searchParams.get('tab') as TabId) || 'accounting'
+  const initialSubTab = (searchParams.get('sub') as AccountingSubTab) || 'dashboard'
+
+  const [activeTab, setActiveTab] = useState<TabId>(
+    TABS.some((t) => t.id === initialTab) ? initialTab : 'accounting'
+  )
+  const [accountingSubTab, setAccountingSubTab] = useState<AccountingSubTab>(
+    ACCOUNTING_SUBTABS.some((t) => t.key === initialSubTab) ? initialSubTab : 'dashboard'
+  )
+
+  const handleTabChange = (tab: TabId) => {
+    setActiveTab(tab)
+    setSearchParams(tab === 'accounting' ? {} : { tab })
+  }
+
+  const handleSubTabChange = (sub: AccountingSubTab) => {
+    setAccountingSubTab(sub)
+    setSearchParams(sub === 'dashboard' ? {} : { tab: 'accounting', sub })
+  }
 
   // ─── 회원관리 상태 ───────────────────────────────────────
   const [users, setUsers] = useState<User[]>([])
@@ -313,7 +331,7 @@ export default function AdminPage() {
             {ACCOUNTING_SUBTABS.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setAccountingSubTab(tab.key)}
+                onClick={() => handleSubTabChange(tab.key)}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
                   accountingSubTab === tab.key
                     ? 'bg-blue-600 text-white'
@@ -341,7 +359,7 @@ export default function AdminPage() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors ${
                   activeTab === tab.id
                     ? 'bg-blue-600 text-white'
