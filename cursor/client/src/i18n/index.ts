@@ -502,6 +502,12 @@ const translations: Record<Language, Translation> = {
     flagCheckError: '照会に失敗しました。しばらくしてから再度お試しください。',
     flagCheckEmptyTitle: 'まだ照会を実行していません',
     flagCheckEmptyDesc: 'インスタグラムIDを入力して照会ボタンを押してください',
+    flagCheckGuideTitle: 'フラグをOFFにする方法',
+    flagCheckGuideStep1Title: 'STEP 1　設定から「友達フォロー＆招待」を開く',
+    flagCheckGuideStep1Desc: '設定及び活動 → 友達フォロー及び招待 をタップ',
+    flagCheckGuideStep2Title: 'STEP 2　「検討のためフラグ指定」をOFFにする',
+    flagCheckGuideStep2Desc: 'フォロワー項目の「検討のためフラグ指定」トグルをOFFに変更',
+    flagCheckGuideNote: '※ OFF後、約24時間後にすべてのフォロワー作業が正常に適用されます。',
 
     // Navigation - Hashtag
     hashtagAnalysis: 'ハッシュタグ分析',
@@ -1480,6 +1486,12 @@ const translations: Record<Language, Translation> = {
     flagCheckError: '조회에 실패했습니다. 잠시 후 다시 시도해주세요.',
     flagCheckEmptyTitle: '아직 조회를 실행하지 않았습니다',
     flagCheckEmptyDesc: '인스타그램 아이디를 입력하고 조회하기 버튼을 눌러주세요',
+    flagCheckGuideTitle: '플래그 OFF 방법',
+    flagCheckGuideStep1Title: 'STEP 1  설정에서 "친구 팔로우 및 초대" 열기',
+    flagCheckGuideStep1Desc: '설정 및 활동 → 친구 팔로우 및 초대 탭',
+    flagCheckGuideStep2Title: 'STEP 2  "검토를 위해 플래그 지정" OFF로 변경',
+    flagCheckGuideStep2Desc: '팔로워 항목의 "검토를 위해 플래그 지정" 토글을 OFF로 변경',
+    flagCheckGuideNote: '※ OFF 후 약 24시간이 지나면 모든 팔로워 작업이 정상 적용됩니다.',
 
     // Navigation - Hashtag
     hashtagAnalysis: '해시태그 분석',
