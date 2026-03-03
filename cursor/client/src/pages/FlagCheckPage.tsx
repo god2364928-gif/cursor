@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useI18nStore } from '../i18n'
 import api from '../lib/api'
-import { Search, ShieldCheck, ShieldOff, ShieldQuestion, Loader2 } from 'lucide-react'
+import { Search, ShieldCheck, ShieldOff, ShieldQuestion, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -19,6 +19,7 @@ export default function FlagCheckPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<FlagResult | null>(null)
+  const [guideOpen, setGuideOpen] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -152,6 +153,44 @@ export default function FlagCheckPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* 플래그 OFF 가이드 */}
+      <Card className="bg-white shadow-sm">
+        <button
+          className="w-full flex items-center justify-between px-5 py-4 text-left"
+          onClick={() => setGuideOpen((v) => !v)}
+        >
+          <span className="font-semibold text-gray-700 text-sm">{t('flagCheckGuideTitle')}</span>
+          {guideOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+        </button>
+
+        {guideOpen && (
+          <CardContent className="pt-0 pb-5 px-5 space-y-5">
+            {/* STEP 1 */}
+            <div className="space-y-2">
+              <p className="text-sm font-bold text-violet-700">{t('flagCheckGuideStep1Title')}</p>
+              <p className="text-xs text-gray-500">{t('flagCheckGuideStep1Desc')}</p>
+              <img
+                src="/guide/flag-step1.png"
+                alt="step1"
+                className="rounded-xl border border-gray-200 w-full max-w-xs mx-auto block"
+              />
+            </div>
+
+            {/* STEP 2 */}
+            <div className="space-y-2">
+              <p className="text-sm font-bold text-violet-700">{t('flagCheckGuideStep2Title')}</p>
+              <p className="text-xs text-gray-500">{t('flagCheckGuideStep2Desc')}</p>
+              <img
+                src="/guide/flag-step2.png"
+                alt="step2"
+                className="rounded-xl border border-gray-200 w-full max-w-xs mx-auto block"
+              />
+            </div>
+
+          </CardContent>
+        )}
+      </Card>
     </div>
   )
 }
