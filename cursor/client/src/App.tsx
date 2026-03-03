@@ -20,6 +20,7 @@ import HotpepperPage from './pages/HotpepperPage'
 import InquiryLeadsPage from './pages/InquiryLeadsPage'
 import HashtagAnalysisPage from './pages/HashtagAnalysisPage'
 import HashtagBulkPage from './pages/HashtagBulkPage'
+import FlagCheckPage from './pages/FlagCheckPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import AdminPage from './pages/AdminPage'
 
@@ -70,6 +71,7 @@ function App() {
           <Route path="settings/keyword-analysis" element={<KeywordAnalysisPage />} />
           <Route path="settings/hashtag-analysis" element={<HashtagAnalysisPage />} />
           <Route path="settings/hashtag-bulk" element={<HashtagBulkPage />} />
+          <Route path="settings/flag-check" element={<FlagCheckPage />} />
           <Route path="hotpepper" element={<HotpepperPage />} />
           <Route path="inquiry-leads" element={<InquiryLeadsPage />} />
         </Route>
