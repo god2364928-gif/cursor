@@ -53,44 +53,41 @@ interface AccountOptimizationResponse {
   error_code?: string
 }
 
-const postTypeLabel: Record<string, string> = {
-  PHOTO: 'フォト中心',
-  REELS: 'リール中心',
-  ALL: 'バランス型',
-  NONE: '分類なし',
-}
-
 const formatNumber = (value?: number | null) => {
   if (value === undefined || value === null || Number.isNaN(Number(value))) return '-'
   return new Intl.NumberFormat('ja-JP').format(value)
 }
 
-const formatHourInterval = (value?: number | null) => {
+const formatHourInterval = (value?: number | null, hourLabel = '時間', dayLabel = '日') => {
   if (!value || Number.isNaN(Number(value))) return '-'
   if (value < 24) {
-    return `${Math.round(value * 10) / 10} 時間`
+    return `${Math.round(value * 10) / 10} ${hourLabel}`
   }
   const days = Math.floor(value / 24)
   const hours = Math.round((value % 24) * 10) / 10
-  if (hours === 0) return `${days} 日`
-  return `${days} 日 ${hours} 時間`
+  if (hours === 0) return `${days} ${dayLabel}`
+  return `${days} ${dayLabel} ${hours} ${hourLabel}`
+}
+
+const gradeColorMap: Record<string, string> = {
+  S: '#f97316',
+  A: '#f59e0b',
+  B: '#22c55e',
+  C: '#0ea5e9',
+  D: '#64748b',
+  F: '#64748b',
+  充分: '#22c55e',
+  不足: '#f59e0b',
+  やや不足: '#f97316',
+  とても不足: '#ef4444',
+  충분: '#22c55e',
+  부족: '#f59e0b',
+  '약간 부족': '#f97316',
+  '매우 부족': '#ef4444',
 }
 
 function GradeBadge({ label }: { label?: string }) {
   if (!label) return null
-  
-  const gradeColorMap: Record<string, string> = {
-    S: '#f97316',
-    A: '#f59e0b',
-    B: '#22c55e',
-    C: '#0ea5e9',
-    D: '#64748b',
-    F: '#64748b',
-    充分: '#22c55e',
-    不足: '#f59e0b',
-    やや不足: '#f97316',
-    とても不足: '#ef4444',
-  }
   
   const color = gradeColorMap[label] || '#334155'
   
@@ -157,7 +154,7 @@ export default function AccountOptimizationPage() {
 
     try {
       const response = await api.get<AccountOptimizationResponse>('/account-optimization', {
-        params: { id: trimmed },
+        params: { id: trimmed, lang: language },
       })
 
       if (response.data.status === 'success') {
@@ -202,6 +199,13 @@ export default function AccountOptimizationPage() {
     } finally {
       setPdfExporting(false)
     }
+  }
+
+  const postTypeLabel: Record<string, string> = {
+    PHOTO: t('accountOptimizationPostTypePhoto'),
+    REELS: t('accountOptimizationPostTypeReels'),
+    ALL: t('accountOptimizationPostTypeAll'),
+    NONE: t('accountOptimizationPostTypeNone'),
   }
 
   const hasHashtagData = Boolean(result?.recent_hashtag_list && result.recent_hashtag_list.length > 0)
@@ -408,12 +412,12 @@ export default function AccountOptimizationPage() {
                 {pdfExporting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    PDF 생성 중...
+                    {t('accountOptimizationPdfGenerating')}
                   </>
                 ) : (
                   <>
                     <Printer className="h-4 w-4" />
-                    PDF 다운로드
+                    {t('accountOptimizationPdfButton')}
                   </>
                 )}
               </Button>
@@ -527,7 +531,11 @@ export default function AccountOptimizationPage() {
                       />
                       <MetricBox
                         label={t('accountOptimizationAverageInterval')}
-                        value={formatHourInterval(result.average_post_hour)}
+                        value={formatHourInterval(
+                          result.average_post_hour,
+                          t('accountOptimizationTimeHour'),
+                          t('accountOptimizationTimeDay'),
+                        )}
                       />
                     </div>
                   </div>
