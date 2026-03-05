@@ -119,7 +119,7 @@ export default function HeroScoreSection({
               <div key={grade} className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${style.gradient}`}></div>
                 <span className={`font-semibold ${overallGrade === grade ? style.text : 'text-gray-500'}`}>
-                  {grade}{t('accountOpt2GradeSuffix')}
+                  {grade}
                 </span>
               </div>
             ))}

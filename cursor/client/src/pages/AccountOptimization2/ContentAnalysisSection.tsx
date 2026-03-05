@@ -57,8 +57,8 @@ export default function ContentAnalysisSection({ result }: ContentAnalysisSectio
                   outerRadius={90}
                   paddingAngle={2}
                   dataKey="value"
-                  label={({ name, value }) => `${name}\n${value.toFixed(1)}%`}
-                  labelLine={true}
+                  label={({ name, value }) => value > 0 ? `${name} ${value.toFixed(1)}%` : ''}
+                  labelLine={({ value }) => value > 0}
                   isAnimationActive={false}
                   style={{ fontSize: '11px', fontWeight: 600 }}
                 >
