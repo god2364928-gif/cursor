@@ -339,6 +339,11 @@ async function checkDepositEmailsAndNotify() {
 
         // 각 입금 내역마다 개별 Slack 알림 전송
         for (const depositInfo of depositInfos) {
+          if (depositInfo.depositor_name.includes('ココナラ')) {
+            console.log(`⏭️ Skipped (ココナラ): ${depositInfo.depositor_name} - ${depositInfo.amount}`)
+            continue
+          }
+
           try {
             const sent = await sendDepositNotification({
               depositor_name: depositInfo.depositor_name,
