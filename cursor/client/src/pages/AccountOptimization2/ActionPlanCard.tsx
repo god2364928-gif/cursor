@@ -132,7 +132,7 @@ export default function ActionPlanCard({ categoryData, language }: ActionPlanCar
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-sm mb-2">
                   <span className="font-bold text-gray-800 dark:text-gray-200">
-                    {item.grade}{t('accountOpt2GradeUpTo')}{nextGrade}{t('accountOpt2GradeSuffix')}
+                    {item.grade}{t('accountOpt2GradeUpTo')}{nextGrade}
                   </span>
                 </div>
                 
@@ -156,15 +156,15 @@ export default function ActionPlanCard({ categoryData, language }: ActionPlanCar
                 {/* 등급 상승 가이드 문구 */}
                 {item.progress ? (
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    <span className={`${colors.text} font-bold`}>{item.progress.gap.toLocaleString()}{item.progress.metric === 'count' ? t('accountOpt2CountUnit') : translateUnit(item.current_status.unit)}</span>{t('accountOpt2MoreToSecure')} <span className="font-bold">{nextGrade}{t('accountOpt2GradeSuffix')}</span>{t('accountOpt2UpgradeToGrade')}
+                    <span className={`${colors.text} font-bold`}>{item.progress.gap.toLocaleString()}{item.progress.metric === 'count' ? t('accountOpt2CountUnit') : translateUnit(item.current_status.unit)}</span>{t('accountOpt2MoreToSecure')} <span className="font-bold">{nextGrade}</span>{t('accountOpt2UpgradeToGrade')}
                   </p>
                 ) : progressPercent >= 100 ? (
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    <span className={`${colors.text} font-bold`}>{t('accountOpt2GoalAchieved')}</span> {nextGrade}{t('accountOpt2GradeSuffix')} {t('accountOpt2AlreadyMeetsCriteria')}
+                    <span className={`${colors.text} font-bold`}>{t('accountOpt2GoalAchieved')}</span> {nextGrade} {t('accountOpt2AlreadyMeetsCriteria')}
                   </p>
                 ) : (
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    {nextGrade}{t('accountOpt2GradeSuffix')} {t('accountOpt2WorkingTowardsGrade')}
+                    {nextGrade} {t('accountOpt2WorkingTowardsGrade')}
                   </p>
                 )}
               </div>

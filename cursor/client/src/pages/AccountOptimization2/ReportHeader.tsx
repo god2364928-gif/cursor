@@ -141,7 +141,7 @@ export default function ReportHeader({ result, searchedId }: ReportHeaderProps) 
           
           <div className="mt-4 text-center">
             <p className={`text-lg font-bold ${colors.text}`}>
-              {grade}{t('accountOpt2GradeSuffix')}
+              {grade}
             </p>
           </div>
         </div>
