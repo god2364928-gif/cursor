@@ -438,7 +438,7 @@ const translations: Record<Language, Translation> = {
     accountOpt2RecommendedActionsTitle: '推奨措置',
     accountOpt2ExpectedEffectLabel: '• 期待効果：',
     accountOpt2GradeUpTo: ' → ',
-    accountOpt2GradeSuffix: '',
+    accountOpt2GradeSuffix: ' ',
     accountOpt2NextGradeWhen: '充足時次の等級上昇',
     accountOpt2NoKnowHow: '運用ノウハウ情報がありません。',
     accountOpt2NoRecommendations: '推奨措置情報がありません。',
