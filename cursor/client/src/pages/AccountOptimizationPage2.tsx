@@ -258,12 +258,10 @@ export default function AccountOptimizationPage2() {
             {/* 게시물 그리드 */}
             {result.post_list && result.post_list.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 print:shadow-none print:break-inside-avoid print:rounded-none print:p-4">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 print:hidden">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 print:hidden">
                   {t('accountOpt2PostDetails')}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 print:hidden">
-                  {t('accountOpt2ClickForDetails')}
-                </p>
+
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 print:grid-cols-3 print:gap-3">
                   {result.post_list.slice(0, 12).map((post, index) => (
                     <PostGridItem key={index} post={post} language={language} />
