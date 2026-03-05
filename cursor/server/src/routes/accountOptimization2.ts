@@ -379,11 +379,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         .json(createErrorResponse('빈 응답을 받았습니다.'))
     }
 
-    // API 응답 내 "한국인" → "일본인" 치환 (GrowthCore API가 한국 기준으로 반환하므로)
-    replaceTextInPayload(payload)
-
-    // 일본어 요청인 경우 번역 수행
+    // 일본어 요청인 경우에만 치환 및 번역 수행
     if (lang === 'ja') {
+      replaceTextInPayload(payload)
       console.log('[AccountOptimization2] Translating response to Japanese...')
       payload = await translateApiResponse(payload)
     }
