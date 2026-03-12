@@ -204,6 +204,7 @@ export default function PDFStyleHeader({ result, searchedId }: PDFStyleHeaderPro
               {result.category_data.slice(0, 5).map((item, idx) => {
                 // 등급을 점수로 변환하여 진행률 계산
                 const gradeToPercent: { [key: string]: number } = {
+                  'S+': 100,
                   S: 100,
                   A: 80,
                   B: 60,
@@ -211,7 +212,7 @@ export default function PDFStyleHeader({ result, searchedId }: PDFStyleHeaderPro
                   D: 20,
                   F: 0,
                 }
-                const percent = gradeToPercent[item.grade] || 0
+                const percent = gradeToPercent[item.grade] ?? 0
 
                 return (
                   <div key={idx}>

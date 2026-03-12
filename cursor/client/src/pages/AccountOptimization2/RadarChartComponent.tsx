@@ -13,8 +13,9 @@ interface RadarChartComponentProps {
 export default function RadarChartComponent({ categoryData }: RadarChartComponentProps) {
   // 5개 카테고리 데이터를 방사형 차트 형식으로 변환
   const chartData = categoryData.slice(0, 5).map((item) => {
-    // 등급을 점수로 변환 (S=100, A=80, B=60, C=40, D=20)
+    // 등급을 점수로 변환 (S+=100, S=100, A=80, B=60, C=40, D=20)
     const gradeToScore: { [key: string]: number } = {
+      'S+': 100,
       S: 100,
       A: 80,
       B: 60,
