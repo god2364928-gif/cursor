@@ -212,7 +212,8 @@ export default function PDFStyleHeader({ result, searchedId }: PDFStyleHeaderPro
                   D: 20,
                   F: 0,
                 }
-                const percent = gradeToPercent[item.grade] ?? 0
+                const normalizedGrade = (item.grade ?? '').trim().replace(/＋/g, '+').toUpperCase()
+                const percent = gradeToPercent[normalizedGrade] ?? 0
 
                 return (
                   <div key={idx}>
