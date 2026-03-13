@@ -32,10 +32,13 @@ const gradeColorMap: Record<string, {
   F: { badge: 'bg-gray-500 text-white', bg: 'bg-gray-50 dark:bg-gray-900/10', border: 'border-gray-300', text: 'text-gray-600' }
 }
 
+const normalizeGrade = (grade: string): string =>
+  (grade ?? '').trim().replace(/＋/g, '+').toUpperCase()
+
 export default function CategoryCard({ data, language }: CategoryCardProps) {
   const { t } = useI18nStore()
   const [isExpanded, setIsExpanded] = useState(false)
-  const colors = gradeColorMap[data.grade] || gradeColorMap.F
+  const colors = gradeColorMap[normalizeGrade(data.grade)] || gradeColorMap.F
 
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-md border ${colors.border} hover:shadow-xl transition-all duration-300 print:shadow-none print:break-inside-avoid`}>

@@ -15,8 +15,11 @@ const gradeColors: Record<string, { bg: string; text: string; bar: string }> = {
   F: { bg: 'bg-gray-50 dark:bg-gray-900/20', text: 'text-gray-700 dark:text-gray-300', bar: 'bg-gradient-to-r from-gray-500 to-gray-600' }
 }
 
+const normalizeGrade = (grade: string): string =>
+  (grade ?? '').trim().replace(/＋/g, '+').toUpperCase()
+
 export default function ProgressBar({ progress, grade }: ProgressBarProps) {
-  const colors = gradeColors[grade] || gradeColors.F
+  const colors = gradeColors[normalizeGrade(grade)] || gradeColors.F
   const percentage = Math.min(100, Math.max(0, progress.progress_percent))
 
   return (
