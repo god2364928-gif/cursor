@@ -8,6 +8,7 @@ interface ProgressBarProps {
 const gradeColors: Record<string, { bg: string; text: string; bar: string }> = {
   'S+': { bg: 'bg-slate-100 dark:bg-slate-800/40', text: 'text-slate-900 dark:text-slate-100', bar: 'bg-gradient-to-r from-slate-700 to-slate-900' },
   S: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', bar: 'bg-gradient-to-r from-blue-500 to-blue-600' },
+  'S-': { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', bar: 'bg-gradient-to-r from-blue-400 to-blue-500' },
   A: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', bar: 'bg-gradient-to-r from-green-500 to-green-600' },
   B: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-300', bar: 'bg-gradient-to-r from-emerald-500 to-emerald-600' },
   C: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-300', bar: 'bg-gradient-to-r from-yellow-500 to-orange-500' },
@@ -16,7 +17,7 @@ const gradeColors: Record<string, { bg: string; text: string; bar: string }> = {
 }
 
 const normalizeGrade = (grade: string): string =>
-  (grade ?? '').trim().replace(/＋/g, '+').toUpperCase()
+  (grade ?? '').trim().replace(/＋/g, '+').replace(/－/g, '-').toUpperCase()
 
 export default function ProgressBar({ progress, grade }: ProgressBarProps) {
   const colors = gradeColors[normalizeGrade(grade)] || gradeColors.F

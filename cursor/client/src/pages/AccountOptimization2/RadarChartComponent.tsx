@@ -13,11 +13,12 @@ interface RadarChartComponentProps {
 export default function RadarChartComponent({ categoryData }: RadarChartComponentProps) {
   // 5개 카테고리 데이터를 방사형 차트 형식으로 변환
   const normalizeGrade = (grade: string): string =>
-    (grade ?? '').trim().replace(/＋/g, '+').toUpperCase()
+    (grade ?? '').trim().replace(/＋/g, '+').replace(/－/g, '-').toUpperCase()
 
   const gradeToScore: { [key: string]: number } = {
     'S+': 100,
     S: 100,
+    'S-': 90,
     A: 80,
     B: 60,
     C: 40,
