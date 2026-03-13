@@ -15,6 +15,9 @@ const iconMap: Record<string, JSX.Element> = {
   hashtag: <Hash className="h-6 w-6" />
 }
 
+const normalizeGrade = (grade: string): string =>
+  (grade ?? '').trim().replace(/＋/g, '+').replace(/－/g, '-').toUpperCase()
+
 const gradeColorMap: Record<string, {
   badge: string
   border: string
@@ -22,7 +25,9 @@ const gradeColorMap: Record<string, {
   progressBar: string
   text: string
 }> = {
+  'S+': { badge: 'bg-slate-900 text-white', border: 'border-slate-400', bg: 'bg-slate-100 dark:bg-slate-800/20', progressBar: 'bg-slate-700', text: 'text-slate-900 dark:text-slate-100' },
   S: { badge: 'bg-blue-500 text-white', border: 'border-blue-300', bg: 'bg-blue-50 dark:bg-blue-900/10', progressBar: 'bg-blue-400', text: 'text-blue-600' },
+  'S-': { badge: 'bg-blue-400 text-white', border: 'border-blue-200', bg: 'bg-blue-50 dark:bg-blue-900/10', progressBar: 'bg-blue-300', text: 'text-blue-500' },
   A: { badge: 'bg-green-500 text-white', border: 'border-green-300', bg: 'bg-green-50 dark:bg-green-900/10', progressBar: 'bg-green-400', text: 'text-green-600' },
   B: { badge: 'bg-emerald-500 text-white', border: 'border-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-900/10', progressBar: 'bg-emerald-400', text: 'text-emerald-600' },
   C: { badge: 'bg-yellow-500 text-gray-900', border: 'border-yellow-300', bg: 'bg-yellow-50 dark:bg-yellow-900/10', progressBar: 'bg-yellow-400', text: 'text-yellow-600' },
@@ -64,34 +69,30 @@ export default function ActionPlanCard({ categoryData, language }: ActionPlanCar
 
       {/* 각 항목별 상세 카드 */}
       {categoryData.map((item, index) => {
-        const colors = gradeColorMap[item.grade] || gradeColorMap.F
+        const normalizedGrade = normalizeGrade(item.grade)
+        const colors = gradeColorMap[normalizedGrade] || gradeColorMap.F
         const icon = iconMap[item.icon_type] || <FileText className="h-6 w-6" />
         
         // 등급 전환 표시 (현재 등급 → 목표 등급)
-        const nextGradeMap: Record<string, string> = { 'D': 'C', 'C': 'B', 'B': 'A', 'A': 'S', 'S': 'S+', 'F': 'D' }
-        const nextGrade = nextGradeMap[item.grade] || 'S'
+        const nextGradeMap: Record<string, string> = { 'S+': 'S+', 'S': 'S+', 'S-': 'S', 'A': 'S-', 'B': 'A', 'C': 'B', 'D': 'C', 'F': 'D' }
+        const nextGrade = nextGradeMap[normalizedGrade] || 'S'
         
         // 진행률 계산
         let progressPercent = item.progress?.progress_percent || 0
         
         // progress 데이터가 없지만 current_status가 있는 경우 (예: 이미 목표 달성)
         if (!item.progress && item.current_status) {
-          // S등급은 이미 최고 등급이므로 100%
-          if (item.grade === 'S') {
-            progressPercent = 100
+          const gradeProgressMap: Record<string, number> = {
+            'S+': 100,
+            'S': 100,
+            'S-': 95,
+            'A': 90,
+            'B': 70,
+            'C': 50,
+            'D': 30,
+            'F': 10
           }
-          // 다른 등급의 경우, current_status 값이 있으면 일정 비율로 표시
-          // 실제 데이터가 없으므로 현재 등급에 따라 추정
-          else {
-            const gradeProgressMap: Record<string, number> = {
-              'A': 90,
-              'B': 70,
-              'C': 50,
-              'D': 30,
-              'F': 10
-            }
-            progressPercent = gradeProgressMap[item.grade] || 0
-          }
+          progressPercent = gradeProgressMap[normalizedGrade] ?? 0
         }
 
         return (

@@ -1,8 +1,13 @@
 import { HeroScoreSectionProps } from './types'
 import { useI18nStore } from '../../i18n'
 
+const normalizeGrade = (grade: string): string =>
+  (grade ?? '').trim().replace(/＋/g, '+').replace(/－/g, '-').toUpperCase()
+
 const gradeColors: Record<string, { gradient: string; glow: string; text: string }> = {
+  'S+': { gradient: 'from-slate-700 to-slate-900', glow: 'shadow-slate-500/50', text: 'text-slate-300' },
   S: { gradient: 'from-blue-500 to-blue-600', glow: 'shadow-blue-500/50', text: 'text-blue-500' },
+  'S-': { gradient: 'from-blue-400 to-blue-500', glow: 'shadow-blue-400/50', text: 'text-blue-400' },
   A: { gradient: 'from-green-500 to-green-600', glow: 'shadow-green-500/50', text: 'text-green-500' },
   B: { gradient: 'from-emerald-500 to-emerald-600', glow: 'shadow-emerald-500/50', text: 'text-emerald-500' },
   C: { gradient: 'from-yellow-500 to-orange-500', glow: 'shadow-yellow-500/50', text: 'text-yellow-500' },
@@ -18,7 +23,7 @@ export default function HeroScoreSection({
   gradeActionClass 
 }: HeroScoreSectionProps) {
   const { t } = useI18nStore()
-  const colors = gradeColors[overallGrade] || gradeColors.F
+  const colors = gradeColors[normalizeGrade(overallGrade)] || gradeColors.F
   const percentage = Math.min(100, Math.max(0, overallScore))
   
   // 게이지를 위한 SVG 원 계산
