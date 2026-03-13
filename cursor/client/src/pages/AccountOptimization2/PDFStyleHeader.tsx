@@ -206,13 +206,14 @@ export default function PDFStyleHeader({ result, searchedId }: PDFStyleHeaderPro
                 const gradeToPercent: { [key: string]: number } = {
                   'S+': 100,
                   S: 100,
+                  'S-': 90,
                   A: 80,
                   B: 60,
                   C: 40,
                   D: 20,
                   F: 0,
                 }
-                const normalizedGrade = (item.grade ?? '').trim().replace(/＋/g, '+').toUpperCase()
+                const normalizedGrade = (item.grade ?? '').trim().replace(/＋/g, '+').replace(/－/g, '-').toUpperCase()
                 const percent = gradeToPercent[normalizedGrade] ?? 0
 
                 return (

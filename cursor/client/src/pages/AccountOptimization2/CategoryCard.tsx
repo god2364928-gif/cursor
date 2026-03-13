@@ -25,6 +25,7 @@ const gradeColorMap: Record<string, {
 }> = {
   'S+': { badge: 'bg-slate-900 text-white', bg: 'bg-slate-100 dark:bg-slate-800/20', border: 'border-slate-400', text: 'text-slate-900 dark:text-slate-100' },
   S: { badge: 'bg-blue-500 text-white', bg: 'bg-blue-50 dark:bg-blue-900/10', border: 'border-blue-300', text: 'text-blue-600' },
+  'S-': { badge: 'bg-blue-400 text-white', bg: 'bg-blue-50 dark:bg-blue-900/10', border: 'border-blue-200', text: 'text-blue-500' },
   A: { badge: 'bg-green-500 text-white', bg: 'bg-green-50 dark:bg-green-900/10', border: 'border-green-300', text: 'text-green-600' },
   B: { badge: 'bg-emerald-500 text-white', bg: 'bg-emerald-50 dark:bg-emerald-900/10', border: 'border-emerald-300', text: 'text-emerald-600' },
   C: { badge: 'bg-yellow-500 text-gray-900', bg: 'bg-yellow-50 dark:bg-yellow-900/10', border: 'border-yellow-300', text: 'text-yellow-600' },
@@ -33,7 +34,7 @@ const gradeColorMap: Record<string, {
 }
 
 const normalizeGrade = (grade: string): string =>
-  (grade ?? '').trim().replace(/＋/g, '+').toUpperCase()
+  (grade ?? '').trim().replace(/＋/g, '+').replace(/－/g, '-').toUpperCase()
 
 export default function CategoryCard({ data, language }: CategoryCardProps) {
   const { t } = useI18nStore()
