@@ -82,7 +82,6 @@ export default function SalesTrackingPage() {
   const [contactMethodFilter, setContactMethodFilter] = useState<string>('all')
   const [roundFilter, setRoundFilter] = useState<string>('all') // 차수 필터
   const [industryFilter, setIndustryFilter] = useState<string>('all')
-  const [industryOptions, setIndustryOptions] = useState<string[]>([])
   // Daily stats state
   const [dailyStart, setDailyStart] = useState<string>('')
   const [dailyEnd, setDailyEnd] = useState<string>('')
@@ -178,18 +177,6 @@ export default function SalesTrackingPage() {
       }
     })()
   }, [user])
-
-  // 업종 목록 불러오기
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const res = await api.get('/sales-tracking/industries')
-        setIndustryOptions(res.data || [])
-      } catch (e) {
-        console.error('Failed to load industry options', e)
-      }
-    })()
-  }, [])
 
   // 최신 상태를 ref로 유지 (비동기 로직에서 사용)
   useEffect(() => {
@@ -978,9 +965,16 @@ export default function SalesTrackingPage() {
           >
             <option value="all">{t('all')}</option>
             <option value="none">{language === 'ja' ? '未入力' : '미입력'}</option>
-            {industryOptions.map(industry => (
-              <option key={industry} value={industry}>{industry}</option>
-            ))}
+            <option value="飲食店">{t('industryRestaurant')}</option>
+            <option value="娯楽/観光/レジャー">{t('industryEntertainment')}</option>
+            <option value="美容サロン">{t('industryBeautySalon')}</option>
+            <option value="有形商材">{t('industryTangible')}</option>
+            <option value="個人利用">{t('industryPersonal')}</option>
+            <option value="無形商材">{t('industryIntangible')}</option>
+            <option value="代理店">{t('industryAgency')}</option>
+            <option value="教育">{t('industryEducation')}</option>
+            <option value="その他">{t('industryOther')}</option>
+            <option value="アートメイク">{t('industryArtMake')}</option>
           </select>
         </div>
 
