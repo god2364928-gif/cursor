@@ -70,7 +70,7 @@ export default function ActionPlanCard({ categoryData, language }: ActionPlanCar
       {/* 각 항목별 상세 카드 */}
       {categoryData.map((item, index) => {
         const normalizedGrade = normalizeGrade(item.grade)
-        const colors = gradeColorMap[normalizedGrade] || gradeColorMap.F
+        const colors = gradeColorMap[normalizedGrade] ?? gradeColorMap[normalizedGrade.charAt(0)] ?? gradeColorMap.F
         const icon = iconMap[item.icon_type] || <FileText className="h-6 w-6" />
         
         // 등급 전환 표시 (현재 등급 → 목표 등급)

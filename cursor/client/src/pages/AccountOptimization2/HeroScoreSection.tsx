@@ -23,7 +23,8 @@ export default function HeroScoreSection({
   gradeActionClass 
 }: HeroScoreSectionProps) {
   const { t } = useI18nStore()
-  const colors = gradeColors[normalizeGrade(overallGrade)] || gradeColors.F
+  const normalizedOverallGrade = normalizeGrade(overallGrade)
+  const colors = gradeColors[normalizedOverallGrade] ?? gradeColors[normalizedOverallGrade.charAt(0)] ?? gradeColors.F
   const percentage = Math.min(100, Math.max(0, overallScore))
   
   // 게이지를 위한 SVG 원 계산

@@ -26,9 +26,14 @@ export default function RadarChartComponent({ categoryData }: RadarChartComponen
     F: 0,
   }
 
+  const resolveScore = (grade: string): number => {
+    const n = normalizeGrade(grade)
+    return gradeToScore[n] ?? gradeToScore[n.charAt(0)] ?? 0
+  }
+
   const chartData = categoryData.slice(0, 5).map((item) => ({
     category: item.title,
-    score: gradeToScore[normalizeGrade(item.grade)] ?? 0,
+    score: resolveScore(item.grade),
     fullMark: 100,
   }))
 

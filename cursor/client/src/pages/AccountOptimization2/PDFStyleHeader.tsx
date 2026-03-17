@@ -214,7 +214,7 @@ export default function PDFStyleHeader({ result, searchedId }: PDFStyleHeaderPro
                   F: 0,
                 }
                 const normalizedGrade = (item.grade ?? '').trim().replace(/＋/g, '+').replace(/－/g, '-').toUpperCase()
-                const percent = gradeToPercent[normalizedGrade] ?? 0
+                const percent = gradeToPercent[normalizedGrade] ?? gradeToPercent[normalizedGrade.charAt(0)] ?? 0
 
                 return (
                   <div key={idx}>
