@@ -63,6 +63,21 @@ const mapInflowPathFromContactMethod = (contactMethod?: string | null): string |
   return result
 }
 
+// Get distinct industry values from sales_tracking
+router.get('/industries', authMiddleware, async (_req: AuthRequest, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT industry FROM sales_tracking
+       WHERE industry IS NOT NULL AND TRIM(industry) <> ''
+       ORDER BY industry`
+    )
+    res.json(result.rows.map((r: { industry: string }) => r.industry))
+  } catch (err) {
+    console.error('Failed to fetch industries:', err)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
 // Get all sales tracking records (with search and date filtering)
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -76,6 +91,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const statusFilter = (req.query.status as string || '').trim()
     const contactMethodFilter = (req.query.contactMethod as string || '').trim()
     const movedToRetargetingFilter = (req.query.movedToRetargeting as string || '').trim()
+    const industryFilter = (req.query.industry as string || '').trim()
     const rawLimit = req.query.limit as string | undefined
     const limit =
       typeof rawLimit === 'string' && rawLimit.toLowerCase() === 'all'
@@ -205,6 +221,16 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         whereConditions.push(`st.moved_to_retargeting = TRUE`)
       } else if (movedToRetargetingFilter === 'notMoved') {
         whereConditions.push(`(st.moved_to_retargeting IS NULL OR st.moved_to_retargeting = FALSE)`)
+      }
+    }
+
+    // 업종 필터
+    if (industryFilter && industryFilter !== 'all') {
+      if (industryFilter === 'none') {
+        whereConditions.push(`(st.industry IS NULL OR TRIM(st.industry) = '')`)
+      } else {
+        params.push(industryFilter)
+        whereConditions.push(`st.industry = $${params.length}`)
       }
     }
 

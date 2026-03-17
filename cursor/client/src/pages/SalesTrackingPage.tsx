@@ -81,6 +81,8 @@ export default function SalesTrackingPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [contactMethodFilter, setContactMethodFilter] = useState<string>('all')
   const [roundFilter, setRoundFilter] = useState<string>('all') // 차수 필터
+  const [industryFilter, setIndustryFilter] = useState<string>('all')
+  const [industryOptions, setIndustryOptions] = useState<string[]>([])
   // Daily stats state
   const [dailyStart, setDailyStart] = useState<string>('')
   const [dailyEnd, setDailyEnd] = useState<string>('')
@@ -177,6 +179,18 @@ export default function SalesTrackingPage() {
     })()
   }, [user])
 
+  // 업종 목록 불러오기
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const res = await api.get('/sales-tracking/industries')
+        setIndustryOptions(res.data || [])
+      } catch (e) {
+        console.error('Failed to load industry options', e)
+      }
+    })()
+  }, [])
+
   // 최신 상태를 ref로 유지 (비동기 로직에서 사용)
   useEffect(() => {
     recordsRef.current = records
@@ -232,6 +246,9 @@ export default function SalesTrackingPage() {
       if (roundFilter && roundFilter !== 'all') {
         params.round = roundFilter
       }
+      if (industryFilter && industryFilter !== 'all') {
+        params.industry = industryFilter
+      }
       const config: any = { params }
       if (signal) {
         config.signal = signal
@@ -267,7 +284,7 @@ export default function SalesTrackingPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, dateStartFilter, dateEndFilter, filterStartDate, filterEndDate, managerFilter, statusFilter, contactMethodFilter, movedToRetargetingFilter, roundFilter, showToast, t])
+  }, [searchQuery, dateStartFilter, dateEndFilter, filterStartDate, filterEndDate, managerFilter, statusFilter, contactMethodFilter, movedToRetargetingFilter, roundFilter, industryFilter, showToast, t])
 
   useEffect(() => {
     if (abortControllerRef.current) {
@@ -945,6 +962,25 @@ export default function SalesTrackingPage() {
             <option value="all">{t('all')}</option>
             <option value="moved">{t('retargetingMoved')}</option>
             <option value="notMoved">{t('retargetingNotMoved')}</option>
+          </select>
+        </div>
+
+        {/* 업종 필터 */}
+        <div>
+          <label className="text-sm text-gray-600 mb-2 block">{language === 'ja' ? '業種' : '업종'}</label>
+          <select
+            className="border rounded px-3 py-2 min-w-[120px]"
+            value={industryFilter}
+            onChange={e => {
+              setIndustryFilter(e.target.value)
+              setCurrentPage(1)
+            }}
+          >
+            <option value="all">{t('all')}</option>
+            <option value="none">{language === 'ja' ? '未入力' : '미입력'}</option>
+            {industryOptions.map(industry => (
+              <option key={industry} value={industry}>{industry}</option>
+            ))}
           </select>
         </div>
 
