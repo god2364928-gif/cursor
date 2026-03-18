@@ -38,6 +38,7 @@ import quotesRoutes from './routes/quotes'
 import adminAuthRoutes from './routes/adminAuth'
 import featureUsageRoutes from './routes/featureUsage'
 import flagCheckRoutes from './routes/flagCheck'
+import { superAdminOnly } from './middleware/superAdminOnly'
 import { importRecentCalls } from './services/cpiImportService'
 import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields } from './migrations/autoMigrate'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
@@ -49,7 +50,7 @@ import { sendDepositNotification } from './utils/slackClient'
 dotenv.config()
 
 // Debug: Check if globalSearch.js has correct code (only in production)
-if (process.env.NODE_ENV === 'production' || true) {
+if (process.env.NODE_ENV === 'production') {
   try {
     const globalSearchPath = path.join(__dirname, 'routes/globalSearch.js')
     if (fs.existsSync(globalSearchPath)) {
@@ -76,10 +77,19 @@ const app = express()
 const PORT = parseInt(process.env.PORT || '5001', 10)
 
 // Middleware
+const ALLOWED_ORIGINS = [
+  'https://www.hotsaler-crm.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+]
+
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    // Allow requests from any origin (for development/debugging)
-    callback(null, true)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error(`CORS: origin not allowed - ${origin}`))
+    }
   },
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -148,8 +158,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', version: '2026-02-25-v2', routes: ['hashtag-analysis'] })
 })
 
-// 입금 알림 진단 엔드포인트 (읽음처리/Slack 발송 없음)
-app.get('/api/debug/deposit', async (req, res) => {
+// 입금 알림 진단 엔드포인트 (읽음처리/Slack 발송 없음, 어드민 전용)
+app.get('/api/debug/deposit', superAdminOnly, async (req, res) => {
   const result: Record<string, unknown> = {}
 
   result.env = {
@@ -227,16 +237,6 @@ app.get('/api/debug/deposit', async (req, res) => {
   }
 
   res.json(result)
-})
-
-// Temporary test endpoint to check data
-app.get('/api/test/customers', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT COUNT(*) FROM customers')
-    res.json({ count: result.rows[0].count, message: 'Database connection OK' })
-  } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : String(error) })
-  }
 })
 
 // Start server with auto-migration
