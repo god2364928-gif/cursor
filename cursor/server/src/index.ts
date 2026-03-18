@@ -106,17 +106,17 @@ app.options('*', cors(corsOptions))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
-// Add request logging for debugging
+// 오류(5xx)만 로그 기록
 app.use((req, res, next) => {
   const startTime = Date.now()
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`)
-  console.log(`Origin: ${req.headers.origin}`)
-  
+
   res.on('finish', () => {
-    const duration = Date.now() - startTime
-    console.log(`[${req.method} ${req.path}] ${res.statusCode} ${duration}ms`)
+    if (res.statusCode >= 500) {
+      const duration = Date.now() - startTime
+      console.error(`[ERROR] ${req.method} ${req.path} ${res.statusCode} ${duration}ms`)
+    }
   })
-  
+
   next()
 })
 
