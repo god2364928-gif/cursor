@@ -79,6 +79,9 @@ const PORT = parseInt(process.env.PORT || '5001', 10)
 // Middleware
 const ALLOWED_ORIGINS = [
   'https://www.hotsaler-crm.com',
+  'https://hotsaler-crm.com',
+  'https://www.hotseller-crm.com',
+  'https://hotseller-crm.com',
   'http://localhost:5173',
   'http://localhost:3000',
 ]
