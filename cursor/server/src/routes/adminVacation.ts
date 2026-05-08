@@ -6,6 +6,7 @@ import fs from 'fs'
 import path from 'path'
 import { expiryDate, calcServiceYearsAtGrant, type GrantType, type LeaveType } from '../lib/vacation'
 import { sendVacationNotification } from '../utils/slackClient'
+import { getUserIdSqlType, buildVacationSchemaSql } from '../migrations/autoMigrate'
 
 const LEAVE_TYPE_LABEL_JA: Record<LeaveType, string> = {
   full: '全休',
@@ -49,16 +50,13 @@ router.use(authMiddleware, adminOnly)
 router.post('/run-migrations', async (req: AuthRequest, res: Response) => {
   const results: any = {}
 
-  // 1. vacation 테이블 생성
+  // 1. vacation 테이블 생성 (users.id 타입 동적 매칭)
   try {
-    const sqlPath = path.join(__dirname, '../../database/add-vacation-tables.sql')
-    if (!fs.existsSync(sqlPath)) {
-      results.vacation_tables = `❌ SQL 파일 없음: ${sqlPath}`
-    } else {
-      const sql = fs.readFileSync(sqlPath, 'utf-8')
-      await pool.query(sql)
-      results.vacation_tables = '✅ 생성 완료 (또는 이미 존재)'
-    }
+    const userIdType = await getUserIdSqlType()
+    results.users_id_type = userIdType
+    const sql = buildVacationSchemaSql(userIdType)
+    await pool.query(sql)
+    results.vacation_tables = `✅ 생성 완료 (user_id type: ${userIdType})`
   } catch (e: any) {
     results.vacation_tables = `❌ ${e.message} (code: ${e.code || 'unknown'})`
   }

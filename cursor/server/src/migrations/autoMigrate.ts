@@ -115,6 +115,71 @@ export async function autoMigrateNotionVacationData(): Promise<void> {
   }
 }
 
+/** users.id 컬럼 타입을 동적으로 감지 (INTEGER/BIGINT/UUID/TEXT 등) */
+export async function getUserIdSqlType(): Promise<string> {
+  const r = await pool.query(`
+    SELECT data_type, udt_name
+    FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='users' AND column_name='id'
+  `)
+  const dataType = r.rows[0]?.data_type
+  const udtName = r.rows[0]?.udt_name
+  // PostgreSQL data_type 매핑
+  if (dataType === 'uuid') return 'UUID'
+  if (dataType === 'bigint') return 'BIGINT'
+  if (dataType === 'integer') return 'INTEGER'
+  if (dataType === 'smallint') return 'SMALLINT'
+  if (dataType === 'character varying' || dataType === 'text' || dataType === 'character') return 'TEXT'
+  if (dataType === 'numeric') return 'NUMERIC'
+  // fallback - udt_name 사용
+  return (udtName || 'INTEGER').toUpperCase()
+}
+
+/** users.id 타입에 맞춰 vacation 테이블 생성 SQL 생성 */
+export function buildVacationSchemaSql(userIdType: string): string {
+  return `
+    CREATE TABLE IF NOT EXISTS vacation_grants (
+      id SERIAL PRIMARY KEY,
+      user_id ${userIdType} NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      grant_date DATE NOT NULL,
+      expires_at DATE NOT NULL,
+      days NUMERIC(4,1) NOT NULL,
+      grant_type TEXT NOT NULL DEFAULT 'annual',
+      service_years_at_grant NUMERIC(3,1),
+      notes TEXT,
+      created_by ${userIdType} REFERENCES users(id),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_vac_grants_user ON vacation_grants(user_id);
+    CREATE INDEX IF NOT EXISTS idx_vac_grants_expiry ON vacation_grants(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_vac_grants_user_type_date ON vacation_grants(user_id, grant_type, grant_date DESC);
+
+    CREATE TABLE IF NOT EXISTS vacation_requests (
+      id SERIAL PRIMARY KEY,
+      user_id ${userIdType} NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      leave_type TEXT NOT NULL,
+      consumed_days NUMERIC(4,1) NOT NULL,
+      reason TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      approver_id ${userIdType} REFERENCES users(id),
+      approved_at TIMESTAMPTZ,
+      rejected_reason TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_vac_req_user ON vacation_requests(user_id);
+    CREATE INDEX IF NOT EXISTS idx_vac_req_status ON vacation_requests(status);
+    CREATE INDEX IF NOT EXISTS idx_vac_req_dates ON vacation_requests(start_date, end_date);
+
+    CREATE TABLE IF NOT EXISTS jp_holidays (
+      date DATE PRIMARY KEY,
+      name TEXT NOT NULL
+    );
+  `
+}
+
 export async function autoMigrateVacation(): Promise<void> {
   try {
     console.log('Checking vacation tables...')
@@ -132,9 +197,9 @@ export async function autoMigrateVacation(): Promise<void> {
       return
     }
 
-    console.log('Creating vacation tables...')
-    const sqlPath = path.join(__dirname, '../../database/add-vacation-tables.sql')
-    const sql = fs.readFileSync(sqlPath, 'utf-8')
+    const userIdType = await getUserIdSqlType()
+    console.log(`Creating vacation tables (users.id type: ${userIdType})...`)
+    const sql = buildVacationSchemaSql(userIdType)
 
     const client = await pool.connect()
     try {
