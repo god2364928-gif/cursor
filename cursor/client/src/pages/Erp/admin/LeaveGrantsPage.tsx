@@ -136,10 +136,10 @@ export default function LeaveGrantsPage() {
             </select>
           </div>
           <div className="max-h-[600px] overflow-y-auto">
-            {loadingSummary ? (
-              <div className="p-6 text-sm text-gray-400 text-center">{t('loading_short')}</div>
-            ) : filtered.length === 0 ? (
-              <div className="p-6 text-sm text-gray-400 text-center">{t('empty_approvals')}</div>
+            {loadingSummary || filtered.length === 0 ? (
+              <div className="p-6 text-sm text-gray-400 text-center">
+                {loadingSummary ? t('loading_short') : t('empty_approvals')}
+              </div>
             ) : (
               <ul className="divide-y divide-gray-100">
                 {filtered.map((s) => (
@@ -194,10 +194,10 @@ export default function LeaveGrantsPage() {
                 <Mini label={t('leave_remaining')} value={`${selectedUser.remaining}${t('unit_day')}`} accent />
               </div>
 
-              {loadingGrants ? (
-                <div className="p-12 text-center text-sm text-gray-400">{t('loading_short')}</div>
-              ) : grants.length === 0 ? (
-                <div className="p-12 text-center text-sm text-gray-400">{t('grants_no_history')}</div>
+              {loadingGrants || grants.length === 0 ? (
+                <div className="p-12 text-center text-sm text-gray-400">
+                  {loadingGrants ? t('loading_short') : t('grants_no_history')}
+                </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">

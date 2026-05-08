@@ -105,11 +105,11 @@ export default function LeaveApprovalsPage() {
         </div>
       </div>
 
-      {loading && <div className="text-sm text-gray-400">{t('loading_short')}</div>}
-
       <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {items.length === 0 ? (
-          <div className="p-12 text-center text-sm text-gray-400">{t('empty_approvals')}</div>
+        {loading || items.length === 0 ? (
+          <div className="p-12 text-center text-sm text-gray-400">
+            {loading ? t('loading_short') : t('empty_approvals')}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

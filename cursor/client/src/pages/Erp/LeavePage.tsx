@@ -106,21 +106,25 @@ export default function LeavePage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('erp_leave_mgmt')}</h1>
-          {balance && (
-            <p className="text-sm text-gray-600 mt-1">
-              {t('leave_remaining')}{' '}
-              <span className="font-semibold text-gray-900">{balance.remaining}{t('unit_day')}</span>
-              {balance.nextGrantDate && (
-                <>
-                  {' '}/ {t('leave_next_grant')}{' '}
-                  <span className="font-medium text-gray-900">
-                    {formatYmd(balance.nextGrantDate)}
-                  </span>
-                  {dDayLabel && <span className="text-gray-500"> ({dDayLabel})</span>}
-                </>
-              )}
-            </p>
-          )}
+          <p className="text-sm text-gray-600 mt-1 min-h-[20px]">
+            {balance ? (
+              <>
+                {t('leave_remaining')}{' '}
+                <span className="font-semibold text-gray-900">{balance.remaining}{t('unit_day')}</span>
+                {balance.nextGrantDate && (
+                  <>
+                    {' '}/ {t('leave_next_grant')}{' '}
+                    <span className="font-medium text-gray-900">
+                      {formatYmd(balance.nextGrantDate)}
+                    </span>
+                    {dDayLabel && <span className="text-gray-500"> ({dDayLabel})</span>}
+                  </>
+                )}
+              </>
+            ) : (
+              <span className="text-gray-400">{t('loading_short')}</span>
+            )}
+          </p>
         </div>
         <Button onClick={() => setModalOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
@@ -130,24 +134,22 @@ export default function LeavePage() {
 
       {balance?.mandatory?.applicable && <MandatoryCard m={balance.mandatory} t={t} />}
 
-      {balance && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label={t('leave_total_granted')} value={`${balance.totalGranted}${t('unit_day')}`} />
-          <Stat label={t('leave_used')} value={`${balance.consumed}${t('unit_day')}`} />
-          <Stat label={t('status_pending')} value={`${balance.pending}${t('unit_day')}`} muted />
-          <Stat label={t('leave_remaining')} value={`${balance.remaining}${t('unit_day')}`} accent />
-        </div>
-      )}
-
-      {loading && <div className="text-sm text-gray-400">{t('loading_short')}</div>}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label={t('leave_total_granted')} value={balance ? `${balance.totalGranted}${t('unit_day')}` : '-'} />
+        <Stat label={t('leave_used')} value={balance ? `${balance.consumed}${t('unit_day')}` : '-'} />
+        <Stat label={t('status_pending')} value={balance ? `${balance.pending}${t('unit_day')}` : '-'} muted />
+        <Stat label={t('leave_remaining')} value={balance ? `${balance.remaining}${t('unit_day')}` : '-'} accent />
+      </div>
 
       <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-900">{t('leave_grant_history')}</h2>
           <span className="text-xs text-gray-500">{grants.length}{t('unit_count')}</span>
         </div>
-        {grants.length === 0 ? (
-          <div className="p-12 text-center text-sm text-gray-400">{t('empty_grants')}</div>
+        {loading || grants.length === 0 ? (
+          <div className="p-12 text-center text-sm text-gray-400">
+            {loading ? t('loading_short') : t('empty_grants')}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -185,8 +187,10 @@ export default function LeavePage() {
           <h2 className="text-base font-semibold text-gray-900">{t('leave_request_history')}</h2>
           <span className="text-xs text-gray-500">{requests.length}{t('unit_count')}</span>
         </div>
-        {requests.length === 0 ? (
-          <div className="p-12 text-center text-sm text-gray-400">{t('empty_requests')}</div>
+        {loading || requests.length === 0 ? (
+          <div className="p-12 text-center text-sm text-gray-400">
+            {loading ? t('loading_short') : t('empty_requests')}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

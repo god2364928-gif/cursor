@@ -167,8 +167,6 @@ export default function LeaveSchedulePage() {
         </div>
       </div>
 
-      {loading && <div className="text-sm text-gray-400">{t('loading_short')}</div>}
-
       {view === 'calendar' ? (
         <CalendarView
           monthStart={monthStart}
@@ -179,7 +177,7 @@ export default function LeaveSchedulePage() {
           statusLabel={statusLabel}
         />
       ) : (
-        <ListView items={filteredItems} t={t} leaveTypeLabel={leaveTypeLabel} statusLabel={statusLabel} />
+        <ListView items={filteredItems} loading={loading} t={t} leaveTypeLabel={leaveTypeLabel} statusLabel={statusLabel} />
       )}
     </div>
   )
@@ -322,19 +320,21 @@ function CalendarView({
 
 function ListView({
   items,
+  loading,
   t,
   leaveTypeLabel,
   statusLabel,
 }: {
   items: ScheduleItem[]
+  loading: boolean
   t: (k: string) => string
   leaveTypeLabel: (lt: LeaveType) => string
   statusLabel: (s: RequestStatus) => string
 }) {
-  if (items.length === 0) {
+  if (loading || items.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-sm text-gray-400">
-        {t('empty_schedule')}
+        {loading ? t('loading_short') : t('empty_schedule')}
       </div>
     )
   }
