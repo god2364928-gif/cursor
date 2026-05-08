@@ -3,6 +3,31 @@ import fs from 'fs'
 import path from 'path'
 
 /**
+ * 'Notion移行' 라벨 정리 (1회성)
+ * - vacation_grants.notes / vacation_requests.reason 에 'Notion移行' prefix 제거
+ */
+export async function autoMigrateCleanupNotionLabels(): Promise<void> {
+  try {
+    const check = await pool.query(`
+      SELECT
+        (SELECT COUNT(*)::int FROM vacation_grants WHERE notes LIKE 'Notion%') AS grants_cnt,
+        (SELECT COUNT(*)::int FROM vacation_requests WHERE reason LIKE 'Notion%') AS requests_cnt
+    `)
+    const grantsCnt = check.rows[0]?.grants_cnt || 0
+    const requestsCnt = check.rows[0]?.requests_cnt || 0
+    if (grantsCnt === 0 && requestsCnt === 0) {
+      return // 이미 정리됨
+    }
+
+    await pool.query(`UPDATE vacation_grants SET notes = NULL WHERE notes LIKE 'Notion%'`)
+    await pool.query(`UPDATE vacation_requests SET reason = NULL WHERE reason LIKE 'Notion%'`)
+    console.log(`✅ Notion labels cleaned (grants: ${grantsCnt}, requests: ${requestsCnt})`)
+  } catch (error: any) {
+    console.error('Notion labels cleanup failed:', error.message)
+  }
+}
+
+/**
  * 中村さくら 묶음 import를 정확한 분리 항목으로 교체 (1회성 보정)
  * - 이전 마이그레이션에서 묶음 1건으로 INSERT한 것을 노션 전체 페이지에 맞춰 분리
  * - 묶음이 없으면 skip (정상 case)

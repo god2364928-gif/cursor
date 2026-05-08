@@ -334,15 +334,15 @@ function GrantForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50 rounded-t-xl">
           <h2 className="text-lg font-semibold">{userName}{t('grants_modal_grant_title_suffix')}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('grants_modal_grant_date_lbl')} *</label>
             <input
@@ -452,15 +452,15 @@ function EditGrantForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50 rounded-t-xl">
           <h2 className="text-lg font-semibold">{t('grants_modal_edit_title')} ({formatYmd(grant.grant_date)})</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('grants_modal_days_lbl')}</label>
             <input

@@ -42,7 +42,7 @@ import vacationRoutes from './routes/vacation'
 import adminVacationRoutes from './routes/adminVacation'
 import { superAdminOnly } from './middleware/superAdminOnly'
 import { importRecentCalls } from './services/cpiImportService'
-import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit } from './migrations/autoMigrate'
+import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels } from './migrations/autoMigrate'
 import { startVacationCron } from './services/vacationCron'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
 import { autoMigrateExamOpenings } from './migrations/autoMigrateExamOpenings'
@@ -257,6 +257,7 @@ async function startServer() {
   await autoMigrateVacation()
   await autoMigrateNotionVacationData()
   await autoMigrateNakamuraSakuraSplit()
+  await autoMigrateCleanupNotionLabels()
   
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`)

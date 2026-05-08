@@ -277,32 +277,22 @@ function MandatoryCard({ m, t }: { m: MandatoryStatus; t: (k: string) => string 
 
   return (
     <div className={`rounded-xl border p-4 ${tone}`}>
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <div className="text-xs font-medium opacity-70">{t('mandatory_title')}</div>
-          <div className="mt-1 text-base font-semibold">
-            {completed ? (
-              <>✅ {t('mandatory_done')} ({m.required}{t('unit_day')}{t('mandatory_summary_in')} {m.used}{t('unit_day')})</>
-            ) : (
-              <>
-                {t('leave_remaining')} <span className="text-lg font-bold">{m.remaining}{t('unit_day')}</span> {t('mandatory_remaining_text')}
-                <span className="text-sm font-normal opacity-80">
-                  {' '}({m.required}{t('unit_day')}{t('mandatory_summary_in')} {m.used}{t('mandatory_summary_completed')})
-                </span>
-              </>
-            )}
-          </div>
-          <div className="text-xs mt-1 opacity-80">
-            {t('mandatory_base_date')} {formatYmd(m.baseDate)} → {t('mandatory_deadline')} {formatYmd(m.deadline)}
-            {dDayLabel && <span className="ml-2 font-semibold">({dDayLabel})</span>}
-          </div>
-        </div>
-        {!completed && (
-          <div className="text-right shrink-0">
-            <div className="text-3xl font-bold leading-none">{m.remaining}</div>
-            <div className="text-[11px] opacity-80 mt-1">{t('unit_day')}</div>
-          </div>
+      <div className="text-xs font-medium opacity-70">{t('mandatory_title')}</div>
+      <div className="mt-1 text-base font-semibold">
+        {completed ? (
+          <>✅ {t('mandatory_done')} ({m.required}{t('unit_day')}{t('mandatory_summary_in')} {m.used}{t('unit_day')})</>
+        ) : (
+          <>
+            {t('leave_remaining')} <span className="text-lg font-bold">{m.remaining}{t('unit_day')}</span> {t('mandatory_remaining_text')}
+            <span className="text-sm font-normal opacity-80">
+              {' '}({m.required}{t('unit_day')}{t('mandatory_summary_in')} {m.used}{t('mandatory_summary_completed')})
+            </span>
+          </>
         )}
+      </div>
+      <div className="text-xs mt-1 opacity-80">
+        {t('mandatory_base_date')} {formatYmd(m.baseDate)} → {t('mandatory_deadline')} {formatYmd(m.deadline)}
+        {dDayLabel && <span className="ml-2 font-semibold">({dDayLabel})</span>}
       </div>
     </div>
   )

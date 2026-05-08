@@ -186,12 +186,12 @@ export default function LeaveApprovalsPage() {
       </section>
 
       {rejectingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold">{t('reject_modal_title')}</h2>
+            <div className="px-5 py-3 border-b border-gray-200 bg-gray-50 rounded-t-xl">
+              <h2 className="text-base font-semibold">{t('reject_modal_title')}</h2>
             </div>
-            <div className="p-6 space-y-3">
+            <div className="px-5 py-4 space-y-3">
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
