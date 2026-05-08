@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import api from '../../lib/api'
 import { ChevronLeft, ChevronRight, CalendarDays, List as ListIcon } from 'lucide-react'
-import { useLeaveLabels, statusColor, formatYmd, type LeaveType, type RequestStatus } from './leaveLabels'
+import { useLeaveLabels, statusColor, formatYmd, ymdLocal, parseYmdLocal, type LeaveType, type RequestStatus } from './leaveLabels'
 
 interface ScheduleItem {
   id: number
@@ -54,8 +54,8 @@ export default function LeaveSchedulePage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const startStr = monthStart.toISOString().slice(0, 10)
-      const endStr = monthEnd.toISOString().slice(0, 10)
+      const startStr = ymdLocal(monthStart)
+      const endStr = ymdLocal(monthEnd)
       const [s, h] = await Promise.all([
         api.get('/vacation/schedule', { params: { startDate: startStr, endDate: endStr } }),
         api.get('/vacation/holidays', { params: { startDate: startStr, endDate: endStr } }),
@@ -217,12 +217,13 @@ function CalendarView({
   const itemsByDate = useMemo(() => {
     const map = new Map<string, ScheduleItem[]>()
     for (const it of items) {
-      const start = new Date(it.start_date)
-      const end = new Date(it.end_date)
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const key = d.toISOString().slice(0, 10)
+      const cur = parseYmdLocal(it.start_date)
+      const last = parseYmdLocal(it.end_date)
+      while (cur <= last) {
+        const key = ymdLocal(cur)
         if (!map.has(key)) map.set(key, [])
         map.get(key)!.push(it)
+        cur.setDate(cur.getDate() + 1)
       }
     }
     return map
@@ -231,7 +232,7 @@ function CalendarView({
   const holidayByDate = useMemo(() => {
     const map = new Map<string, Holiday>()
     for (const h of holidays) {
-      const key = new Date(h.date).toISOString().slice(0, 10)
+      const key = ymdLocal(parseYmdLocal(h.date))
       map.set(key, h)
     }
     return map
@@ -255,7 +256,7 @@ function CalendarView({
         {weeks.map((week, wi) => (
           <div key={wi} className="grid grid-cols-7 divide-x divide-gray-100 min-h-[120px]">
             {week.map((d) => {
-              const key = d.toISOString().slice(0, 10)
+              const key = ymdLocal(d)
               const isCurrentMonth = d.getMonth() === monthStart.getMonth()
               const isToday = d.getTime() === today.getTime()
               const dayItems = itemsByDate.get(key) || []

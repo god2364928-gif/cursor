@@ -56,7 +56,7 @@ export default function ErpLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar — 토글 + 언어 */}
+      {/* Top bar — 토글 + 언어 (CRM과 동일 위치/스타일) */}
       <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-end gap-3 px-6 z-10 print:hidden">
         <AppSwitcher current="erp" />
         <Button
@@ -70,55 +70,41 @@ export default function ErpLayout() {
         </Button>
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar — CRM Layout과 동일한 스타일 */}
       <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col print:hidden">
-        <div className="px-5 py-5 border-b border-gray-200">
-          <h1 className="text-lg font-bold text-gray-800 tracking-wider">HOTSELLER ERP</h1>
-          <p className="text-xs text-gray-500 mt-0.5">{t('erp_user_page')}</p>
-          <div className="mt-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold">
-              {user?.name?.[0] || '?'}
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">{user?.name}</div>
-              <div className="flex flex-wrap gap-1 mt-0.5">
-                {user?.team && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">
-                    {user.team}
-                  </span>
-                )}
-                {(user as any)?.position && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">
-                    {(user as any).position}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+        {/* Logo & User Name */}
+        <div className="h-20 flex flex-col items-center justify-center border-b border-gray-200 p-3">
+          <h1 className="text-xl font-bold text-blue-600">HOTSELLER ERP</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            {user?.name} {language === 'ja' ? '様' : '님'}
+          </p>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {visibleNav.map((item) => {
             const isActive = location.pathname === item.href
-            const paddingClass = item.nested ? 'pl-8 pr-3 py-2' : 'px-3 py-2.5'
+            const paddingClass = item.nested ? 'pl-8 pr-4 py-2.5' : 'px-4 py-3'
+            const iconSize = item.nested ? 'h-4 w-4' : 'h-5 w-5'
             return (
               <Link
                 key={item.href}
                 to={item.href}
-                className={`flex items-center gap-3 ${paddingClass} text-sm font-medium rounded-md transition-colors ${
+                className={`flex items-center ${paddingClass} text-sm font-medium rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <item.icon className={`${item.nested ? 'h-4 w-4' : 'h-[18px] w-[18px]'}`} />
-                <span>{t(item.labelKey)}</span>
+                <item.icon className={`mr-3 ${iconSize} ${item.nested ? 'text-blue-400' : ''}`} />
+                {t(item.labelKey)}
               </Link>
             )
           })}
         </nav>
 
-        <div className="border-t border-gray-200 p-3">
+        {/* User section */}
+        <div className="border-t border-gray-200 p-4">
           <Button variant="ghost" size="sm" className="w-full justify-start" onClick={logout}>
             <LogOut className="mr-2 h-4 w-4" />
             {t('logout')}
@@ -126,6 +112,7 @@ export default function ErpLayout() {
         </div>
       </div>
 
+      {/* Main content */}
       <div className="pl-64 pt-16">
         <main className="p-8">
           <Outlet />

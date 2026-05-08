@@ -64,6 +64,22 @@ export function formatYmd(input: string | Date | null | undefined): string {
   return `${y}.${m}.${day}`
 }
 
+/** 로컬 기준 'YYYY-MM-DD' 포맷 (timezone 변환 X) */
+export function ymdLocal(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** 'YYYY-MM-DD' 또는 ISO 문자열을 로컬 0시 Date로 파싱 (timezone 영향 X) */
+export function parseYmdLocal(s: string | Date): Date {
+  if (s instanceof Date) return new Date(s.getFullYear(), s.getMonth(), s.getDate())
+  const ymd = String(s).slice(0, 10)
+  const [y, m, d] = ymd.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 export function daysUntil(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null
   const target = new Date(dateStr)
