@@ -2,6 +2,8 @@ import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
+import fs from 'fs'
+import path from 'path'
 import { expiryDate, calcServiceYearsAtGrant, type GrantType, type LeaveType } from '../lib/vacation'
 import { sendVacationNotification } from '../utils/slackClient'
 
@@ -42,6 +44,78 @@ async function notifyVacationDecision(
 const router = Router()
 
 router.use(authMiddleware, adminOnly)
+
+/** 마이그레이션 강제 재실행 (어드민) — 에러를 응답에 그대로 노출 */
+router.post('/run-migrations', async (req: AuthRequest, res: Response) => {
+  const results: any = {}
+
+  // 1. vacation 테이블 생성
+  try {
+    const sqlPath = path.join(__dirname, '../../database/add-vacation-tables.sql')
+    if (!fs.existsSync(sqlPath)) {
+      results.vacation_tables = `❌ SQL 파일 없음: ${sqlPath}`
+    } else {
+      const sql = fs.readFileSync(sqlPath, 'utf-8')
+      await pool.query(sql)
+      results.vacation_tables = '✅ 생성 완료 (또는 이미 존재)'
+    }
+  } catch (e: any) {
+    results.vacation_tables = `❌ ${e.message} (code: ${e.code || 'unknown'})`
+  }
+
+  // 2. 일본 공휴일 시드
+  try {
+    const sqlPath = path.join(__dirname, '../../database/seed-jp-holidays.sql')
+    if (!fs.existsSync(sqlPath)) {
+      results.jp_holidays = `❌ SQL 파일 없음: ${sqlPath}`
+    } else {
+      const sql = fs.readFileSync(sqlPath, 'utf-8')
+      await pool.query(sql)
+      results.jp_holidays = '✅ 시드 완료'
+    }
+  } catch (e: any) {
+    results.jp_holidays = `❌ ${e.message} (code: ${e.code || 'unknown'})`
+  }
+
+  // 3. 노션 휴가 데이터 import
+  try {
+    const sqlPath = path.join(__dirname, '../../database/seed-notion-vacation-data.sql')
+    if (!fs.existsSync(sqlPath)) {
+      results.notion_data = `❌ SQL 파일 없음: ${sqlPath}`
+    } else {
+      // 멱등성 체크
+      const checkResult = await pool.query(
+        `SELECT COUNT(*)::int AS cnt FROM vacation_grants WHERE notes LIKE 'Notion移行%'`
+      )
+      if ((checkResult.rows[0]?.cnt || 0) > 0) {
+        results.notion_data = `ℹ️ 이미 import됨 (grants ${checkResult.rows[0].cnt}건)`
+      } else {
+        const sql = fs.readFileSync(sqlPath, 'utf-8')
+        await pool.query(sql)
+        results.notion_data = '✅ import 완료'
+      }
+    }
+  } catch (e: any) {
+    results.notion_data = `❌ ${e.message} (code: ${e.code || 'unknown'})`
+  }
+
+  // 4. __dirname / 파일 시스템 정보
+  try {
+    const dbDir = path.join(__dirname, '../../database')
+    const exists = fs.existsSync(dbDir)
+    const files = exists ? fs.readdirSync(dbDir).filter((f) => f.endsWith('.sql')) : []
+    results.filesystem = {
+      __dirname,
+      database_dir: dbDir,
+      database_dir_exists: exists,
+      sql_files: files,
+    }
+  } catch (e: any) {
+    results.filesystem = `❌ ${e.message}`
+  }
+
+  res.json(results)
+})
 
 /** 마이그레이션/데이터 상태 진단 (어드민) */
 router.get('/debug', async (req: AuthRequest, res: Response) => {
