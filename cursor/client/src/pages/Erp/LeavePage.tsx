@@ -134,9 +134,10 @@ export default function LeavePage() {
 
       {balance?.mandatory?.applicable && <MandatoryCard m={balance.mandatory} t={t} />}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Stat label={t('leave_total_granted')} value={balance ? `${balance.totalGranted}${t('unit_day')}` : '-'} />
         <Stat label={t('leave_used')} value={balance ? `${balance.consumed}${t('unit_day')}` : '-'} />
+        <Stat label={t('leave_expired')} value={balance ? `${balance.expired}${t('unit_day')}` : '-'} muted />
         <Stat label={t('status_pending')} value={balance ? `${balance.pending}${t('unit_day')}` : '-'} muted />
         <Stat label={t('leave_remaining')} value={balance ? `${balance.remaining}${t('unit_day')}` : '-'} accent />
       </div>

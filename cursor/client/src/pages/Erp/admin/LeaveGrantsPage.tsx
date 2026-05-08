@@ -199,9 +199,10 @@ export default function LeaveGrantsPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-4 divide-x divide-gray-100 border-b border-gray-200 text-center">
+              <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-gray-100 border-b border-gray-200 text-center">
                 <Mini label={t('leave_total_granted')} value={`${selectedUser.granted}${t('unit_day')}`} />
                 <Mini label={t('leave_used')} value={`${selectedUser.consumed}${t('unit_day')}`} />
+                <Mini label={t('leave_expired')} value={`${selectedUser.expired}${t('unit_day')}`} muted />
                 <Mini label={t('status_pending')} value={`${selectedUser.pending}${t('unit_day')}`} />
                 <Mini label={t('leave_remaining')} value={`${selectedUser.remaining}${t('unit_day')}`} accent />
               </div>
@@ -328,11 +329,25 @@ function MandatoryBadge({
   )
 }
 
-function Mini({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Mini({
+  label,
+  value,
+  accent,
+  muted,
+}: {
+  label: string
+  value: string
+  accent?: boolean
+  muted?: boolean
+}) {
   return (
     <div className="py-3">
       <div className="text-[11px] text-gray-500">{label}</div>
-      <div className={`text-base font-bold mt-0.5 ${accent ? 'text-blue-700' : 'text-gray-900'}`}>
+      <div
+        className={`text-base font-bold mt-0.5 ${
+          accent ? 'text-blue-700' : muted ? 'text-gray-400' : 'text-gray-900'
+        }`}
+      >
         {value}
       </div>
     </div>

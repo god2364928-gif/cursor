@@ -502,12 +502,12 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
         team: u.team,
         hire_date: u.hire_date,
         employment_status: u.employment_status,
-        // 활성 부여 (만료 제외)
-        granted: Math.round((balance.totalGranted - balance.expired) * 10) / 10,
+        granted: balance.totalGranted,         // 누적 부여 (만료 포함)
+        active_granted: Math.round((balance.totalGranted - balance.expired) * 10) / 10,
         consumed: balance.consumed,
         pending: balance.pending,
         expired: balance.expired,
-        remaining: balance.remaining,
+        remaining: balance.remaining,          // = totalGranted - expired - consumed - pending
         mandatory, // {applicable, required, used, remaining, baseDate, deadline, daysUntilDeadline}
       }
     })

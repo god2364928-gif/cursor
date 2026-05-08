@@ -1067,6 +1067,7 @@ const translations: Record<Language, Translation> = {
     mandatory_overdue: '期限超過',
     mandatory_short: '義務',
     mandatory_short_done: '達成',
+    leave_expired: '失効',
 
     // 신청 모달
     modal_apply_title: '休暇申請',
@@ -2232,6 +2233,7 @@ const translations: Record<Language, Translation> = {
     mandatory_overdue: '기한 초과',
     mandatory_short: '의무',
     mandatory_short_done: '달성',
+    leave_expired: '만료',
 
     // 신청 모달
     modal_apply_title: '휴가 신청',
