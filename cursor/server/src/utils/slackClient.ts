@@ -447,6 +447,66 @@ export async function sendDepositNotification(depositData: {
   }
 }
 
+/**
+ * 휴가 신청/승인/반려 알림
+ * - 기본 채널: 日本_알림방 (C0B28RC26H1)
+ * - VACATION_SLACK_CHANNEL_ID 환경변수로 override 가능
+ */
+const VACATION_SLACK_CHANNEL_ID = process.env.VACATION_SLACK_CHANNEL_ID || 'C0B28RC26H1'
+
+export type VacationNotifyKind = 'submitted' | 'approved' | 'rejected'
+
+export async function sendVacationNotification(data: {
+  kind: VacationNotifyKind
+  userName: string
+  startDate: string
+  endDate: string
+  leaveTypeLabel: string
+  consumedDays: number
+  reason?: string | null
+  rejectedReason?: string | null
+  approverName?: string | null
+}): Promise<boolean> {
+  const client = getSlackClient()
+  if (!client) return false
+
+  try {
+    const { kind, userName, startDate, endDate, leaveTypeLabel, consumedDays, reason, rejectedReason, approverName } = data
+
+    const period = startDate === endDate ? startDate : `${startDate} ~ ${endDate}`
+    const headerMap: Record<VacationNotifyKind, string> = {
+      submitted: '🆕 休暇申請',
+      approved: '✅ 休暇承認',
+      rejected: '❌ 休暇却下',
+    }
+
+    const fields: { type: 'mrkdwn'; text: string }[] = [
+      { type: 'mrkdwn', text: `*申請者:*\n${userName}` },
+      { type: 'mrkdwn', text: `*期間:*\n${period}` },
+      { type: 'mrkdwn', text: `*種類:*\n${leaveTypeLabel} (${consumedDays}日)` },
+    ]
+    if (reason) fields.push({ type: 'mrkdwn', text: `*理由:*\n${reason}` })
+    if (rejectedReason) fields.push({ type: 'mrkdwn', text: `*却下理由:*\n${rejectedReason}` })
+    if (approverName) fields.push({ type: 'mrkdwn', text: `*承認者:*\n${approverName}` })
+
+    await client.chat.postMessage({
+      channel: VACATION_SLACK_CHANNEL_ID,
+      text: `${headerMap[kind]}: ${userName} ${period}`,
+      blocks: [
+        {
+          type: 'header',
+          text: { type: 'plain_text', text: headerMap[kind], emoji: true },
+        },
+        { type: 'section', fields },
+      ],
+    })
+    return true
+  } catch (error: any) {
+    console.error('❌ Slack vacation notification failed:', error.message)
+    return false
+  }
+}
+
 
 
 

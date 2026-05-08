@@ -22,6 +22,7 @@ import {
   ShieldQuestion,
 } from 'lucide-react'
 import { Button } from './ui/button'
+import AppSwitcher from './AppSwitcher'
 
 const navigation = [
   { name: 'dashboard', href: '/', icon: LayoutDashboard },
@@ -59,8 +60,9 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar with language switcher */}
-      <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-end px-6 z-10 print:hidden hide-on-pdf">
+      {/* Top bar with app switcher + language switcher */}
+      <div className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-end gap-3 px-6 z-10 print:hidden hide-on-pdf">
+        <AppSwitcher current="crm" />
         <Button
           variant="ghost"
           size="sm"

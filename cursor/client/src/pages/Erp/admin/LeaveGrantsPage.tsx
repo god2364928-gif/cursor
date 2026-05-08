@@ -1,0 +1,509 @@
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import api from '../../../lib/api'
+import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
+import { Plus, X, Pencil, Trash2 } from 'lucide-react'
+import { grantTypeLabel, formatYmd, type GrantType } from '../leaveLabels'
+
+interface SummaryRow {
+  id: number
+  name: string
+  email: string
+  department: string | null
+  team: string | null
+  hire_date: string | null
+  employment_status: string | null
+  granted: number
+  consumed: number
+  pending: number
+  expired: number
+  remaining: number
+}
+
+interface Grant {
+  id: number
+  user_id: number
+  user_name: string
+  hire_date: string | null
+  grant_date: string
+  expires_at: string
+  days: number
+  grant_type: GrantType
+  service_years_at_grant: number | null
+  notes: string | null
+  created_at: string
+}
+
+export default function LeaveGrantsPage() {
+  const [summary, setSummary] = useState<SummaryRow[]>([])
+  const [search, setSearch] = useState('')
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all')
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [grants, setGrants] = useState<Grant[]>([])
+  const [loadingSummary, setLoadingSummary] = useState(true)
+  const [loadingGrants, setLoadingGrants] = useState(false)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingGrant, setEditingGrant] = useState<Grant | null>(null)
+
+  const fetchSummary = useCallback(async () => {
+    setLoadingSummary(true)
+    try {
+      const res = await api.get('/admin/vacation/summary')
+      setSummary(res.data)
+    } catch (e) {
+      console.error('summary fetch error:', e)
+    } finally {
+      setLoadingSummary(false)
+    }
+  }, [])
+
+  const fetchGrants = useCallback(async (userId: number) => {
+    setLoadingGrants(true)
+    try {
+      const res = await api.get(`/admin/vacation/grants/${userId}`)
+      setGrants(res.data)
+    } catch (e) {
+      console.error('grants fetch error:', e)
+    } finally {
+      setLoadingGrants(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchSummary()
+  }, [fetchSummary])
+
+  useEffect(() => {
+    if (selectedUserId) fetchGrants(selectedUserId)
+  }, [selectedUserId, fetchGrants])
+
+  const departmentOptions = useMemo(() => {
+    const set = new Set<string>()
+    summary.forEach((s) => s.department && set.add(s.department))
+    return Array.from(set).sort()
+  }, [summary])
+
+  const filtered = useMemo(() => {
+    return summary.filter((s) => {
+      if (departmentFilter !== 'all' && s.department !== departmentFilter) return false
+      if (search && !s.name.includes(search) && !(s.email || '').includes(search)) return false
+      return true
+    })
+  }, [summary, search, departmentFilter])
+
+  const selectedUser = summary.find((s) => s.id === selectedUserId)
+
+  const removeGrant = async (id: number) => {
+    if (!confirm('この付与を削除しますか？')) return
+    try {
+      await api.delete(`/admin/vacation/grants/${id}`)
+      if (selectedUserId) await fetchGrants(selectedUserId)
+      await fetchSummary()
+    } catch (e: any) {
+      alert(e?.response?.data?.error || '削除失敗')
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">休暇付与管理</h1>
+        <p className="text-sm text-gray-500 mt-1">社員別の付与履歴と手動調整。</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* 직원 목록 */}
+        <section className="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 space-y-2">
+            <h2 className="text-sm font-semibold">社員一覧</h2>
+            <Input
+              placeholder="氏名 / メール検索"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="text-sm h-8"
+            />
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="text-sm border border-gray-200 rounded px-2 py-1 bg-white w-full"
+            >
+              <option value="all">全部署</option>
+              {departmentOptions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="max-h-[600px] overflow-y-auto">
+            {loadingSummary ? (
+              <div className="p-6 text-sm text-gray-400 text-center">読み込み中...</div>
+            ) : filtered.length === 0 ? (
+              <div className="p-6 text-sm text-gray-400 text-center">該当者なし</div>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {filtered.map((s) => (
+                  <li
+                    key={s.id}
+                    onClick={() => setSelectedUserId(s.id)}
+                    className={`p-3 cursor-pointer hover:bg-gray-50 ${
+                      selectedUserId === s.id ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate">{s.name}</div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {s.department || s.team || '-'} · 入社 {formatYmd(s.hire_date)}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-semibold text-blue-700">{s.remaining}日</div>
+                        <div className="text-[10px] text-gray-500">残り</div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        {/* 부여 내역 */}
+        <section className="lg:col-span-3 bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">
+              {selectedUser ? `${selectedUser.name} の付与履歴` : '付与履歴'}
+            </h2>
+            {selectedUser && (
+              <Button size="sm" onClick={() => setShowAddForm(true)} className="gap-1 h-7 text-xs">
+                <Plus className="h-3 w-3" />
+                手動付与
+              </Button>
+            )}
+          </div>
+          {!selectedUser ? (
+            <div className="p-12 text-center text-sm text-gray-400">
+              左の社員リストから選択してください。
+            </div>
+          ) : (
+            <>
+              {/* 요약 */}
+              <div className="grid grid-cols-4 divide-x divide-gray-100 border-b border-gray-200 text-center">
+                <Mini label="総付与" value={`${selectedUser.granted}日`} />
+                <Mini label="使用" value={`${selectedUser.consumed}日`} />
+                <Mini label="承認待ち" value={`${selectedUser.pending}日`} />
+                <Mini label="残り" value={`${selectedUser.remaining}日`} accent />
+              </div>
+
+              {loadingGrants ? (
+                <div className="p-12 text-center text-sm text-gray-400">読み込み中...</div>
+              ) : grants.length === 0 ? (
+                <div className="p-12 text-center text-sm text-gray-400">付与履歴がありません。</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-gray-600">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">付与日</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">種類</th>
+                        <th className="px-4 py-2.5 text-right font-medium text-xs">日数</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">有効期限</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">備考</th>
+                        <th className="px-4 py-2.5 text-right font-medium text-xs">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grants.map((g) => (
+                        <tr key={g.id} className="border-t border-gray-100 hover:bg-gray-50">
+                          <td className="px-4 py-3">{formatYmd(g.grant_date)}</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-block px-2 py-0.5 text-xs rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {grantTypeLabel[g.grant_type] || g.grant_type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold">{g.days}日</td>
+                          <td className="px-4 py-3">{formatYmd(g.expires_at)}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{g.notes || '-'}</td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex justify-end gap-1">
+                              <button
+                                onClick={() => setEditingGrant(g)}
+                                className="text-gray-400 hover:text-blue-600"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => removeGrant(g.id)}
+                                className="text-gray-400 hover:text-red-600"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </div>
+
+      {showAddForm && selectedUser && (
+        <GrantForm
+          userId={selectedUser.id}
+          userName={selectedUser.name}
+          onClose={() => setShowAddForm(false)}
+          onSaved={async () => {
+            setShowAddForm(false)
+            if (selectedUserId) await fetchGrants(selectedUserId)
+            await fetchSummary()
+          }}
+        />
+      )}
+      {editingGrant && (
+        <EditGrantForm
+          grant={editingGrant}
+          onClose={() => setEditingGrant(null)}
+          onSaved={async () => {
+            setEditingGrant(null)
+            if (selectedUserId) await fetchGrants(selectedUserId)
+            await fetchSummary()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function Mini({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="py-3">
+      <div className="text-[11px] text-gray-500">{label}</div>
+      <div className={`text-base font-bold mt-0.5 ${accent ? 'text-blue-700' : 'text-gray-900'}`}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
+function GrantForm({
+  userId,
+  userName,
+  onClose,
+  onSaved,
+}: {
+  userId: number
+  userName: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [grantDate, setGrantDate] = useState(new Date().toISOString().slice(0, 10))
+  const [days, setDays] = useState('')
+  const [grantType, setGrantType] = useState<GrantType>('manual')
+  const [expiresAt, setExpiresAt] = useState('')
+  const [notes, setNotes] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!grantDate || !days) {
+      setError('付与日と日数は必須です')
+      return
+    }
+    setSubmitting(true)
+    setError('')
+    try {
+      await api.post('/admin/vacation/grants', {
+        userId,
+        grantDate,
+        days: Number(days),
+        grantType,
+        expiresAt: expiresAt || undefined,
+        notes: notes || undefined,
+      })
+      onSaved()
+    } catch (err: any) {
+      setError(err?.response?.data?.error || '付与失敗')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">{userName} に手動付与</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">付与日 *</label>
+            <input
+              type="date"
+              value={grantDate}
+              onChange={(e) => setGrantDate(e.target.value)}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">日数 *</label>
+            <input
+              type="number"
+              step="0.5"
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+              required
+              placeholder="例: 5"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">種類</label>
+            <select
+              value={grantType}
+              onChange={(e) => setGrantType(e.target.value as GrantType)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+            >
+              <option value="manual">手動付与</option>
+              <option value="special">特別</option>
+              <option value="condolence">慶弔</option>
+              <option value="annual">年次</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              有効期限 <span className="text-gray-400 font-normal">(空欄で付与日+2年)</span>
+            </label>
+            <input
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">備考</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none"
+            />
+          </div>
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+              {error}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
+              キャンセル
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? '保存中...' : '付与する'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function EditGrantForm({
+  grant,
+  onClose,
+  onSaved,
+}: {
+  grant: Grant
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [days, setDays] = useState(String(grant.days))
+  const [expiresAt, setExpiresAt] = useState(grant.expires_at?.slice(0, 10) || '')
+  const [notes, setNotes] = useState(grant.notes || '')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setError('')
+    try {
+      await api.patch(`/admin/vacation/grants/${grant.id}`, {
+        days: Number(days),
+        expiresAt,
+        notes,
+      })
+      onSaved()
+    } catch (err: any) {
+      setError(err?.response?.data?.error || '修正失敗')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">付与修正 ({formatYmd(grant.grant_date)})</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">日数</label>
+            <input
+              type="number"
+              step="0.5"
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">有効期限</label>
+            <input
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">備考</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none"
+            />
+          </div>
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+              {error}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
+              キャンセル
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? '保存中...' : '保存'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}

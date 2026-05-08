@@ -41,14 +41,26 @@ router.post('/login', async (req: Request, res: Response) => {
       [user.id]
     )
 
+    // app_access 기본값 보정 (마이그레이션 이전 사용자 대응)
+    const appAccess: string =
+      user.app_access ||
+      (user.role === 'admin' ? 'admin,crm,erp' : 'crm,erp')
+
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name, role: user.role, team: user.team },
+      {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        team: user.team,
+        app_access: appAccess,
+      },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     )
 
-    console.log(`Login success: ${email}, name: ${user.name}, role: ${user.role}, team: ${user.team}`)
+    console.log(`Login success: ${email}, name: ${user.name}, role: ${user.role}, team: ${user.team}, access: ${appAccess}`)
     res.json({
       user: {
         id: user.id,
@@ -56,6 +68,7 @@ router.post('/login', async (req: Request, res: Response) => {
         email: user.email,
         team: user.team,
         role: user.role,
+        app_access: appAccess,
       },
       token,
     })

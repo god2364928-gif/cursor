@@ -2,6 +2,207 @@ import { pool } from '../db'
 import fs from 'fs'
 import path from 'path'
 
+/**
+ * 中村さくら 묶음 import를 정확한 분리 항목으로 교체 (1회성 보정)
+ * - 이전 마이그레이션에서 묶음 1건으로 INSERT한 것을 노션 전체 페이지에 맞춰 분리
+ * - 묶음이 없으면 skip (정상 case)
+ */
+export async function autoMigrateNakamuraSakuraSplit(): Promise<void> {
+  try {
+    // 묶음 행 존재 여부 확인
+    const checkResult = await pool.query(`
+      SELECT vr.id
+      FROM vacation_requests vr
+      JOIN users u ON u.id = vr.user_id
+      WHERE u.email = 'umm240227@hotseller.co.kr'
+        AND vr.reason LIKE 'Notion移行 (詳細不明%'
+    `)
+    if (checkResult.rows.length === 0) {
+      // 묶음 없음 → 처음부터 정확하게 import 됐거나, 아직 import 안됨
+      return
+    }
+
+    console.log('Splitting 中村さくら 묶음 신청 → 정확한 분리 항목')
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+
+      // 묶음 행 삭제
+      await client.query(`
+        DELETE FROM vacation_requests vr
+        USING users u
+        WHERE vr.user_id = u.id
+          AND u.email = 'umm240227@hotseller.co.kr'
+          AND vr.reason LIKE 'Notion移行 (詳細不明%'
+      `)
+
+      // 분리된 항목 중 묶음에 포함되지 않았던 것만 INSERT
+      // (보이는 10건은 이미 INSERT됨, 추가 분만 넣음)
+      await client.query(`
+        WITH u AS (SELECT id FROM users WHERE email = 'umm240227@hotseller.co.kr')
+        INSERT INTO vacation_requests
+          (user_id, start_date, end_date, leave_type, consumed_days, status, reason, approved_at)
+        SELECT u.id, d.s, d.e, d.lt, d.cd, 'approved', d.r, (d.s::timestamp + INTERVAL '18 hours')
+        FROM u, (VALUES
+          (DATE '2025-09-10', DATE '2025-09-12', 'full',    3::numeric, 'Notion移行 (連休)'),
+          (DATE '2025-09-16', DATE '2025-09-16', 'full',    1::numeric, 'Notion移行'),
+          (DATE '2025-10-06', DATE '2025-10-06', 'full',    1::numeric, 'Notion移行'),
+          (DATE '2025-11-04', DATE '2025-11-04', 'full',    1::numeric, 'Notion移行'),
+          (DATE '2025-12-24', DATE '2025-12-26', 'full',    3::numeric, 'Notion移行 (連休)'),
+          (DATE '2026-02-16', DATE '2026-02-16', 'full',    1::numeric, 'Notion移行'),
+          (DATE '2026-02-24', DATE '2026-02-24', 'full',    1::numeric, 'Notion移行'),
+          (DATE '2026-02-25', DATE '2026-02-25', 'half_pm', 0.5::numeric, 'Notion移行 (半休)'),
+          (DATE '2026-04-21', DATE '2026-04-21', 'half_pm', 0.5::numeric, 'Notion移行 (半休)'),
+          (DATE '2026-04-23', DATE '2026-04-23', 'full',    1::numeric, 'Notion移行')
+        ) AS d(s, e, lt, cd, r)
+      `)
+
+      await client.query('COMMIT')
+      console.log('✅ 中村さくら 분리 완료')
+    } catch (error: any) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  } catch (error: any) {
+    console.error('❌ 中村さくら split migration failed:', error.message)
+  }
+}
+
+export async function autoMigrateNotionVacationData(): Promise<void> {
+  try {
+    // 멱등성 체크: 이미 'Notion移行' notes를 가진 grant가 있으면 skip
+    const checkResult = await pool.query(
+      `SELECT COUNT(*)::int AS cnt FROM vacation_grants WHERE notes LIKE 'Notion移行%'`
+    )
+    if ((checkResult.rows[0]?.cnt || 0) > 0) {
+      console.log('✓ Notion vacation data already imported')
+      return
+    }
+
+    // users 테이블 / vacation_grants 테이블이 모두 있어야 의미 있음
+    const tableCheck = await pool.query(`
+      SELECT
+        EXISTS (SELECT FROM information_schema.tables WHERE table_schema='public' AND table_name='vacation_grants') AS grants,
+        EXISTS (SELECT FROM information_schema.tables WHERE table_schema='public' AND table_name='vacation_requests') AS requests
+    `)
+    if (!tableCheck.rows[0]?.grants || !tableCheck.rows[0]?.requests) {
+      console.log('⚠️ vacation tables not yet ready, skipping Notion import')
+      return
+    }
+
+    console.log('Importing Notion vacation data...')
+    const sqlPath = path.join(__dirname, '../../database/seed-notion-vacation-data.sql')
+    const sql = fs.readFileSync(sqlPath, 'utf-8')
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(sql)
+      await client.query('COMMIT')
+      console.log('✅ Notion vacation data imported successfully')
+    } catch (error: any) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  } catch (error: any) {
+    console.error('❌ Notion vacation data import failed:', error.message)
+    console.error('Server will continue to start')
+  }
+}
+
+export async function autoMigrateVacation(): Promise<void> {
+  try {
+    console.log('Checking vacation tables...')
+
+    const checkResult = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'vacation_grants'
+      );
+    `)
+
+    if (checkResult.rows[0].exists) {
+      console.log('✓ vacation tables already exist')
+      return
+    }
+
+    console.log('Creating vacation tables...')
+    const sqlPath = path.join(__dirname, '../../database/add-vacation-tables.sql')
+    const sql = fs.readFileSync(sqlPath, 'utf-8')
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(sql)
+      await client.query('COMMIT')
+      console.log('✅ vacation tables created successfully')
+    } catch (error: any) {
+      await client.query('ROLLBACK')
+      if (error.code === '42P07') {
+        console.log('ℹ️  Tables were created by another process (this is OK)')
+      } else {
+        throw error
+      }
+    } finally {
+      client.release()
+    }
+  } catch (error: any) {
+    console.error('❌ vacation tables auto-migration failed:', error.message)
+    console.error('Server will continue to start, but vacation features may not work')
+  }
+}
+
+export async function autoMigrateAppAccess(): Promise<void> {
+  try {
+    console.log('Checking users.app_access column...')
+
+    const checkResult = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'users'
+        AND column_name = 'app_access'
+      );
+    `)
+
+    if (checkResult.rows[0].exists) {
+      console.log('✓ users.app_access column already exists')
+      return
+    }
+
+    console.log('Adding users.app_access column...')
+
+    const sqlPath = path.join(__dirname, '../../database/add-app-access-column.sql')
+    const sql = fs.readFileSync(sqlPath, 'utf-8')
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(sql)
+      await client.query('COMMIT')
+      console.log('✅ users.app_access column added and backfilled successfully')
+    } catch (error: any) {
+      await client.query('ROLLBACK')
+      if (error.code === '42701') {
+        console.log('ℹ️  Column was added by another process (this is OK)')
+      } else {
+        throw error
+      }
+    } finally {
+      client.release()
+    }
+  } catch (error: any) {
+    console.error('❌ app_access auto-migration failed:', error.message)
+    console.error('Server will continue to start, but app routing may not work correctly')
+  }
+}
+
 export async function autoMigrateSalesAmountFields(): Promise<void> {
   try {
     console.log('Checking sales amount fields (total_amount, tax_amount, net_amount)...')

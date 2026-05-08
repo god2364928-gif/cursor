@@ -8,6 +8,7 @@ export interface AuthRequest extends Request {
     name: string
     role: string
     team: string
+    app_access?: string
   }
 }
 

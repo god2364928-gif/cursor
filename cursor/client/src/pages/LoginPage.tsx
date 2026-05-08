@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
 import api from '../lib/api'
+import { defaultLandingPath } from '../lib/appAccess'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -25,7 +26,7 @@ export default function LoginPage() {
     try {
       const response = await api.post('/auth/login', { email, password })
       setAuth(response.data.user, response.data.token)
-      navigate('/')
+      navigate(defaultLandingPath(response.data.user))
     } catch (err: any) {
       const errorMessage = err.response?.data?.message
       // Translate server error messages

@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useAdminAuthStore } from './store/adminAuthStore'
+import { hasAccess } from './lib/appAccess'
 import Layout from './components/Layout'
+import ErpLayout from './components/ErpLayout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import CustomersPage from './pages/CustomersPage'
@@ -23,6 +25,13 @@ import HashtagBulkPage from './pages/HashtagBulkPage'
 import FlagCheckPage from './pages/FlagCheckPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import AdminPage from './pages/AdminPage'
+import MyPage from './pages/Erp/MyPage'
+import OrgPage from './pages/Erp/OrgPage'
+import LeavePage from './pages/Erp/LeavePage'
+import LeaveSchedulePage from './pages/Erp/LeaveSchedulePage'
+import AdminHomePage from './pages/Erp/admin/AdminHomePage'
+import LeaveApprovalsPage from './pages/Erp/admin/LeaveApprovalsPage'
+import LeaveGrantsPage from './pages/Erp/admin/LeaveGrantsPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token)
@@ -32,6 +41,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAdminAuthStore((state) => state.token)
   return token ? <>{children}</> : <Navigate to="/admin/login" />
+}
+
+function CrmGuard({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((state) => state.user)
+  if (!hasAccess(user, 'crm')) {
+    return <Navigate to="/erp" replace />
+  }
+  return <>{children}</>
+}
+
+function ErpAdminGuard({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((state) => state.user)
+  if (user?.role !== 'admin') {
+    return <Navigate to="/erp" replace />
+  }
+  return <>{children}</>
 }
 
 function App() {
@@ -48,11 +73,33 @@ function App() {
           }
         />
         <Route path="/login" element={<LoginPage />} />
+
+        {/* ERP routes */}
+        <Route
+          path="/erp"
+          element={
+            <ProtectedRoute>
+              <ErpLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<MyPage />} />
+          <Route path="org" element={<OrgPage />} />
+          <Route path="leave" element={<LeavePage />} />
+          <Route path="leave-schedule" element={<LeaveSchedulePage />} />
+          <Route path="admin" element={<ErpAdminGuard><AdminHomePage /></ErpAdminGuard>} />
+          <Route path="admin/approvals" element={<ErpAdminGuard><LeaveApprovalsPage /></ErpAdminGuard>} />
+          <Route path="admin/grants" element={<ErpAdminGuard><LeaveGrantsPage /></ErpAdminGuard>} />
+        </Route>
+
+        {/* CRM routes */}
         <Route
           path="/"
           element={
             <ProtectedRoute>
-              <Layout />
+              <CrmGuard>
+                <Layout />
+              </CrmGuard>
             </ProtectedRoute>
           }
         >
@@ -81,5 +128,3 @@ function App() {
 }
 
 export default App
-
-

@@ -38,9 +38,12 @@ import quotesRoutes from './routes/quotes'
 import adminAuthRoutes from './routes/adminAuth'
 import featureUsageRoutes from './routes/featureUsage'
 import flagCheckRoutes from './routes/flagCheck'
+import vacationRoutes from './routes/vacation'
+import adminVacationRoutes from './routes/adminVacation'
 import { superAdminOnly } from './middleware/superAdminOnly'
 import { importRecentCalls } from './services/cpiImportService'
-import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields } from './migrations/autoMigrate'
+import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit } from './migrations/autoMigrate'
+import { startVacationCron } from './services/vacationCron'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
 import { autoMigrateExamOpenings } from './migrations/autoMigrateExamOpenings'
 import { checkDepositEmails, markAsRead } from './services/gmailService'
@@ -153,6 +156,8 @@ app.use('/api/quotes', quotesRoutes)
 app.use('/api/admin', adminAuthRoutes)
 app.use('/api/admin/feature-usage', featureUsageRoutes)
 app.use('/api/flag-check', flagCheckRoutes)
+app.use('/api/vacation', vacationRoutes)
+app.use('/api/admin/vacation', adminVacationRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -248,11 +253,27 @@ async function startServer() {
   await autoMigrateSalesAmountFields()
   await autoMigrateFeatureUsage()
   await autoMigrateExamOpenings()
+  await autoMigrateAppAccess()
+  await autoMigrateVacation()
+  await autoMigrateNotionVacationData()
+  await autoMigrateNakamuraSakuraSplit()
   
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`)
   console.log(`CORS enabled for all origins`)
   })
+
+  // 휴가 자동 부여 cron (운영에서만 ON, ENABLE_VACATION_CRON=0 으로 강제 OFF 가능)
+  const nodeEnvForVac = (process.env.NODE_ENV || 'development').toLowerCase()
+  const enableVacationCron =
+    typeof process.env.ENABLE_VACATION_CRON === 'string'
+      ? process.env.ENABLE_VACATION_CRON === '1'
+      : nodeEnvForVac === 'production'
+  if (enableVacationCron) {
+    startVacationCron()
+  } else {
+    console.log('[Vacation] cron scheduler disabled (development)')
+  }
 
   // CPI 스케줄러 (외부 시스템 호출 + DB 작업)
   // - 개발서버에서는 기본 OFF (속도 흔들림/외부 호출 방지)
