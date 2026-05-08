@@ -1065,6 +1065,8 @@ const translations: Record<Language, Translation> = {
     mandatory_base_date: '基準日',
     mandatory_deadline: '期限',
     mandatory_overdue: '期限超過',
+    mandatory_short: '義務',
+    mandatory_short_done: '達成',
 
     // 신청 모달
     modal_apply_title: '休暇申請',
@@ -2228,6 +2230,8 @@ const translations: Record<Language, Translation> = {
     mandatory_base_date: '기준일',
     mandatory_deadline: '마감',
     mandatory_overdue: '기한 초과',
+    mandatory_short: '의무',
+    mandatory_short_done: '달성',
 
     // 신청 모달
     modal_apply_title: '휴가 신청',

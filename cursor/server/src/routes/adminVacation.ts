@@ -4,7 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
 import fs from 'fs'
 import path from 'path'
-import { expiryDate, calcServiceYearsAtGrant, type GrantType, type LeaveType } from '../lib/vacation'
+import { expiryDate, calcServiceYearsAtGrant, calcBalance, calcMandatoryStatus, type GrantType, type LeaveType } from '../lib/vacation'
 import { sendVacationNotification } from '../utils/slackClient'
 import { getUserIdSqlType, buildVacationSchemaSql } from '../migrations/autoMigrate'
 
@@ -446,46 +446,73 @@ router.delete('/grants/:id', async (req: AuthRequest, res: Response) => {
   }
 })
 
-/** 직원별 잔여 요약 (부여 관리 페이지의 직원 리스트용) */
+/** 직원별 잔여 요약 (부여 관리 페이지의 직원 리스트용)
+ * - 퇴사자 (employment_status: 退社/退職/퇴사/퇴직) 제외
+ * - 의무 5일 취득 상태 포함
+ */
 router.get('/summary', async (req: AuthRequest, res: Response) => {
   try {
-    const result = await pool.query(`
-      SELECT u.id, u.name, u.email, u.department, u.team, u.hire_date, u.employment_status,
-             COALESCE(SUM(CASE WHEN g.expires_at >= CURRENT_DATE THEN g.days ELSE 0 END), 0) AS active_granted,
-             COALESCE(SUM(CASE WHEN g.expires_at < CURRENT_DATE THEN g.days ELSE 0 END), 0) AS expired,
-             (SELECT COALESCE(SUM(consumed_days), 0)
-                FROM vacation_requests vr
-                WHERE vr.user_id = u.id AND vr.status = 'approved') AS consumed,
-             (SELECT COALESCE(SUM(consumed_days), 0)
-                FROM vacation_requests vr
-                WHERE vr.user_id = u.id AND vr.status = 'pending') AS pending
-      FROM users u
-      LEFT JOIN vacation_grants g ON g.user_id = u.id
-      WHERE u.hire_date IS NOT NULL
-      GROUP BY u.id
-      ORDER BY u.department NULLS LAST, u.hire_date DESC
+    const usersResult = await pool.query(`
+      SELECT id, name, email, department, team, hire_date, employment_status
+      FROM users
+      WHERE hire_date IS NOT NULL
+        AND (employment_status IS NULL
+             OR employment_status NOT IN ('退社', '退職', '퇴사', '퇴직'))
+      ORDER BY department NULLS LAST, hire_date DESC
     `)
-    res.json(
-      result.rows.map((r) => {
-        const granted = Number(r.active_granted) || 0
-        const consumed = Number(r.consumed) || 0
-        const pending = Number(r.pending) || 0
-        return {
-          id: r.id,
-          name: r.name,
-          email: r.email,
-          department: r.department,
-          team: r.team,
-          hire_date: r.hire_date,
-          employment_status: r.employment_status,
-          granted,
-          consumed,
-          pending,
-          expired: Number(r.expired) || 0,
-          remaining: Math.round((granted - consumed - pending) * 10) / 10,
-        }
-      })
-    )
+    if (usersResult.rows.length === 0) {
+      return res.json([])
+    }
+
+    const userIds = usersResult.rows.map((u: any) => u.id)
+    const [grantsResult, requestsResult] = await Promise.all([
+      pool.query(
+        `SELECT user_id, grant_date, expires_at, days, grant_type
+         FROM vacation_grants WHERE user_id = ANY($1)`,
+        [userIds]
+      ),
+      pool.query(
+        `SELECT user_id, start_date, end_date, leave_type, consumed_days, status
+         FROM vacation_requests WHERE user_id = ANY($1)`,
+        [userIds]
+      ),
+    ])
+
+    const grantsByUser = new Map<any, any[]>()
+    for (const g of grantsResult.rows) {
+      if (!grantsByUser.has(g.user_id)) grantsByUser.set(g.user_id, [])
+      grantsByUser.get(g.user_id)!.push(g)
+    }
+    const requestsByUser = new Map<any, any[]>()
+    for (const r of requestsResult.rows) {
+      if (!requestsByUser.has(r.user_id)) requestsByUser.set(r.user_id, [])
+      requestsByUser.get(r.user_id)!.push(r)
+    }
+
+    const summary = usersResult.rows.map((u: any) => {
+      const grants = grantsByUser.get(u.id) || []
+      const requests = requestsByUser.get(u.id) || []
+      const balance = calcBalance(grants, requests)
+      const mandatory = calcMandatoryStatus(grants, requests)
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        department: u.department,
+        team: u.team,
+        hire_date: u.hire_date,
+        employment_status: u.employment_status,
+        // 활성 부여 (만료 제외)
+        granted: Math.round((balance.totalGranted - balance.expired) * 10) / 10,
+        consumed: balance.consumed,
+        pending: balance.pending,
+        expired: balance.expired,
+        remaining: balance.remaining,
+        mandatory, // {applicable, required, used, remaining, baseDate, deadline, daysUntilDeadline}
+      }
+    })
+
+    res.json(summary)
   } catch (error: any) {
     console.error('admin summary error:', error.message)
     res.status(500).json({ error: '집계 실패' })
