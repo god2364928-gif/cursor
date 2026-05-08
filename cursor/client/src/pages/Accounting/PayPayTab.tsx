@@ -371,16 +371,24 @@ const PayPayTab: React.FC<PayPayTabProps> = ({ language, isAdmin }) => {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>{language === 'ja' ? 'PayPay 売上' : 'PayPay 매출'}</CardTitle>
-              <div className="flex gap-2">
-                <label className="cursor-pointer">
-                  <Button size="sm" variant="outline" asChild>
-                    <span><Upload className="h-4 w-4 mr-1" />{language === 'ja' ? 'CSV' : 'CSV'}</span>
+              <div className="flex flex-col items-end gap-2">
+                <p className="text-sm text-gray-500">
+                  {language === 'ja' ? '照会合計:' : '조회 합계:'}{' '}
+                  <span className="font-bold text-green-600">
+                    {formatCurrency(paypaySales.reduce((sum, s) => sum + Number(s.amount), 0))}
+                  </span>
+                </p>
+                <div className="flex gap-2">
+                  <label className="cursor-pointer">
+                    <Button size="sm" variant="outline" asChild>
+                      <span><Upload className="h-4 w-4 mr-1" />{language === 'ja' ? 'CSV' : 'CSV'}</span>
+                    </Button>
+                    <input type="file" accept=".csv" className="hidden" onChange={handlePaypayCSVUpload} />
+                  </label>
+                  <Button size="sm" onClick={() => setShowPaypaySaleForm(true)}>
+                    <Plus className="h-4 w-4 mr-1" />{language === 'ja' ? '追加' : '추가'}
                   </Button>
-                  <input type="file" accept=".csv" className="hidden" onChange={handlePaypayCSVUpload} />
-                </label>
-                <Button size="sm" onClick={() => setShowPaypaySaleForm(true)}>
-                  <Plus className="h-4 w-4 mr-1" />{language === 'ja' ? '追加' : '추가'}
-                </Button>
+                </div>
               </div>
             </div>
           </CardHeader>
