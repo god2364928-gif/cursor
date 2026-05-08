@@ -3,6 +3,58 @@ import fs from 'fs'
 import path from 'path'
 
 /**
+ * 휴가 데이터 중복 제거 (멱등 — 매번 실행되어도 OK)
+ * 같은 (user_id, grant_date, grant_type, days) 조합 중 가장 작은 id만 남기고 삭제.
+ * 같은 (user_id, start_date, end_date, leave_type, consumed_days) 조합도 동일.
+ */
+export async function autoMigrateDedupVacationData(): Promise<void> {
+  try {
+    // 멱등성: 중복이 있을 때만 실행
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (SELECT FROM information_schema.tables
+        WHERE table_schema='public' AND table_name='vacation_grants') AS exists
+    `)
+    if (!tableCheck.rows[0]?.exists) return
+
+    const grantsResult = await pool.query(`
+      DELETE FROM vacation_grants
+      WHERE id IN (
+        SELECT id FROM (
+          SELECT id, ROW_NUMBER() OVER (
+            PARTITION BY user_id, grant_date, grant_type, days
+            ORDER BY id
+          ) AS rn
+          FROM vacation_grants
+        ) t WHERE rn > 1
+      )
+      RETURNING id
+    `)
+
+    const requestsResult = await pool.query(`
+      DELETE FROM vacation_requests
+      WHERE id IN (
+        SELECT id FROM (
+          SELECT id, ROW_NUMBER() OVER (
+            PARTITION BY user_id, start_date, end_date, leave_type, consumed_days
+            ORDER BY id
+          ) AS rn
+          FROM vacation_requests
+        ) t WHERE rn > 1
+      )
+      RETURNING id
+    `)
+
+    const gDeleted = grantsResult.rowCount || 0
+    const rDeleted = requestsResult.rowCount || 0
+    if (gDeleted > 0 || rDeleted > 0) {
+      console.log(`✅ Vacation dedup: removed ${gDeleted} duplicate grants, ${rDeleted} duplicate requests`)
+    }
+  } catch (error: any) {
+    console.error('Vacation dedup failed:', error.message)
+  }
+}
+
+/**
  * 'Notion移行' 라벨 정리 (1회성)
  * - vacation_grants.notes / vacation_requests.reason 에 'Notion移行' prefix 제거
  */
@@ -98,15 +150,6 @@ export async function autoMigrateNakamuraSakuraSplit(): Promise<void> {
 
 export async function autoMigrateNotionVacationData(): Promise<void> {
   try {
-    // 멱등성 체크: 이미 'Notion移行' notes를 가진 grant가 있으면 skip
-    const checkResult = await pool.query(
-      `SELECT COUNT(*)::int AS cnt FROM vacation_grants WHERE notes LIKE 'Notion移行%'`
-    )
-    if ((checkResult.rows[0]?.cnt || 0) > 0) {
-      console.log('✓ Notion vacation data already imported')
-      return
-    }
-
     // users 테이블 / vacation_grants 테이블이 모두 있어야 의미 있음
     const tableCheck = await pool.query(`
       SELECT
@@ -115,6 +158,20 @@ export async function autoMigrateNotionVacationData(): Promise<void> {
     `)
     if (!tableCheck.rows[0]?.grants || !tableCheck.rows[0]?.requests) {
       console.log('⚠️ vacation tables not yet ready, skipping Notion import')
+      return
+    }
+
+    // 멱등성 체크: vacation_grants 또는 vacation_requests에 어떤 row라도 있으면 skip
+    // (이전엔 notes prefix 기반이었으나, cleanup 후 NULL 처리되면 멱등성 깨져 중복 INSERT 발생)
+    const checkResult = await pool.query(
+      `SELECT
+        (SELECT COUNT(*)::int FROM vacation_grants) AS grants_cnt,
+        (SELECT COUNT(*)::int FROM vacation_requests) AS requests_cnt`
+    )
+    const gCnt = checkResult.rows[0]?.grants_cnt || 0
+    const rCnt = checkResult.rows[0]?.requests_cnt || 0
+    if (gCnt > 0 || rCnt > 0) {
+      console.log(`✓ Vacation data exists (grants: ${gCnt}, requests: ${rCnt}), skipping Notion import`)
       return
     }
 
