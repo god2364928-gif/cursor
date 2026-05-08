@@ -10,6 +10,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Edit2, Trash2, X, RefreshCw, LogOut, Users, BarChart2, UserCheck, FileKey, Calculator, GraduationCap, FileText } from 'lucide-react'
 import ExamViewModal from '../components/ExamViewModal'
+import AppSwitcher from '../components/AppSwitcher'
 import DashboardTab from './Accounting/DashboardTab'
 import TransactionsTab from './Accounting/TransactionsTab'
 import EmployeesTab from './Accounting/EmployeesTab'
@@ -344,11 +345,14 @@ export default function AdminPage() {
           </nav>
         )}
 
-        {/* 로그아웃 */}
-        <Button variant="outline" size="sm" onClick={handleLogout} className="ml-auto flex items-center gap-1.5 flex-shrink-0">
-          <LogOut className="w-3.5 h-3.5" />
-          로그아웃
-        </Button>
+        {/* 우측: 앱 토글 + 로그아웃 */}
+        <div className="ml-auto flex items-center gap-3 flex-shrink-0">
+          <AppSwitcher current="admin" />
+          <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-1.5">
+            <LogOut className="w-3.5 h-3.5" />
+            로그아웃
+          </Button>
+        </div>
       </div>
 
       <div className="flex">

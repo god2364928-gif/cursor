@@ -20,7 +20,13 @@ export default function AppSwitcher({ current }: AppSwitcherProps) {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
 
-  const areas: AppArea[] = (['crm', 'erp', 'admin'] as AppArea[]).filter((a) => hasAccess(user, a))
+  // admin 페이지에선 별도 admin 인증으로 들어오므로, 일반 user 정보가 없어도
+  // 토글을 보여주어 다른 영역으로 이동할 수 있게 함
+  const isAdminContext = current === 'admin'
+  const areas: AppArea[] =
+    isAdminContext && !user
+      ? (['crm', 'erp', 'admin'] as AppArea[])
+      : (['crm', 'erp', 'admin'] as AppArea[]).filter((a) => hasAccess(user, a))
 
   if (areas.length <= 1) return null
 
