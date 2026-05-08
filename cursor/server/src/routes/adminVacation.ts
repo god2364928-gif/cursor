@@ -206,11 +206,32 @@ router.get('/requests', async (req: AuthRequest, res: Response) => {
   }
 })
 
+/** 신청 존재/상태 확인 (approve/reject 공통) */
+async function findPendingRequest(id: string): Promise<
+  { ok: true; row: any } | { ok: false; status: number; error: string }
+> {
+  const existCheck = await pool.query(
+    'SELECT id, status FROM vacation_requests WHERE id = $1',
+    [id]
+  )
+  if (existCheck.rows.length === 0) {
+    return { ok: false, status: 404, error: `申請が見つかりません (id: ${id})` }
+  }
+  const cur = existCheck.rows[0].status
+  if (cur !== 'pending') {
+    return { ok: false, status: 400, error: `すでに処理済みの申請です (現在: ${cur})` }
+  }
+  return { ok: true, row: existCheck.rows[0] }
+}
+
 /** 신청 승인 */
 router.post('/requests/:id/approve', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
     const approverId = req.user!.id
+    const pre = await findPendingRequest(id)
+    if (!pre.ok) return res.status(pre.status).json({ error: pre.error })
+
     const result = await pool.query(
       `UPDATE vacation_requests
        SET status = 'approved', approver_id = $1, approved_at = NOW(), updated_at = NOW()
@@ -219,13 +240,13 @@ router.post('/requests/:id/approve', async (req: AuthRequest, res: Response) => 
       [approverId, id]
     )
     if (result.rows.length === 0) {
-      return res.status(400).json({ error: '承認できない申請です' })
+      return res.status(400).json({ error: '承認できない申請です (UPDATE 0 rows)' })
     }
     notifyVacationDecision('approved', result.rows[0], req.user!.name)
     res.json(result.rows[0])
   } catch (error: any) {
-    console.error('approve error:', error.message)
-    res.status(500).json({ error: '承認失敗' })
+    console.error('approve error:', error.message, error.code)
+    res.status(500).json({ error: `承認失敗: ${error.message} (code: ${error.code || 'unknown'})` })
   }
 })
 
@@ -238,6 +259,9 @@ router.post('/requests/:id/reject', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: '却下理由を入力してください' })
     }
     const approverId = req.user!.id
+    const pre = await findPendingRequest(id)
+    if (!pre.ok) return res.status(pre.status).json({ error: pre.error })
+
     const result = await pool.query(
       `UPDATE vacation_requests
        SET status = 'rejected', approver_id = $1, approved_at = NOW(),
@@ -247,13 +271,13 @@ router.post('/requests/:id/reject', async (req: AuthRequest, res: Response) => {
       [approverId, reason.trim(), id]
     )
     if (result.rows.length === 0) {
-      return res.status(400).json({ error: '却下できない申請です' })
+      return res.status(400).json({ error: '却下できない申請です (UPDATE 0 rows)' })
     }
     notifyVacationDecision('rejected', result.rows[0], req.user!.name, reason.trim())
     res.json(result.rows[0])
   } catch (error: any) {
-    console.error('reject error:', error.message)
-    res.status(500).json({ error: '却下失敗' })
+    console.error('reject error:', error.message, error.code)
+    res.status(500).json({ error: `却下失敗: ${error.message} (code: ${error.code || 'unknown'})` })
   }
 })
 
