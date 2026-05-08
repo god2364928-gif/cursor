@@ -752,8 +752,11 @@ router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: A
     const imported: any[] = []
     const errors: any[] = []
 
-    // SMBC 은행 내역 파싱 - 유연한 방식으로 변경
-    // "入金" 또는 "出金"을 찾아서 시작
+    // SMBC 은행 내역 파싱 - 두 가지 포맷 지원
+    // 구 포맷: 入金 → 振込 → date1 → date2 → name → amount
+    // 신 포맷: name → 入金 → date → amount → 円
+    const dateRegex = /^\d{4}\/\d{1,2}\/\d{1,2}$/
+
     let i = 0
     while (i < lines.length) {
       try {
@@ -767,33 +770,49 @@ router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: A
         console.log(`\n=== Processing transaction starting at line ${i} ===`)
         console.log('Transaction type:', transactionTypeText)
 
-        // 다음 항목들 순서대로 찾기
-        let idx = i + 1
-        
-        // 방법 (振込 등)
-        const method = lines[idx] || ''
-        console.log(`[${idx}] Method:`, method)
-        idx++
-        
-        // 날짜 1 (YYYY/M/D 형식)
-        let date1 = lines[idx] || ''
-        console.log(`[${idx}] Date1:`, date1)
-        idx++
-        
-        // 날짜 2 (보통 같음)
-        let date2 = lines[idx] || ''
-        console.log(`[${idx}] Date2:`, date2)
-        idx++
-        
-        // 이름
-        const name = lines[idx] || ''
-        console.log(`[${idx}] Name:`, name)
-        idx++
-        
-        // 금액 (숫자와 쉼표)
-        const amountText = lines[idx] || ''
-        console.log(`[${idx}] Amount:`, amountText)
-        idx++
+        // 포맷 판별: 入金 다음 줄이 YYYY/M/D 형태면 신규 포맷
+        const nextLine = lines[i + 1] || ''
+        const isNewFormat = dateRegex.test(nextLine)
+        console.log(`Format detected: ${isNewFormat ? 'NEW' : 'OLD'} (next line = "${nextLine}")`)
+
+        let method = ''
+        let date1 = ''
+        let name = ''
+        let amountText = ''
+        let advanceTo = i + 1
+
+        if (isNewFormat) {
+          // 신 포맷: 이름은 직전 줄, 그 뒤로 date / amount / 円
+          // 단 직전 줄이 入金/出金이거나 없으면 이름 비움
+          const prevLine = i > 0 ? lines[i - 1] : ''
+          if (prevLine && !prevLine.includes('入金') && !prevLine.includes('出金') && !dateRegex.test(prevLine)) {
+            name = prevLine
+          }
+          date1 = lines[i + 1] || ''
+          amountText = lines[i + 2] || ''
+          // lines[i + 3] 은 보통 "円" — skip
+          console.log(`[NEW] name="${name}" date="${date1}" amount="${amountText}"`)
+          advanceTo = i + 4
+        } else {
+          // 구 포맷
+          let idx = i + 1
+          method = lines[idx] || ''
+          console.log(`[${idx}] Method:`, method)
+          idx++
+          date1 = lines[idx] || ''
+          console.log(`[${idx}] Date1:`, date1)
+          idx++
+          const date2 = lines[idx] || ''
+          console.log(`[${idx}] Date2:`, date2)
+          idx++
+          name = lines[idx] || ''
+          console.log(`[${idx}] Name:`, name)
+          idx++
+          amountText = lines[idx] || ''
+          console.log(`[${idx}] Amount:`, amountText)
+          idx++
+          advanceTo = idx
+        }
 
         // 날짜 파싱
         const dateParts = date1.split('/')
@@ -802,7 +821,7 @@ router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: A
           i++
           continue
         }
-        
+
         const year = dateParts[0]
         const month = dateParts[1].padStart(2, '0')
         const day = dateParts[2].padStart(2, '0')
@@ -811,9 +830,9 @@ router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: A
 
         // 입금/출금 판단
         const transactionType = transactionTypeText.includes('入金') ? '입금' : '출금'
-        
+
         // 금액 파싱
-        const amount = Number(amountText.replace(/,/g, ''))
+        const amount = Number(amountText.replace(/,/g, '').replace(/円/g, '').trim())
         if (isNaN(amount) || amount === 0) {
           console.log('Invalid amount, skipping')
           i++
@@ -821,8 +840,8 @@ router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: A
         }
         console.log('Parsed amount:', amount)
 
-        // 항목명 생성
-        const itemName = `${method} ${name}`.trim()
+        // 항목명 생성 (신 포맷은 method 없음)
+        const itemName = method ? `${method} ${name}`.trim() : name.trim()
 
         // 카테고리 자동 추론
         let category = '기타'
@@ -859,7 +878,7 @@ router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: A
         imported.push(result.rows[0])
         
         // 다음 "入金" 또는 "出金" 찾기
-        i = idx
+        i = advanceTo
         while (i < lines.length && !lines[i].includes('入金') && !lines[i].includes('出金')) {
           i++
         }

@@ -1183,16 +1183,25 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
               <div className="bg-gray-50 p-3 rounded mt-2 text-xs">
                 <div className="font-medium mb-1">{language === 'ja' ? '例' : '예시'}:</div>
                 <pre className="text-gray-600 whitespace-pre-wrap">
+                  {language === 'ja'
+                    ? '※ 旧フォーマット・新フォーマット どちらにも対応しています'
+                    : '※ 구 포맷 / 신 포맷 모두 지원합니다'}{'\n'}
+                  {'\n'}
+                  ── {language === 'ja' ? '新フォーマット例' : '신 포맷 예시'} ──{'\n'}
+                  バクジ ヨヨンフリコミ{'\n'}
+                  入金{'\n'}
+                  2026/4/3{'\n'}
+                  88,000{'\n'}
+                  円{'\n'}
+                  {'\n'}
+                  ── {language === 'ja' ? '旧フォーマット例' : '구 포맷 예시'} ──{'\n'}
                   入金{'\n'}
                   振込{'\n'}
                   2026/1/30{'\n'}
                   2026/1/30{'\n'}
                   ｶ)ｼｴﾙ{'\n'}
                   99,000{'\n'}
-                  円{'\n'}
-                  0{'\n'}
-                  円{'\n'}
-                  30000002
+                  円
                 </pre>
               </div>
             </CardHeader>
