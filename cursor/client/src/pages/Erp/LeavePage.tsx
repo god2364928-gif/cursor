@@ -219,8 +219,8 @@ export default function LeavePage() {
                       >
                         {statusLabel(r.status)}
                       </span>
-                      {r.status === 'rejected' && r.rejected_reason && (
-                        <div className="text-[11px] text-red-600 mt-0.5">
+                      {(r.status === 'rejected' || r.status === 'cancelled') && r.rejected_reason && (
+                        <div className={`text-[11px] mt-0.5 ${r.status === 'rejected' ? 'text-red-600' : 'text-gray-500'}`}>
                           {r.rejected_reason}
                         </div>
                       )}

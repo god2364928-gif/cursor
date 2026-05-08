@@ -1133,6 +1133,11 @@ const translations: Record<Language, Translation> = {
     btn_reject_submit: '却下する',
     confirm_approve: 'この申請を承認しますか？',
     confirm_cancel_request: 'この申請を取消しますか？',
+    btn_cancel_request: 'キャンセル',
+    cancel_modal_title: 'キャンセル理由',
+    cancel_placeholder: 'キャンセル理由を記入してください',
+    btn_cancel_submit: 'キャンセルする',
+    cancelled_reason: 'キャンセル理由',
 
     // 부여 관리
     grants_subtitle: '社員別の付与履歴と手動調整。',
@@ -2291,6 +2296,11 @@ const translations: Record<Language, Translation> = {
     btn_reject_submit: '반려하기',
     confirm_approve: '이 신청을 승인하시겠습니까?',
     confirm_cancel_request: '이 신청을 취소하시겠습니까?',
+    btn_cancel_request: '취소',
+    cancel_modal_title: '취소 사유',
+    cancel_placeholder: '취소 사유를 입력해주세요',
+    btn_cancel_submit: '취소하기',
+    cancelled_reason: '취소 사유',
 
     // 부여 관리
     grants_subtitle: '사원별 부여 이력과 수동 조정.',

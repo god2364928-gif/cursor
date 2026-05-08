@@ -36,6 +36,8 @@ export default function LeaveApprovalsPage() {
   const [filter, setFilter] = useState<StatusFilter>('pending')
   const [rejectingId, setRejectingId] = useState<number | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [cancellingId, setCancellingId] = useState<number | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -80,6 +82,24 @@ export default function LeaveApprovalsPage() {
       await fetchData()
     } catch (e: any) {
       alert(e?.response?.data?.error || t('btn_reject'))
+    }
+  }
+
+  const submitCancel = async () => {
+    if (!cancellingId) return
+    if (!cancelReason.trim()) {
+      alert(t('cancel_placeholder'))
+      return
+    }
+    try {
+      await api.post(`/admin/vacation/requests/${cancellingId}/cancel`, {
+        reason: cancelReason,
+      })
+      setCancellingId(null)
+      setCancelReason('')
+      await fetchData()
+    } catch (e: any) {
+      alert(e?.response?.data?.error || t('btn_cancel_request'))
     }
   }
 
@@ -151,6 +171,11 @@ export default function LeaveApprovalsPage() {
                           {t('btn_reject')}: {r.rejected_reason}
                         </div>
                       )}
+                      {r.status === 'cancelled' && r.rejected_reason && (
+                        <div className="text-xs text-gray-500 mt-1 max-w-xs">
+                          {t('cancelled_reason')}: {r.rejected_reason}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {r.status === 'pending' ? (
@@ -173,6 +198,17 @@ export default function LeaveApprovalsPage() {
                             {t('btn_reject')}
                           </button>
                         </div>
+                      ) : r.status === 'approved' ? (
+                        <button
+                          onClick={() => {
+                            setCancellingId(r.id)
+                            setCancelReason('')
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                        >
+                          <X className="h-3 w-3" />
+                          {t('btn_cancel_request')}
+                        </button>
                       ) : (
                         <span className="text-xs text-gray-300">-</span>
                       )}
@@ -206,6 +242,34 @@ export default function LeaveApprovalsPage() {
                 </Button>
                 <Button onClick={submitReject} className="bg-red-600 hover:bg-red-700">
                   {t('btn_reject_submit')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cancellingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="px-5 py-3 border-b border-gray-200 bg-gray-50 rounded-t-xl">
+              <h2 className="text-base font-semibold">{t('cancel_modal_title')}</h2>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={4}
+                placeholder={t('cancel_placeholder')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setCancellingId(null)}>
+                  {t('modal_cancel')}
+                </Button>
+                <Button onClick={submitCancel} className="bg-gray-700 hover:bg-gray-800">
+                  {t('btn_cancel_submit')}
                 </Button>
               </div>
             </div>

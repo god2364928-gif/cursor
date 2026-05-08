@@ -281,6 +281,47 @@ router.post('/requests/:id/reject', async (req: AuthRequest, res: Response) => {
   }
 })
 
+/** 신청 취소 (어드민) — 승인된 신청을 되돌림. pending/approved 모두 가능 */
+router.post('/requests/:id/cancel', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const { reason } = req.body as { reason?: string }
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ error: 'キャンセル理由を入力してください' })
+    }
+    const approverId = req.user!.id
+
+    // 존재 확인 + 이미 취소/반려된 건 제외
+    const existCheck = await pool.query(
+      'SELECT id, status FROM vacation_requests WHERE id = $1',
+      [id]
+    )
+    if (existCheck.rows.length === 0) {
+      return res.status(404).json({ error: `申請が見つかりません (id: ${id})` })
+    }
+    const cur = existCheck.rows[0].status
+    if (cur === 'cancelled' || cur === 'rejected') {
+      return res.status(400).json({ error: `既に${cur === 'cancelled' ? 'キャンセル' : '却下'}済みです` })
+    }
+
+    const result = await pool.query(
+      `UPDATE vacation_requests
+       SET status = 'cancelled', approver_id = $1, approved_at = NOW(),
+           rejected_reason = $2, updated_at = NOW()
+       WHERE id = $3 AND status IN ('pending', 'approved')
+       RETURNING *`,
+      [approverId, reason.trim(), id]
+    )
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'キャンセルできない申請です (UPDATE 0 rows)' })
+    }
+    res.json(result.rows[0])
+  } catch (error: any) {
+    console.error('cancel error:', error.message, error.code)
+    res.status(500).json({ error: `キャンセル失敗: ${error.message} (code: ${error.code || 'unknown'})` })
+  }
+})
+
 /** 직원별 부여 내역 조회 */
 router.get('/grants/:userId', async (req: AuthRequest, res: Response) => {
   try {
