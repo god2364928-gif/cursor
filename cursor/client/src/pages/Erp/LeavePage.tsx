@@ -3,9 +3,7 @@ import api from '../../lib/api'
 import { Button } from '../../components/ui/button'
 import { Plus } from 'lucide-react'
 import {
-  leaveTypeLabel,
-  grantTypeLabel,
-  statusLabel,
+  useLeaveLabels,
   statusColor,
   formatYmd,
   daysUntil,
@@ -60,6 +58,7 @@ interface LeaveRequest {
 }
 
 export default function LeavePage() {
+  const { t, leaveTypeLabel, grantTypeLabel, statusLabel } = useLeaveLabels()
   const [balance, setBalance] = useState<BalanceRes | null>(null)
   const [grants, setGrants] = useState<Grant[]>([])
   const [requests, setRequests] = useState<LeaveRequest[]>([])
@@ -89,12 +88,12 @@ export default function LeavePage() {
   }, [fetchAll])
 
   const cancelRequest = async (id: number) => {
-    if (!confirm('この申請を取消しますか？')) return
+    if (!confirm(t('confirm_cancel_request'))) return
     try {
       await api.delete(`/vacation/requests/${id}`)
       await fetchAll()
     } catch (e: any) {
-      alert(e?.response?.data?.error || '取消失敗')
+      alert(e?.response?.data?.error || t('err_cancel_failed'))
     }
   }
 
@@ -104,17 +103,16 @@ export default function LeavePage() {
 
   return (
     <div className="space-y-8">
-      {/* 헤더 */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">休暇管理</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('erp_leave_mgmt')}</h1>
           {balance && (
             <p className="text-sm text-gray-600 mt-1">
-              残り{' '}
-              <span className="font-semibold text-gray-900">{balance.remaining}日</span>
+              {t('leave_remaining')}{' '}
+              <span className="font-semibold text-gray-900">{balance.remaining}{t('unit_day')}</span>
               {balance.nextGrantDate && (
                 <>
-                  {' '}/ 次回付与日{' '}
+                  {' '}/ {t('leave_next_grant')}{' '}
                   <span className="font-medium text-gray-900">
                     {formatYmd(balance.nextGrantDate)}
                   </span>
@@ -126,43 +124,40 @@ export default function LeavePage() {
         </div>
         <Button onClick={() => setModalOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
-          休暇申請
+          {t('leave_apply_btn')}
         </Button>
       </div>
 
-      {/* 의무 5일 취득 알림 */}
-      {balance?.mandatory?.applicable && <MandatoryCard m={balance.mandatory} />}
+      {balance?.mandatory?.applicable && <MandatoryCard m={balance.mandatory} t={t} />}
 
-      {/* 통계 4개 (심플 풍이지만 핵심 숫자는 짧게) */}
       {balance && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="総付与" value={`${balance.totalGranted}日`} />
-          <Stat label="使用" value={`${balance.consumed}日`} />
-          <Stat label="承認待ち" value={`${balance.pending}日`} muted />
-          <Stat label="残り" value={`${balance.remaining}日`} accent />
+          <Stat label={t('leave_total_granted')} value={`${balance.totalGranted}${t('unit_day')}`} />
+          <Stat label={t('leave_used')} value={`${balance.consumed}${t('unit_day')}`} />
+          <Stat label={t('status_pending')} value={`${balance.pending}${t('unit_day')}`} muted />
+          <Stat label={t('leave_remaining')} value={`${balance.remaining}${t('unit_day')}`} accent />
         </div>
       )}
 
-      {loading && <div className="text-sm text-gray-400">読み込み中...</div>}
+      {loading && <div className="text-sm text-gray-400">{t('loading_short')}</div>}
 
-      {/* 부여 내역 */}
       <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">休暇付与履歴</h2>
-          <span className="text-xs text-gray-500">{grants.length}件</span>
+          <h2 className="text-base font-semibold text-gray-900">{t('leave_grant_history')}</h2>
+          <span className="text-xs text-gray-500">{grants.length}{t('unit_count')}</span>
         </div>
         {grants.length === 0 ? (
-          <div className="p-12 text-center text-sm text-gray-400">付与履歴はまだありません。</div>
+          <div className="p-12 text-center text-sm text-gray-400">{t('empty_grants')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <Th>付与日</Th>
-                  <Th>種類</Th>
-                  <Th align="right">日数</Th>
-                  <Th>有効期限</Th>
-                  <Th>備考</Th>
+                  <Th>{t('col_grant_date')}</Th>
+                  <Th>{t('col_type')}</Th>
+                  <Th align="right">{t('col_days')}</Th>
+                  <Th>{t('col_expires')}</Th>
+                  <Th>{t('col_notes')}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -171,10 +166,10 @@ export default function LeavePage() {
                     <Td>{formatYmd(g.grant_date)}</Td>
                     <Td>
                       <span className="inline-block px-2 py-0.5 text-xs rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {grantTypeLabel[g.grant_type] || g.grant_type}
+                        {grantTypeLabel(g.grant_type)}
                       </span>
                     </Td>
-                    <Td align="right" className="font-semibold">{g.days}日</Td>
+                    <Td align="right" className="font-semibold">{g.days}{t('unit_day')}</Td>
                     <Td>{formatYmd(g.expires_at)}</Td>
                     <Td className="text-gray-500">{g.notes || '-'}</Td>
                   </tr>
@@ -185,25 +180,24 @@ export default function LeavePage() {
         )}
       </section>
 
-      {/* 신청 내역 */}
       <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">申請履歴</h2>
-          <span className="text-xs text-gray-500">{requests.length}件</span>
+          <h2 className="text-base font-semibold text-gray-900">{t('leave_request_history')}</h2>
+          <span className="text-xs text-gray-500">{requests.length}{t('unit_count')}</span>
         </div>
         {requests.length === 0 ? (
-          <div className="p-12 text-center text-sm text-gray-400">申請履歴はまだありません。</div>
+          <div className="p-12 text-center text-sm text-gray-400">{t('empty_requests')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <Th>期間</Th>
-                  <Th>種類</Th>
-                  <Th align="right">日数</Th>
-                  <Th>状態</Th>
-                  <Th>理由</Th>
-                  <Th align="right">操作</Th>
+                  <Th>{t('col_period')}</Th>
+                  <Th>{t('col_type')}</Th>
+                  <Th align="right">{t('col_days')}</Th>
+                  <Th>{t('col_status')}</Th>
+                  <Th>{t('col_reason')}</Th>
+                  <Th align="right">{t('col_actions')}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -213,13 +207,13 @@ export default function LeavePage() {
                       {formatYmd(r.start_date)}
                       {r.start_date !== r.end_date && ` ~ ${formatYmd(r.end_date)}`}
                     </Td>
-                    <Td>{leaveTypeLabel[r.leave_type] || r.leave_type}</Td>
-                    <Td align="right">{r.consumed_days}日</Td>
+                    <Td>{leaveTypeLabel(r.leave_type)}</Td>
+                    <Td align="right">{r.consumed_days}{t('unit_day')}</Td>
                     <Td>
                       <span
                         className={`inline-block px-2 py-0.5 text-xs rounded border ${statusColor[r.status]}`}
                       >
-                        {statusLabel[r.status]}
+                        {statusLabel(r.status)}
                       </span>
                       {r.status === 'rejected' && r.rejected_reason && (
                         <div className="text-[11px] text-red-600 mt-0.5">
@@ -234,7 +228,7 @@ export default function LeavePage() {
                           onClick={() => cancelRequest(r.id)}
                           className="text-xs text-red-600 hover:underline"
                         >
-                          取消
+                          {t('btn_cancel_short')}
                         </button>
                       ) : (
                         <span className="text-xs text-gray-300">-</span>
@@ -261,10 +255,9 @@ export default function LeavePage() {
   )
 }
 
-function MandatoryCard({ m }: { m: MandatoryStatus }) {
+function MandatoryCard({ m, t }: { m: MandatoryStatus; t: (k: string) => string }) {
   const completed = m.remaining === 0
   const dDay = m.daysUntilDeadline
-  // 위험 수준 판정: 미달성 + 마감 30일 이내
   const danger = !completed && dDay !== null && dDay <= 30
   const warning = !completed && dDay !== null && dDay > 30 && dDay <= 90
   const tone = completed
@@ -276,34 +269,34 @@ function MandatoryCard({ m }: { m: MandatoryStatus }) {
         : 'bg-blue-50 border-blue-200 text-blue-800'
 
   const dDayLabel =
-    dDay === null ? '' : dDay > 0 ? `D-${dDay}` : dDay === 0 ? 'D-DAY' : `期限超過 +${-dDay}日`
+    dDay === null ? '' : dDay > 0 ? `D-${dDay}` : dDay === 0 ? 'D-DAY' : `${t('mandatory_overdue')} +${-dDay}${t('unit_day')}`
 
   return (
     <div className={`rounded-xl border p-4 ${tone}`}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <div className="text-xs font-medium opacity-70">年5日取得義務 (働き方改革関連法)</div>
+          <div className="text-xs font-medium opacity-70">{t('mandatory_title')}</div>
           <div className="mt-1 text-base font-semibold">
             {completed ? (
-              <>✅ 義務達成済み (5日中 {m.used}日 取得)</>
+              <>✅ {t('mandatory_done')} ({m.required}{t('unit_day')}{t('mandatory_summary_in')} {m.used}{t('unit_day')})</>
             ) : (
               <>
-                残り <span className="text-lg font-bold">{m.remaining}日</span> 取得必要
+                {t('leave_remaining')} <span className="text-lg font-bold">{m.remaining}{t('unit_day')}</span> {t('mandatory_remaining_text')}
                 <span className="text-sm font-normal opacity-80">
-                  {' '}({m.required}日中 {m.used}日完了)
+                  {' '}({m.required}{t('unit_day')}{t('mandatory_summary_in')} {m.used}{t('mandatory_summary_completed')})
                 </span>
               </>
             )}
           </div>
           <div className="text-xs mt-1 opacity-80">
-            基準日 {formatYmd(m.baseDate)} → 期限 {formatYmd(m.deadline)}
+            {t('mandatory_base_date')} {formatYmd(m.baseDate)} → {t('mandatory_deadline')} {formatYmd(m.deadline)}
             {dDayLabel && <span className="ml-2 font-semibold">({dDayLabel})</span>}
           </div>
         </div>
         {!completed && (
           <div className="text-right shrink-0">
             <div className="text-3xl font-bold leading-none">{m.remaining}</div>
-            <div className="text-[11px] opacity-80 mt-1">日</div>
+            <div className="text-[11px] opacity-80 mt-1">{t('unit_day')}</div>
           </div>
         )}
       </div>

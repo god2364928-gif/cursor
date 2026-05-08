@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import api from '../../lib/api'
 import { Button } from '../../components/ui/button'
 import { X } from 'lucide-react'
-import { leaveTypeLabel, type LeaveType } from './leaveLabels'
+import { useLeaveLabels, type LeaveType } from './leaveLabels'
 
 interface Props {
   open: boolean
@@ -11,16 +11,10 @@ interface Props {
   currentRemaining: number
 }
 
-const TYPE_OPTIONS: { value: LeaveType; group: 'paid' | 'unpaid' | 'special' }[] = [
-  { value: 'full', group: 'paid' },
-  { value: 'half_am', group: 'paid' },
-  { value: 'half_pm', group: 'paid' },
-  { value: 'unpaid', group: 'unpaid' },
-  { value: 'health_check', group: 'special' },
-  { value: 'condolence', group: 'special' },
-]
+const TYPE_OPTIONS: LeaveType[] = ['full', 'half_am', 'half_pm', 'unpaid', 'health_check', 'condolence']
 
 export default function LeaveRequestModal({ open, onClose, onSubmitted, currentRemaining }: Props) {
+  const { t, leaveTypeLabel } = useLeaveLabels()
   const [leaveType, setLeaveType] = useState<LeaveType>('full')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -40,7 +34,6 @@ export default function LeaveRequestModal({ open, onClose, onSubmitted, currentR
 
   const isHalf = leaveType === 'half_am' || leaveType === 'half_pm'
 
-  // 반차일 경우 종료일 자동 동기화
   useEffect(() => {
     if (isHalf && startDate) {
       setEndDate(startDate)
@@ -65,15 +58,15 @@ export default function LeaveRequestModal({ open, onClose, onSubmitted, currentR
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!startDate || !endDate) {
-      setError('開始日と終了日を入力してください')
+      setError(t('err_dates_required'))
       return
     }
     if (new Date(endDate) < new Date(startDate)) {
-      setError('終了日は開始日以降にしてください')
+      setError(t('err_end_before_start'))
       return
     }
     if (willOverflow) {
-      setError(`残休暇が不足しています (残り ${currentRemaining}日)`)
+      setError(`${t('modal_insufficient')} (${t('leave_remaining')} ${currentRemaining}${t('unit_day')})`)
       return
     }
     setSubmitting(true)
@@ -87,7 +80,7 @@ export default function LeaveRequestModal({ open, onClose, onSubmitted, currentR
       })
       onSubmitted()
     } catch (err: any) {
-      setError(err?.response?.data?.error || '申請失敗')
+      setError(err?.response?.data?.error || t('err_request_failed'))
     } finally {
       setSubmitting(false)
     }
@@ -97,42 +90,40 @@ export default function LeaveRequestModal({ open, onClose, onSubmitted, currentR
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">休暇申請</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('modal_apply_title')}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* 휴가 종류 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">休暇種類</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('modal_leave_kind')}</label>
             <div className="grid grid-cols-3 gap-2">
-              {TYPE_OPTIONS.map((opt) => {
-                const active = leaveType === opt.value
+              {TYPE_OPTIONS.map((value) => {
+                const active = leaveType === value
                 return (
                   <button
-                    key={opt.value}
+                    key={value}
                     type="button"
-                    onClick={() => setLeaveType(opt.value)}
+                    onClick={() => setLeaveType(value)}
                     className={`px-3 py-2 text-sm rounded-md border transition ${
                       active
                         ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                     }`}
                   >
-                    {leaveTypeLabel[opt.value]}
+                    {leaveTypeLabel(value)}
                   </button>
                 )
               })}
             </div>
           </div>
 
-          {/* 날짜 */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                開始日 <span className="text-red-500">*</span>
+                {t('modal_start_date')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -144,7 +135,7 @@ export default function LeaveRequestModal({ open, onClose, onSubmitted, currentR
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                終了日 <span className="text-red-500">*</span>
+                {t('modal_end_date')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -157,24 +148,22 @@ export default function LeaveRequestModal({ open, onClose, onSubmitted, currentR
             </div>
           </div>
           {isHalf && (
-            <p className="text-xs text-gray-500 -mt-2">半休は1日のみです (終了日は自動同期)</p>
+            <p className="text-xs text-gray-500 -mt-2">{t('modal_half_note')}</p>
           )}
 
-          {/* 사유 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              理由 <span className="text-gray-400 font-normal">(任意)</span>
+              {t('modal_reason')} <span className="text-gray-400 font-normal">{t('common_optional_short')}</span>
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="休暇の理由を入力してください"
+              placeholder={t('modal_reason_placeholder')}
             />
           </div>
 
-          {/* 잔여 미리보기 */}
           {isPaid && (
             <div
               className={`text-sm rounded-md p-3 ${
@@ -183,11 +172,11 @@ export default function LeaveRequestModal({ open, onClose, onSubmitted, currentR
                   : 'bg-blue-50 text-blue-700 border border-blue-200'
               }`}
             >
-              この申請を行うと:{' '}
+              {t('modal_apply_preview')}{' '}
               <span className="font-semibold">
-                残り {currentRemaining}日 → {(currentRemaining - consumedPreview).toFixed(1)}日
+                {t('leave_remaining')} {currentRemaining}{t('unit_day')} → {(currentRemaining - consumedPreview).toFixed(1)}{t('unit_day')}
               </span>{' '}
-              ({consumedPreview}日 消費)
+              ({consumedPreview}{t('unit_day')} {t('modal_consume_label')})
             </div>
           )}
 
@@ -199,10 +188,10 @@ export default function LeaveRequestModal({ open, onClose, onSubmitted, currentR
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-              キャンセル
+              {t('modal_cancel')}
             </Button>
             <Button type="submit" disabled={submitting || willOverflow}>
-              {submitting ? '申請中...' : '休暇申請'}
+              {submitting ? t('modal_submitting') : t('modal_submit')}
             </Button>
           </div>
         </form>

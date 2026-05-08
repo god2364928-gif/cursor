@@ -1,21 +1,23 @@
 import { useAuthStore } from '../../store/authStore'
+import { useI18nStore } from '../../i18n'
 
 export default function MyPage() {
   const user = useAuthStore((state) => state.user)
+  const { t } = useI18nStore()
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">マイページ</h1>
-        <p className="text-sm text-gray-500 mt-1">基本情報を確認できます。</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('erp_my_page')}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t('mypage_subtitle')}</p>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4 max-w-2xl">
-        <Field label="氏名" value={user?.name || '-'} />
-        <Field label="メール" value={user?.email || '-'} />
-        <Field label="所属" value={user?.team || '-'} />
-        <Field label="権限" value={user?.role || '-'} />
-        <Field label="アクセス" value={user?.app_access || '-'} />
+        <Field label={t('mypage_name')} value={user?.name || '-'} />
+        <Field label={t('mypage_email')} value={user?.email || '-'} />
+        <Field label={t('mypage_team')} value={user?.team || '-'} />
+        <Field label={t('mypage_role')} value={user?.role || '-'} />
+        <Field label={t('mypage_access')} value={user?.app_access || '-'} />
       </div>
     </div>
   )

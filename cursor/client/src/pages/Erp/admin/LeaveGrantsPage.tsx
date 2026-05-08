@@ -3,7 +3,7 @@ import api from '../../../lib/api'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import { Plus, X, Pencil, Trash2 } from 'lucide-react'
-import { grantTypeLabel, formatYmd, type GrantType } from '../leaveLabels'
+import { useLeaveLabels, formatYmd, type GrantType } from '../leaveLabels'
 
 interface SummaryRow {
   id: number
@@ -35,6 +35,7 @@ interface Grant {
 }
 
 export default function LeaveGrantsPage() {
+  const { t, grantTypeLabel } = useLeaveLabels()
   const [summary, setSummary] = useState<SummaryRow[]>([])
   const [search, setSearch] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState<string>('all')
@@ -94,30 +95,29 @@ export default function LeaveGrantsPage() {
   const selectedUser = summary.find((s) => s.id === selectedUserId)
 
   const removeGrant = async (id: number) => {
-    if (!confirm('この付与を削除しますか？')) return
+    if (!confirm(t('grants_confirm_delete'))) return
     try {
       await api.delete(`/admin/vacation/grants/${id}`)
       if (selectedUserId) await fetchGrants(selectedUserId)
       await fetchSummary()
     } catch (e: any) {
-      alert(e?.response?.data?.error || '削除失敗')
+      alert(e?.response?.data?.error || t('err_delete_failed'))
     }
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">休暇付与管理</h1>
-        <p className="text-sm text-gray-500 mt-1">社員別の付与履歴と手動調整。</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('erp_grants_mgmt')}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t('grants_subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* 직원 목록 */}
         <section className="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 space-y-2">
-            <h2 className="text-sm font-semibold">社員一覧</h2>
+            <h2 className="text-sm font-semibold">{t('grants_employee_list')}</h2>
             <Input
-              placeholder="氏名 / メール検索"
+              placeholder={t('grants_search_placeholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="text-sm h-8"
@@ -127,7 +127,7 @@ export default function LeaveGrantsPage() {
               onChange={(e) => setDepartmentFilter(e.target.value)}
               className="text-sm border border-gray-200 rounded px-2 py-1 bg-white w-full"
             >
-              <option value="all">全部署</option>
+              <option value="all">{t('grants_all_dept')}</option>
               {departmentOptions.map((d) => (
                 <option key={d} value={d}>
                   {d}
@@ -137,9 +137,9 @@ export default function LeaveGrantsPage() {
           </div>
           <div className="max-h-[600px] overflow-y-auto">
             {loadingSummary ? (
-              <div className="p-6 text-sm text-gray-400 text-center">読み込み中...</div>
+              <div className="p-6 text-sm text-gray-400 text-center">{t('loading_short')}</div>
             ) : filtered.length === 0 ? (
-              <div className="p-6 text-sm text-gray-400 text-center">該当者なし</div>
+              <div className="p-6 text-sm text-gray-400 text-center">{t('empty_approvals')}</div>
             ) : (
               <ul className="divide-y divide-gray-100">
                 {filtered.map((s) => (
@@ -154,12 +154,12 @@ export default function LeaveGrantsPage() {
                       <div className="min-w-0">
                         <div className="text-sm font-medium truncate">{s.name}</div>
                         <div className="text-xs text-gray-500 truncate">
-                          {s.department || s.team || '-'} · 入社 {formatYmd(s.hire_date)}
+                          {s.department || s.team || '-'} · {formatYmd(s.hire_date)}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-sm font-semibold text-blue-700">{s.remaining}日</div>
-                        <div className="text-[10px] text-gray-500">残り</div>
+                        <div className="text-sm font-semibold text-blue-700">{s.remaining}{t('unit_day')}</div>
+                        <div className="text-[10px] text-gray-500">{t('leave_remaining')}</div>
                       </div>
                     </div>
                   </li>
@@ -169,48 +169,46 @@ export default function LeaveGrantsPage() {
           </div>
         </section>
 
-        {/* 부여 내역 */}
         <section className="lg:col-span-3 bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-sm font-semibold">
-              {selectedUser ? `${selectedUser.name} の付与履歴` : '付与履歴'}
+              {selectedUser ? `${selectedUser.name}${t('grants_history_for_suffix')}` : t('grants_history_default')}
             </h2>
             {selectedUser && (
               <Button size="sm" onClick={() => setShowAddForm(true)} className="gap-1 h-7 text-xs">
                 <Plus className="h-3 w-3" />
-                手動付与
+                {t('grants_manual_grant_btn')}
               </Button>
             )}
           </div>
           {!selectedUser ? (
             <div className="p-12 text-center text-sm text-gray-400">
-              左の社員リストから選択してください。
+              {t('grants_select_employee')}
             </div>
           ) : (
             <>
-              {/* 요약 */}
               <div className="grid grid-cols-4 divide-x divide-gray-100 border-b border-gray-200 text-center">
-                <Mini label="総付与" value={`${selectedUser.granted}日`} />
-                <Mini label="使用" value={`${selectedUser.consumed}日`} />
-                <Mini label="承認待ち" value={`${selectedUser.pending}日`} />
-                <Mini label="残り" value={`${selectedUser.remaining}日`} accent />
+                <Mini label={t('leave_total_granted')} value={`${selectedUser.granted}${t('unit_day')}`} />
+                <Mini label={t('leave_used')} value={`${selectedUser.consumed}${t('unit_day')}`} />
+                <Mini label={t('status_pending')} value={`${selectedUser.pending}${t('unit_day')}`} />
+                <Mini label={t('leave_remaining')} value={`${selectedUser.remaining}${t('unit_day')}`} accent />
               </div>
 
               {loadingGrants ? (
-                <div className="p-12 text-center text-sm text-gray-400">読み込み中...</div>
+                <div className="p-12 text-center text-sm text-gray-400">{t('loading_short')}</div>
               ) : grants.length === 0 ? (
-                <div className="p-12 text-center text-sm text-gray-400">付与履歴がありません。</div>
+                <div className="p-12 text-center text-sm text-gray-400">{t('grants_no_history')}</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 text-gray-600">
                       <tr>
-                        <th className="px-4 py-2.5 text-left font-medium text-xs">付与日</th>
-                        <th className="px-4 py-2.5 text-left font-medium text-xs">種類</th>
-                        <th className="px-4 py-2.5 text-right font-medium text-xs">日数</th>
-                        <th className="px-4 py-2.5 text-left font-medium text-xs">有効期限</th>
-                        <th className="px-4 py-2.5 text-left font-medium text-xs">備考</th>
-                        <th className="px-4 py-2.5 text-right font-medium text-xs">操作</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">{t('col_grant_date')}</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">{t('col_type')}</th>
+                        <th className="px-4 py-2.5 text-right font-medium text-xs">{t('col_days')}</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">{t('col_expires')}</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">{t('col_notes')}</th>
+                        <th className="px-4 py-2.5 text-right font-medium text-xs">{t('col_actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -219,10 +217,10 @@ export default function LeaveGrantsPage() {
                           <td className="px-4 py-3">{formatYmd(g.grant_date)}</td>
                           <td className="px-4 py-3">
                             <span className="inline-block px-2 py-0.5 text-xs rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              {grantTypeLabel[g.grant_type] || g.grant_type}
+                              {grantTypeLabel(g.grant_type)}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right font-semibold">{g.days}日</td>
+                          <td className="px-4 py-3 text-right font-semibold">{g.days}{t('unit_day')}</td>
                           <td className="px-4 py-3">{formatYmd(g.expires_at)}</td>
                           <td className="px-4 py-3 text-gray-500 text-xs">{g.notes || '-'}</td>
                           <td className="px-4 py-3 text-right">
@@ -301,6 +299,7 @@ function GrantForm({
   onClose: () => void
   onSaved: () => void
 }) {
+  const { t } = useLeaveLabels()
   const [grantDate, setGrantDate] = useState(new Date().toISOString().slice(0, 10))
   const [days, setDays] = useState('')
   const [grantType, setGrantType] = useState<GrantType>('manual')
@@ -312,7 +311,7 @@ function GrantForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!grantDate || !days) {
-      setError('付与日と日数は必須です')
+      setError(t('grants_input_required'))
       return
     }
     setSubmitting(true)
@@ -328,7 +327,7 @@ function GrantForm({
       })
       onSaved()
     } catch (err: any) {
-      setError(err?.response?.data?.error || '付与失敗')
+      setError(err?.response?.data?.error || t('err_grant_failed'))
     } finally {
       setSubmitting(false)
     }
@@ -338,14 +337,14 @@ function GrantForm({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{userName} に手動付与</h2>
+          <h2 className="text-lg font-semibold">{userName}{t('grants_modal_grant_title_suffix')}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">付与日 *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('grants_modal_grant_date_lbl')} *</label>
             <input
               type="date"
               value={grantDate}
@@ -355,33 +354,33 @@ function GrantForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">日数 *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('grants_modal_days_lbl')} *</label>
             <input
               type="number"
               step="0.5"
               value={days}
               onChange={(e) => setDays(e.target.value)}
               required
-              placeholder="例: 5"
+              placeholder="5"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">種類</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('grants_modal_kind_lbl')}</label>
             <select
               value={grantType}
               onChange={(e) => setGrantType(e.target.value as GrantType)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
             >
-              <option value="manual">手動付与</option>
-              <option value="special">特別</option>
-              <option value="condolence">慶弔</option>
-              <option value="annual">年次</option>
+              <option value="manual">{t('grant_type_manual')}</option>
+              <option value="special">{t('grant_type_special')}</option>
+              <option value="condolence">{t('grant_type_condolence')}</option>
+              <option value="annual">{t('grant_type_annual')}</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              有効期限 <span className="text-gray-400 font-normal">(空欄で付与日+2年)</span>
+              {t('grants_modal_expires_lbl')} <span className="text-gray-400 font-normal">{t('grants_modal_expires_default')}</span>
             </label>
             <input
               type="date"
@@ -391,7 +390,7 @@ function GrantForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">備考</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('grants_modal_notes_lbl')}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -406,10 +405,10 @@ function GrantForm({
           )}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-              キャンセル
+              {t('modal_cancel')}
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? '保存中...' : '付与する'}
+              {submitting ? t('grants_modal_saving') : t('grants_modal_save_grant')}
             </Button>
           </div>
         </form>
@@ -427,6 +426,7 @@ function EditGrantForm({
   onClose: () => void
   onSaved: () => void
 }) {
+  const { t } = useLeaveLabels()
   const [days, setDays] = useState(String(grant.days))
   const [expiresAt, setExpiresAt] = useState(grant.expires_at?.slice(0, 10) || '')
   const [notes, setNotes] = useState(grant.notes || '')
@@ -445,7 +445,7 @@ function EditGrantForm({
       })
       onSaved()
     } catch (err: any) {
-      setError(err?.response?.data?.error || '修正失敗')
+      setError(err?.response?.data?.error || t('err_save_failed'))
     } finally {
       setSubmitting(false)
     }
@@ -455,14 +455,14 @@ function EditGrantForm({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">付与修正 ({formatYmd(grant.grant_date)})</h2>
+          <h2 className="text-lg font-semibold">{t('grants_modal_edit_title')} ({formatYmd(grant.grant_date)})</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">日数</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('grants_modal_days_lbl')}</label>
             <input
               type="number"
               step="0.5"
@@ -472,7 +472,7 @@ function EditGrantForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">有効期限</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('grants_modal_expires_lbl')}</label>
             <input
               type="date"
               value={expiresAt}
@@ -481,7 +481,7 @@ function EditGrantForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">備考</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('grants_modal_notes_lbl')}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -496,10 +496,10 @@ function EditGrantForm({
           )}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-              キャンセル
+              {t('modal_cancel')}
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? '保存中...' : '保存'}
+              {submitting ? t('grants_modal_saving') : t('grants_modal_save')}
             </Button>
           </div>
         </form>

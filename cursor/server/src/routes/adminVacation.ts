@@ -43,6 +43,73 @@ const router = Router()
 
 router.use(authMiddleware, adminOnly)
 
+/** 마이그레이션/데이터 상태 진단 (어드민) */
+router.get('/debug', async (req: AuthRequest, res: Response) => {
+  const result: any = {}
+  try {
+    // 1. app_access 컬럼 존재 여부
+    const appAccessCol = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='users' AND column_name='app_access'
+      ) AS exists
+    `)
+    result.users_app_access_column = appAccessCol.rows[0].exists
+
+    // 2. vacation 테이블 존재 여부
+    const tables = await pool.query(`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema='public'
+        AND table_name IN ('vacation_grants', 'vacation_requests', 'jp_holidays')
+      ORDER BY table_name
+    `)
+    result.vacation_tables = tables.rows.map((r: any) => r.table_name)
+
+    if (result.vacation_tables.includes('vacation_grants')) {
+      // 3. 부여/신청/공휴일 데이터 카운트
+      const counts = await pool.query(`
+        SELECT
+          (SELECT COUNT(*)::int FROM vacation_grants) AS grants,
+          (SELECT COUNT(*)::int FROM vacation_grants WHERE notes LIKE 'Notion移行%') AS notion_grants,
+          (SELECT COUNT(*)::int FROM vacation_requests) AS requests,
+          (SELECT COUNT(*)::int FROM vacation_requests WHERE reason LIKE 'Notion移行%') AS notion_requests,
+          (SELECT COUNT(*)::int FROM jp_holidays) AS holidays
+      `)
+      result.counts = counts.rows[0]
+
+      // 4. 직원별 잔여 요약
+      const summary = await pool.query(`
+        SELECT u.id, u.name, u.email, u.hire_date, u.app_access,
+               COALESCE(SUM(g.days), 0) AS granted,
+               (SELECT COALESCE(SUM(consumed_days), 0)
+                  FROM vacation_requests vr
+                  WHERE vr.user_id = u.id AND vr.status = 'approved') AS consumed
+        FROM users u
+        LEFT JOIN vacation_grants g ON g.user_id = u.id
+        WHERE u.email IN (
+          'm5ymsk@hotseller.co.kr','amao0423@hotseller.co.kr',
+          'j0705@hotseller.co.kr','umm240227@hotseller.co.kr','god2364928@hotseller.co.kr'
+        )
+        GROUP BY u.id
+        ORDER BY u.hire_date NULLS LAST
+      `)
+      result.employees = summary.rows.map((r: any) => ({
+        name: r.name,
+        email: r.email,
+        hire_date: r.hire_date,
+        app_access: r.app_access,
+        granted: Number(r.granted),
+        consumed: Number(r.consumed),
+        remaining: Number(r.granted) - Number(r.consumed),
+      }))
+    }
+
+    res.json(result)
+  } catch (error: any) {
+    res.status(500).json({ error: error.message, partial: result })
+  }
+})
+
 /** pending 신청 목록 (어드민) */
 router.get('/requests', async (req: AuthRequest, res: Response) => {
   try {

@@ -1,4 +1,5 @@
-// 휴가 시스템 공용 라벨/타입 (일본어)
+// 휴가 시스템 공용 라벨/타입 (i18n 지원)
+import { useI18nStore } from '../../i18n'
 
 export type LeaveType =
   | 'full'
@@ -12,27 +13,27 @@ export type GrantType = 'annual' | 'special' | 'manual' | 'condolence'
 
 export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
-export const leaveTypeLabel: Record<LeaveType, string> = {
-  full: '全休',
-  half_am: '午前半休',
-  half_pm: '午後半休',
-  unpaid: '無給休暇',
-  health_check: '健康診断',
-  condolence: '慶弔',
+const leaveTypeKey: Record<LeaveType, string> = {
+  full: 'leave_type_full',
+  half_am: 'leave_type_half_am',
+  half_pm: 'leave_type_half_pm',
+  unpaid: 'leave_type_unpaid',
+  health_check: 'leave_type_health_check',
+  condolence: 'leave_type_condolence',
 }
 
-export const grantTypeLabel: Record<GrantType, string> = {
-  annual: '年次',
-  special: '特別',
-  manual: '手動付与',
-  condolence: '慶弔',
+const grantTypeKey: Record<GrantType, string> = {
+  annual: 'grant_type_annual',
+  special: 'grant_type_special',
+  manual: 'grant_type_manual',
+  condolence: 'grant_type_condolence',
 }
 
-export const statusLabel: Record<RequestStatus, string> = {
-  pending: '承認待ち',
-  approved: '承認済み',
-  rejected: '却下',
-  cancelled: '取消',
+const statusKey: Record<RequestStatus, string> = {
+  pending: 'status_pending',
+  approved: 'status_approved',
+  rejected: 'status_rejected',
+  cancelled: 'status_cancelled',
 }
 
 export const statusColor: Record<RequestStatus, string> = {
@@ -40,6 +41,17 @@ export const statusColor: Record<RequestStatus, string> = {
   approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   rejected: 'bg-red-50 text-red-700 border-red-200',
   cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
+}
+
+/** Hook helper — t() 함수와 라벨 lookup 함께 제공 */
+export function useLeaveLabels() {
+  const { t } = useI18nStore()
+  return {
+    t,
+    leaveTypeLabel: (type: LeaveType) => t(leaveTypeKey[type]) || type,
+    grantTypeLabel: (type: GrantType) => t(grantTypeKey[type]) || type,
+    statusLabel: (s: RequestStatus) => t(statusKey[s]) || s,
+  }
 }
 
 export function formatYmd(input: string | Date | null | undefined): string {
