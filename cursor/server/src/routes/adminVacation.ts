@@ -343,6 +343,30 @@ router.get('/grants/:userId', async (req: AuthRequest, res: Response) => {
   }
 })
 
+/** 직원별 신청 이력 조회 (어드민) */
+router.get('/user-requests/:userId', async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params
+    const result = await pool.query(
+      `SELECT vr.id, vr.user_id, vr.start_date, vr.end_date, vr.leave_type,
+              vr.consumed_days, vr.status, vr.reason, vr.rejected_reason,
+              vr.approver_id, vr.approved_at, vr.created_at,
+              u.name AS user_name, u.department, u.team,
+              ap.name AS approver_name
+       FROM vacation_requests vr
+       JOIN users u ON u.id = vr.user_id
+       LEFT JOIN users ap ON ap.id = vr.approver_id
+       WHERE vr.user_id = $1
+       ORDER BY vr.start_date DESC, vr.id DESC`,
+      [userId]
+    )
+    res.json(result.rows)
+  } catch (error: any) {
+    console.error('admin user-requests error:', error.message)
+    res.status(500).json({ error: '신청 이력 조회 실패' })
+  }
+})
+
 /** 수동 부여 */
 router.post('/grants', async (req: AuthRequest, res: Response) => {
   try {

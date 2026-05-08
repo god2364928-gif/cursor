@@ -3,7 +3,7 @@ import api from '../../../lib/api'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import { Plus, X, Pencil, Trash2 } from 'lucide-react'
-import { useLeaveLabels, formatYmd, type GrantType } from '../leaveLabels'
+import { useLeaveLabels, statusColor, formatYmd, type GrantType, type LeaveType, type RequestStatus } from '../leaveLabels'
 
 interface MandatoryStatus {
   applicable: boolean
@@ -45,15 +45,32 @@ interface Grant {
   created_at: string
 }
 
+interface UserRequest {
+  id: number
+  user_id: number
+  start_date: string
+  end_date: string
+  leave_type: LeaveType
+  consumed_days: number
+  status: RequestStatus
+  reason: string | null
+  rejected_reason: string | null
+  approver_name: string | null
+  approved_at: string | null
+  created_at: string
+}
+
 export default function LeaveGrantsPage() {
-  const { t, grantTypeLabel } = useLeaveLabels()
+  const { t, grantTypeLabel, leaveTypeLabel, statusLabel } = useLeaveLabels()
   const [summary, setSummary] = useState<SummaryRow[]>([])
   const [search, setSearch] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState<string>('all')
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
   const [grants, setGrants] = useState<Grant[]>([])
+  const [requests, setRequests] = useState<UserRequest[]>([])
   const [loadingSummary, setLoadingSummary] = useState(true)
   const [loadingGrants, setLoadingGrants] = useState(false)
+  const [loadingRequests, setLoadingRequests] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingGrant, setEditingGrant] = useState<Grant | null>(null)
 
@@ -81,13 +98,28 @@ export default function LeaveGrantsPage() {
     }
   }, [])
 
+  const fetchRequests = useCallback(async (userId: number) => {
+    setLoadingRequests(true)
+    try {
+      const res = await api.get(`/admin/vacation/user-requests/${userId}`)
+      setRequests(res.data)
+    } catch (e) {
+      console.error('user-requests fetch error:', e)
+    } finally {
+      setLoadingRequests(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchSummary()
   }, [fetchSummary])
 
   useEffect(() => {
-    if (selectedUserId) fetchGrants(selectedUserId)
-  }, [selectedUserId, fetchGrants])
+    if (selectedUserId) {
+      fetchGrants(selectedUserId)
+      fetchRequests(selectedUserId)
+    }
+  }, [selectedUserId, fetchGrants, fetchRequests])
 
   const departmentOptions = useMemo(() => {
     const set = new Set<string>()
@@ -207,8 +239,12 @@ export default function LeaveGrantsPage() {
                 <Mini label={t('leave_remaining')} value={`${selectedUser.remaining}${t('unit_day')}`} accent />
               </div>
 
+              {/* 부여 이력 */}
+              <div className="px-4 py-2 border-b border-gray-200 bg-gray-50/50">
+                <span className="text-xs font-medium text-gray-600">{t('leave_grant_history')}</span>
+              </div>
               {loadingGrants || grants.length === 0 ? (
-                <div className="p-12 text-center text-sm text-gray-400">
+                <div className="p-8 text-center text-sm text-gray-400">
                   {loadingGrants ? t('loading_short') : t('grants_no_history')}
                 </div>
               ) : (
@@ -251,6 +287,62 @@ export default function LeaveGrantsPage() {
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
                             </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 신청 이력 */}
+              <div className="px-4 py-2 border-y border-gray-200 bg-gray-50/50 flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-600">{t('leave_request_history')}</span>
+                <span className="text-[10px] text-gray-500">{requests.length}{t('unit_count')}</span>
+              </div>
+              {loadingRequests || requests.length === 0 ? (
+                <div className="p-8 text-center text-sm text-gray-400">
+                  {loadingRequests ? t('loading_short') : t('empty_requests')}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-gray-600">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">{t('col_period')}</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">{t('col_type')}</th>
+                        <th className="px-4 py-2.5 text-right font-medium text-xs">{t('col_days')}</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">{t('col_status')}</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-xs">{t('col_reason')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {requests.map((r) => (
+                        <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50 align-top">
+                          <td className="px-4 py-3">
+                            {formatYmd(r.start_date)}
+                            {r.start_date !== r.end_date && ` ~ ${formatYmd(r.end_date)}`}
+                          </td>
+                          <td className="px-4 py-3">{leaveTypeLabel(r.leave_type)}</td>
+                          <td className="px-4 py-3 text-right">{r.consumed_days}{t('unit_day')}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-block px-2 py-0.5 text-xs rounded border ${statusColor[r.status]}`}>
+                              {statusLabel(r.status)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 text-xs max-w-xs">
+                            {r.reason && <div className="truncate">{r.reason}</div>}
+                            {(r.status === 'rejected' || r.status === 'cancelled') && r.rejected_reason && (
+                              <div
+                                className={`truncate mt-0.5 ${
+                                  r.status === 'rejected' ? 'text-red-600' : 'text-gray-400'
+                                }`}
+                              >
+                                {r.status === 'rejected' ? `${t('btn_reject')}: ` : `${t('btn_cancel_request')}: `}
+                                {r.rejected_reason}
+                              </div>
+                            )}
+                            {!r.reason && !r.rejected_reason && '-'}
                           </td>
                         </tr>
                       ))}
