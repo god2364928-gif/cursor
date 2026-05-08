@@ -704,6 +704,193 @@ router.delete('/transactions/all', authMiddleware, adminOnly, async (_req: AuthR
   }
 })
 
+// ========== SMBC 은행 붙여넣기 파싱 로직 ==========
+// 두 가지 포맷 지원
+// 구 포맷: 入金 → 振込 → date1 → date2 → name → amount → 円 ...
+// 신 포맷: 入金 → date → amount → 円 → name → (다음 거래의 入金) ...
+type ParsedTx = {
+  transactionDate: string
+  transactionType: '입금' | '출금'
+  category: string
+  paymentMethod: string
+  itemName: string
+  name: string
+  amount: number
+  assignedUserId: string | null
+  formatDetected: 'NEW' | 'OLD'
+}
+
+const SMBC_DATE_REGEX = /^\d{4}\/\d{1,2}\/\d{1,2}$/
+
+function parseSmbcText(
+  pastedText: string,
+  matchRules: Array<{ keyword: string; category: string | null; assigned_user_id: string | null; payment_method: string | null }>
+): { parsed: ParsedTx[]; errors: Array<{ line: number; error: string }> } {
+  const applyAutoMatch = (itemName: string) => {
+    const lower = itemName.toLowerCase()
+    for (const rule of matchRules) {
+      if (lower.includes(rule.keyword.toLowerCase())) {
+        return {
+          category: rule.category || undefined,
+          assignedUserId: rule.assigned_user_id || undefined,
+          paymentMethod: rule.payment_method || undefined,
+        }
+      }
+    }
+    return {} as { category?: string; assignedUserId?: string; paymentMethod?: string }
+  }
+
+  const lines = pastedText.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+  const parsed: ParsedTx[] = []
+  const errors: Array<{ line: number; error: string }> = []
+
+  let i = 0
+  while (i < lines.length) {
+    try {
+      const transactionTypeText = lines[i]
+      if (!transactionTypeText || (!transactionTypeText.includes('入金') && !transactionTypeText.includes('出金'))) {
+        i++
+        continue
+      }
+
+      const nextLine = lines[i + 1] || ''
+      const isNewFormat = SMBC_DATE_REGEX.test(nextLine)
+
+      let method = ''
+      let date1 = ''
+      let name = ''
+      let amountText = ''
+      let advanceTo = i + 1
+
+      if (isNewFormat) {
+        // 신 포맷: 入金 → date → amount → 円 → name
+        date1 = lines[i + 1] || ''
+        amountText = lines[i + 2] || ''
+        // lines[i + 3] === '円'
+        const candidateName = lines[i + 4] || ''
+        if (candidateName && !candidateName.includes('入金') && !candidateName.includes('出金')) {
+          name = candidateName
+          advanceTo = i + 5
+        } else {
+          // 다음 거래가 바로 시작되면 이름 없음 (마지막 거래 외에는 거의 없음)
+          name = ''
+          advanceTo = i + 4
+        }
+      } else {
+        // 구 포맷
+        let idx = i + 1
+        method = lines[idx++] || ''
+        date1 = lines[idx++] || ''
+        idx++ // date2 skip
+        name = lines[idx++] || ''
+        amountText = lines[idx++] || ''
+        advanceTo = idx
+      }
+
+      const dateParts = date1.split('/')
+      if (dateParts.length !== 3) {
+        i++
+        continue
+      }
+      const year = dateParts[0]
+      const month = dateParts[1].padStart(2, '0')
+      const day = dateParts[2].padStart(2, '0')
+      const transactionDate = `${year}-${month}-${day}`
+
+      const transactionType: '입금' | '출금' = transactionTypeText.includes('入金') ? '입금' : '출금'
+
+      const amount = Number(amountText.replace(/,/g, '').replace(/円/g, '').trim())
+      if (isNaN(amount) || amount === 0) {
+        i++
+        continue
+      }
+
+      const itemName = method ? `${method} ${name}`.trim() : name.trim()
+
+      // 카테고리 자동 추론
+      let category = '기타'
+      if (transactionType === '입금') {
+        if (name.includes('ココ') || name.includes('ｺｺ') || name.toUpperCase().includes('COCO')) {
+          category = '코코마케'
+        } else {
+          category = '셀마플'
+        }
+      } else {
+        category = '운영비'
+      }
+
+      let paymentMethod = '계좌이체'
+
+      const autoMatch = applyAutoMatch(itemName)
+      if (autoMatch.category) category = autoMatch.category
+      if (autoMatch.paymentMethod) paymentMethod = autoMatch.paymentMethod
+      const assignedUserId = autoMatch.assignedUserId || null
+
+      parsed.push({
+        transactionDate,
+        transactionType,
+        category,
+        paymentMethod,
+        itemName,
+        name,
+        amount,
+        assignedUserId,
+        formatDetected: isNewFormat ? 'NEW' : 'OLD',
+      })
+
+      i = advanceTo
+      while (i < lines.length && !lines[i].includes('入金') && !lines[i].includes('出金')) {
+        i++
+      }
+    } catch (lineError) {
+      errors.push({ line: i, error: String(lineError) })
+      i++
+    }
+  }
+
+  return { parsed, errors }
+}
+
+// ========== SMBC 은행 붙여넣기 미리보기 (저장 안 함) ==========
+router.post('/transactions/smbc-paste/preview', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { pastedText } = req.body
+    if (!pastedText || typeof pastedText !== 'string') {
+      return res.status(400).json({ error: '붙여넣기 내용이 없습니다' })
+    }
+
+    const matchRulesResult = await pool.query(
+      `SELECT keyword, category, assigned_user_id, payment_method, priority
+       FROM accounting_auto_match_rules
+       WHERE is_active = true
+       ORDER BY priority DESC, keyword ASC`
+    )
+
+    const { parsed, errors } = parseSmbcText(pastedText, matchRulesResult.rows)
+
+    // 담당자 이름 조인용
+    const userIds = parsed.map(p => p.assignedUserId).filter((v): v is string => !!v)
+    let userMap: Record<string, string> = {}
+    if (userIds.length > 0) {
+      const u = await pool.query(`SELECT id, name FROM users WHERE id = ANY($1::uuid[])`, [Array.from(new Set(userIds))])
+      userMap = Object.fromEntries(u.rows.map(r => [r.id, r.name]))
+    }
+
+    res.json({
+      success: true,
+      count: parsed.length,
+      errors: errors.length,
+      transactions: parsed.map(p => ({
+        ...p,
+        assignedUserName: p.assignedUserId ? userMap[p.assignedUserId] || null : null,
+      })),
+    })
+  } catch (error) {
+    console.error('SMBC preview error:', error)
+    res.status(500).json({ error: 'SMBC 미리보기 파싱에 실패했습니다' })
+  }
+})
+
 // ========== SMBC 은행 붙여넣기 업로드 ==========
 router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
@@ -716,176 +903,30 @@ router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: A
     console.log('=== SMBC Paste Upload Started ===')
     console.log('Pasted text length:', pastedText.length)
 
-    // 자동 매칭 규칙 로드
     const matchRulesResult = await pool.query(
       `SELECT keyword, category, assigned_user_id, payment_method, priority
        FROM accounting_auto_match_rules
        WHERE is_active = true
        ORDER BY priority DESC, keyword ASC`
     )
-    const matchRules = matchRulesResult.rows
-    console.log(`Loaded ${matchRules.length} auto-match rules`)
 
-    // 자동 매칭 함수
-    const applyAutoMatch = (itemName: string) => {
-      const lowerItemName = itemName.toLowerCase()
-      for (const rule of matchRules) {
-        if (lowerItemName.includes(rule.keyword.toLowerCase())) {
-          console.log(`Auto-match: "${itemName}" matched with keyword "${rule.keyword}"`)
-          return {
-            category: rule.category || undefined,
-            assignedUserId: rule.assigned_user_id || undefined,
-            paymentMethod: rule.payment_method || undefined
-          }
-        }
-      }
-      return {}
-    }
+    const { parsed, errors } = parseSmbcText(pastedText, matchRulesResult.rows)
+    console.log(`Parsed ${parsed.length} transactions, ${errors.length} errors`)
 
-    // 라인별로 파싱
-    const lines = pastedText.split('\n').map(line => line.trim()).filter(line => line.length > 0)
-    
-    console.log('=== SMBC Paste Lines ===')
-    console.log('Total lines:', lines.length)
-    lines.forEach((line, idx) => console.log(`[${idx}]: "${line}"`))
-    
     const imported: any[] = []
-    const errors: any[] = []
-
-    // SMBC 은행 내역 파싱 - 두 가지 포맷 지원
-    // 구 포맷: 入金 → 振込 → date1 → date2 → name → amount
-    // 신 포맷: name → 入金 → date → amount → 円
-    const dateRegex = /^\d{4}\/\d{1,2}\/\d{1,2}$/
-
-    let i = 0
-    while (i < lines.length) {
+    for (const p of parsed) {
       try {
-        // 입금/출금 라인 찾기
-        const transactionTypeText = lines[i]
-        if (!transactionTypeText || (!transactionTypeText.includes('入金') && !transactionTypeText.includes('出金'))) {
-          i++
-          continue
-        }
-
-        console.log(`\n=== Processing transaction starting at line ${i} ===`)
-        console.log('Transaction type:', transactionTypeText)
-
-        // 포맷 판별: 入金 다음 줄이 YYYY/M/D 형태면 신규 포맷
-        const nextLine = lines[i + 1] || ''
-        const isNewFormat = dateRegex.test(nextLine)
-        console.log(`Format detected: ${isNewFormat ? 'NEW' : 'OLD'} (next line = "${nextLine}")`)
-
-        let method = ''
-        let date1 = ''
-        let name = ''
-        let amountText = ''
-        let advanceTo = i + 1
-
-        if (isNewFormat) {
-          // 신 포맷: 이름은 직전 줄, 그 뒤로 date / amount / 円
-          // 단 직전 줄이 入金/出金이거나 없으면 이름 비움
-          const prevLine = i > 0 ? lines[i - 1] : ''
-          if (prevLine && !prevLine.includes('入金') && !prevLine.includes('出金') && !dateRegex.test(prevLine)) {
-            name = prevLine
-          }
-          date1 = lines[i + 1] || ''
-          amountText = lines[i + 2] || ''
-          // lines[i + 3] 은 보통 "円" — skip
-          console.log(`[NEW] name="${name}" date="${date1}" amount="${amountText}"`)
-          advanceTo = i + 4
-        } else {
-          // 구 포맷
-          let idx = i + 1
-          method = lines[idx] || ''
-          console.log(`[${idx}] Method:`, method)
-          idx++
-          date1 = lines[idx] || ''
-          console.log(`[${idx}] Date1:`, date1)
-          idx++
-          const date2 = lines[idx] || ''
-          console.log(`[${idx}] Date2:`, date2)
-          idx++
-          name = lines[idx] || ''
-          console.log(`[${idx}] Name:`, name)
-          idx++
-          amountText = lines[idx] || ''
-          console.log(`[${idx}] Amount:`, amountText)
-          idx++
-          advanceTo = idx
-        }
-
-        // 날짜 파싱
-        const dateParts = date1.split('/')
-        if (dateParts.length !== 3) {
-          console.log('Invalid date format, skipping')
-          i++
-          continue
-        }
-
-        const year = dateParts[0]
-        const month = dateParts[1].padStart(2, '0')
-        const day = dateParts[2].padStart(2, '0')
-        const transactionDate = `${year}-${month}-${day}`
-        console.log('Parsed date:', transactionDate)
-
-        // 입금/출금 판단
-        const transactionType = transactionTypeText.includes('入金') ? '입금' : '출금'
-
-        // 금액 파싱
-        const amount = Number(amountText.replace(/,/g, '').replace(/円/g, '').trim())
-        if (isNaN(amount) || amount === 0) {
-          console.log('Invalid amount, skipping')
-          i++
-          continue
-        }
-        console.log('Parsed amount:', amount)
-
-        // 항목명 생성 (신 포맷은 method 없음)
-        const itemName = method ? `${method} ${name}`.trim() : name.trim()
-
-        // 카테고리 자동 추론
-        let category = '기타'
-        if (transactionType === '입금') {
-          if (name.includes('ココ') || name.includes('ｺｺ') || name.toUpperCase().includes('COCO')) {
-            category = '코코마케'
-          } else {
-            category = '셀마플'
-          }
-        } else {
-          category = '운영비'
-        }
-
-        // 결제수단
-        let paymentMethod = '계좌이체'
-
-        // 자동 매칭 규칙 적용
-        const autoMatch = applyAutoMatch(itemName)
-        if (autoMatch.category) category = autoMatch.category
-        if (autoMatch.paymentMethod) paymentMethod = autoMatch.paymentMethod
-        const assignedUserId = autoMatch.assignedUserId || null
-
-        console.log(`✅ Importing: ${itemName} | ${transactionDate} | ${amount} | ${category}`)
-
-        // DB 삽입
         const result = await pool.query(
-          `INSERT INTO accounting_transactions 
+          `INSERT INTO accounting_transactions
            (transaction_date, transaction_type, category, payment_method, item_name, amount, assigned_user_id, memo, bank_name)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING *`,
-          [transactionDate, transactionType, category, paymentMethod, itemName, amount, assignedUserId, null, 'SMBC']
+          [p.transactionDate, p.transactionType, p.category, p.paymentMethod, p.itemName, p.amount, p.assignedUserId, null, 'SMBC']
         )
-
         imported.push(result.rows[0])
-        
-        // 다음 "入金" 또는 "出金" 찾기
-        i = advanceTo
-        while (i < lines.length && !lines[i].includes('入金') && !lines[i].includes('出金')) {
-          i++
-        }
-      } catch (lineError) {
-        console.error('SMBC line parse error:', lineError)
-        errors.push({ line: i, error: String(lineError) })
-        i++
+      } catch (insErr) {
+        console.error('SMBC insert error:', insErr)
+        errors.push({ line: -1, error: String(insErr) })
       }
     }
 

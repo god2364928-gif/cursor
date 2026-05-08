@@ -57,6 +57,18 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
   const [showSmbcPasteDialog, setShowSmbcPasteDialog] = useState(false)
   const [smbcPasteText, setSmbcPasteText] = useState('')
   const [uploadingSmbc, setUploadingSmbc] = useState(false)
+  const [smbcPreviewing, setSmbcPreviewing] = useState(false)
+  const [smbcPreview, setSmbcPreview] = useState<Array<{
+    transactionDate: string
+    transactionType: '입금' | '출금'
+    category: string
+    paymentMethod: string
+    itemName: string
+    name: string
+    amount: number
+    assignedUserName: string | null
+    formatDetected: 'NEW' | 'OLD'
+  }> | null>(null)
   
   // 메모 편집
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
@@ -363,6 +375,25 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
     }
   }
 
+  const handleSmbcPreview = async () => {
+    if (!smbcPasteText.trim()) {
+      alert(language === 'ja' ? 'テキストを入力してください' : '텍스트를 입력하세요')
+      return
+    }
+    setSmbcPreviewing(true)
+    try {
+      const response = await api.post('/accounting/transactions/smbc-paste/preview', {
+        pastedText: smbcPasteText,
+      })
+      setSmbcPreview(response.data.transactions || [])
+    } catch (error) {
+      console.error('SMBC preview error:', error)
+      alert(language === 'ja' ? 'プレビュー失敗' : '미리보기 실패')
+    } finally {
+      setSmbcPreviewing(false)
+    }
+  }
+
   const handleSmbcPasteUpload = async () => {
     if (!smbcPasteText.trim()) {
       alert(language === 'ja' ? 'テキストを入力してください' : '텍스트를 입력하세요')
@@ -374,16 +405,17 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
       const response = await api.post('/accounting/transactions/smbc-paste', {
         pastedText: smbcPasteText
       })
-      
+
       fetchTransactions()
       onTransactionChange?.()
       setShowSmbcPasteDialog(false)
       setSmbcPasteText('')
-      
+      setSmbcPreview(null)
+
       const { imported, errors } = response.data
       alert(
-        language === 'ja' 
-          ? `${imported}件アップロード成功${errors > 0 ? ` (${errors}件エラー)` : ''}` 
+        language === 'ja'
+          ? `${imported}件アップロード成功${errors > 0 ? ` (${errors}件エラー)` : ''}`
           : `${imported}건 업로드 성공${errors > 0 ? ` (${errors}건 오류)` : ''}`
       )
     } catch (error) {
@@ -1159,15 +1191,16 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
 
       {/* SMBC 붙여넣기 모달 */}
       {showSmbcPasteDialog && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowSmbcPasteDialog(false)
+              setSmbcPreview(null)
             }
           }}
         >
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full max-w-5xl max-h-[90vh] overflow-auto">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <span className="inline-block px-3 py-1 rounded text-sm font-medium bg-blue-100 text-blue-800">
@@ -1176,46 +1209,82 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                 {language === 'ja' ? '銀行明細を貼り付け' : '은행 내역 붙여넣기'}
               </CardTitle>
               <p className="text-sm text-gray-600 mt-2">
-                {language === 'ja' 
+                {language === 'ja'
                   ? 'SMBC銀行のウェブサイトから明細をコピーして、下のボックスに貼り付けてください。'
                   : 'SMBC 은행 웹사이트에서 내역을 복사한 후 아래 박스에 붙여넣으세요.'}
               </p>
-              <div className="bg-gray-50 p-3 rounded mt-2 text-xs">
-                <div className="font-medium mb-1">{language === 'ja' ? '例' : '예시'}:</div>
-                <pre className="text-gray-600 whitespace-pre-wrap">
-                  {language === 'ja'
-                    ? '※ 旧フォーマット・新フォーマット どちらにも対応しています'
-                    : '※ 구 포맷 / 신 포맷 모두 지원합니다'}{'\n'}
-                  {'\n'}
-                  ── {language === 'ja' ? '新フォーマット例' : '신 포맷 예시'} ──{'\n'}
-                  バクジ ヨヨンフリコミ{'\n'}
-                  入金{'\n'}
-                  2026/4/3{'\n'}
-                  88,000{'\n'}
-                  円{'\n'}
-                  {'\n'}
-                  ── {language === 'ja' ? '旧フォーマット例' : '구 포맷 예시'} ──{'\n'}
-                  入金{'\n'}
-                  振込{'\n'}
-                  2026/1/30{'\n'}
-                  2026/1/30{'\n'}
-                  ｶ)ｼｴﾙ{'\n'}
-                  99,000{'\n'}
-                  円
-                </pre>
-              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
                   <textarea
                     value={smbcPasteText}
-                    onChange={(e) => setSmbcPasteText(e.target.value)}
+                    onChange={(e) => {
+                      setSmbcPasteText(e.target.value)
+                      if (smbcPreview) setSmbcPreview(null)
+                    }}
                     placeholder={language === 'ja' ? 'ここに貼り付けてください...' : '여기에 붙여넣으세요...'}
-                    className="w-full border rounded px-3 py-2 h-64 font-mono text-sm"
-                    disabled={uploadingSmbc}
+                    className="w-full border rounded px-3 py-2 h-48 font-mono text-sm"
+                    disabled={uploadingSmbc || smbcPreviewing}
                   />
                 </div>
+
+                {smbcPreview && (
+                  <div className="border rounded">
+                    <div className="px-3 py-2 bg-gray-50 border-b flex items-center justify-between">
+                      <div className="text-sm font-medium">
+                        {language === 'ja'
+                          ? `プレビュー: ${smbcPreview.length}件`
+                          : `미리보기: ${smbcPreview.length}건`}
+                      </div>
+                      {smbcPreview.length > 0 && (
+                        <div className="text-xs text-gray-500">
+                          {language === 'ja'
+                            ? '内容を確認してから「登録」ボタンを押してください'
+                            : '내용 확인 후 "등록" 버튼을 누르세요'}
+                        </div>
+                      )}
+                    </div>
+                    {smbcPreview.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-gray-500">
+                        {language === 'ja'
+                          ? '解析された取引がありません。フォーマットを確認してください。'
+                          : '파싱된 거래가 없습니다. 포맷을 확인하세요.'}
+                      </div>
+                    ) : (
+                      <div className="overflow-auto max-h-72">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 sticky top-0">
+                            <tr className="text-left">
+                              <th className="px-2 py-1.5 font-medium">{language === 'ja' ? '日付' : '날짜'}</th>
+                              <th className="px-2 py-1.5 font-medium">{language === 'ja' ? '区分' : '구분'}</th>
+                              <th className="px-2 py-1.5 font-medium">{language === 'ja' ? 'カテゴリ' : '카테고리'}</th>
+                              <th className="px-2 py-1.5 font-medium">{language === 'ja' ? '名前' : '이름'}</th>
+                              <th className="px-2 py-1.5 font-medium">{language === 'ja' ? '担当' : '담당'}</th>
+                              <th className="px-2 py-1.5 font-medium text-right">{language === 'ja' ? '金額' : '금액'}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {smbcPreview.map((tx, idx) => (
+                              <tr key={idx} className="border-t">
+                                <td className="px-2 py-1.5 whitespace-nowrap">{tx.transactionDate}</td>
+                                <td className="px-2 py-1.5">
+                                  <span className={`inline-block px-2 py-0.5 rounded text-xs ${tx.transactionType === '입금' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    {tx.transactionType === '입금' ? (language === 'ja' ? '入' : '입') : (language === 'ja' ? '出' : '출')}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-1.5">{tx.category}</td>
+                                <td className="px-2 py-1.5 font-mono text-xs">{tx.name || '-'}</td>
+                                <td className="px-2 py-1.5">{tx.assignedUserName || '-'}</td>
+                                <td className="px-2 py-1.5 text-right whitespace-nowrap">¥{tx.amount.toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex gap-2 justify-end">
                   <Button
@@ -1223,19 +1292,31 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                     onClick={() => {
                       setShowSmbcPasteDialog(false)
                       setSmbcPasteText('')
+                      setSmbcPreview(null)
                     }}
-                    disabled={uploadingSmbc}
+                    disabled={uploadingSmbc || smbcPreviewing}
                   >
                     {language === 'ja' ? 'キャンセル' : '취소'}
                   </Button>
-                  <Button 
-                    onClick={handleSmbcPasteUpload}
-                    disabled={uploadingSmbc || !smbcPasteText.trim()}
-                  >
-                    {uploadingSmbc 
-                      ? (language === 'ja' ? 'アップロード中...' : '업로드 중...') 
-                      : (language === 'ja' ? 'アップロード' : '업로드')}
-                  </Button>
+                  {!smbcPreview ? (
+                    <Button
+                      onClick={handleSmbcPreview}
+                      disabled={smbcPreviewing || !smbcPasteText.trim()}
+                    >
+                      {smbcPreviewing
+                        ? (language === 'ja' ? '解析中...' : '해석 중...')
+                        : (language === 'ja' ? 'プレビュー' : '미리보기')}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleSmbcPasteUpload}
+                      disabled={uploadingSmbc || smbcPreview.length === 0}
+                    >
+                      {uploadingSmbc
+                        ? (language === 'ja' ? '登録中...' : '등록 중...')
+                        : (language === 'ja' ? `${smbcPreview.length}件を登録` : `${smbcPreview.length}건 등록`)}
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
