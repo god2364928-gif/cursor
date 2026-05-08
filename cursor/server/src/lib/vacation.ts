@@ -137,29 +137,46 @@ export function calcBalance(
   requests: ConsumedRequest[],
   today: Date = new Date()
 ): {
-  totalGranted: number   // 총 부여
+  totalGranted: number   // 총 부여 (누적)
   consumed: number       // 사용 (승인됨)
-  expired: number        // 만료
+  expired: number        // 만료된 부여 중 사용되지 않은 분 (FIFO)
   pending: number        // 결재대기
   remaining: number      // 잔여 (totalGranted - expired - consumed - pending)
 } {
   const todayMs = startOfDay(today).getTime()
 
-  let totalGranted = 0
-  let expired = 0
-  for (const g of grants) {
-    const days = Number(g.days) || 0
-    const exp = new Date(g.expires_at).getTime()
-    totalGranted += days
-    if (exp < todayMs) expired += days
-  }
-
+  // 사용/대기 합계
   let consumed = 0
   let pending = 0
   for (const r of requests) {
     const days = Number(r.consumed_days) || 0
     if (r.status === 'approved') consumed += days
     if (r.status === 'pending') pending += days
+  }
+
+  // 부여를 오래된 순으로 정렬 (FIFO 차감용)
+  const sortedGrants = grants
+    .map((g) => ({
+      days: Number(g.days) || 0,
+      grantTime: new Date(g.grant_date).getTime(),
+      expiresMs: new Date(g.expires_at).getTime(),
+    }))
+    .filter((g) => !isNaN(g.grantTime))
+    .sort((a, b) => a.grantTime - b.grantTime)
+
+  // 사용량을 오래된 부여부터 차감
+  let consumedRemaining = consumed
+  let totalGranted = 0
+  let expired = 0
+  for (const g of sortedGrants) {
+    totalGranted += g.days
+    const usedFromThis = Math.min(consumedRemaining, g.days)
+    consumedRemaining -= usedFromThis
+    const unusedInThis = g.days - usedFromThis
+    // 만료된 부여 중 사용되지 않은 부분만 expired로 카운트
+    if (g.expiresMs < todayMs) {
+      expired += unusedInThis
+    }
   }
 
   const remaining = round1(totalGranted - expired - consumed - pending)
