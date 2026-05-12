@@ -14,6 +14,8 @@ export function parseAppAccess(user: User | null | undefined): AppArea[] {
 export function hasAccess(user: User | null | undefined, area: AppArea): boolean {
   if (!user) return false
   if (user.role === 'admin') return true
+  // office_assistant 는 admin 영역 접근 차단 (app_access 값과 무관)
+  if (user.role === 'office_assistant' && area === 'admin') return false
   return parseAppAccess(user).includes(area)
 }
 
