@@ -3,7 +3,7 @@ export interface User {
   name: string
   email: string
   team: string
-  role: 'admin' | 'manager' | 'user' | 'marketer'
+  role: 'admin' | 'manager' | 'user' | 'marketer' | 'office_assistant'
   app_access?: string  // 콤마 분리: 'crm,erp', 'erp', 'admin,crm,erp'
   createdAt: string
   lastLoginAt?: string | null

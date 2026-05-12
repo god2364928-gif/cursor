@@ -23,24 +23,33 @@ import {
 } from 'lucide-react'
 import { Button } from './ui/button'
 import AppSwitcher from './AppSwitcher'
+import { canAccessCrmPage, type CrmPageKey } from '../lib/pageAccess'
 
-const navigation = [
-  { name: 'dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'customers', href: '/customers', icon: Users },
-  { name: 'retargeting', href: '/retargeting', icon: Target },
-  { name: 'salesTracking', href: '/sales-tracking', icon: History },
-  { name: 'inquiryLeads', href: '/inquiry-leads', icon: ClipboardList },
-  { name: 'hotpepper', href: '/hotpepper', icon: UtensilsCrossed },
-  { name: 'sales', href: '/sales', icon: BarChart3 },
-  { name: 'invoices', href: '/invoices', icon: FileText },
-  { name: 'quotes', href: '/quotes', icon: ClipboardCheck },
-  { name: 'settings', href: '/settings', icon: Settings },
-  { name: 'accountOptimization', href: '/settings/account-optimization', icon: Gauge, nested: true },
-  { name: 'accountOptimization2', href: '/settings/account-optimization-2', icon: Sparkles, nested: true },
-  { name: 'hashtagAnalysis', href: '/settings/hashtag-analysis', icon: Hash, nested: true },
-  { name: 'hashtagBulk', href: '/settings/hashtag-bulk', icon: Hash, nested: true },
-  { name: 'keywordAnalysisMenu', href: '/settings/keyword-analysis', icon: TrendingUp, nested: true },
-  { name: 'flagCheck', href: '/settings/flag-check', icon: ShieldQuestion, nested: true },
+interface NavItem {
+  name: string
+  href: string
+  icon: any
+  nested?: boolean
+  pageKey: CrmPageKey
+}
+
+const navigation: NavItem[] = [
+  { name: 'dashboard', href: '/', icon: LayoutDashboard, pageKey: 'dashboard' },
+  { name: 'customers', href: '/customers', icon: Users, pageKey: 'customers' },
+  { name: 'retargeting', href: '/retargeting', icon: Target, pageKey: 'retargeting' },
+  { name: 'salesTracking', href: '/sales-tracking', icon: History, pageKey: 'salesTracking' },
+  { name: 'inquiryLeads', href: '/inquiry-leads', icon: ClipboardList, pageKey: 'inquiryLeads' },
+  { name: 'hotpepper', href: '/hotpepper', icon: UtensilsCrossed, pageKey: 'hotpepper' },
+  { name: 'sales', href: '/sales', icon: BarChart3, pageKey: 'sales' },
+  { name: 'invoices', href: '/invoices', icon: FileText, pageKey: 'invoices' },
+  { name: 'quotes', href: '/quotes', icon: ClipboardCheck, pageKey: 'quotes' },
+  { name: 'settings', href: '/settings', icon: Settings, pageKey: 'settings' },
+  { name: 'accountOptimization', href: '/settings/account-optimization', icon: Gauge, nested: true, pageKey: 'settingsChild' },
+  { name: 'accountOptimization2', href: '/settings/account-optimization-2', icon: Sparkles, nested: true, pageKey: 'settingsChild' },
+  { name: 'hashtagAnalysis', href: '/settings/hashtag-analysis', icon: Hash, nested: true, pageKey: 'settingsChild' },
+  { name: 'hashtagBulk', href: '/settings/hashtag-bulk', icon: Hash, nested: true, pageKey: 'settingsChild' },
+  { name: 'keywordAnalysisMenu', href: '/settings/keyword-analysis', icon: TrendingUp, nested: true, pageKey: 'settingsChild' },
+  { name: 'flagCheck', href: '/settings/flag-check', icon: ShieldQuestion, nested: true, pageKey: 'settingsChild' },
 ]
 
 export default function Layout() {
@@ -84,7 +93,7 @@ export default function Layout() {
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-          {navigation.map((item) => {
+          {navigation.filter((item) => canAccessCrmPage(user, item.pageKey)).map((item) => {
             const isActive = location.pathname === item.href
             const paddingClass = item.nested ? 'pl-8 pr-4 py-2.5' : 'px-4 py-3'
             const iconSize = item.nested ? 'h-4 w-4' : 'h-5 w-5'

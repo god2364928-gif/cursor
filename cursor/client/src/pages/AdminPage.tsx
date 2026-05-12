@@ -27,6 +27,7 @@ interface User {
   role: string
   created_at: string
   last_login_at?: string | null
+  employment_status?: string | null
 }
 
 interface UsageRow {
@@ -110,8 +111,9 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user' })
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user', employmentStatus: '입사중' })
   const [savingUser, setSavingUser] = useState(false)
+  const [userStatusFilter, setUserStatusFilter] = useState<string>('입사중')
 
   // ─── 담당자 일괄변경 상태 ─────────────────────────────────
   const [managerChangeData, setManagerChangeData] = useState({ oldManager: '', newManager: '' })
@@ -232,13 +234,19 @@ export default function AdminPage() {
   // ─── 회원관리 핸들러 ──────────────────────────────────────
   const startEdit = (u: User) => {
     setEditingId(u.id)
-    setFormData({ name: u.name, email: u.email, password: '', role: u.role })
+    setFormData({
+      name: u.name,
+      email: u.email,
+      password: '',
+      role: u.role,
+      employmentStatus: u.employment_status || '입사중',
+    })
     setShowAddForm(false)
   }
 
   const cancelEdit = () => {
     setEditingId(null)
-    setFormData({ name: '', email: '', password: '', role: 'user' })
+    setFormData({ name: '', email: '', password: '', role: 'user', employmentStatus: '입사중' })
   }
 
   const handleUserSubmit = async (e: React.FormEvent) => {
@@ -649,9 +657,20 @@ export default function AdminPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>회원관리</CardTitle>
-                  <Button onClick={() => { setShowAddForm(!showAddForm); cancelEdit() }} disabled={editingId !== null}>
-                    회원 추가
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={userStatusFilter}
+                      onChange={(e) => setUserStatusFilter(e.target.value)}
+                      className="border rounded-md px-3 py-2 text-sm bg-white"
+                    >
+                      <option value="입사중">입사중</option>
+                      <option value="입사전">입사전</option>
+                      <option value="퇴사">퇴사</option>
+                    </select>
+                    <Button onClick={() => { setShowAddForm(!showAddForm); cancelEdit() }} disabled={editingId !== null}>
+                      회원 추가
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -704,7 +723,20 @@ export default function AdminPage() {
                         <option value="user">user</option>
                         <option value="manager">manager</option>
                         <option value="marketer">marketer</option>
+                        <option value="office_assistant">office_assistant</option>
                         <option value="admin">admin</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label>입사현황</Label>
+                      <select
+                        value={formData.employmentStatus}
+                        onChange={(e) => setFormData({ ...formData, employmentStatus: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md"
+                      >
+                        <option value="입사중">입사중</option>
+                        <option value="입사전">입사전</option>
+                        <option value="퇴사">퇴사</option>
                       </select>
                     </div>
                     <div className="flex gap-2">
@@ -729,47 +761,69 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이름</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이메일</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">역할</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">입사현황</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">마지막 로그인</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">작업</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {users.map((u) => (
-                        <tr key={u.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium">{u.name}</td>
-                          <td className="px-4 py-3">{u.email}</td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {u.role}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-500">
-                            {formatDateTime(u.last_login_at) || '-'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => startEdit(u)}
-                                disabled={editingId !== null && editingId !== u.id}
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(u.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {users
+                        .filter((u) => {
+                          const status = u.employment_status || '입사중'
+                          if (userStatusFilter === '입사중') {
+                            return status === '입사중' || !u.employment_status
+                          }
+                          return status === userStatusFilter
+                        })
+                        .map((u) => {
+                          const status = u.employment_status || '입사중'
+                          const statusClass = status === '입사중'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : status === '입사전'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-600'
+                          return (
+                            <tr key={u.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium">{u.name}</td>
+                              <td className="px-4 py-3">{u.email}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {u.role}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-1 rounded text-xs font-semibold ${statusClass}`}>
+                                  {status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-500">
+                                {formatDateTime(u.last_login_at) || '-'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => startEdit(u)}
+                                    disabled={editingId !== null && editingId !== u.id}
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDelete(u.id)}
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
                     </tbody>
                   </table>
                 </div>

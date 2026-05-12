@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useAdminAuthStore } from './store/adminAuthStore'
 import { hasAccess } from './lib/appAccess'
+import { canAccessCrmPage, crmPageKeyFromPath } from './lib/pageAccess'
 import Layout from './components/Layout'
 import ErpLayout from './components/ErpLayout'
 import LoginPage from './pages/LoginPage'
@@ -45,8 +46,13 @@ function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function CrmGuard({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user)
+  const location = useLocation()
   if (!hasAccess(user, 'crm')) {
     return <Navigate to="/erp" replace />
+  }
+  const pageKey = crmPageKeyFromPath(location.pathname)
+  if (pageKey && !canAccessCrmPage(user, pageKey)) {
+    return <Navigate to="/sales-tracking" replace />
   }
   return <>{children}</>
 }

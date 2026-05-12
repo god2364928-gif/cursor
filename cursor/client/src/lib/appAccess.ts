@@ -21,7 +21,11 @@ export function defaultLandingPath(user: User | null | undefined): string {
   if (!user) return '/login'
   const access = parseAppAccess(user)
   // 우선순위: CRM (마케팅이 주력) → ERP → admin
-  if (access.includes('crm')) return '/'
+  if (access.includes('crm')) {
+    // office_assistant 는 대시보드 접근 불가 → 첫 허용 메뉴로
+    if (user.role === 'office_assistant') return '/sales-tracking'
+    return '/'
+  }
   if (access.includes('erp')) return '/erp'
   if (access.includes('admin')) return '/admin'
   return '/login'
