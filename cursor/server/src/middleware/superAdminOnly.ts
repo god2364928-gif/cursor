@@ -22,7 +22,7 @@ export const superAdminOnly = (
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any
 
-    if (decoded.role !== 'super_admin') {
+    if (decoded.role !== 'admin' && decoded.role !== 'super_admin') {
       return res.status(403).json({ message: '어드민 전용 페이지입니다.' })
     }
 
