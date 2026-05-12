@@ -73,6 +73,7 @@ export default function LeaveGrantsPage() {
   const [loadingRequests, setLoadingRequests] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingGrant, setEditingGrant] = useState<Grant | null>(null)
+  const [editingRequest, setEditingRequest] = useState<UserRequest | null>(null)
 
   const fetchSummary = useCallback(async () => {
     setLoadingSummary(true)
@@ -314,6 +315,7 @@ export default function LeaveGrantsPage() {
                         <th className="px-4 py-2.5 text-right font-medium text-xs">{t('col_days')}</th>
                         <th className="px-4 py-2.5 text-left font-medium text-xs">{t('col_status')}</th>
                         <th className="px-4 py-2.5 text-left font-medium text-xs">{t('col_reason')}</th>
+                        <th className="px-4 py-2.5 text-right font-medium text-xs">{t('col_actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -343,6 +345,15 @@ export default function LeaveGrantsPage() {
                               </div>
                             )}
                             {!r.reason && !r.rejected_reason && '-'}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => setEditingRequest(r)}
+                              className="text-gray-400 hover:text-blue-600"
+                              title={t('grants_modal_edit_title')}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -374,6 +385,17 @@ export default function LeaveGrantsPage() {
           onSaved={async () => {
             setEditingGrant(null)
             if (selectedUserId) await fetchGrants(selectedUserId)
+            await fetchSummary()
+          }}
+        />
+      )}
+      {editingRequest && (
+        <EditRequestForm
+          request={editingRequest}
+          onClose={() => setEditingRequest(null)}
+          onSaved={async () => {
+            setEditingRequest(null)
+            if (selectedUserId) await fetchRequests(selectedUserId)
             await fetchSummary()
           }}
         />
@@ -644,6 +666,96 @@ function EditGrantForm({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none"
+            />
+          </div>
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+              {error}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
+              {t('modal_cancel')}
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? t('grants_modal_saving') : t('grants_modal_save')}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function EditRequestForm({
+  request,
+  onClose,
+  onSaved,
+}: {
+  request: UserRequest
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const { t } = useLeaveLabels()
+  const [leaveType, setLeaveType] = useState<LeaveType>(request.leave_type)
+  const [reason, setReason] = useState(request.reason || '')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setError('')
+    try {
+      await api.patch(`/admin/vacation/requests/${request.id}`, {
+        leaveType,
+        reason: reason.trim() === '' ? null : reason,
+      })
+      onSaved()
+    } catch (err: any) {
+      setError(err?.response?.data?.error || t('err_save_failed'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const periodLabel =
+    request.start_date === request.end_date
+      ? formatYmd(request.start_date)
+      : `${formatYmd(request.start_date)} ~ ${formatYmd(request.end_date)}`
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50 rounded-t-xl">
+          <h2 className="text-lg font-semibold">{t('grants_modal_edit_title')} ({periodLabel})</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('col_type')}</label>
+            <select
+              value={leaveType}
+              onChange={(e) => setLeaveType(e.target.value as LeaveType)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+            >
+              <option value="full">{t('leave_type_full')}</option>
+              <option value="half_am">{t('leave_type_half_am')}</option>
+              <option value="half_pm">{t('leave_type_half_pm')}</option>
+              <option value="unpaid">{t('leave_type_unpaid')}</option>
+              <option value="health_check">{t('leave_type_health_check')}</option>
+              <option value="condolence">{t('leave_type_condolence')}</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('col_reason')}</label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none"
             />
           </div>

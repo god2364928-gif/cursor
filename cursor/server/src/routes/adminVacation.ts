@@ -4,7 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { adminOnly } from '../middleware/adminOnly'
 import fs from 'fs'
 import path from 'path'
-import { expiryDate, calcServiceYearsAtGrant, calcBalance, calcMandatoryStatus, type GrantType, type LeaveType } from '../lib/vacation'
+import { expiryDate, calcServiceYearsAtGrant, calcBalance, calcMandatoryStatus, calcConsumedDays, type GrantType, type LeaveType } from '../lib/vacation'
 import { sendVacationNotification } from '../utils/slackClient'
 import { getUserIdSqlType, buildVacationSchemaSql } from '../migrations/autoMigrate'
 
@@ -364,6 +364,58 @@ router.get('/user-requests/:userId', async (req: AuthRequest, res: Response) => 
   } catch (error: any) {
     console.error('admin user-requests error:', error.message)
     res.status(500).json({ error: '신청 이력 조회 실패' })
+  }
+})
+
+/** 신청 수정 (어드민) — 종류/사유 변경, 종류 변경 시 consumed_days 재계산 */
+router.patch('/requests/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const { leaveType, reason } = req.body as {
+      leaveType?: LeaveType
+      reason?: string | null
+    }
+
+    const VALID: LeaveType[] = ['full', 'half_am', 'half_pm', 'unpaid', 'health_check', 'condolence']
+    if (leaveType !== undefined && !VALID.includes(leaveType)) {
+      return res.status(400).json({ error: '無効な休暇種類です' })
+    }
+
+    const cur = await pool.query(
+      `SELECT id, start_date, end_date, leave_type FROM vacation_requests WHERE id = $1`,
+      [id]
+    )
+    if (cur.rows.length === 0) {
+      return res.status(404).json({ error: '申請が見つかりません' })
+    }
+    const row = cur.rows[0]
+
+    let consumed: number | null = null
+    if (leaveType !== undefined && leaveType !== row.leave_type) {
+      const start = new Date(row.start_date)
+      const end = new Date(row.end_date)
+      consumed = calcConsumedDays(leaveType, start, end)
+    }
+
+    const result = await pool.query(
+      `UPDATE vacation_requests
+       SET leave_type = COALESCE($1, leave_type),
+           consumed_days = COALESCE($2, consumed_days),
+           reason = CASE WHEN $3::boolean THEN $4 ELSE reason END
+       WHERE id = $5
+       RETURNING *`,
+      [
+        leaveType ?? null,
+        consumed,
+        reason !== undefined,
+        reason ?? null,
+        id,
+      ]
+    )
+    res.json(result.rows[0])
+  } catch (error: any) {
+    console.error('admin request update error:', error.message)
+    res.status(500).json({ error: '修正失敗' })
   }
 })
 
