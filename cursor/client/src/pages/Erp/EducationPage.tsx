@@ -12,6 +12,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useI18nStore } from '../../i18n'
+import { readCache, writeCache } from '../../lib/erpCache'
 import { Button } from '../../components/ui/button'
 import {
   fetchStats,
@@ -77,14 +78,21 @@ function fileKindForCourseType(courseType: EducationRequest['course_type']): Edu
   return 'progress'
 }
 
+interface EducationCache {
+  stats: EducationStats | null
+  items: EducationRequest[]
+}
+
 export default function EducationPage() {
   const { t } = useI18nStore()
 
   const year = new Date().getFullYear()
-  const [stats, setStats] = useState<EducationStats | null>(null)
-  const [items, setItems] = useState<EducationRequest[]>([])
   const [statusFilter, setStatusFilter] = useState<'' | EducationStatus>('')
-  const [loading, setLoading] = useState(true)
+  const cacheKey = `${year}:${statusFilter || 'all'}`
+  const initial = readCache<EducationCache>('education', cacheKey)
+  const [stats, setStats] = useState<EducationStats | null>(initial?.stats ?? null)
+  const [items, setItems] = useState<EducationRequest[]>(initial?.items ?? [])
+  const [loading, setLoading] = useState(!initial)
   const [error, setError] = useState('')
   const [showGuide, setShowGuide] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -92,6 +100,13 @@ export default function EducationPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
 
   const loadAll = useCallback(async () => {
+    const key = `${year}:${statusFilter || 'all'}`
+    const c = readCache<EducationCache>('education', key)
+    if (c) {
+      setStats(c.stats)
+      setItems(c.items)
+      setLoading(false)
+    }
     try {
       setError('')
       const [st, hist] = await Promise.all([
@@ -100,6 +115,7 @@ export default function EducationPage() {
       ])
       setStats(st)
       setItems(hist.items)
+      writeCache<EducationCache>('education', key, { stats: st, items: hist.items })
     } catch (e: any) {
       setError(e?.message || 'Failed to load')
     } finally {

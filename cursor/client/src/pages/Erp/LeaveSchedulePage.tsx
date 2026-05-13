@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import api from '../../lib/api'
+import { readCache, writeCache } from '../../lib/erpCache'
 import { ChevronLeft, ChevronRight, CalendarDays, List as ListIcon } from 'lucide-react'
 import { useLeaveLabels, statusColor, formatYmd, ymdLocal, parseYmdLocal, type LeaveType, type RequestStatus } from './leaveLabels'
 
@@ -23,12 +24,14 @@ interface Holiday {
 
 type ViewMode = 'calendar' | 'list'
 
+interface ScheduleCache {
+  items: ScheduleItem[]
+  holidays: Holiday[]
+}
+
 export default function LeaveSchedulePage() {
   const { t, leaveTypeLabel, statusLabel } = useLeaveLabels()
   const [view, setView] = useState<ViewMode>('calendar')
-  const [items, setItems] = useState<ScheduleItem[]>([])
-  const [holidays, setHolidays] = useState<Holiday[]>([])
-  const [loading, setLoading] = useState(false)
   const [departmentFilter, setDepartmentFilter] = useState<string>('all')
   const [cursor, setCursor] = useState(() => {
     const d = new Date()
@@ -51,8 +54,22 @@ export default function LeaveSchedulePage() {
     return d
   }, [monthStart])
 
+  const cacheKey = useMemo(() => ymdLocal(monthStart), [monthStart])
+  const initial = readCache<ScheduleCache>('leaveSchedule', cacheKey)
+  const [items, setItems] = useState<ScheduleItem[]>(initial?.items ?? [])
+  const [holidays, setHolidays] = useState<Holiday[]>(initial?.holidays ?? [])
+  const [loading, setLoading] = useState(false)
+
   const fetchData = useCallback(async () => {
-    setLoading(true)
+    const key = ymdLocal(monthStart)
+    const c = readCache<ScheduleCache>('leaveSchedule', key)
+    if (c) {
+      setItems(c.items)
+      setHolidays(c.holidays)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     try {
       const startStr = ymdLocal(monthStart)
       const endStr = ymdLocal(monthEnd)
@@ -62,6 +79,7 @@ export default function LeaveSchedulePage() {
       ])
       setItems(s.data)
       setHolidays(h.data)
+      writeCache<ScheduleCache>('leaveSchedule', key, { items: s.data, holidays: h.data })
     } catch (e) {
       console.error('schedule fetch error:', e)
     } finally {

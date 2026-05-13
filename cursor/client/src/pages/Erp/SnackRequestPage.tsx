@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useI18nStore } from '../../i18n'
+import { readCache, writeCache } from '../../lib/erpCache'
 import { Button } from '../../components/ui/button'
 import {
   Cookie,
@@ -56,19 +57,29 @@ function formatYmd(s?: string | null): string {
 
 // ===== Page =====
 
+interface SnackCache {
+  thisWeek: ThisWeekResponse | null
+  myHistory: MyHistoryResponse | null
+  stats: StatsResponse | null
+  fixedList: SnackFixedItem[]
+}
+
 export default function SnackRequestPage() {
   const user = useAuthStore((s) => s.user)
   const { t } = useI18nStore()
   const isAdmin = user?.role === 'admin' || user?.role === 'office_assistant'
   const currentUserId = user?.id ? String(user.id) : ''
 
-  const [thisWeek, setThisWeek] = useState<ThisWeekResponse | null>(null)
-  const [myHistory, setMyHistory] = useState<MyHistoryResponse | null>(null)
-  const [stats, setStats] = useState<StatsResponse | null>(null)
-  const [fixedList, setFixedList] = useState<SnackFixedItem[]>([])
   const [view, setView] = useState<'thisWeek' | 'myHistory'>('thisWeek')
   const [viewWeekStart, setViewWeekStart] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+
+  const cacheKey = viewWeekStart ?? 'current'
+  const initial = readCache<SnackCache>('snack', cacheKey)
+  const [thisWeek, setThisWeek] = useState<ThisWeekResponse | null>(initial?.thisWeek ?? null)
+  const [myHistory, setMyHistory] = useState<MyHistoryResponse | null>(initial?.myHistory ?? null)
+  const [stats, setStats] = useState<StatsResponse | null>(initial?.stats ?? null)
+  const [fixedList, setFixedList] = useState<SnackFixedItem[]>(initial?.fixedList ?? [])
 
   // 보고 있는 주 또는 view 가 바뀌면 선택 해제
   useEffect(() => {
@@ -76,10 +87,19 @@ export default function SnackRequestPage() {
   }, [viewWeekStart, view])
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [showFixedModal, setShowFixedModal] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initial)
   const [error, setError] = useState('')
 
   const loadAll = useCallback(async () => {
+    const key = viewWeekStart ?? 'current'
+    const c = readCache<SnackCache>('snack', key)
+    if (c) {
+      setThisWeek(c.thisWeek)
+      setMyHistory(c.myHistory)
+      setStats(c.stats)
+      setFixedList(c.fixedList)
+      setLoading(false)
+    }
     try {
       setError('')
       const [tw, st, fx, mh] = await Promise.all([
@@ -92,6 +112,12 @@ export default function SnackRequestPage() {
       setStats(st)
       setFixedList(fx.items)
       setMyHistory(mh)
+      writeCache<SnackCache>('snack', key, {
+        thisWeek: tw,
+        myHistory: mh,
+        stats: st,
+        fixedList: fx.items,
+      })
     } catch (e: any) {
       setError(e?.message || 'Failed to load')
     } finally {

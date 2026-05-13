@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useI18nStore } from '../../i18n'
+import { readCache, writeCache } from '../../lib/erpCache'
 import { Button } from '../../components/ui/button'
 import {
   Stethoscope,
@@ -73,22 +74,38 @@ function StatusBadge({ status, isJa }: { status: HealthCheckupStatus; isJa: bool
   )
 }
 
+interface HealthCheckupCache {
+  me: MeResponse | null
+  history: HealthCheckupItem[]
+  adminItems: HealthCheckupItem[]
+}
+
 export default function HealthCheckupPage() {
   const user = useAuthStore((s) => s.user)
   const { language } = useI18nStore()
   const isJa = language === 'ja'
   const isAdmin = user?.role === 'admin' || user?.role === 'office_assistant'
 
-  const [me, setMe] = useState<MeResponse | null>(null)
-  const [history, setHistory] = useState<HealthCheckupItem[]>([])
-  const [adminItems, setAdminItems] = useState<HealthCheckupItem[]>([])
+  const [adminTab, setAdminTab] = useState<HealthCheckupStatus | 'all'>('submitted')
+  const cacheKey = isAdmin ? `admin:${adminTab}` : 'me'
+  const initial = readCache<HealthCheckupCache>('healthCheckup', cacheKey)
+  const [me, setMe] = useState<MeResponse | null>(initial?.me ?? null)
+  const [history, setHistory] = useState<HealthCheckupItem[]>(initial?.history ?? [])
+  const [adminItems, setAdminItems] = useState<HealthCheckupItem[]>(initial?.adminItems ?? [])
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<HealthCheckupItem | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initial)
   const [error, setError] = useState('')
-  const [adminTab, setAdminTab] = useState<HealthCheckupStatus | 'all'>('submitted')
 
   const loadAll = useCallback(async () => {
+    const key = isAdmin ? `admin:${adminTab}` : 'me'
+    const c = readCache<HealthCheckupCache>('healthCheckup', key)
+    if (c) {
+      setMe(c.me)
+      setHistory(c.history)
+      setAdminItems(c.adminItems)
+      setLoading(false)
+    }
     try {
       setError('')
       const tasks: Promise<any>[] = [fetchMe(), fetchMyHistory()]
@@ -102,9 +119,17 @@ export default function HealthCheckupPage() {
         )
       }
       const results = await Promise.all(tasks)
-      setMe(results[0])
-      setHistory(results[1].items || [])
-      if (isAdmin) setAdminItems(results[2].items || [])
+      const nextMe = results[0]
+      const nextHistory = results[1].items || []
+      const nextAdmin = isAdmin ? results[2].items || [] : []
+      setMe(nextMe)
+      setHistory(nextHistory)
+      if (isAdmin) setAdminItems(nextAdmin)
+      writeCache<HealthCheckupCache>('healthCheckup', key, {
+        me: nextMe,
+        history: nextHistory,
+        adminItems: nextAdmin,
+      })
     } catch (e: any) {
       setError(e?.message || (isJa ? '読込に失敗しました' : '로딩 실패'))
     } finally {

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import api from '../../lib/api'
+import { readCache, writeCache } from '../../lib/erpCache'
 import { Button } from '../../components/ui/button'
 import { Plus } from 'lucide-react'
 import {
@@ -57,16 +58,22 @@ interface LeaveRequest {
   created_at: string
 }
 
+interface LeaveCache {
+  balance: BalanceRes | null
+  grants: Grant[]
+  requests: LeaveRequest[]
+}
+
 export default function LeavePage() {
   const { t, leaveTypeLabel, grantTypeLabel, statusLabel } = useLeaveLabels()
-  const [balance, setBalance] = useState<BalanceRes | null>(null)
-  const [grants, setGrants] = useState<Grant[]>([])
-  const [requests, setRequests] = useState<LeaveRequest[]>([])
-  const [loading, setLoading] = useState(true)
+  const cached = readCache<LeaveCache>('leave')
+  const [balance, setBalance] = useState<BalanceRes | null>(cached?.balance ?? null)
+  const [grants, setGrants] = useState<Grant[]>(cached?.grants ?? [])
+  const [requests, setRequests] = useState<LeaveRequest[]>(cached?.requests ?? [])
+  const [loading, setLoading] = useState(!cached)
   const [modalOpen, setModalOpen] = useState(false)
 
   const fetchAll = useCallback(async () => {
-    setLoading(true)
     try {
       const [b, g, r] = await Promise.all([
         api.get('/vacation/balance'),
@@ -76,6 +83,11 @@ export default function LeavePage() {
       setBalance(b.data)
       setGrants(g.data)
       setRequests(r.data)
+      writeCache<LeaveCache>('leave', '_', {
+        balance: b.data,
+        grants: g.data,
+        requests: r.data,
+      })
     } catch (e) {
       console.error('vacation fetch error:', e)
     } finally {
