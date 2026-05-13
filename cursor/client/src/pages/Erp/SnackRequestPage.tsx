@@ -20,6 +20,7 @@ import {
   patchFixed,
   deleteFixed,
   adminMarkOrdered,
+  adminMarkOrderedSelected,
   type ThisWeekResponse,
   type MyHistoryResponse,
   type StatsResponse,
@@ -67,6 +68,12 @@ export default function SnackRequestPage() {
   const [fixedList, setFixedList] = useState<SnackFixedItem[]>([])
   const [view, setView] = useState<'thisWeek' | 'myHistory'>('thisWeek')
   const [viewWeekStart, setViewWeekStart] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+
+  // 보고 있는 주 또는 view 가 바뀌면 선택 해제
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [viewWeekStart, view])
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [showFixedModal, setShowFixedModal] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -180,6 +187,48 @@ export default function SnackRequestPage() {
     } catch (e: any) {
       alert(e?.message || 'Error')
     }
+  }
+
+  async function handleMarkSelectedOrdered() {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    const confirmMsg = interpolate(t('snack_admin_mark_selected_confirm'), {
+      n: ids.length,
+    })
+    if (!confirm(confirmMsg)) return
+    try {
+      const res = await adminMarkOrderedSelected(ids)
+      alert(`${res.ordered_count} / ${res.requested_count}件 → 발주완료`)
+      setSelectedIds(new Set())
+      await loadAll()
+    } catch (e: any) {
+      alert(e?.message || 'Error')
+    }
+  }
+
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll(items: SnackRequestItem[]) {
+    const pendingIds = items.filter((it) => it.status === 'pending').map((it) => it.id)
+    setSelectedIds((prev) => {
+      const allSelected = pendingIds.every((id) => prev.has(id))
+      if (allSelected) {
+        const next = new Set(prev)
+        for (const id of pendingIds) next.delete(id)
+        return next
+      } else {
+        const next = new Set(prev)
+        for (const id of pendingIds) next.add(id)
+        return next
+      }
+    })
   }
 
   // ===== 선택된 리스트 =====
@@ -473,6 +522,18 @@ export default function SnackRequestPage() {
           </Button>
           {isAdmin && (
             <>
+              {selectedIds.size > 0 && view === 'thisWeek' && (
+                <Button
+                  size="sm"
+                  onClick={handleMarkSelectedOrdered}
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {interpolate(t('snack_admin_mark_selected'), {
+                    n: selectedIds.size,
+                  })}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -529,6 +590,21 @@ export default function SnackRequestPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  {isAdmin && view === 'thisWeek' && (
+                    <Th>
+                      <input
+                        type="checkbox"
+                        checked={
+                          currentItems.filter((it) => it.status === 'pending').length > 0 &&
+                          currentItems
+                            .filter((it) => it.status === 'pending')
+                            .every((it) => selectedIds.has(it.id))
+                        }
+                        onChange={() => toggleSelectAll(currentItems)}
+                        className="h-4 w-4"
+                      />
+                    </Th>
+                  )}
                   <Th>申請者</Th>
                   <Th>Amazon</Th>
                   <Th>商品名</Th>
@@ -546,6 +622,20 @@ export default function SnackRequestPage() {
                       (currentUserId && String(it.user_id) === currentUserId))
                   return (
                     <tr key={it.id} className="hover:bg-gray-50">
+                      {isAdmin && view === 'thisWeek' && (
+                        <Td>
+                          {it.status === 'pending' ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(it.id)}
+                              onChange={() => toggleSelect(it.id)}
+                              className="h-4 w-4"
+                            />
+                          ) : (
+                            <span className="text-xs text-gray-300">-</span>
+                          )}
+                        </Td>
+                      )}
                       <Td>
                         <div className="text-sm">{it.user_name}</div>
                         {it.department && (

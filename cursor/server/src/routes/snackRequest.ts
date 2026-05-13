@@ -543,6 +543,49 @@ router.post('/admin/mark-ordered', async (req: AuthRequest, res: Response) => {
   }
 })
 
+/** 10-b. 선택한 신청만 발주 완료 마킹 (발주 담당자) */
+router.post('/admin/mark-ordered-selected', async (req: AuthRequest, res: Response) => {
+  try {
+    if (!isOrderManager(req)) {
+      return res.status(403).json({ error: '発注担当者のみ実行可能です' })
+    }
+
+    const { ids } = (req.body || {}) as { ids?: unknown }
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids 配列が必要です' })
+    }
+    const numericIds = ids
+      .map((v) => Number(v))
+      .filter((n) => Number.isInteger(n) && n > 0)
+    if (numericIds.length === 0) {
+      return res.status(400).json({ error: '有効な ID がありません' })
+    }
+
+    // pending 인 것만 ordered 로 변경. 다른 상태는 그대로 유지.
+    const result = await pool.query(
+      `UPDATE snack_requests
+       SET status = 'ordered', ordered_at = NOW()
+       WHERE id = ANY($1::int[]) AND status = 'pending'
+       RETURNING id, ordered_at`,
+      [numericIds]
+    )
+
+    const orderedAt =
+      result.rows[0]?.ordered_at instanceof Date
+        ? result.rows[0].ordered_at.toISOString()
+        : result.rows[0]?.ordered_at || new Date().toISOString()
+
+    res.json({
+      ordered_count: result.rowCount || 0,
+      ordered_at: orderedAt,
+      requested_count: numericIds.length,
+    })
+  } catch (error: any) {
+    console.error('snack/admin/mark-ordered-selected error:', error.message)
+    res.status(500).json({ error: '選択発注完了処理失敗' })
+  }
+})
+
 /** 11. 고정 구매 자동 신청 잡 수동 실행 (발주 담당자) */
 router.post('/admin/run-fixed-job', async (req: AuthRequest, res: Response) => {
   try {

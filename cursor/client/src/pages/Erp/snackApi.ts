@@ -212,6 +212,19 @@ export function adminMarkOrdered(
   )
 }
 
+/** 10-b. (admin) 선택한 신청만 발주 완료 처리 */
+export function adminMarkOrderedSelected(
+  ids: number[]
+): Promise<{ ordered_count: number; ordered_at: string; requested_count: number }> {
+  return apiFetch<{ ordered_count: number; ordered_at: string; requested_count: number }>(
+    '/admin/mark-ordered-selected',
+    {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }
+  )
+}
+
 /** 11. (admin) 정기 신청 → 이번 주 신청 자동 생성 잡 수동 실행 */
 export function adminRunFixedJob(): Promise<{
   inserted: number
