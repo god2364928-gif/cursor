@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
 import { hasAccess } from '../lib/appAccess'
+import { prefetchAllErp } from '../lib/erpPrefetch'
 import {
   User as UserIcon,
   Network,
@@ -72,13 +73,18 @@ export default function ErpLayout() {
     document.documentElement.lang = language
   }, [language])
 
-  if (!hasAccess(user, 'erp')) {
-    return <Navigate to="/" replace />
-  }
-
   const role: Role = user?.role
   const isAdmin = role === 'admin'
   const isReviewer = role === 'admin' || role === 'office_assistant'
+
+  // ERP 진입 시 모든 탭 데이터를 백그라운드 prefetch → 탭 클릭 시 깜빡임 제거
+  useEffect(() => {
+    if (user) prefetchAllErp(isReviewer)
+  }, [user, isReviewer])
+
+  if (!hasAccess(user, 'erp')) {
+    return <Navigate to="/" replace />
+  }
   const visibleGroups = navigation
     .map((g) => ({
       ...g,
