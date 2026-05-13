@@ -345,7 +345,7 @@ export default function HealthCheckupPage() {
           </li>
           <li>
             <span className="font-semibold">{isJa ? '提出物' : '제출물'}</span> ─{' '}
-            {isJa ? '健康診断結果書 (PDF)' : '건강진단 결과서 (PDF)'}
+            {isJa ? '診断書 (PDF)' : '진단서 (PDF)'}
           </li>
           <li>
             <span className="font-semibold">{isJa ? '提出先' : '제출처'}</span> ─{' '}

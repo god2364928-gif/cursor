@@ -45,12 +45,14 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
   const [note, setNote] = useState<string>(initial?.note || '')
   const [savedId, setSavedId] = useState<number | null>(initial?.id ?? null)
   const [files, setFiles] = useState<HealthCheckupFile[]>(initial?.files || [])
+  const [pendingFile, setPendingFile] = useState<File | null>(null) // 저장 전에 선택한 파일
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     setFiles(initial?.files || [])
     setSavedId(initial?.id ?? null)
+    setPendingFile(null)
   }, [initial?.id])
 
   const amountNum = Number(amount || 0)
@@ -86,6 +88,13 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
         : await createReport(payload)
       setSavedId(saved.id)
       setFiles(saved.files || [])
+
+      // 저장 전에 선택해 둔 파일이 있으면 자동으로 업로드
+      if (pendingFile) {
+        const uploaded = await uploadFile(saved.id, 'result', pendingFile)
+        setFiles([uploaded])
+        setPendingFile(null)
+      }
       onSaved()
     } catch (e: any) {
       setError(e?.message || (isJa ? '保存に失敗しました' : '저장 실패'))
@@ -94,13 +103,14 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
     }
   }
 
-  const handleUpload = async (file: File | null) => {
+  // 파일 선택 시 — 저장 전이면 보관, 저장됐으면 즉시 업로드
+  const handleFileSelected = async (file: File | null) => {
     if (!file) return
+    setError('')
     if (!savedId) {
-      setError(isJa ? '先に「保存」してください' : '먼저 "저장"을 눌러주세요')
+      setPendingFile(file)
       return
     }
-    setError('')
     setBusy(true)
     try {
       const uploaded = await uploadFile(savedId, 'result', file)
@@ -231,19 +241,16 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
           {/* 첨부: 진단서만 */}
           <div className="border-t border-gray-200 pt-4">
             <div className="text-sm font-semibold text-gray-800 mb-2">
-              {isJa ? '健康診断結果書' : '건강진단 결과서'}
-              {!savedId && (
-                <span className="ml-2 text-xs text-gray-500 font-normal">
-                  {isJa ? '(保存後にアップロード可能)' : '(저장 후 업로드 가능)'}
-                </span>
-              )}
+              {isJa ? '診断書' : '진단서'}
             </div>
             <FileRow
-              label={isJa ? '結果書 (PDF / 画像)' : '결과서 (PDF / 이미지)'}
+              label={isJa ? '診断書 (PDF / 画像)' : '진단서 (PDF / 이미지)'}
               file={resultFile}
-              disabled={!savedId || busy}
-              onUpload={handleUpload}
+              pending={pendingFile}
+              disabled={busy}
+              onUpload={handleFileSelected}
               onDelete={handleDeleteFile}
+              onClearPending={() => setPendingFile(null)}
               isJa={isJa}
             />
           </div>
@@ -269,12 +276,15 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
 function FileRow(props: {
   label: string
   file?: HealthCheckupFile
+  pending?: File | null
   disabled: boolean
   onUpload: (f: File) => void
   onDelete: (id: number) => void
+  onClearPending?: () => void
   isJa: boolean
 }) {
-  const { label, file, disabled, onUpload, onDelete, isJa } = props
+  const { label, file, pending, disabled, onUpload, onDelete, onClearPending, isJa } = props
+  const hasAttachment = !!file || !!pending
   return (
     <div className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 bg-white">
       <div className="flex items-center gap-2 min-w-0">
@@ -291,6 +301,13 @@ function FileRow(props: {
             >
               {file.file_name}
             </a>
+          ) : pending ? (
+            <div className="text-sm text-amber-700 truncate max-w-xs" title={pending.name}>
+              {pending.name}
+              <span className="ml-2 text-xs text-amber-600">
+                {isJa ? '(保存時にアップロード)' : '(저장 시 업로드됨)'}
+              </span>
+            </div>
           ) : (
             <div className="text-sm text-gray-400">—</div>
           )}
@@ -305,7 +322,7 @@ function FileRow(props: {
           }`}
         >
           <Upload className="h-3.5 w-3.5" />
-          {file
+          {hasAttachment
             ? isJa ? '差替え' : '교체'
             : isJa ? 'アップロード' : '업로드'}
           <input
@@ -326,6 +343,16 @@ function FileRow(props: {
             onClick={() => onDelete(file.id)}
             className="text-xs text-red-600 hover:bg-red-50 p-1 rounded"
             title={isJa ? '削除' : '삭제'}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {pending && !file && !disabled && onClearPending && (
+          <button
+            type="button"
+            onClick={onClearPending}
+            className="text-xs text-red-600 hover:bg-red-50 p-1 rounded"
+            title={isJa ? '取消' : '취소'}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
