@@ -3,7 +3,7 @@
 -- ============================================================
 CREATE TABLE IF NOT EXISTS snack_fixed (
   id            SERIAL PRIMARY KEY,
-  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   product_url   TEXT NOT NULL,
   product_name  TEXT NOT NULL,
   unit_price    INTEGER NOT NULL CHECK (unit_price >= 0),
@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_snack_fixed_active ON snack_fixed(active) WHERE a
 -- ============================================================
 CREATE TABLE IF NOT EXISTS snack_requests (
   id            SERIAL PRIMARY KEY,
-  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   product_url   TEXT NOT NULL,
   product_name  TEXT NOT NULL,
   unit_price    INTEGER NOT NULL CHECK (unit_price >= 0),

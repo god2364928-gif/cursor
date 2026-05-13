@@ -14,9 +14,9 @@ const router = Router()
 // 모든 간식 신청 라우트는 ERP 접근 권한 필요
 router.use(authMiddleware, requireAppAccess('erp'))
 
-/** 권한 체크 헬퍼 */
-function isOwnerOrAdmin(req: AuthRequest, ownerUserId: number): boolean {
-  return Number(req.user!.id) === ownerUserId || req.user!.role === 'admin'
+/** 권한 체크 헬퍼 (users.id 는 UUID 문자열) */
+function isOwnerOrAdmin(req: AuthRequest, ownerUserId: string): boolean {
+  return req.user!.id === ownerUserId || req.user!.role === 'admin'
 }
 
 /** 신청 row + JOIN 결과 공통 SELECT 절 */
@@ -70,7 +70,7 @@ router.get('/this-week', async (req: AuthRequest, res: Response) => {
 /** 2. 내 신청 이력 (월 기준) */
 router.get('/my-history', async (req: AuthRequest, res: Response) => {
   try {
-    const userId = Number(req.user!.id)
+    const userId = req.user!.id
     const monthQuery = (req.query.month as string | undefined) || ''
 
     let year: number
@@ -127,7 +127,7 @@ router.get('/my-history', async (req: AuthRequest, res: Response) => {
 /** 3. 통계 — 이번 달 내 누적 + 전사 누적 + 1인 평균 */
 router.get('/stats', async (req: AuthRequest, res: Response) => {
   try {
-    const userId = Number(req.user!.id)
+    const userId = req.user!.id
     const now = new Date()
     const year = now.getFullYear()
     const month = now.getMonth() + 1
@@ -190,7 +190,7 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
 /** 4. 신청 등록 */
 router.post('/requests', async (req: AuthRequest, res: Response) => {
   try {
-    const userId = Number(req.user!.id)
+    const userId = req.user!.id
     const { product_url, product_name, unit_price, quantity, note } = req.body as {
       product_url?: string
       product_name?: string
@@ -265,7 +265,7 @@ router.delete('/requests/:id', async (req: AuthRequest, res: Response) => {
 
     const row = existing.rows[0]
     const isAdmin = req.user!.role === 'admin'
-    const isOwner = Number(req.user!.id) === Number(row.user_id)
+    const isOwner = req.user!.id === row.user_id
 
     if (!isOwner && !isAdmin) {
       return res.status(403).json({ error: '権限がありません' })
@@ -327,7 +327,7 @@ router.get('/fixed', async (req: AuthRequest, res: Response) => {
 /** 7. 고정 구매 등록 */
 router.post('/fixed', async (req: AuthRequest, res: Response) => {
   try {
-    const userId = Number(req.user!.id)
+    const userId = req.user!.id
     const { product_url, product_name, unit_price, quantity, note, start_date, end_date } =
       req.body as {
         product_url?: string
@@ -419,7 +419,7 @@ router.patch('/fixed/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: '固定購入が見つかりません' })
     }
 
-    if (!isOwnerOrAdmin(req, Number(existing.rows[0].user_id))) {
+    if (!isOwnerOrAdmin(req, existing.rows[0].user_id)) {
       return res.status(403).json({ error: '権限がありません' })
     }
 
@@ -457,7 +457,7 @@ router.delete('/fixed/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: '固定購入が見つかりません' })
     }
 
-    if (!isOwnerOrAdmin(req, Number(existing.rows[0].user_id))) {
+    if (!isOwnerOrAdmin(req, existing.rows[0].user_id)) {
       return res.status(403).json({ error: '権限がありません' })
     }
 

@@ -567,21 +567,44 @@ export async function autoMigrateSalesTracking(): Promise<void> {
   }
 }
 
-/** snack_requests, snack_fixed 테이블 생성 (멱등) */
+/** snack_requests, snack_fixed 테이블 생성 (멱등 + 잘못된 스키마 자동 정리)
+ *  users.id 가 UUID 이므로 user_id 컬럼도 UUID 여야 함.
+ *  과거 배포에서 INTEGER 로 부분 생성됐다면 DROP 후 재생성.
+ */
 export async function autoMigrateSnackRequest(): Promise<void> {
   try {
-    const tableCheck = await pool.query(`
-      SELECT EXISTS (SELECT FROM information_schema.tables
-        WHERE table_schema='public' AND table_name='snack_requests') AS exists
+    const colCheck = await pool.query(`
+      SELECT data_type FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='snack_requests' AND column_name='user_id'
     `)
-    if (tableCheck.rows[0]?.exists) {
-      console.log('[SnackRequest] tables already exist, skip')
+    const existingType = colCheck.rows[0]?.data_type as string | undefined
+
+    if (existingType === 'uuid') {
+      console.log('[SnackRequest] tables already exist with correct UUID schema, skip')
       return
     }
+
+    if (existingType && existingType !== 'uuid') {
+      console.warn(`[SnackRequest] dropping tables with incorrect user_id type: ${existingType}`)
+      await pool.query('DROP TABLE IF EXISTS snack_requests CASCADE')
+      await pool.query('DROP TABLE IF EXISTS snack_fixed CASCADE')
+    } else {
+      // snack_requests 가 없어도 snack_fixed 만 부분 생성됐을 가능성
+      const fixedCheck = await pool.query(`
+        SELECT data_type FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='snack_fixed' AND column_name='user_id'
+      `)
+      const fixedType = fixedCheck.rows[0]?.data_type as string | undefined
+      if (fixedType && fixedType !== 'uuid') {
+        console.warn(`[SnackRequest] dropping snack_fixed with incorrect user_id type: ${fixedType}`)
+        await pool.query('DROP TABLE IF EXISTS snack_fixed CASCADE')
+      }
+    }
+
     const sqlPath = path.join(__dirname, '../../migrations/add_snack_request.sql')
     const sql = fs.readFileSync(sqlPath, 'utf-8')
     await pool.query(sql)
-    console.log('✅ [SnackRequest] migration applied')
+    console.log('✅ [SnackRequest] migration applied (user_id UUID)')
   } catch (error: any) {
     console.error('[SnackRequest] migration failed:', error.message)
   }
