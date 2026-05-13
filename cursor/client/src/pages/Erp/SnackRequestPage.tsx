@@ -66,6 +66,7 @@ export default function SnackRequestPage() {
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [fixedList, setFixedList] = useState<SnackFixedItem[]>([])
   const [view, setView] = useState<'thisWeek' | 'myHistory'>('thisWeek')
+  const [viewWeekStart, setViewWeekStart] = useState<string | null>(null)
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [showFixedModal, setShowFixedModal] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -75,7 +76,7 @@ export default function SnackRequestPage() {
     try {
       setError('')
       const [tw, st, fx, mh] = await Promise.all([
-        fetchThisWeek(),
+        fetchThisWeek(viewWeekStart ?? undefined),
         fetchStats(),
         fetchFixedList(),
         fetchMyHistory(),
@@ -89,15 +90,27 @@ export default function SnackRequestPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [viewWeekStart])
 
   useEffect(() => {
     loadAll()
   }, [loadAll])
 
-  // 마감 표시
+  // 'YYYY-MM-DD' 월요일을 N주 만큼 이동 (UTC 자정 기반, 타임존 무관)
+  function shiftWeek(weekStart: string, weeks: number): string {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(weekStart)
+    if (!m) return weekStart
+    const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    const d = new Date(ms + weeks * 7 * 24 * 60 * 60 * 1000)
+    const y = d.getUTCFullYear()
+    const mo = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(d.getUTCDate()).padStart(2, '0')
+    return `${y}-${mo}-${day}`
+  }
+
+  // 마감 표시 (현재 주 조회 시에만 의미)
   function deadlineLabel(): string {
-    if (!thisWeek) return ''
+    if (!thisWeek || thisWeek.days_until_deadline === null) return ''
     const d = thisWeek.days_until_deadline
     if (d < 0) return t('snack_deadline_passed')
     if (d === 0) return t('snack_deadline_today')
@@ -105,7 +118,7 @@ export default function SnackRequestPage() {
   }
 
   function deadlineTone(): string {
-    if (!thisWeek) return 'text-gray-500'
+    if (!thisWeek || thisWeek.days_until_deadline === null) return 'text-gray-500'
     const d = thisWeek.days_until_deadline
     if (d < 0) return 'text-gray-400'
     if (d === 0) return 'text-red-600 font-semibold'
@@ -154,10 +167,15 @@ export default function SnackRequestPage() {
   }
 
   async function handleMarkOrdered() {
-    if (!confirm(t('snack_admin_mark_ordered') + '?')) return
+    const targetWeek = thisWeek?.order_target_week
+    const confirmMsg = targetWeek
+      ? interpolate(t('snack_admin_mark_ordered_confirm'), { date: targetWeek })
+      : t('snack_admin_mark_ordered') + '?'
+    if (!confirm(confirmMsg)) return
     try {
-      const res = await adminMarkOrdered()
-      alert(`${res.ordered_count}件`)
+      // 항상 발주 대상 주 (서버 기본값 = calcOrderTargetWeek) 처리
+      const res = await adminMarkOrdered(targetWeek)
+      alert(`${res.ordered_count}件 → 발주완료`)
       await loadAll()
     } catch (e: any) {
       alert(e?.message || 'Error')
@@ -377,7 +395,7 @@ export default function SnackRequestPage() {
 
       {/* ===== Action Bar ===== */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <SegButton
             active={view === 'thisWeek'}
             onClick={() => setView('thisWeek')}
@@ -391,9 +409,56 @@ export default function SnackRequestPage() {
             {t('snack_my_history_view')}
           </SegButton>
           {view === 'thisWeek' && (
-            <span className={`ml-3 text-xs ${deadlineTone()}`}>
-              {deadlineLabel()}
-            </span>
+            <>
+              {/* 주차 네비게이션 */}
+              <div className="ml-2 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setViewWeekStart(
+                      shiftWeek(thisWeek?.week_start ?? '', -1)
+                    )
+                  }
+                  className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                  title={t('snack_view_prev_week')}
+                  disabled={!thisWeek?.week_start}
+                >
+                  ←
+                </button>
+                <span className="text-xs text-gray-700 px-2 min-w-[100px] text-center">
+                  {thisWeek?.is_current
+                    ? t('snack_view_current')
+                    : thisWeek?.week_start ?? ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setViewWeekStart(
+                      shiftWeek(thisWeek?.week_start ?? '', 1)
+                    )
+                  }
+                  className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                  title={t('snack_view_next_week')}
+                  disabled={!thisWeek?.week_start || thisWeek?.is_current}
+                >
+                  →
+                </button>
+                {!thisWeek?.is_current && (
+                  <button
+                    type="button"
+                    onClick={() => setViewWeekStart(null)}
+                    className="ml-1 px-2 py-1 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-50"
+                  >
+                    {t('snack_view_today')}
+                  </button>
+                )}
+              </div>
+              {thisWeek?.is_current && (
+                <span className={`ml-3 text-xs ${deadlineTone()}`}>
+                  {deadlineLabel()}
+                </span>
+              )}
+            </>
           )}
         </div>
 
@@ -413,9 +478,18 @@ export default function SnackRequestPage() {
                 size="sm"
                 onClick={handleMarkOrdered}
                 className="gap-2"
+                title={
+                  thisWeek?.order_target_week
+                    ? interpolate(t('snack_admin_mark_ordered_tip'), {
+                        date: thisWeek.order_target_week,
+                      })
+                    : ''
+                }
               >
                 <CheckCircle2 className="h-4 w-4" />
-                {t('snack_admin_mark_ordered')}
+                {interpolate(t('snack_admin_mark_ordered'), {
+                  date: thisWeek?.order_target_week ?? '',
+                })}
               </Button>
             </>
           )}

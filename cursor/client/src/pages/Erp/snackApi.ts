@@ -39,8 +39,10 @@ export interface SnackFixedItem {
 
 export interface ThisWeekResponse {
   week_start: string
-  deadline: string // ISO UTC
-  days_until_deadline: number
+  is_current: boolean
+  order_target_week: string  // 발주 대상 주(=지난 주) 라벨용
+  deadline: string | null    // 과거 주 조회 시 null
+  days_until_deadline: number | null
   total_amount: number
   total_count: number
   items: SnackRequestItem[]
@@ -127,8 +129,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 // ===== Public API =====
 
 /** 1. 이번 주 전사 신청 + 합계 + D-day */
-export function fetchThisWeek(): Promise<ThisWeekResponse> {
-  return apiFetch<ThisWeekResponse>('/this-week')
+export function fetchThisWeek(weekStart?: string): Promise<ThisWeekResponse> {
+  const q = weekStart ? `?week_start=${encodeURIComponent(weekStart)}` : ''
+  return apiFetch<ThisWeekResponse>(`/this-week${q}`)
 }
 
 /** 2. 내 신청 이력 (월 기준, 미지정 시 이번 달) */

@@ -4,6 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireAppAccess } from '../middleware/requireAppAccess'
 import {
   calcWeekStart,
+  calcOrderTargetWeek,
   normalizeToMonday,
   daysUntilDeadline,
   deadlineISO,
@@ -32,13 +33,22 @@ const REQUEST_SELECT = `
   sr.status, sr.fixed_id, sr.created_at
 `
 
-/** 1. 이번 주 전사 신청 + 합계 + D-day */
+/** 1. 특정 주 전사 신청 + 합계 + D-day
+ *  ?week_start=YYYY-MM-DD 지정 시 그 주 조회 (과거 발주 내역 조회용).
+ *  생략 시 현재 신청 모집 중인 주(calcWeekStart) 반환.
+ */
 router.get('/this-week', async (req: AuthRequest, res: Response) => {
   try {
     const now = new Date()
-    const weekStart = calcWeekStart(now)
-    const deadline = deadlineISO(now)
-    const daysLeft = daysUntilDeadline(now)
+    const queryWeek = (req.query.week_start as string | undefined)?.trim()
+    const isCurrent = !queryWeek
+    const weekStart = isCurrent
+      ? calcWeekStart(now)
+      : normalizeToMonday(queryWeek!)
+
+    // D-day / deadline 은 현재 모집 중인 주를 보여줄 때만 의미. 과거 주 조회 시 0/null.
+    const deadline = isCurrent ? deadlineISO(now) : null
+    const daysLeft = isCurrent ? daysUntilDeadline(now) : null
 
     const result = await pool.query(
       `SELECT ${REQUEST_SELECT}
@@ -60,6 +70,8 @@ router.get('/this-week', async (req: AuthRequest, res: Response) => {
 
     res.json({
       week_start: weekStart,
+      is_current: isCurrent,
+      order_target_week: calcOrderTargetWeek(now), // UI 에서 "발주 대상 주" 라벨용
       deadline,
       days_until_deadline: daysLeft,
       total_amount: totalAmount,
@@ -501,11 +513,12 @@ router.post('/admin/mark-ordered', async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: '発注担当者のみ実行可能です' })
     }
 
+    // 기본: 발주 대상 주 (지난 주 = 이미 마감된 주). body 로 임의 주 지정 가능.
     const { week_start: bodyWeekStart } = (req.body || {}) as { week_start?: string }
     const weekStart =
       bodyWeekStart && /^\d{4}-\d{2}-\d{2}$/.test(bodyWeekStart)
         ? normalizeToMonday(bodyWeekStart)
-        : calcWeekStart(new Date())
+        : calcOrderTargetWeek(new Date())
 
     const result = await pool.query(
       `UPDATE snack_requests

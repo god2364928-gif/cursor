@@ -94,6 +94,30 @@ export function calcWeekStart(now?: Date): string {
   return fmtYMD(t.year, t.month, t.day)
 }
 
+/**
+ * 발주 대상 주의 월요일 (YYYY-MM-DD) — 매주 월요일에 발주하는 운영 흐름.
+ * = calcWeekStart(now) - 7일 (모든 시점에서 일관)
+ *
+ * - 월~금 (마감 전): 지난 주 월요일 (직전 마감된 주를 발주)
+ * - 토~일 (마감 후): 이번 주 월요일 (방금 마감된 주를 발주)
+ */
+export function calcOrderTargetWeek(now?: Date): string {
+  const current = calcWeekStart(now)
+  return shiftWeek(current, -1)
+}
+
+/** 'YYYY-MM-DD' 월요일을 N주 만큼 앞/뒤로 이동 (N 음수 가능) */
+export function shiftWeek(weekStart: string, weeks: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(weekStart)
+  if (!m) throw new Error(`Invalid weekStart: ${weekStart}`)
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+  const ms = jstMidnightUtcMs(y, mo, d) + weeks * 7 * DAY_MS
+  const t = toJstParts(new Date(ms))
+  return fmtYMD(t.year, t.month, t.day)
+}
+
 /** 임의 날짜('YYYY-MM-DD' 또는 Date)를 그 주의 월요일('YYYY-MM-DD')로 정규화 */
 export function normalizeToMonday(date: string | Date): string {
   let year: number, month: number, day: number
