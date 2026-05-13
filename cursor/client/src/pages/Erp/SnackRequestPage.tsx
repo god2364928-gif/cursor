@@ -60,7 +60,7 @@ function formatYmd(s?: string | null): string {
 export default function SnackRequestPage() {
   const user = useAuthStore((s) => s.user)
   const { t } = useI18nStore()
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'office_assistant'
   const currentUserId = user?.id ? String(user.id) : ''
 
   const [thisWeek, setThisWeek] = useState<ThisWeekResponse | null>(null)

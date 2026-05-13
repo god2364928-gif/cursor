@@ -14,9 +14,14 @@ const router = Router()
 // 모든 간식 신청 라우트는 ERP 접근 권한 필요
 router.use(authMiddleware, requireAppAccess('erp'))
 
-/** 권한 체크 헬퍼 (users.id 는 UUID 문자열) */
-function isOwnerOrAdmin(req: AuthRequest, ownerUserId: string): boolean {
-  return req.user!.id === ownerUserId || req.user!.role === 'admin'
+/** 발주 담당자 = admin 또는 office_assistant */
+function isOrderManager(req: AuthRequest): boolean {
+  return req.user!.role === 'admin' || req.user!.role === 'office_assistant'
+}
+
+/** 본인 또는 발주 담당자 */
+function isOwnerOrManager(req: AuthRequest, ownerUserId: string): boolean {
+  return req.user!.id === ownerUserId || isOrderManager(req)
 }
 
 /** 신청 row + JOIN 결과 공통 SELECT 절 */
@@ -264,14 +269,15 @@ router.delete('/requests/:id', async (req: AuthRequest, res: Response) => {
     }
 
     const row = existing.rows[0]
-    const isAdmin = req.user!.role === 'admin'
+    const isManager = isOrderManager(req)
     const isOwner = req.user!.id === row.user_id
 
-    if (!isOwner && !isAdmin) {
+    if (!isOwner && !isManager) {
       return res.status(403).json({ error: '権限がありません' })
     }
 
-    if (!isAdmin) {
+    // 발주 담당자가 아닌 본인이 취소하는 경우 — pending + 마감 전 제약
+    if (!isManager) {
       if (row.status !== 'pending') {
         return res.status(400).json({ error: '取消できない申請です (既に処理済み)' })
       }
@@ -419,7 +425,7 @@ router.patch('/fixed/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: '固定購入が見つかりません' })
     }
 
-    if (!isOwnerOrAdmin(req, existing.rows[0].user_id)) {
+    if (!isOwnerOrManager(req, existing.rows[0].user_id)) {
       return res.status(403).json({ error: '権限がありません' })
     }
 
@@ -457,7 +463,7 @@ router.delete('/fixed/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: '固定購入が見つかりません' })
     }
 
-    if (!isOwnerOrAdmin(req, existing.rows[0].user_id)) {
+    if (!isOwnerOrManager(req, existing.rows[0].user_id)) {
       return res.status(403).json({ error: '権限がありません' })
     }
 
@@ -470,11 +476,11 @@ router.delete('/fixed/:id', async (req: AuthRequest, res: Response) => {
   }
 })
 
-/** 10. 발주 완료 마킹 (admin) */
+/** 10. 발주 완료 마킹 (발주 담당자 = admin / office_assistant) */
 router.post('/admin/mark-ordered', async (req: AuthRequest, res: Response) => {
   try {
-    if (req.user!.role !== 'admin') {
-      return res.status(403).json({ error: '管理者のみ実行可能です' })
+    if (!isOrderManager(req)) {
+      return res.status(403).json({ error: '発注担当者のみ実行可能です' })
     }
 
     const { week_start: bodyWeekStart } = (req.body || {}) as { week_start?: string }
@@ -506,11 +512,11 @@ router.post('/admin/mark-ordered', async (req: AuthRequest, res: Response) => {
   }
 })
 
-/** 11. 고정 구매 자동 신청 잡 수동 실행 (admin, 디버그용) */
+/** 11. 고정 구매 자동 신청 잡 수동 실행 (발주 담당자) */
 router.post('/admin/run-fixed-job', async (req: AuthRequest, res: Response) => {
   try {
-    if (req.user!.role !== 'admin') {
-      return res.status(403).json({ error: '管理者のみ実行可能です' })
+    if (!isOrderManager(req)) {
+      return res.status(403).json({ error: '発注担当者のみ実行可能です' })
     }
 
     const weekStart = calcWeekStart(new Date())
