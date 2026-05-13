@@ -551,10 +551,7 @@ export default function SnackRequestPage() {
         <SnackRequestModal
           open={showRequestModal}
           onClose={() => setShowRequestModal(false)}
-          onSubmitted={() => {
-            setShowRequestModal(false)
-            loadAll()
-          }}
+          onSubmitted={loadAll}
           daysUntilDeadline={thisWeek?.days_until_deadline ?? 0}
           nextWeekStart={thisWeek?.week_start}
         />
@@ -563,10 +560,7 @@ export default function SnackRequestPage() {
         <SnackFixedModal
           open={showFixedModal}
           onClose={() => setShowFixedModal(false)}
-          onSubmitted={() => {
-            setShowFixedModal(false)
-            loadAll()
-          }}
+          onSubmitted={loadAll}
         />
       )}
     </div>
