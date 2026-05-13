@@ -609,3 +609,45 @@ export async function autoMigrateSnackRequest(): Promise<void> {
     console.error('[SnackRequest] migration failed:', error.message)
   }
 }
+
+/**
+ * 健康診断申請 (health_checkup_requests / health_checkup_files)
+ * 멱등 — 이미 테이블이 있으면 skip.
+ */
+export async function autoMigrateHealthCheckup(): Promise<void> {
+  try {
+    const check = await pool.query(`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema='public' AND table_name IN ('health_checkup_requests', 'health_checkup_files')
+    `)
+    if (check.rows.length === 2) {
+      console.log('[HealthCheckup] tables already exist, skip')
+      return
+    }
+    const sqlPath = path.join(__dirname, '../../migrations/add_health_checkup.sql')
+    const sql = fs.readFileSync(sqlPath, 'utf-8')
+    await pool.query(sql)
+    console.log('✅ [HealthCheckup] migration applied')
+  } catch (error: any) {
+    console.error('[HealthCheckup] migration failed:', error.message)
+  }
+}
+
+export async function autoMigrateEducationRequest(): Promise<void> {
+  try {
+    const check = await pool.query(`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema='public' AND table_name IN ('education_requests', 'education_files')
+    `)
+    if (check.rows.length === 2) {
+      console.log('[EducationRequest] tables already exist, skip')
+      return
+    }
+    const sqlPath = path.join(__dirname, '../../migrations/add_education_request.sql')
+    const sql = fs.readFileSync(sqlPath, 'utf-8')
+    await pool.query(sql)
+    console.log('✅ [EducationRequest] migration applied')
+  } catch (error: any) {
+    console.error('[EducationRequest] migration failed:', error.message)
+  }
+}

@@ -41,9 +41,11 @@ import flagCheckRoutes from './routes/flagCheck'
 import vacationRoutes from './routes/vacation'
 import adminVacationRoutes from './routes/adminVacation'
 import snackRequestRoutes from './routes/snackRequest'
+import healthCheckupRoutes from './routes/healthCheckup'
+import educationRequestRoutes from './routes/educationRequest'
 import { superAdminOnly } from './middleware/superAdminOnly'
 import { importRecentCalls } from './services/cpiImportService'
-import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest } from './migrations/autoMigrate'
+import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest, autoMigrateHealthCheckup, autoMigrateEducationRequest } from './migrations/autoMigrate'
 import { startVacationCron } from './services/vacationCron'
 import { startSnackFixedCron } from './services/snackFixedCron'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
@@ -161,6 +163,8 @@ app.use('/api/flag-check', flagCheckRoutes)
 app.use('/api/vacation', vacationRoutes)
 app.use('/api/admin/vacation', adminVacationRoutes)
 app.use('/api/snack', snackRequestRoutes)
+app.use('/api/health-checkup', healthCheckupRoutes)
+app.use('/api/education', educationRequestRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -263,6 +267,8 @@ async function startServer() {
   await autoMigrateDedupVacationData()    // 중복 정리 (이미 발생한 중복 제거 + 멱등)
   await autoMigrateCleanupNotionLabels()
   await autoMigrateSnackRequest()
+  await autoMigrateHealthCheckup()
+  await autoMigrateEducationRequest()
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`)

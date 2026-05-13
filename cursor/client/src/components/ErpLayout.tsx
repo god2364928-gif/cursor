@@ -12,11 +12,16 @@ import {
   CalendarDays,
   CalendarRange,
   Cookie,
+  GraduationCap,
+  Stethoscope,
+  HeartHandshake,
   LogOut,
   Languages,
 } from 'lucide-react'
 import { Button } from './ui/button'
 import AppSwitcher from './AppSwitcher'
+
+type Role = 'admin' | 'office_assistant' | string | undefined
 
 interface NavItem {
   labelKey: string
@@ -24,17 +29,37 @@ interface NavItem {
   icon: any
   nested?: boolean
   adminOnly?: boolean
+  reviewerOnly?: boolean // admin | office_assistant
 }
 
-const navigation: NavItem[] = [
-  { labelKey: 'erp_my_page', href: '/erp', icon: UserIcon },
-  { labelKey: 'erp_org_chart', href: '/erp/org', icon: Network },
-  { labelKey: 'erp_integrated_mgmt', href: '/erp/admin', icon: Inbox, adminOnly: true },
-  { labelKey: 'erp_approvals_menu', href: '/erp/admin/approvals', icon: CheckCircle2, nested: true, adminOnly: true },
-  { labelKey: 'erp_grants_mgmt', href: '/erp/admin/grants', icon: FilePlus, nested: true, adminOnly: true },
-  { labelKey: 'erp_leave_mgmt', href: '/erp/leave', icon: CalendarDays },
-  { labelKey: 'erp_leave_schedule', href: '/erp/leave-schedule', icon: CalendarRange, nested: true },
-  { labelKey: 'erp_snack_request', href: '/erp/snack-request', icon: Cookie },
+interface NavGroup {
+  groupLabelKey?: string
+  groupIcon?: any
+  items: NavItem[]
+}
+
+const navigation: NavGroup[] = [
+  {
+    items: [
+      { labelKey: 'erp_my_page', href: '/erp', icon: UserIcon },
+      { labelKey: 'erp_org_chart', href: '/erp/org', icon: Network },
+      { labelKey: 'erp_integrated_mgmt', href: '/erp/admin', icon: Inbox, adminOnly: true },
+      { labelKey: 'erp_approvals_menu', href: '/erp/admin/approvals', icon: CheckCircle2, nested: true, adminOnly: true },
+      { labelKey: 'erp_grants_mgmt', href: '/erp/admin/grants', icon: FilePlus, nested: true, adminOnly: true },
+      { labelKey: 'erp_leave_mgmt', href: '/erp/leave', icon: CalendarDays },
+      { labelKey: 'erp_leave_schedule', href: '/erp/leave-schedule', icon: CalendarRange, nested: true },
+    ],
+  },
+  {
+    groupLabelKey: 'erp_group_benefits',
+    groupIcon: HeartHandshake,
+    items: [
+      { labelKey: 'erp_health_checkup', href: '/erp/health-checkup', icon: Stethoscope, nested: true },
+      { labelKey: 'erp_education', href: '/erp/education', icon: GraduationCap, nested: true },
+      { labelKey: 'erp_education_admin', href: '/erp/admin/education', icon: CheckCircle2, nested: true, reviewerOnly: true },
+      { labelKey: 'erp_snack_request', href: '/erp/snack-request', icon: Cookie, nested: true },
+    ],
+  },
 ]
 
 export default function ErpLayout() {
@@ -51,8 +76,19 @@ export default function ErpLayout() {
     return <Navigate to="/" replace />
   }
 
-  const isAdmin = user?.role === 'admin'
-  const visibleNav = navigation.filter((n) => !n.adminOnly || isAdmin)
+  const role: Role = user?.role
+  const isAdmin = role === 'admin'
+  const isReviewer = role === 'admin' || role === 'office_assistant'
+  const visibleGroups = navigation
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((it) => {
+        if (it.adminOnly && !isAdmin) return false
+        if (it.reviewerOnly && !isReviewer) return false
+        return true
+      }),
+    }))
+    .filter((g) => g.items.length > 0)
 
   const toggleLanguage = () => setLanguage(language === 'ja' ? 'ko' : 'ja')
 
@@ -84,25 +120,35 @@ export default function ErpLayout() {
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-          {visibleNav.map((item) => {
-            const isActive = location.pathname === item.href
-            const paddingClass = item.nested ? 'pl-8 pr-4 py-2.5' : 'px-4 py-3'
-            const iconSize = item.nested ? 'h-4 w-4' : 'h-5 w-5'
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={`flex items-center ${paddingClass} text-sm font-medium rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <item.icon className={`mr-3 ${iconSize} ${item.nested ? 'text-blue-400' : ''}`} />
-                {t(item.labelKey)}
-              </Link>
-            )
-          })}
+          {visibleGroups.map((group, idx) => (
+            <div key={group.groupLabelKey || `g${idx}`} className={idx > 0 ? 'mt-4 pt-3 border-t border-gray-100' : ''}>
+              {group.groupLabelKey && (
+                <div className="flex items-center px-4 mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {group.groupIcon && <group.groupIcon className="mr-2 h-3.5 w-3.5 text-gray-400" />}
+                  {t(group.groupLabelKey)}
+                </div>
+              )}
+              {group.items.map((item) => {
+                const isActive = location.pathname === item.href
+                const paddingClass = item.nested ? 'pl-8 pr-4 py-2.5' : 'px-4 py-3'
+                const iconSize = item.nested ? 'h-4 w-4' : 'h-5 w-5'
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className={`flex items-center ${paddingClass} text-sm font-medium rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <item.icon className={`mr-3 ${iconSize} ${item.nested ? 'text-blue-400' : ''}`} />
+                    {t(item.labelKey)}
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* User section */}
