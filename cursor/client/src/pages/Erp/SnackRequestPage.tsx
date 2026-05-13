@@ -9,7 +9,6 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
-  RefreshCw,
   CheckCircle2,
 } from 'lucide-react'
 import {
@@ -21,7 +20,6 @@ import {
   patchFixed,
   deleteFixed,
   adminMarkOrdered,
-  adminRunFixedJob,
   type ThisWeekResponse,
   type MyHistoryResponse,
   type StatsResponse,
@@ -160,16 +158,6 @@ export default function SnackRequestPage() {
     try {
       const res = await adminMarkOrdered()
       alert(`${res.ordered_count}件`)
-      await loadAll()
-    } catch (e: any) {
-      alert(e?.message || 'Error')
-    }
-  }
-
-  async function handleRunCron() {
-    try {
-      const res = await adminRunFixedJob()
-      alert(`Inserted: ${res.inserted}`)
       await loadAll()
     } catch (e: any) {
       alert(e?.message || 'Error')
@@ -428,15 +416,6 @@ export default function SnackRequestPage() {
               >
                 <CheckCircle2 className="h-4 w-4" />
                 {t('snack_admin_mark_ordered')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRunCron}
-                className="gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                {t('snack_admin_run_cron')}
               </Button>
             </>
           )}
