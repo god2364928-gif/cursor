@@ -63,7 +63,7 @@ export default function SnackFixedModal({ open, onClose, onSubmitted }: Props) {
     'w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none'
   const labelCls = 'block text-sm font-medium text-gray-700 mb-1'
 
-  async function submit() {
+  async function submit(continueAfter: boolean) {
     if (!isValid || submitting) return
     setSubmitting(true)
     setError('')
@@ -78,7 +78,16 @@ export default function SnackFixedModal({ open, onClose, onSubmitted }: Props) {
         end_date: endDate,
       })
       onSubmitted()
-      onClose()
+      if (continueAfter) {
+        // 기간은 유지, 상품 정보만 리셋
+        setProductUrl('')
+        setProductName('')
+        setUnitPrice('')
+        setQuantity(1)
+        setNote('')
+      } else {
+        onClose()
+      }
     } catch (e: any) {
       setError(e?.message || 'Failed')
     } finally {
@@ -263,7 +272,15 @@ export default function SnackFixedModal({ open, onClose, onSubmitted }: Props) {
           </Button>
           <Button
             type="button"
-            onClick={submit}
+            variant="outline"
+            onClick={() => submit(true)}
+            disabled={!isValid || submitting}
+          >
+            + {t('snack_continue')}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => submit(false)}
             disabled={!isValid || submitting}
           >
             {t('snack_register_button')}
