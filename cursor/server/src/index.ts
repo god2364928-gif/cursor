@@ -40,10 +40,12 @@ import featureUsageRoutes from './routes/featureUsage'
 import flagCheckRoutes from './routes/flagCheck'
 import vacationRoutes from './routes/vacation'
 import adminVacationRoutes from './routes/adminVacation'
+import snackRequestRoutes from './routes/snackRequest'
 import { superAdminOnly } from './middleware/superAdminOnly'
 import { importRecentCalls } from './services/cpiImportService'
-import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData } from './migrations/autoMigrate'
+import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest } from './migrations/autoMigrate'
 import { startVacationCron } from './services/vacationCron'
+import { startSnackFixedCron } from './services/snackFixedCron'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
 import { autoMigrateExamOpenings } from './migrations/autoMigrateExamOpenings'
 import { checkDepositEmails, markAsRead } from './services/gmailService'
@@ -158,6 +160,7 @@ app.use('/api/admin/feature-usage', featureUsageRoutes)
 app.use('/api/flag-check', flagCheckRoutes)
 app.use('/api/vacation', vacationRoutes)
 app.use('/api/admin/vacation', adminVacationRoutes)
+app.use('/api/snack', snackRequestRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -259,7 +262,8 @@ async function startServer() {
   await autoMigrateNakamuraSakuraSplit()
   await autoMigrateDedupVacationData()    // 중복 정리 (이미 발생한 중복 제거 + 멱등)
   await autoMigrateCleanupNotionLabels()
-  
+  await autoMigrateSnackRequest()
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`)
   console.log(`CORS enabled for all origins`)
@@ -276,6 +280,9 @@ app.listen(PORT, '0.0.0.0', () => {
   } else {
     console.log('[Vacation] cron scheduler disabled (development)')
   }
+
+  // 간식 고정 구매 자동 신청 cron (매주 월요일 00:05 JST + startup 30초 후 1회)
+  startSnackFixedCron()
 
   // CPI 스케줄러 (외부 시스템 호출 + DB 작업)
   // - 개발서버에서는 기본 OFF (속도 흔들림/외부 호출 방지)

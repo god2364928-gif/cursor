@@ -11,6 +11,7 @@ import {
   FilePlus,
   CalendarDays,
   CalendarRange,
+  Cookie,
   LogOut,
   Languages,
 } from 'lucide-react'
@@ -33,6 +34,7 @@ const navigation: NavItem[] = [
   { labelKey: 'erp_grants_mgmt', href: '/erp/admin/grants', icon: FilePlus, nested: true, adminOnly: true },
   { labelKey: 'erp_leave_mgmt', href: '/erp/leave', icon: CalendarDays },
   { labelKey: 'erp_leave_schedule', href: '/erp/leave-schedule', icon: CalendarRange, nested: true },
+  { labelKey: 'erp_snack_request', href: '/erp/snack-request', icon: Cookie },
 ]
 
 export default function ErpLayout() {

@@ -566,3 +566,23 @@ export async function autoMigrateSalesTracking(): Promise<void> {
     console.error('Server will continue to start, but some features may not work')
   }
 }
+
+/** snack_requests, snack_fixed 테이블 생성 (멱등) */
+export async function autoMigrateSnackRequest(): Promise<void> {
+  try {
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (SELECT FROM information_schema.tables
+        WHERE table_schema='public' AND table_name='snack_requests') AS exists
+    `)
+    if (tableCheck.rows[0]?.exists) {
+      console.log('[SnackRequest] tables already exist, skip')
+      return
+    }
+    const sqlPath = path.join(__dirname, '../../migrations/add_snack_request.sql')
+    const sql = fs.readFileSync(sqlPath, 'utf-8')
+    await pool.query(sql)
+    console.log('✅ [SnackRequest] migration applied')
+  } catch (error: any) {
+    console.error('[SnackRequest] migration failed:', error.message)
+  }
+}

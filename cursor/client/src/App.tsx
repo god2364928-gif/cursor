@@ -33,6 +33,7 @@ import LeaveSchedulePage from './pages/Erp/LeaveSchedulePage'
 import AdminHomePage from './pages/Erp/admin/AdminHomePage'
 import LeaveApprovalsPage from './pages/Erp/admin/LeaveApprovalsPage'
 import LeaveGrantsPage from './pages/Erp/admin/LeaveGrantsPage'
+import SnackRequestPage from './pages/Erp/SnackRequestPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token)
@@ -93,6 +94,7 @@ function App() {
           <Route path="org" element={<OrgPage />} />
           <Route path="leave" element={<LeavePage />} />
           <Route path="leave-schedule" element={<LeaveSchedulePage />} />
+          <Route path="snack-request" element={<SnackRequestPage />} />
           <Route path="admin" element={<ErpAdminGuard><AdminHomePage /></ErpAdminGuard>} />
           <Route path="admin/approvals" element={<ErpAdminGuard><LeaveApprovalsPage /></ErpAdminGuard>} />
           <Route path="admin/grants" element={<ErpAdminGuard><LeaveGrantsPage /></ErpAdminGuard>} />
