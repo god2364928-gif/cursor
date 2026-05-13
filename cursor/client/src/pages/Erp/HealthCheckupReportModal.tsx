@@ -8,9 +8,8 @@ import {
   uploadFile,
   deleteFile,
   fileDownloadUrl,
-  BASIC_CHECK_ITEMS,
-  SKIPPABLE_CHECK_ITEMS,
   type HealthCheckupItem,
+  type HealthCheckupFile,
 } from './healthCheckupApi'
 
 const REIMBURSEMENT_CAP = 10000
@@ -44,31 +43,19 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
     initial?.amount_paid ? String(initial.amount_paid) : ''
   )
   const [note, setNote] = useState<string>(initial?.note || '')
-  const [basic, setBasic] = useState<Set<string>>(
-    new Set(initial?.checked_items?.basic || BASIC_CHECK_ITEMS.map((i) => i.key))
-  )
-  const [skipped, setSkipped] = useState<Set<string>>(
-    new Set(initial?.checked_items?.skipped || [])
-  )
   const [savedId, setSavedId] = useState<number | null>(initial?.id ?? null)
-  const [files, setFiles] = useState<HealthCheckupItem['files']>(initial?.files || [])
+  const [files, setFiles] = useState<HealthCheckupFile[]>(initial?.files || [])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     setFiles(initial?.files || [])
+    setSavedId(initial?.id ?? null)
   }, [initial?.id])
 
   const amountNum = Number(amount || 0)
   const reimburse = Math.min(Math.max(amountNum, 0), REIMBURSEMENT_CAP)
   const overAmount = Math.max(0, amountNum - REIMBURSEMENT_CAP)
-
-  const toggleSet = (s: Set<string>, key: string, setter: (s: Set<string>) => void) => {
-    const next = new Set(s)
-    if (next.has(key)) next.delete(key)
-    else next.add(key)
-    setter(next)
-  }
 
   const handleSave = async () => {
     setError('')
@@ -91,7 +78,6 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
         exam_date: examDate,
         hospital_name: hospital.trim(),
         hospital_address: hospitalAddr.trim() || undefined,
-        checked_items: { basic: Array.from(basic), skipped: Array.from(skipped) },
         amount_paid: amountNum,
         note: note.trim() || undefined,
       }
@@ -108,27 +94,21 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
     }
   }
 
-  const handleUpload = async (kind: 'receipt' | 'result', file: File | null) => {
-    if (!file || !savedId) return
+  const handleUpload = async (file: File | null) => {
+    if (!file) return
+    if (!savedId) {
+      setError(isJa ? '先に「保存」してください' : '먼저 "저장"을 눌러주세요')
+      return
+    }
     setError('')
     setBusy(true)
     try {
-      await uploadFile(savedId, kind, file)
-      // 새 파일 정보를 받아오기 위해 onSaved 호출 후 부모가 재로딩하도록 함
-      onSaved()
-      // 모달 내 표시도 즉시 갱신 — 응답에 file 정보만 들어오므로 임시 갱신
-      const optimistic = {
-        id: Date.now(),
-        kind,
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: file.type,
-        uploaded_at: new Date().toISOString(),
-      }
+      const uploaded = await uploadFile(savedId, 'result', file)
       setFiles((prev) => {
-        const list = (prev || []).filter((f) => f.kind !== kind)
-        return [...list, optimistic]
+        const list = prev.filter((f) => f.kind !== 'result')
+        return [...list, uploaded]
       })
+      onSaved()
     } catch (e: any) {
       setError(e?.message || (isJa ? 'アップロードに失敗しました' : '업로드 실패'))
     } finally {
@@ -141,7 +121,7 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
     setBusy(true)
     try {
       await deleteFile(fileId)
-      setFiles((prev) => (prev || []).filter((f) => f.id !== fileId))
+      setFiles((prev) => prev.filter((f) => f.id !== fileId))
       onSaved()
     } catch (e: any) {
       setError(e?.message || (isJa ? '削除に失敗しました' : '삭제 실패'))
@@ -150,12 +130,7 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
     }
   }
 
-  const receiptFile = files?.find((f) => f.kind === 'receipt')
-  const resultFile = files?.find((f) => f.kind === 'result')
-  const items = isJa ? BASIC_CHECK_ITEMS.map((i) => ({ key: i.key, label: i.ja }))
-    : BASIC_CHECK_ITEMS.map((i) => ({ key: i.key, label: i.ko }))
-  const skipItems = isJa ? SKIPPABLE_CHECK_ITEMS.map((i) => ({ key: i.key, label: i.ja }))
-    : SKIPPABLE_CHECK_ITEMS.map((i) => ({ key: i.key, label: i.ko }))
+  const resultFile = files.find((f) => f.kind === 'result')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -242,45 +217,6 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
           </div>
 
           <div>
-            <label className="block text-xs text-gray-600 mb-2">
-              {isJa ? '受診した検査項目' : '수검 항목'}
-            </label>
-            <div className="grid grid-cols-2 gap-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
-              {items.map((it) => (
-                <label key={it.key} className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={basic.has(it.key)}
-                    onChange={() => toggleSet(basic, it.key, setBasic)}
-                  />
-                  {it.label}
-                </label>
-              ))}
-            </div>
-            {skipItems.length > 0 && (
-              <details className="mt-2">
-                <summary className="text-xs text-gray-500 cursor-pointer">
-                  {isJa
-                    ? '医師の判断により省略可能な項目を選択'
-                    : '의사 판단으로 생략 가능한 항목 선택'}
-                </summary>
-                <div className="grid grid-cols-2 gap-2 mt-2 bg-amber-50 rounded-lg p-3 border border-amber-200">
-                  {skipItems.map((it) => (
-                    <label key={it.key} className="flex items-center gap-2 text-xs text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={skipped.has(it.key)}
-                        onChange={() => toggleSet(skipped, it.key, setSkipped)}
-                      />
-                      {it.label}
-                    </label>
-                  ))}
-                </div>
-              </details>
-            )}
-          </div>
-
-          <div>
             <label className="block text-xs text-gray-600 mb-1">
               {isJa ? '備考 (任意)' : '비고 (선택)'}
             </label>
@@ -292,34 +228,24 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
             />
           </div>
 
-          {/* 파일 업로드: 저장 이후에만 활성 */}
+          {/* 첨부: 진단서만 */}
           <div className="border-t border-gray-200 pt-4">
             <div className="text-sm font-semibold text-gray-800 mb-2">
-              {isJa ? '添付ファイル' : '첨부 파일'}
+              {isJa ? '健康診断結果書' : '건강진단 결과서'}
               {!savedId && (
                 <span className="ml-2 text-xs text-gray-500 font-normal">
                   {isJa ? '(保存後にアップロード可能)' : '(저장 후 업로드 가능)'}
                 </span>
               )}
             </div>
-            <div className="space-y-2">
-              <FileRow
-                kind="receipt"
-                label={isJa ? '領収書' : '영수증'}
-                file={receiptFile}
-                disabled={!savedId || busy}
-                onUpload={(f) => handleUpload('receipt', f)}
-                onDelete={handleDeleteFile}
-              />
-              <FileRow
-                kind="result"
-                label={isJa ? '健康診断結果' : '건강진단 결과서'}
-                file={resultFile}
-                disabled={!savedId || busy}
-                onUpload={(f) => handleUpload('result', f)}
-                onDelete={handleDeleteFile}
-              />
-            </div>
+            <FileRow
+              label={isJa ? '結果書 (PDF / 画像)' : '결과서 (PDF / 이미지)'}
+              file={resultFile}
+              disabled={!savedId || busy}
+              onUpload={handleUpload}
+              onDelete={handleDeleteFile}
+              isJa={isJa}
+            />
           </div>
         </div>
 
@@ -341,14 +267,14 @@ export default function HealthCheckupReportModal({ initial, onClose, onSaved }: 
 }
 
 function FileRow(props: {
-  kind: 'receipt' | 'result'
   label: string
-  file?: { id: number; file_name: string; file_size: number }
+  file?: HealthCheckupFile
   disabled: boolean
   onUpload: (f: File) => void
   onDelete: (id: number) => void
+  isJa: boolean
 }) {
-  const { label, file, disabled, onUpload, onDelete } = props
+  const { label, file, disabled, onUpload, onDelete, isJa } = props
   return (
     <div className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 bg-white">
       <div className="flex items-center gap-2 min-w-0">
@@ -372,14 +298,16 @@ function FileRow(props: {
       </div>
       <div className="flex items-center gap-1">
         <label
-          className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded border cursor-pointer ${
+          className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded border ${
             disabled
               ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-              : 'border-blue-300 text-blue-600 hover:bg-blue-50'
+              : 'border-blue-300 text-blue-600 hover:bg-blue-50 cursor-pointer'
           }`}
         >
           <Upload className="h-3.5 w-3.5" />
-          {file ? '差替' : 'アップロード'}
+          {file
+            ? isJa ? '差替え' : '교체'
+            : isJa ? 'アップロード' : '업로드'}
           <input
             type="file"
             className="hidden"
@@ -397,7 +325,7 @@ function FileRow(props: {
             type="button"
             onClick={() => onDelete(file.id)}
             className="text-xs text-red-600 hover:bg-red-50 p-1 rounded"
-            title="削除"
+            title={isJa ? '削除' : '삭제'}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>

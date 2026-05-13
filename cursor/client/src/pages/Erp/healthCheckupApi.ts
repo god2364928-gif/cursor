@@ -198,26 +198,3 @@ export function adminAction(
   })
 }
 
-// ===== Helpers =====
-
-export const BASIC_CHECK_ITEMS: { key: string; ja: string; ko: string }[] = [
-  { key: 'history', ja: '既往歴及び業務歴の調査', ko: '기왕력 및 업무력 조사' },
-  { key: 'symptoms', ja: '自覚症状及び他覚症状の有無の検査', ko: '자/타각 증상 유무' },
-  { key: 'physical', ja: '身長・体重・腹囲・視力・聴力の検査', ko: '신장·체중·복위·시력·청력' },
-  { key: 'xray', ja: '胸部エックス線検査及び喀痰検査', ko: '흉부 X선 및 객담' },
-  { key: 'bp', ja: '血圧の測定', ko: '혈압' },
-  { key: 'anemia', ja: '貧血検査', ko: '빈혈' },
-  { key: 'liver', ja: '肝機能検査', ko: '간기능' },
-  { key: 'lipid', ja: '血中脂質検査', ko: '혈중 지질' },
-  { key: 'sugar', ja: '血糖検査', ko: '혈당' },
-  { key: 'urine', ja: '尿検査', ko: '소변' },
-  { key: 'ecg', ja: '心電図検査', ko: '심전도' },
-]
-
-export const SKIPPABLE_CHECK_ITEMS: { key: string; ja: string; ko: string }[] = [
-  { key: 'skip_height', ja: '身長の検査', ko: '신장' },
-  { key: 'skip_waist', ja: '腹囲の検査', ko: '복위' },
-  { key: 'skip_xray', ja: '胸部エックス線検査', ko: '흉부 X선' },
-  { key: 'skip_sputum', ja: '喀痰検査', ko: '객담' },
-  { key: 'skip_labs', ja: '貧血・肝機能・血中脂質・血糖・心電図', ko: '빈혈·간기능·지질·혈당·심전도' },
-]

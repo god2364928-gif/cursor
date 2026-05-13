@@ -7,7 +7,7 @@ import {
   Plus,
   AlertTriangle,
   CheckCircle2,
-  Clock,
+  Hourglass,
   XCircle,
   Edit3,
   Trash2,
@@ -117,48 +117,90 @@ export default function HealthCheckupPage() {
   }, [loadAll])
 
   // ===== 자격 안내 카드 계산 =====
+  // 일본 규정: 입사 후 6개월 경과 → 1회차 수검 가능 / 마지막 검진 + 1년 → 다음 수검 가능
   const eligibility = (() => {
     if (!me) return null
     const now = new Date()
-    const year = now.getFullYear()
     const hire = me.hire_date ? new Date(me.hire_date) : null
-    const thisYearReport = history.find(
-      (h) => h.fiscal_year === year && h.status !== 'rejected'
-    )
 
-    if (hire && monthsBetween(hire, now) < 12) {
-      // 입사 1년 미만 — 입사일 + 1년 이내 첫 수검
-      const deadline = new Date(hire)
-      deadline.setFullYear(deadline.getFullYear() + 1)
+    // 가장 최근 수검 (반려 제외)
+    const latest = history
+      .filter((h) => h.status !== 'rejected')
+      .slice()
+      .sort((a, b) => b.exam_date.localeCompare(a.exam_date))[0]
+
+    // 1) 이미 수검한 적이 있는 경우 — 마지막 검진 + 1년 후 재수검 가능
+    if (latest) {
+      const lastExam = new Date(latest.exam_date)
+      const nextAvail = new Date(lastExam)
+      nextAvail.setFullYear(nextAvail.getFullYear() + 1)
+      const monthsSince = monthsBetween(lastExam, now)
+
+      if (now < nextAvail) {
+        return {
+          tone: 'idle' as const,
+          title: isJa
+            ? 'まだ健康診断の対象ではありません'
+            : '아직 건강검진 대상이 아닙니다',
+          sub: isJa
+            ? `最終受診: ${formatYmd(latest.exam_date)} ─ ${formatYmd(nextAvail.toISOString())} から再受診申請可能です。(現在 ${monthsSince}ヶ月経過)`
+            : `마지막 검진: ${formatYmd(latest.exam_date)} ─ ${formatYmd(nextAvail.toISOString())}부터 재검진 신청 가능합니다. (현재 ${monthsSince}개월 경과)`,
+          canReport: false,
+        }
+      }
       return {
-        tone: 'amber' as const,
+        tone: 'blue' as const,
         title: isJa
-          ? '入社1年以内に初回受診が必要です'
-          : '입사 1년 이내 1회차 수검이 필요합니다',
+          ? '次回の健康診断を申請してください'
+          : '다음 건강검진을 신청해주세요',
         sub: isJa
-          ? `期限: ${formatYmd(deadline.toISOString())}`
-          : `기한: ${formatYmd(deadline.toISOString())}`,
+          ? `最終受診: ${formatYmd(latest.exam_date)} (${monthsSince}ヶ月経過)`
+          : `마지막 검진: ${formatYmd(latest.exam_date)} (${monthsSince}개월 경과)`,
+        canReport: true,
       }
     }
-    if (thisYearReport) {
+
+    // 2) 첫 검진 — 입사일 + 6개월 후부터 가능
+    if (hire) {
+      const firstAvail = new Date(hire)
+      firstAvail.setMonth(firstAvail.getMonth() + 6)
+      const monthsSinceHire = monthsBetween(hire, now)
+
+      if (now < firstAvail) {
+        return {
+          tone: 'idle' as const,
+          title: isJa
+            ? 'まだ健康診断の対象ではありません'
+            : '아직 건강검진 대상이 아닙니다',
+          sub: isJa
+            ? `入社日: ${formatYmd(hire.toISOString())} ─ ${formatYmd(firstAvail.toISOString())} から初回受診申請可能です。(現在 ${monthsSinceHire}ヶ月経過)`
+            : `입사일: ${formatYmd(hire.toISOString())} ─ ${formatYmd(firstAvail.toISOString())}부터 1회차 검진 신청 가능합니다. (현재 ${monthsSinceHire}개월 경과)`,
+          canReport: false,
+        }
+      }
+
+      const firstDeadline = new Date(hire)
+      firstDeadline.setFullYear(firstDeadline.getFullYear() + 1)
       return {
-        tone: 'emerald' as const,
+        tone: 'blue' as const,
         title: isJa
-          ? `${year}年度の受診が完了しています`
-          : `${year}년도 수검이 완료되었습니다`,
+          ? '初回健康診断を申請してください'
+          : '1회차 건강검진을 신청해주세요',
         sub: isJa
-          ? `次回受診: ${year + 1}年中`
-          : `다음 수검: ${year + 1}년 중`,
+          ? `推奨: ${formatYmd(firstDeadline.toISOString())} までに受診`
+          : `권장: ${formatYmd(firstDeadline.toISOString())}까지 수검`,
+        canReport: true,
       }
     }
+
+    // 3) 입사일 정보 없음 — 일반 안내
     return {
       tone: 'blue' as const,
-      title: isJa
-        ? `${year}年度の受診をお願いします`
-        : `${year}년도 수검을 진행해주세요`,
+      title: isJa ? '健康診断を申請してください' : '건강검진을 신청해주세요',
       sub: isJa
-        ? '受診後、領収書と結果書を添付して報告してください'
-        : '수검 후 영수증·결과서를 첨부하여 보고해주세요',
+        ? '受診後、診断書を添付して報告してください'
+        : '수검 후 진단서를 첨부하여 보고해주세요',
+      canReport: true,
     }
   })()
 
@@ -209,11 +251,13 @@ export default function HealthCheckupPage() {
     amber: 'bg-amber-50 border-amber-200 text-amber-900',
     emerald: 'bg-emerald-50 border-emerald-200 text-emerald-900',
     blue: 'bg-blue-50 border-blue-200 text-blue-900',
+    idle: 'bg-amber-50/60 border-amber-200 text-stone-800',
   }
   const toneIcon = {
     amber: <AlertTriangle className="h-5 w-5 text-amber-600" />,
     emerald: <CheckCircle2 className="h-5 w-5 text-emerald-600" />,
-    blue: <Clock className="h-5 w-5 text-blue-600" />,
+    blue: <Stethoscope className="h-5 w-5 text-blue-600" />,
+    idle: <Hourglass className="h-5 w-5 text-stone-500" />,
   }
 
   return (
@@ -249,16 +293,18 @@ export default function HealthCheckupPage() {
             <div className="font-semibold">{eligibility.title}</div>
             <div className="text-sm mt-0.5">{eligibility.sub}</div>
           </div>
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditing(null)
-              setShowModal(true)
-            }}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            {isJa ? '報告する' : '보고하기'}
-          </Button>
+          {eligibility.canReport && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditing(null)
+                setShowModal(true)
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {isJa ? '報告する' : '보고하기'}
+            </Button>
+          )}
         </div>
       )}
 
@@ -274,7 +320,7 @@ export default function HealthCheckupPage() {
           </li>
           <li>
             <span className="font-semibold">{isJa ? '頻度' : '주기'}</span> ─{' '}
-            {isJa ? '1年以内ごとに1回 (初回は入社日から1年以内)' : '1년 이내마다 1회 (1회차는 입사 1년 이내)'}
+            {isJa ? '1年以内ごとに1回 (入社6か月経過後に受診可能)' : '1년 이내마다 1회 (입사 6개월 경과 후 수검 가능)'}
           </li>
           <li>
             <span className="font-semibold">{isJa ? '実施場所' : '실시 장소'}</span> ─{' '}
@@ -299,39 +345,13 @@ export default function HealthCheckupPage() {
           </li>
           <li>
             <span className="font-semibold">{isJa ? '提出物' : '제출물'}</span> ─{' '}
-            {isJa ? '領収書 + 健康診断結果 PDF' : '영수증 + 건강진단 결과 PDF'}
+            {isJa ? '健康診断結果書 (PDF)' : '건강진단 결과서 (PDF)'}
           </li>
           <li>
             <span className="font-semibold">{isJa ? '提出先' : '제출처'}</span> ─{' '}
             {isJa ? '経営支援部' : '경영지원부'}
           </li>
         </ol>
-
-        <details className="mt-4">
-          <summary className="text-sm text-gray-600 cursor-pointer font-medium">
-            {isJa ? '必須検査項目を見る' : '필수 검사 항목 보기'}
-          </summary>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-gray-700">
-            {[
-              { ja: '既往歴・業務歴', ko: '기왕력·업무력' },
-              { ja: '自/他覚症状', ko: '자/타각 증상' },
-              { ja: '身長・体重・腹囲・視力・聴力', ko: '신장·체중·복위·시력·청력' },
-              { ja: '胸部X線・喀痰', ko: '흉부X선·객담' },
-              { ja: '血圧', ko: '혈압' },
-              { ja: '貧血', ko: '빈혈' },
-              { ja: '肝機能', ko: '간기능' },
-              { ja: '血中脂質', ko: '혈중 지질' },
-              { ja: '血糖', ko: '혈당' },
-              { ja: '尿', ko: '소변' },
-              { ja: '心電図', ko: '심전도' },
-            ].map((it) => (
-              <div key={it.ja} className="flex items-start gap-1.5">
-                <span className="text-blue-500 mt-0.5">•</span>
-                <span>{isJa ? it.ja : it.ko}</span>
-              </div>
-            ))}
-          </div>
-        </details>
       </div>
 
       {/* 내 신청 이력 */}
@@ -510,7 +530,6 @@ function HistoryRow({
   onDelete: () => void
 }) {
   const canEdit = item.status === 'submitted'
-  const receiptOk = !!item.files?.find((f) => f.kind === 'receipt')
   const resultOk = !!item.files?.find((f) => f.kind === 'result')
   return (
     <div className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3 bg-white">
@@ -519,12 +538,9 @@ function HistoryRow({
         <div className="text-sm text-gray-600 w-28">{formatYmd(item.exam_date)}</div>
         <div className="text-sm text-gray-800 truncate max-w-xs">{item.hospital_name}</div>
         <StatusBadge status={item.status} isJa={isJa} />
-        <div className="text-xs text-gray-500 flex items-center gap-2">
-          <span className={receiptOk ? 'text-emerald-600' : 'text-amber-600'}>
-            {isJa ? '領収書' : '영수증'}: {receiptOk ? '✓' : '×'}
-          </span>
+        <div className="text-xs text-gray-500">
           <span className={resultOk ? 'text-emerald-600' : 'text-amber-600'}>
-            {isJa ? '結果' : '결과'}: {resultOk ? '✓' : '×'}
+            {isJa ? '診断書' : '진단서'}: {resultOk ? '✓' : '×'}
           </span>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { Router, Response } from 'express'
+import { Router, Response, NextFunction } from 'express'
 import multer from 'multer'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
@@ -10,23 +10,35 @@ router.use(authMiddleware, requireAppAccess('erp'))
 // 회사 부담 한도 (1만 엔)
 const REIMBURSEMENT_CAP = 10000
 
-// 파일 업로드: 영수증·결과서 (메모리 → Base64 → DB)
+// 파일 업로드: 진단서(PDF/이미지) 메모리 → Base64 → DB
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
   fileFilter: (_req, file, cb) => {
-    const allowed = [
-      'application/pdf',
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/heic',
-      'image/heif',
-    ]
-    if (allowed.includes(file.mimetype)) cb(null, true)
-    else cb(new Error('対応していないファイル形式です (PDF / JPG / PNG / HEIC のみ)'))
+    // PDF 또는 image/* 전부 허용 (HEIC/HEIF/WEBP 등 브라우저별 mime 다양성 대응)
+    const ok =
+      file.mimetype === 'application/pdf' ||
+      file.mimetype === 'application/octet-stream' ||
+      file.mimetype.startsWith('image/')
+    if (ok) cb(null, true)
+    else cb(new Error(`対応していないファイル形式です: ${file.mimetype}`))
   },
 })
+
+// multer 에러를 JSON 으로 변환 (silent 500 방지)
+function uploadSingle(field: string) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    upload.single(field)(req, res, (err: any) => {
+      if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'ファイルサイズが上限 (25MB) を超えています' })
+        }
+        return res.status(400).json({ error: err.message || 'アップロードに失敗しました' })
+      }
+      next()
+    })
+  }
+}
 
 function isReviewer(req: AuthRequest): boolean {
   return req.user!.role === 'admin' || req.user!.role === 'office_assistant'
@@ -336,10 +348,10 @@ router.delete('/requests/:id', async (req: AuthRequest, res: Response) => {
   }
 })
 
-/** 6. 파일 업로드 (영수증 / 결과서) */
+/** 6. 파일 업로드 (진단서 / 영수증 — 호환성) */
 router.post(
   '/requests/:id/files',
-  upload.single('file'),
+  uploadSingle('file'),
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params
