@@ -388,6 +388,24 @@ router.post('/fixed', async (req: AuthRequest, res: Response) => {
     )
 
     const newId = insert.rows[0].id
+
+    // 등록 시점이 기간 내라면 그 주(=현재 신청 대상 주) 신청에도 즉시 추가.
+    // ON CONFLICT 로 cron 과 중복 안 됨.
+    const currentWeekStart = calcWeekStart(new Date())
+    if (startMon <= currentWeekStart && currentWeekStart <= endMon) {
+      await pool.query(
+        `INSERT INTO snack_requests
+           (user_id, product_url, product_name, unit_price, quantity, note, week_start, fixed_id)
+         SELECT
+           f.user_id, f.product_url, f.product_name, f.unit_price, f.quantity, f.note,
+           $1::date, f.id
+         FROM snack_fixed f
+         WHERE f.id = $2
+         ON CONFLICT (fixed_id, week_start) DO NOTHING`,
+        [currentWeekStart, newId]
+      )
+    }
+
     const result = await pool.query(
       `SELECT
          f.id, f.user_id, u.name AS user_name, u.department,
