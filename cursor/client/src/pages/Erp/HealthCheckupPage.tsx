@@ -25,6 +25,7 @@ import {
   type MeResponse,
   type HealthCheckupItem,
   type HealthCheckupStatus,
+  type VacationHealthCheckRecord,
 } from './healthCheckupApi'
 import HealthCheckupReportModal from './HealthCheckupReportModal'
 
@@ -77,6 +78,7 @@ function StatusBadge({ status, isJa }: { status: HealthCheckupStatus; isJa: bool
 interface HealthCheckupCache {
   me: MeResponse | null
   history: HealthCheckupItem[]
+  vacationRecords: VacationHealthCheckRecord[]
   adminItems: HealthCheckupItem[]
 }
 
@@ -91,6 +93,7 @@ export default function HealthCheckupPage() {
   const initial = readCache<HealthCheckupCache>('healthCheckup', cacheKey)
   const [me, setMe] = useState<MeResponse | null>(initial?.me ?? null)
   const [history, setHistory] = useState<HealthCheckupItem[]>(initial?.history ?? [])
+  const [vacationRecords, setVacationRecords] = useState<VacationHealthCheckRecord[]>(initial?.vacationRecords ?? [])
   const [adminItems, setAdminItems] = useState<HealthCheckupItem[]>(initial?.adminItems ?? [])
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<HealthCheckupItem | null>(null)
@@ -103,6 +106,7 @@ export default function HealthCheckupPage() {
     if (c) {
       setMe(c.me)
       setHistory(c.history)
+      setVacationRecords(c.vacationRecords ?? [])
       setAdminItems(c.adminItems)
       setLoading(false)
     }
@@ -119,15 +123,18 @@ export default function HealthCheckupPage() {
         )
       }
       const results = await Promise.all(tasks)
-      const nextMe = results[0]
-      const nextHistory = results[1].items || []
+      const nextMe = results[0] as MeResponse
+      const nextHistory = (results[1].items || []) as HealthCheckupItem[]
+      const nextVacation = (results[1].vacation_records || []) as VacationHealthCheckRecord[]
       const nextAdmin = isAdmin ? results[2].items || [] : []
       setMe(nextMe)
       setHistory(nextHistory)
+      setVacationRecords(nextVacation)
       if (isAdmin) setAdminItems(nextAdmin)
       writeCache<HealthCheckupCache>('healthCheckup', key, {
         me: nextMe,
         history: nextHistory,
+        vacationRecords: nextVacation,
         adminItems: nextAdmin,
       })
     } catch (e: any) {
@@ -143,20 +150,23 @@ export default function HealthCheckupPage() {
 
   // ===== 자격 안내 카드 계산 =====
   // 일본 규정: 입사 후 6개월 경과 → 1회차 수검 가능 / 마지막 검진 + 1년 → 다음 수검 가능
+  // 휴가 시스템(과거 마이그레이션 데이터 포함)까지 합친 최근 검진일을 우선 사용.
   const eligibility = (() => {
     if (!me) return null
     const now = new Date()
     const hire = me.hire_date ? new Date(me.hire_date) : null
 
-    // 가장 최근 수검 (반려 제외)
-    const latest = history
-      .filter((h) => h.status !== 'rejected')
-      .slice()
-      .sort((a, b) => b.exam_date.localeCompare(a.exam_date))[0]
+    // 합쳐진 최근 검진일: me.latest_exam_date 우선, 없으면 health_checkup_requests history 에서.
+    const combinedLatestStr =
+      me.latest_exam_date ||
+      history
+        .filter((h) => h.status !== 'rejected')
+        .slice()
+        .sort((a, b) => b.exam_date.localeCompare(a.exam_date))[0]?.exam_date
 
     // 1) 이미 수검한 적이 있는 경우 — 마지막 검진 + 1년 후 재수검 가능
-    if (latest) {
-      const lastExam = new Date(latest.exam_date)
+    if (combinedLatestStr) {
+      const lastExam = new Date(combinedLatestStr)
       const nextAvail = new Date(lastExam)
       nextAvail.setFullYear(nextAvail.getFullYear() + 1)
       const monthsSince = monthsBetween(lastExam, now)
@@ -168,8 +178,8 @@ export default function HealthCheckupPage() {
             ? 'まだ健康診断の対象ではありません'
             : '아직 건강검진 대상이 아닙니다',
           sub: isJa
-            ? `最終受診: ${formatYmd(latest.exam_date)} ─ ${formatYmd(nextAvail.toISOString())} から再受診申請可能です。(現在 ${monthsSince}ヶ月経過)`
-            : `마지막 검진: ${formatYmd(latest.exam_date)} ─ ${formatYmd(nextAvail.toISOString())}부터 재검진 신청 가능합니다. (현재 ${monthsSince}개월 경과)`,
+            ? `最終受診: ${formatYmd(combinedLatestStr)} ─ ${formatYmd(nextAvail.toISOString())} から再受診申請可能です。(現在 ${monthsSince}ヶ月経過)`
+            : `마지막 검진: ${formatYmd(combinedLatestStr)} ─ ${formatYmd(nextAvail.toISOString())}부터 재검진 신청 가능합니다. (현재 ${monthsSince}개월 경과)`,
           canReport: false,
         }
       }
@@ -179,8 +189,8 @@ export default function HealthCheckupPage() {
           ? '次回の健康診断を申請してください'
           : '다음 건강검진을 신청해주세요',
         sub: isJa
-          ? `最終受診: ${formatYmd(latest.exam_date)} (${monthsSince}ヶ月経過)`
-          : `마지막 검진: ${formatYmd(latest.exam_date)} (${monthsSince}개월 경과)`,
+          ? `最終受診: ${formatYmd(combinedLatestStr)} (${monthsSince}ヶ月経過)`
+          : `마지막 검진: ${formatYmd(combinedLatestStr)} (${monthsSince}개월 경과)`,
         canReport: true,
       }
     }
@@ -399,7 +409,7 @@ export default function HealthCheckupPage() {
         </div>
         {loading ? (
           <div className="text-sm text-gray-500">{isJa ? '読込中...' : '로딩 중...'}</div>
-        ) : history.length === 0 ? (
+        ) : history.length === 0 && vacationRecords.length === 0 ? (
           <div className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-6 text-center text-sm text-gray-500">
             {isJa ? '申請履歴がありません' : '신청 이력이 없습니다'}
           </div>
@@ -407,7 +417,7 @@ export default function HealthCheckupPage() {
           <div className="space-y-2">
             {history.map((it) => (
               <HistoryRow
-                key={it.id}
+                key={`hc-${it.id}`}
                 item={it}
                 isJa={isJa}
                 onEdit={() => {
@@ -416,6 +426,9 @@ export default function HealthCheckupPage() {
                 }}
                 onDelete={() => handleDelete(it.id)}
               />
+            ))}
+            {vacationRecords.map((vr) => (
+              <VacationRecordRow key={`vr-${vr.id}`} record={vr} isJa={isJa} />
             ))}
           </div>
         )}
@@ -597,6 +610,37 @@ function HistoryRow({
             </button>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function VacationRecordRow({
+  record,
+  isJa,
+}: {
+  record: VacationHealthCheckRecord
+  isJa: boolean
+}) {
+  return (
+    <div className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3 bg-gray-50">
+      <div className="flex items-center gap-4 min-w-0">
+        <div className="text-sm font-semibold text-gray-700 w-16">{record.fiscal_year}</div>
+        <div className="text-sm text-gray-600 w-28">{formatYmd(record.exam_date)}</div>
+        <div className="text-sm text-gray-500 truncate max-w-xs">
+          {isJa ? '休暇システム記録' : '휴가 시스템 기록'}
+        </div>
+        <span className="inline-flex items-center text-xs px-2 py-0.5 rounded border bg-stone-50 text-stone-600 border-stone-200">
+          {isJa ? '記録のみ' : '기록만'}
+        </span>
+        {record.reason && (
+          <span className="text-xs text-gray-400 truncate max-w-[180px]" title={record.reason}>
+            {record.reason}
+          </span>
+        )}
+      </div>
+      <div className="text-xs text-gray-400">
+        {isJa ? '詳細情報なし' : '상세 정보 없음'}
       </div>
     </div>
   )

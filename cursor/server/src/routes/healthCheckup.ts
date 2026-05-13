@@ -94,6 +94,28 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
       [userId]
     )
 
+    // 休暇システム の health_check (Notion 마이그레이션 등 과거 데이터) 도 포함해
+    // 가장 최근 검진일 계산. 자격 판정의 기준.
+    const combinedLatest = await pool.query(
+      `SELECT MAX(d) AS last_exam, (ARRAY_AGG(src ORDER BY d DESC))[1] AS last_source
+       FROM (
+         SELECT exam_date AS d, 'health_checkup' AS src
+           FROM health_checkup_requests
+           WHERE user_id = $1 AND status <> 'rejected'
+         UNION ALL
+         SELECT start_date AS d, 'vacation' AS src
+           FROM vacation_requests
+           WHERE user_id = $1
+             AND leave_type = 'health_check'
+             AND status IN ('approved', 'pending')
+       ) t`,
+      [userId]
+    )
+    const latestExamRow = combinedLatest.rows[0] || {}
+    const latestExamDate: string | null = latestExamRow.last_exam
+      ? new Date(latestExamRow.last_exam).toISOString().slice(0, 10)
+      : null
+
     const now = new Date()
     const currentYear = now.getFullYear()
 
@@ -101,6 +123,8 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
       hire_date: hireDate,
       current_year: currentYear,
       latest: latest.rows[0] || null,
+      latest_exam_date: latestExamDate,
+      latest_source: latestExamRow.last_source || null,
       reimbursement_cap: REIMBURSEMENT_CAP,
     })
   } catch (error: any) {
@@ -109,19 +133,49 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
   }
 })
 
-/** 2. 내 신청 이력 (연도별) */
+/** 2. 내 신청 이력 (연도별)
+ *  + vacation_requests 의 health_check 휴가 중 health_checkup_requests 와 연결되지 않은
+ *    과거 데이터 (Notion 마이그레이션 등) 도 함께 반환 → 사용자가 통합 이력으로 본다.
+ */
 router.get('/my-history', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id
-    const result = await pool.query(
-      `SELECT ${REQUEST_SELECT}
-       FROM health_checkup_requests hc
-       JOIN users u ON u.id = hc.user_id
-       WHERE hc.user_id = $1
-       ORDER BY hc.exam_date DESC, hc.created_at DESC`,
-      [userId]
-    )
-    res.json({ items: result.rows })
+    const [result, vacResult] = await Promise.all([
+      pool.query(
+        `SELECT ${REQUEST_SELECT}
+         FROM health_checkup_requests hc
+         JOIN users u ON u.id = hc.user_id
+         WHERE hc.user_id = $1
+         ORDER BY hc.exam_date DESC, hc.created_at DESC`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT vr.id, vr.start_date AS exam_date, vr.reason, vr.status, vr.created_at,
+                EXTRACT(YEAR FROM vr.start_date)::int AS fiscal_year
+         FROM vacation_requests vr
+         WHERE vr.user_id = $1
+           AND vr.leave_type = 'health_check'
+           AND vr.status IN ('approved', 'pending')
+           AND NOT EXISTS (
+             SELECT 1 FROM health_checkup_requests hc
+             WHERE hc.vacation_request_id = vr.id
+           )
+         ORDER BY vr.start_date DESC`,
+        [userId]
+      ),
+    ])
+    res.json({
+      items: result.rows,
+      vacation_records: vacResult.rows.map((r) => ({
+        id: r.id,
+        source: 'vacation' as const,
+        exam_date: new Date(r.exam_date).toISOString().slice(0, 10),
+        fiscal_year: r.fiscal_year,
+        reason: r.reason,
+        status: r.status,
+        created_at: r.created_at,
+      })),
+    })
   } catch (error: any) {
     console.error('health-checkup/my-history error:', error.message)
     res.status(500).json({ error: '履歴の取得に失敗しました' })

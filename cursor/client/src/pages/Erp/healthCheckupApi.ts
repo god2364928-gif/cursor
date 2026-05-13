@@ -41,7 +41,26 @@ export interface MeResponse {
   hire_date: string | null
   current_year: number
   latest: HealthCheckupItem | null
+  /** 휴가 시스템(과거 마이그레이션 데이터 포함)까지 합친 가장 최근 검진일 */
+  latest_exam_date: string | null
+  latest_source: 'health_checkup' | 'vacation' | null
   reimbursement_cap: number
+}
+
+/** vacation_requests 에만 존재하는 과거 health_check 휴가 (노션 마이그레이션 등) */
+export interface VacationHealthCheckRecord {
+  id: number
+  source: 'vacation'
+  exam_date: string
+  fiscal_year: number
+  reason: string | null
+  status: 'approved' | 'pending'
+  created_at: string
+}
+
+export interface MyHistoryResponse {
+  items: HealthCheckupItem[]
+  vacation_records: VacationHealthCheckRecord[]
 }
 
 export interface CreateReportPayload {
@@ -110,8 +129,8 @@ export function fetchMe(): Promise<MeResponse> {
   return apiFetch<MeResponse>('/me')
 }
 
-export function fetchMyHistory(): Promise<{ items: HealthCheckupItem[] }> {
-  return apiFetch<{ items: HealthCheckupItem[] }>('/my-history')
+export function fetchMyHistory(): Promise<MyHistoryResponse> {
+  return apiFetch<MyHistoryResponse>('/my-history')
 }
 
 export function createReport(payload: CreateReportPayload): Promise<HealthCheckupItem> {
