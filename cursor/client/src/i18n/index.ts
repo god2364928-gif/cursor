@@ -1007,7 +1007,6 @@ const translations: Record<Language, Translation> = {
     erp_user_page: 'ユーザーページ',
     erp_my_page: 'マイページ',
     erp_org_chart: '組織図',
-    erp_integrated_mgmt: '統合管理',
     erp_approvals_menu: '申請処理',
     erp_grants_mgmt: '休暇付与管理',
     erp_leave_mgmt: '休暇管理',
@@ -1315,11 +1314,6 @@ const translations: Record<Language, Translation> = {
     // OrgPage
     orgpage_subtitle: '部署と社員一覧。',
     orgpage_preparing: '組織図は準備中です。',
-
-    // Admin Home
-    adminhome_subtitle: '承認待ち / 付与管理。',
-    adminhome_approvals_desc: '休暇申請の承認・却下',
-    adminhome_grants_desc: '社員別付与履歴・手動調整',
 
     // 승인 페이지
     approvals_subtitle: '休暇申請の承認・却下を行います。',
@@ -2369,7 +2363,6 @@ const translations: Record<Language, Translation> = {
     erp_user_page: '사용자 페이지',
     erp_my_page: '내 페이지',
     erp_org_chart: '조직도',
-    erp_integrated_mgmt: '통합 관리',
     erp_approvals_menu: '신청 처리',
     erp_grants_mgmt: '휴가 부여 관리',
     erp_leave_mgmt: '휴가 관리',
@@ -2675,11 +2668,6 @@ const translations: Record<Language, Translation> = {
     // OrgPage
     orgpage_subtitle: '부서와 사원 목록.',
     orgpage_preparing: '조직도는 준비 중입니다.',
-
-    // Admin Home
-    adminhome_subtitle: '승인 대기 / 부여 관리.',
-    adminhome_approvals_desc: '휴가 신청 승인·반려',
-    adminhome_grants_desc: '사원별 부여 이력·수동 조정',
 
     // 승인 페이지
     approvals_subtitle: '휴가 신청의 승인·반려를 처리합니다.',

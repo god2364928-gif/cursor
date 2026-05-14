@@ -30,9 +30,6 @@ import MyPage from './pages/Erp/MyPage'
 import OrgPage from './pages/Erp/OrgPage'
 import LeavePage from './pages/Erp/LeavePage'
 import LeaveSchedulePage from './pages/Erp/LeaveSchedulePage'
-import AdminHomePage from './pages/Erp/admin/AdminHomePage'
-import LeaveApprovalsPage from './pages/Erp/admin/LeaveApprovalsPage'
-import LeaveGrantsPage from './pages/Erp/admin/LeaveGrantsPage'
 import SnackRequestPage from './pages/Erp/SnackRequestPage'
 import HealthCheckupPage from './pages/Erp/HealthCheckupPage'
 import EducationPage from './pages/Erp/EducationPage'
@@ -57,14 +54,6 @@ function CrmGuard({ children }: { children: React.ReactNode }) {
   const pageKey = crmPageKeyFromPath(location.pathname)
   if (pageKey && !canAccessCrmPage(user, pageKey)) {
     return <Navigate to="/sales-tracking" replace />
-  }
-  return <>{children}</>
-}
-
-function ErpAdminGuard({ children }: { children: React.ReactNode }) {
-  const user = useAuthStore((state) => state.user)
-  if (user?.role !== 'admin') {
-    return <Navigate to="/erp" replace />
   }
   return <>{children}</>
 }
@@ -108,9 +97,6 @@ function App() {
           <Route path="snack-request" element={<SnackRequestPage />} />
           <Route path="health-checkup" element={<HealthCheckupPage />} />
           <Route path="education" element={<EducationPage />} />
-          <Route path="admin" element={<ErpAdminGuard><AdminHomePage /></ErpAdminGuard>} />
-          <Route path="admin/approvals" element={<ErpAdminGuard><LeaveApprovalsPage /></ErpAdminGuard>} />
-          <Route path="admin/grants" element={<ErpAdminGuard><LeaveGrantsPage /></ErpAdminGuard>} />
           <Route path="admin/education" element={<ErpReviewerGuard><EducationApprovalsPage /></ErpReviewerGuard>} />
         </Route>
 

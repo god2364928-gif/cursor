@@ -7,9 +7,7 @@ import { prefetchAllErp } from '../lib/erpPrefetch'
 import {
   User as UserIcon,
   Network,
-  Inbox,
   CheckCircle2,
-  FilePlus,
   CalendarDays,
   CalendarRange,
   Cookie,
@@ -29,7 +27,6 @@ interface NavItem {
   href: string
   icon: any
   nested?: boolean
-  adminOnly?: boolean
   reviewerOnly?: boolean // admin | office_assistant
 }
 
@@ -44,9 +41,6 @@ const navigation: NavGroup[] = [
     items: [
       { labelKey: 'erp_my_page', href: '/erp', icon: UserIcon },
       { labelKey: 'erp_org_chart', href: '/erp/org', icon: Network },
-      { labelKey: 'erp_integrated_mgmt', href: '/erp/admin', icon: Inbox, adminOnly: true },
-      { labelKey: 'erp_approvals_menu', href: '/erp/admin/approvals', icon: CheckCircle2, nested: true, adminOnly: true },
-      { labelKey: 'erp_grants_mgmt', href: '/erp/admin/grants', icon: FilePlus, nested: true, adminOnly: true },
       { labelKey: 'erp_leave_mgmt', href: '/erp/leave', icon: CalendarDays },
       { labelKey: 'erp_leave_schedule', href: '/erp/leave-schedule', icon: CalendarRange, nested: true },
     ],
@@ -74,7 +68,6 @@ export default function ErpLayout() {
   }, [language])
 
   const role: Role = user?.role
-  const isAdmin = role === 'admin'
   const isReviewer = role === 'admin' || role === 'office_assistant'
 
   // ERP 진입 시 모든 탭 데이터를 백그라운드 prefetch → 탭 클릭 시 깜빡임 제거
@@ -89,7 +82,6 @@ export default function ErpLayout() {
     .map((g) => ({
       ...g,
       items: g.items.filter((it) => {
-        if (it.adminOnly && !isAdmin) return false
         if (it.reviewerOnly && !isReviewer) return false
         return true
       }),
