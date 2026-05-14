@@ -192,9 +192,11 @@ export default function HotpepperPage() {
   const loadUsers = async () => {
     try {
       const response = await api.get('/auth/users')
-      // Only show marketers in assignee filter
-      const marketers = (response.data || []).filter((user: User & { role?: string }) => user.role === 'marketer')
-      setUsers(marketers)
+      // 담당자 필터에 마케터 + 사무보조(office_assistant) 노출
+      const operators = (response.data || []).filter(
+        (u: User & { role?: string }) => u.role === 'marketer' || u.role === 'office_assistant'
+      )
+      setUsers(operators)
     } catch (error) {
       console.error('Failed to load users:', error)
     }

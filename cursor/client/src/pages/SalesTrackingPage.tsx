@@ -15,7 +15,7 @@ import { getLocalToday, formatLocalDate } from '../utils/dateUtils'
 import RestaurantDrawer from '../components/RestaurantDrawer'
 import SalesTrackingDrawer from '../components/SalesTrackingDrawer'
 import BulkHistoryModal from '../components/BulkHistoryModal'
-import { getMarketerNames } from '../utils/userUtils'
+import { getOperatorNames } from '../utils/userUtils'
 import { DatePickerInput } from '../components/ui/date-picker-input'
 import { MessageSquare } from 'lucide-react'
 
@@ -162,12 +162,12 @@ export default function SalesTrackingPage() {
         const allUsers = res.data || []
         setUsers(allUsers)
         
-        // 공통 유틸리티 함수 사용
-        const marketerNames = getMarketerNames(allUsers)
-        setManagerOptions(marketerNames)
-        
-        // 디폴트: 마케터는 본인, 그 외는 'all'
-        if (user?.role === 'marketer' && user?.name) {
+        // 마케터 + 사무보조(office_assistant) 를 매니저 필터 옵션으로 노출
+        const operatorNames = getOperatorNames(allUsers)
+        setManagerOptions(operatorNames)
+
+        // 디폴트: 마케터/사무보조는 본인, 그 외는 'all'
+        if ((user?.role === 'marketer' || user?.role === 'office_assistant') && user?.name) {
           setManagerFilter(user.name)
         } else {
           setManagerFilter('all')
@@ -363,8 +363,8 @@ export default function SalesTrackingPage() {
     setDailyStart(startStr)
     setDailyEnd(endStr)
     const userName = user?.name || ''
-    const marketerNames = new Set(managerOptions)
-    const defaultManager = (user?.role === 'marketer' && userName && marketerNames.has(userName)) ? userName : 'all'
+    const operatorNames = new Set(managerOptions)
+    const defaultManager = ((user?.role === 'marketer' || user?.role === 'office_assistant') && userName && operatorNames.has(userName)) ? userName : 'all'
     setDailyManager(defaultManager)
     const initialScope: 'overall'|'by_manager' = defaultManager === 'all' ? 'overall' : 'by_manager'
     setDailyScope(initialScope)

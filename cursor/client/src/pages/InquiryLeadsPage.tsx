@@ -128,14 +128,17 @@ export default function InquiryLeadsPage() {
     }
   }, [assigneeFilter, statusFilter, prefectureFilter, searchQuery, showToast])
 
-  // Fetch assignees (마케터만)
+  // Fetch assignees (마케터 + 사무보조 — 담당자 필터 옵션)
   const fetchAssignees = useCallback(async () => {
     try {
-      const response = await api.get('/inquiry-leads/assignees?marketersOnly=true')
+      const response = await api.get('/inquiry-leads/assignees?operatorsOnly=true')
       setAssignees(response.data)
-      
-      // 매니저 또는 마케터인 경우 담당자 필터를 본인으로 기본 설정
-      if ((user?.role === 'manager' || user?.role === 'marketer') && user?.id) {
+
+      // 매니저/마케터/사무보조인 경우 담당자 필터를 본인으로 기본 설정
+      if (
+        (user?.role === 'manager' || user?.role === 'marketer' || user?.role === 'office_assistant') &&
+        user?.id
+      ) {
         setAssigneeFilter(user.id)
       }
     } catch (error) {

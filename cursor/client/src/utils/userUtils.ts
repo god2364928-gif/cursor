@@ -42,3 +42,18 @@ export function isMarketer(name: string, users: any[]): boolean {
   return normalizedRole === 'marketer'
 }
 
+// 영업 담당 + 사무보조(office_assistant) — 사무보조도 영업이력/문의/핫페퍼 페이지에 접근해서
+// 본인이 담당한 건을 필터링할 필요가 있으므로 마케터와 동일하게 옵션으로 노출한다.
+const OPERATOR_ROLES = new Set(['marketer', 'office_assistant'])
+
+export function getOperatorNames(users: any[]): string[] {
+  return users
+    .filter((u: any) => OPERATOR_ROLES.has((u.role || '').toLowerCase().trim()))
+    .map((u: any) => u.name)
+    .sort()
+}
+
+export function getOperators(users: any[]): any[] {
+  return users.filter((u: any) => OPERATOR_ROLES.has((u.role || '').toLowerCase().trim()))
+}
+

@@ -402,17 +402,25 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 /**
  * 담당자 목록 조회
  * GET /api/inquiry-leads/assignees
- * ?marketersOnly=true 로 마케터만 조회 가능 (일괄 배정용)
+ * ?marketersOnly=true 로 마케터만 조회 (일괄 배정용)
+ * ?operatorsOnly=true 로 마케터 + 사무보조 조회 (필터 옵션용)
  */
 router.get('/assignees', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const marketersOnly = req.query.marketersOnly === 'true'
-    
+    const operatorsOnly = req.query.operatorsOnly === 'true'
+
+    const roleClause = marketersOnly
+      ? "AND role = 'marketer'"
+      : operatorsOnly
+        ? "AND role IN ('marketer', 'office_assistant')"
+        : ''
+
     const result = await pool.query(`
-      SELECT id, name, team, role 
-      FROM users 
+      SELECT id, name, team, role
+      FROM users
       WHERE role != 'admin'
-      ${marketersOnly ? "AND role = 'marketer'" : ''}
+      ${roleClause}
       ORDER BY name
     `)
 
