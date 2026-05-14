@@ -192,10 +192,12 @@ export default function HotpepperPage() {
   const loadUsers = async () => {
     try {
       const response = await api.get('/auth/users')
-      // 담당자 필터에 마케터 + 사무보조(office_assistant) 노출
-      const operators = (response.data || []).filter(
-        (u: User & { role?: string }) => u.role === 'marketer' || u.role === 'office_assistant'
-      )
+      // 담당자 필터: 마케터 + 사무보조(office_assistant), 단 퇴사자는 제외
+      const operators = (response.data || []).filter((u: User & { role?: string; employment_status?: string | null }) => {
+        const isOperator = u.role === 'marketer' || u.role === 'office_assistant'
+        const isResigned = (u.employment_status ?? '').toString().trim() === '퇴사'
+        return isOperator && !isResigned
+      })
       setUsers(operators)
     } catch (error) {
       console.error('Failed to load users:', error)

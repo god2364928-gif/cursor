@@ -416,10 +416,12 @@ router.get('/assignees', authMiddleware, async (req: AuthRequest, res: Response)
         ? "AND role IN ('marketer', 'office_assistant')"
         : ''
 
+    // 퇴사자는 담당자 옵션에서 제외
     const result = await pool.query(`
       SELECT id, name, team, role
       FROM users
       WHERE role != 'admin'
+        AND (employment_status IS NULL OR employment_status <> '퇴사')
       ${roleClause}
       ORDER BY name
     `)
