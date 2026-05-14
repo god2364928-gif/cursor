@@ -42,9 +42,26 @@ router.post('/login', async (req: Request, res: Response) => {
     )
 
     // app_access 기본값 보정 (마이그레이션 이전 사용자 대응)
-    const appAccess: string =
+    let appAccess: string =
       user.app_access ||
       (user.role === 'admin' ? 'admin,crm,erp' : 'crm,erp')
+
+    // office_assistant 는 CRM 일부 메뉴(영업추적·문의리드·핫페퍼·설정)를 사용하므로
+    // app_access 에 crm 이 빠져 있으면 자동 보정한다.
+    // (사무보조 권한 사용자가 ERP 만 부여된 상태로 들어오는 사고 재발 방지)
+    if (user.role === 'office_assistant') {
+      const parts = appAccess.split(',').map((s) => s.trim()).filter(Boolean)
+      if (!parts.includes('crm')) {
+        parts.unshift('crm')
+        appAccess = parts.join(',')
+        try {
+          await pool.query('UPDATE users SET app_access = $1 WHERE id = $2', [appAccess, user.id])
+          console.log(`[auto-fix] office_assistant ${email} app_access → ${appAccess}`)
+        } catch (e) {
+          console.error('[auto-fix] failed to persist app_access:', e)
+        }
+      }
+    }
 
     // Generate JWT token
     const token = jwt.sign(

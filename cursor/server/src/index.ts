@@ -45,7 +45,7 @@ import healthCheckupRoutes from './routes/healthCheckup'
 import educationRequestRoutes from './routes/educationRequest'
 import { superAdminOnly } from './middleware/superAdminOnly'
 import { importRecentCalls } from './services/cpiImportService'
-import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest, autoMigrateHealthCheckup, autoMigrateEducationRequest } from './migrations/autoMigrate'
+import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoFixOfficeAssistantAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest, autoMigrateHealthCheckup, autoMigrateEducationRequest } from './migrations/autoMigrate'
 import { startVacationCron } from './services/vacationCron'
 import { startSnackFixedCron } from './services/snackFixedCron'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
@@ -261,6 +261,7 @@ async function startServer() {
   await autoMigrateFeatureUsage()
   await autoMigrateExamOpenings()
   await autoMigrateAppAccess()
+  await autoFixOfficeAssistantAppAccess()
   await autoMigrateVacation()
   await autoMigrateNotionVacationData()
   await autoMigrateNakamuraSakuraSplit()
