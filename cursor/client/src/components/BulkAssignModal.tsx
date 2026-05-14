@@ -24,17 +24,17 @@ export default function BulkAssignModal({ onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // 마케터만 조회
+  // 배정 대상: 마케터 + 사무보조(office_assistant)
   useEffect(() => {
-    const fetchMarketers = async () => {
+    const fetchAssignees = async () => {
       try {
-        const response = await api.get('/inquiry-leads/assignees?marketersOnly=true')
+        const response = await api.get('/inquiry-leads/assignees?operatorsOnly=true')
         setMarketers(response.data)
       } catch (err) {
-        console.error('Failed to fetch marketers:', err)
+        console.error('Failed to fetch assignees:', err)
       }
     }
-    fetchMarketers()
+    fetchAssignees()
   }, [])
 
   const handleSubmit = async () => {
