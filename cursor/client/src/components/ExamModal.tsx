@@ -22,8 +22,6 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [currentRound, setCurrentRound] = useState(examRound)
-  // 자동저장: 'idle' | 'saving' | 'saved'
-  const [autoSaveState, setAutoSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dirtyRef = useRef(false)        // 마지막 저장 이후 변경분 존재 여부
   const answersRef = useRef(answers)    // setTimeout/flush에서 최신 답변 참조용
@@ -58,7 +56,6 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
       saveTimerRef.current = null
     }
     dirtyRef.current = false
-    setAutoSaveState('idle')
     setLoading(true)
     try {
       const response = await api.get(`/exam/my-answers?round=${currentRound}`)
@@ -90,14 +87,11 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
       answersForServer[key] = current[parseInt(key)]
     })
     try {
-      setAutoSaveState('saving')
       await api.post('/exam/save-answers', { answers: answersForServer, examRound: currentRoundRef.current })
       dirtyRef.current = false
-      setAutoSaveState('saved')
     } catch (error) {
       // 자동저장 실패는 조용히 무시 (다음 변경 시 재시도). 수동 저장/제출은 그대로 알림.
       console.error('Auto-save failed:', error)
-      setAutoSaveState('idle')
     }
   }
 
@@ -139,7 +133,6 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
 
       await api.post('/exam/save-answers', { answers: answersForServer, examRound: currentRound })
       dirtyRef.current = false
-      setAutoSaveState('saved')
       alert(t('saved'))
     } catch (error: any) {
       alert(error.response?.data?.message || t('saveFailed'))
@@ -175,7 +168,7 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[95vh]">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
             {t('examTitle')} - {currentRound}{language === 'ja' ? '次' : '차'}
@@ -190,7 +183,7 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
           )}
         </DialogHeader>
 
-        <ScrollArea className="h-[60vh] pr-4">
+        <ScrollArea className="h-[78vh] pr-4">
           {loading ? (
             <div className="flex justify-center items-center h-40">
               <p>{t('loading')}</p>
@@ -225,15 +218,7 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
           )}
         </ScrollArea>
 
-        <div className="flex justify-between items-center gap-2 mt-4 pt-4 border-t">
-          <div className="text-sm text-gray-400 min-h-[20px]">
-            {!isSubmitted && autoSaveState === 'saving' && (
-              <span>{t('saving')}…</span>
-            )}
-            {!isSubmitted && autoSaveState === 'saved' && (
-              <span className="text-green-600">✓ {t('autoSaved')}</span>
-            )}
-          </div>
+        <div className="flex justify-end items-center gap-2 mt-4 pt-4 border-t">
           <div className="flex gap-2">
             {!isSubmitted && (
               <>
