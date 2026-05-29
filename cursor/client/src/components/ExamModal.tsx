@@ -3,9 +3,9 @@ import { useI18nStore } from '../i18n'
 import api from '../lib/api'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
-import { Label } from './ui/label'
 import { Textarea } from './ui/textarea'
 import { ScrollArea } from './ui/scroll-area'
+import QuestionContent from './QuestionContent'
 
 interface ExamModalProps {
   open: boolean
@@ -16,7 +16,7 @@ interface ExamModalProps {
 const EXAM_QUESTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
 export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamModalProps) {
-  const { t } = useI18nStore()
+  const { t, language } = useI18nStore()
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -178,7 +178,7 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
-            {t('examTitle')} - {currentRound}차
+            {t('examTitle')} - {currentRound}{language === 'ja' ? '次' : '차'}
             {isSubmitted && (
               <span className="ml-3 text-sm font-normal text-green-600">
                 ✓ {t('examSubmitted')}
@@ -196,20 +196,29 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
               <p>{t('loading')}</p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {EXAM_QUESTIONS.map((qNum) => (
-                <div key={qNum} className="space-y-2">
-                  <Label htmlFor={`question-${qNum}`} className="text-base font-semibold whitespace-pre-line">
-                    {qNum}. {t(`exam${qNum}` as any)}
-                  </Label>
-                  <Textarea
-                    id={`question-${qNum}`}
-                    value={answers[qNum] || ''}
-                    onChange={(e) => handleAnswerChange(qNum, e.target.value)}
-                    disabled={isSubmitted}
-                    className={`min-h-[120px] ${isSubmitted ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                    placeholder={isSubmitted ? '' : t('enterContent')}
-                  />
+                <div key={qNum} className="rounded-lg border border-gray-200 overflow-hidden">
+                  {/* 문항 */}
+                  <div className="flex gap-3 bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <span className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white text-sm font-bold">
+                      {qNum}
+                    </span>
+                    <div className="flex-1 text-sm leading-relaxed text-gray-800 min-w-0">
+                      <QuestionContent text={t(`exam${qNum}` as any)} />
+                    </div>
+                  </div>
+                  {/* 답변 입력 */}
+                  <div className="px-4 py-3">
+                    <Textarea
+                      id={`question-${qNum}`}
+                      value={answers[qNum] || ''}
+                      onChange={(e) => handleAnswerChange(qNum, e.target.value)}
+                      disabled={isSubmitted}
+                      className={`min-h-[120px] ${isSubmitted ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      placeholder={isSubmitted ? '' : t('enterContent')}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
