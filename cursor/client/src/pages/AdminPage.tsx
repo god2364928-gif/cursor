@@ -137,7 +137,7 @@ export default function AdminPage() {
     userName: string
     userEmail: string
     userRole: string
-    exams: { round: number; isSubmitted: boolean; submittedAt: string | null }[]
+    exams: { round: number; isSubmitted: boolean; submittedAt: string | null; totalScore?: number | null }[]
   }
   const [examStatuses, setExamStatuses] = useState<ExamStatus[]>([])
   const [examStatusLoading, setExamStatusLoading] = useState(false)
@@ -600,6 +600,8 @@ export default function AdminPage() {
                                 const submitted = isSubmitted(round)
                                 const open = isOpen(round)
                                 const toggling = togglingExam === `${s.userId}-${round}`
+                                const examEntry = s.exams.find((e) => e.round === round)
+                                const totalScore = examEntry?.totalScore
                                 return (
                                   <td key={round} className="px-3 py-3 text-center">
                                     <div className="flex flex-col items-center gap-1">
@@ -607,6 +609,11 @@ export default function AdminPage() {
                                       {submitted ? (
                                         <>
                                           <span className="text-xs text-green-600 font-semibold">✓ 완료</span>
+                                          {totalScore != null && (
+                                            <span className="text-xs font-semibold text-blue-700 bg-blue-50 rounded px-1.5 py-0.5">
+                                              {totalScore}점
+                                            </span>
+                                          )}
                                           <Button
                                             size="sm"
                                             variant="ghost"

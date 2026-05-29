@@ -50,6 +50,7 @@ import { startVacationCron } from './services/vacationCron'
 import { startSnackFixedCron } from './services/snackFixedCron'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
 import { autoMigrateExamOpenings } from './migrations/autoMigrateExamOpenings'
+import { autoMigrateExamScoring } from './migrations/autoMigrateExamScoring'
 import { checkDepositEmails, markAsRead } from './services/gmailService'
 import { parseDepositEmail } from './utils/depositParser'
 import { sendDepositNotification } from './utils/slackClient'
@@ -260,6 +261,7 @@ async function startServer() {
   await autoMigrateSalesAmountFields()
   await autoMigrateFeatureUsage()
   await autoMigrateExamOpenings()
+  await autoMigrateExamScoring()
   await autoMigrateAppAccess()
   await autoFixOfficeAssistantAppAccess()
   await autoMigrateVacation()

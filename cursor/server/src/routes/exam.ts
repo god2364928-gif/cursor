@@ -139,37 +139,53 @@ router.get('/user/:userId/answers', authMiddleware, async (req: AuthRequest, res
     
     if (examRound) {
       // 특정 회차만 조회
-      query = `SELECT 
-        ea.id, 
-        ea.answers, 
+      query = `SELECT
+        ea.id,
+        ea.answers,
         ea.exam_round,
-        ea.is_submitted, 
-        ea.submitted_at, 
-        ea.created_at, 
+        ea.is_submitted,
+        ea.submitted_at,
+        ea.created_at,
         ea.updated_at,
+        ea.scores,
+        ea.max_scores,
+        ea.total_score,
+        ea.feedback,
+        ea.graded_at,
+        ea.graded_by,
+        gu.name as graded_by_name,
         u.name as user_name,
         u.email as user_email,
         u.role as user_role
       FROM exam_answers ea
       JOIN users u ON ea.user_id = u.id
+      LEFT JOIN users gu ON ea.graded_by = gu.id
       WHERE ea.user_id = $1 AND ea.exam_round = $2
       ORDER BY ea.exam_round`
       params = [userId, examRound]
     } else {
       // 모든 회차 조회
-      query = `SELECT 
-        ea.id, 
-        ea.answers, 
+      query = `SELECT
+        ea.id,
+        ea.answers,
         ea.exam_round,
-        ea.is_submitted, 
-        ea.submitted_at, 
-        ea.created_at, 
+        ea.is_submitted,
+        ea.submitted_at,
+        ea.created_at,
         ea.updated_at,
+        ea.scores,
+        ea.max_scores,
+        ea.total_score,
+        ea.feedback,
+        ea.graded_at,
+        ea.graded_by,
+        gu.name as graded_by_name,
         u.name as user_name,
         u.email as user_email,
         u.role as user_role
       FROM exam_answers ea
       JOIN users u ON ea.user_id = u.id
+      LEFT JOIN users gu ON ea.graded_by = gu.id
       WHERE ea.user_id = $1
       ORDER BY ea.exam_round`
       params = [userId]
@@ -205,7 +221,13 @@ router.get('/user/:userId/answers', authMiddleware, async (req: AuthRequest, res
       isSubmitted: row.is_submitted,
       submittedAt: row.submitted_at,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
+      scores: row.scores,
+      maxScores: row.max_scores,
+      totalScore: row.total_score,
+      feedback: row.feedback,
+      gradedAt: row.graded_at,
+      gradedByName: row.graded_by_name
     }))
 
     res.json({
@@ -218,6 +240,54 @@ router.get('/user/:userId/answers', authMiddleware, async (req: AuthRequest, res
     })
   } catch (error) {
     console.error('Error fetching user exam answers:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// 특정 사용자의 시험 채점 (어드민 전용)
+router.post('/user/:userId/grade', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    // 어드민 권한 확인
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ message: 'Admin access required' })
+    }
+
+    const { userId } = req.params
+    const { examRound, scores, maxScores, feedback } = req.body
+
+    if (!userId || !examRound) {
+      return res.status(400).json({ message: 'userId and examRound are required' })
+    }
+
+    if (!scores || typeof scores !== 'object' || !maxScores || typeof maxScores !== 'object') {
+      return res.status(400).json({ message: 'Invalid scores format' })
+    }
+
+    // 제출된 답변이 존재하는지 확인
+    const existingResult = await pool.query(
+      'SELECT is_submitted FROM exam_answers WHERE user_id = $1 AND exam_round = $2',
+      [userId, examRound]
+    )
+
+    if (existingResult.rows.length === 0 || !existingResult.rows[0].is_submitted) {
+      return res.status(400).json({ message: 'No submitted exam to grade' })
+    }
+
+    // 100점 환산 총점 계산
+    const sumScores = Object.values(scores).reduce((acc: number, v: any) => acc + (Number(v) || 0), 0)
+    const sumMax = Object.values(maxScores).reduce((acc: number, v: any) => acc + (Number(v) || 0), 0)
+    const totalScore = sumMax <= 0 ? null : Math.round((sumScores / sumMax) * 1000) / 10
+
+    await pool.query(
+      `UPDATE exam_answers
+       SET scores = $1, max_scores = $2, total_score = $3, feedback = $4, graded_by = $5, graded_at = NOW(), updated_at = NOW()
+       WHERE user_id = $6 AND exam_round = $7`,
+      [JSON.stringify(scores), JSON.stringify(maxScores), totalScore, feedback ?? null, req.user?.id, userId, examRound]
+    )
+
+    res.json({ message: 'Graded successfully', totalScore })
+  } catch (error) {
+    console.error('Error grading exam:', error)
     res.status(500).json({ message: 'Internal server error' })
   }
 })
@@ -238,7 +308,8 @@ router.get('/all-submission-status', authMiddleware, async (req: AuthRequest, re
         u.role as user_role,
         ea.exam_round,
         ea.is_submitted,
-        ea.submitted_at
+        ea.submitted_at,
+        ea.total_score
       FROM users u
       LEFT JOIN exam_answers ea ON u.id = ea.user_id
       ORDER BY u.name, ea.exam_round`
@@ -261,7 +332,8 @@ router.get('/all-submission-status', authMiddleware, async (req: AuthRequest, re
         userMap.get(row.user_id).exams.push({
           round: row.exam_round,
           isSubmitted: row.is_submitted,
-          submittedAt: row.submitted_at
+          submittedAt: row.submitted_at,
+          totalScore: row.total_score
         })
       }
     })
