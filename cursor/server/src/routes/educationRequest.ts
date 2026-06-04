@@ -3,6 +3,7 @@ import multer from 'multer'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireAppAccess } from '../middleware/requireAppAccess'
+import { sendEducationRequestNotification } from '../utils/slackClient'
 
 const router = Router()
 router.use(authMiddleware, requireAppAccess('erp'))
@@ -41,6 +42,36 @@ function addDaysISO(dateStr: string, days: number): string {
   const d = new Date(dateStr)
   d.setDate(d.getDate() + days)
   return d.toISOString().slice(0, 10)
+}
+
+// DATE 컬럼(pg는 로컬 자정 Date로 파싱)을 YYYY-MM-DD 로 — UTC 변환 시 날짜가 밀리지 않도록 로컬 날짜 사용
+function toISODate(v: any): string {
+  if (!v) return ''
+  if (typeof v === 'string') return v.slice(0, 10)
+  const d = new Date(v)
+  if (isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// 제출된 신청 row(REQUEST_SELECT 결과) → 日本_알림방 Slack 알림 (실패해도 무시)
+function notifyEducationSubmitted(row: any): void {
+  sendEducationRequestNotification({
+    userName: row.user_name,
+    department: row.department,
+    courseType: row.course_type,
+    scheduleType: row.schedule_type,
+    provider: row.provider,
+    courseName: row.course_name,
+    courseUrl: row.course_url,
+    startDate: toISODate(row.start_date),
+    endDate: toISODate(row.end_date),
+    cost: Number(row.cost) || 0,
+    ceoApprovalRequired: !!row.ceo_approval_required,
+    relevance: row.relevance,
+  }).catch(() => {})
 }
 
 const REQUEST_SELECT = `
@@ -248,7 +279,12 @@ router.post('/requests', async (req: AuthRequest, res: Response) => {
        WHERE er.id = $1`,
       [newId]
     )
-    res.json(result.rows[0])
+    const created = result.rows[0]
+    // 즉시 제출(pending)된 경우에만 알림방으로 전송
+    if (created?.status === 'pending') {
+      notifyEducationSubmitted(created)
+    }
+    res.json(created)
   } catch (error: any) {
     console.error('education POST request error:', error.message)
     res.status(500).json({ error: '申請に失敗しました' })
@@ -321,7 +357,8 @@ router.patch('/requests/:id', async (req: AuthRequest, res: Response) => {
     }
 
     // submit 플래그: draft → pending 전환
-    if (body.submit === true && row.status === 'draft') {
+    const justSubmitted = body.submit === true && row.status === 'draft'
+    if (justSubmitted) {
       fields.push(`status = 'pending'`)
       fields.push(`submitted_at = NOW()`)
     }
@@ -343,7 +380,12 @@ router.patch('/requests/:id', async (req: AuthRequest, res: Response) => {
        WHERE er.id = $1`,
       [id]
     )
-    res.json(result.rows[0])
+    const updated = result.rows[0]
+    // 임시저장 → 제출(pending) 전환된 경우에만 알림방으로 전송
+    if (justSubmitted && updated?.status === 'pending') {
+      notifyEducationSubmitted(updated)
+    }
+    res.json(updated)
   } catch (error: any) {
     console.error('education PATCH error:', error.message)
     res.status(500).json({ error: '更新に失敗しました' })

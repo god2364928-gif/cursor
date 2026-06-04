@@ -11,7 +11,7 @@ import ExamModal from '../components/ExamModal'
 
 export default function SettingsPage() {
   const user = useAuthStore((state) => state.user)
-  const { t } = useI18nStore()
+  const { t, language } = useI18nStore()
 
   const [showPasswordChange, setShowPasswordChange] = useState(false)
   const [passwordData, setPasswordData] = useState({
@@ -120,7 +120,7 @@ export default function SettingsPage() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       {submittedRounds.map((r) => (
                         <span key={r} className="text-sm text-green-600 font-medium">
-                          ✓ {r}차 {t('examSubmitted')}
+                          ✓ {r}{language === 'ja' ? '次' : '차'} {t('examSubmitted')}
                         </span>
                       ))}
                     </div>
@@ -132,7 +132,7 @@ export default function SettingsPage() {
                       {availableRounds.map((r) => (
                         <Button key={r} onClick={() => handleStartExam(r)} variant="outline" size="sm">
                           <FileText className="w-4 h-4 mr-1" />
-                          {r}차 {t('examStart')}
+                          {r}{language === 'ja' ? '次' : '차'} {t('examStart')}
                         </Button>
                       ))}
                     </div>
