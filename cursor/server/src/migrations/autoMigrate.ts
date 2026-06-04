@@ -675,3 +675,45 @@ export async function autoMigrateEducationRequest(): Promise<void> {
     console.error('[EducationRequest] migration failed:', error.message)
   }
 }
+
+/**
+ * monthly_payroll_files 의 (fiscal_year, month) UNIQUE 제약 제거 (멱등)
+ * - 월별 급여명세서 파일을 여러 개 허용하기 위함.
+ * - 테이블이 없으면 skip. UNIQUE 제약이 이미 없으면 skip. 기존 데이터는 보존.
+ */
+export async function autoMigrateDropPayrollFileUnique(): Promise<void> {
+  try {
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'monthly_payroll_files'
+      ) AS exists
+    `)
+    if (!tableCheck.rows[0]?.exists) {
+      return // 테이블 자체가 아직 없음
+    }
+
+    // 테이블에 걸린 UNIQUE 제약 조회 (PK 는 contype='p' 라 제외됨)
+    const conResult = await pool.query(`
+      SELECT con.conname
+      FROM pg_constraint con
+      JOIN pg_class rel ON rel.oid = con.conrelid
+      JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+      WHERE rel.relname = 'monthly_payroll_files'
+        AND nsp.nspname = 'public'
+        AND con.contype = 'u'
+    `)
+
+    if (conResult.rows.length === 0) {
+      console.log('✓ monthly_payroll_files: UNIQUE 제약 없음 (다중 파일 허용 상태)')
+      return
+    }
+
+    for (const row of conResult.rows) {
+      await pool.query(`ALTER TABLE monthly_payroll_files DROP CONSTRAINT IF EXISTS "${row.conname}"`)
+      console.log(`✅ monthly_payroll_files: UNIQUE 제약 제거 (${row.conname}) → 월별 다중 파일 허용`)
+    }
+  } catch (error: any) {
+    console.error('❌ monthly_payroll_files UNIQUE 제약 제거 실패:', error.message)
+  }
+}

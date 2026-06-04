@@ -27,15 +27,15 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
   const [showAddEmployeeDialog, setShowAddEmployeeDialog] = useState(false)
   const [newEmployeeName, setNewEmployeeName] = useState('')
   
-  // 파일 관련 state
-  const [payrollFile, setPayrollFile] = useState<any>(null)
+  // 파일 관련 state (월별 다중 파일)
+  const [payrollFiles, setPayrollFiles] = useState<any[]>([])
   const [isUploadingFile, setIsUploadingFile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Data fetching
   useEffect(() => {
     fetchMonthlyPayroll()
-    fetchPayrollFile()
+    fetchPayrollFiles()
   }, [selectedPayrollYear, selectedPayrollMonth])
 
   const fetchMonthlyPayroll = async () => {
@@ -48,13 +48,13 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
     }
   }
 
-  const fetchPayrollFile = async () => {
+  const fetchPayrollFiles = async () => {
     try {
       const response = await api.get(`/monthly-payroll/file/${selectedPayrollYear}/${selectedPayrollMonth}`)
-      setPayrollFile(response.data.file || null)
+      setPayrollFiles(response.data.files || [])
     } catch (error) {
       console.error('Payroll file fetch error:', error)
-      setPayrollFile(null)
+      setPayrollFiles([])
     }
   }
 
@@ -149,29 +149,25 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
   }
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+    const fileList = event.target.files
+    if (!fileList || fileList.length === 0) return
 
-    // 파일 크기 확인 (50MB)
-    if (file.size > 50 * 1024 * 1024) {
-      alert(language === 'ja' ? 'ファイルサイズは50MB以下にしてください' : '파일 크기는 50MB 이하로 해주세요')
+    const files = Array.from(fileList)
+
+    // 파일 크기 확인 (각 파일 50MB)
+    const oversized = files.find((f) => f.size > 50 * 1024 * 1024)
+    if (oversized) {
+      alert(language === 'ja'
+        ? `ファイルサイズは50MB以下にしてください（${oversized.name}）`
+        : `파일 크기는 50MB 이하로 해주세요 (${oversized.name})`)
+      event.target.value = ''
       return
-    }
-
-    // 확인 메시지
-    if (payrollFile) {
-      if (!confirm(language === 'ja' 
-        ? '既存のファイルを上書きしますか？' 
-        : '기존 파일을 덮어쓰시겠습니까?')) {
-        event.target.value = ''
-        return
-      }
     }
 
     setIsUploadingFile(true)
     try {
       const formData = new FormData()
-      formData.append('file', file)
+      files.forEach((f) => formData.append('files', f))
       formData.append('fiscalYear', selectedPayrollYear.toString())
       formData.append('month', selectedPayrollMonth.toString())
 
@@ -182,7 +178,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
       })
 
       alert(language === 'ja' ? 'アップロードしました' : '업로드했습니다')
-      fetchPayrollFile()
+      fetchPayrollFiles()
     } catch (error: any) {
       console.error('File upload error:', error)
       alert(error.response?.data?.message || (language === 'ja' ? 'アップロードに失敗しました' : '업로드에 실패했습니다'))
@@ -192,17 +188,17 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
     }
   }
 
-  const handleFileDownload = async () => {
+  const handleFileDownload = async (file: any) => {
     try {
       const response = await api.get(
-        `/monthly-payroll/file/download/${selectedPayrollYear}/${selectedPayrollMonth}`,
+        `/monthly-payroll/file/download/${file.id}`,
         { responseType: 'blob' }
       )
 
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', payrollFile?.fileName || '급여명세서.pdf')
+      link.setAttribute('download', file?.fileName || '급여명세서.pdf')
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -213,15 +209,15 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
     }
   }
 
-  const handleFileDelete = async () => {
+  const handleFileDelete = async (file: any) => {
     if (!confirm(language === 'ja' ? 'ファイルを削除しますか？' : '파일을 삭제하시겠습니까?')) {
       return
     }
 
     try {
-      await api.delete(`/monthly-payroll/file/${selectedPayrollYear}/${selectedPayrollMonth}`)
+      await api.delete(`/monthly-payroll/file/${file.id}`)
       alert(language === 'ja' ? '削除しました' : '삭제했습니다')
-      setPayrollFile(null)
+      setPayrollFiles((prev) => prev.filter((f) => f.id !== file.id))
     } catch (error) {
       console.error('File delete error:', error)
       alert(language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다')
@@ -362,35 +358,14 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <FileText className="h-5 w-5 text-gray-400" />
-              <div>
-                <div className="font-medium text-sm">
-                  {language === 'ja' ? '給与明細書' : '급여명세서'}
-                </div>
-                {payrollFile ? (
-                  <div className="text-xs text-gray-500 flex items-center gap-2">
-                    <span>{payrollFile.fileName}</span>
-                    <span>({formatFileSize(payrollFile.fileSize)})</span>
-                  </div>
-                ) : (
-                  <div className="text-xs text-gray-400">
-                    {language === 'ja' ? 'ファイルがアップロードされていません' : '업로드된 파일이 없습니다'}
-                  </div>
+              <div className="font-medium text-sm">
+                {language === 'ja' ? '給与明細書' : '급여명세서'}
+                {payrollFiles.length > 0 && (
+                  <span className="ml-2 text-xs text-gray-400">({payrollFiles.length})</span>
                 )}
               </div>
             </div>
             <div className="flex gap-2">
-              {payrollFile ? (
-                <>
-                  <Button size="sm" variant="outline" onClick={handleFileDownload}>
-                    <Download className="h-4 w-4 mr-1" />
-                    {language === 'ja' ? 'ダウンロード' : '다운로드'}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleFileDelete} className="text-red-600 hover:text-red-700">
-                    <X className="h-4 w-4 mr-1" />
-                    {language === 'ja' ? '削除' : '삭제'}
-                  </Button>
-                </>
-              ) : null}
               <Button size="sm" onClick={handleFileUploadClick} disabled={isUploadingFile}>
                 <Upload className="h-4 w-4 mr-1" />
                 {isUploadingFile
@@ -400,12 +375,50 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png,.zip"
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
               />
             </div>
           </div>
+
+          {/* 파일 목록 (월별 다중) */}
+          {payrollFiles.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              {payrollFiles.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="h-4 w-4 text-gray-400 shrink-0" />
+                    <span className="text-sm text-gray-700 truncate">{file.fileName}</span>
+                    <span className="text-xs text-gray-400 shrink-0">({formatFileSize(file.fileSize)})</span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => handleFileDownload(file)}>
+                      <Download className="h-4 w-4 mr-1" />
+                      {language === 'ja' ? 'ダウンロード' : '다운로드'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleFileDelete(file)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      {language === 'ja' ? '削除' : '삭제'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3 text-xs text-gray-400">
+              {language === 'ja' ? 'ファイルがアップロードされていません' : '업로드된 파일이 없습니다'}
+            </div>
+          )}
         </CardContent>
       </Card>
 

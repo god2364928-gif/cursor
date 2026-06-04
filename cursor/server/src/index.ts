@@ -45,9 +45,10 @@ import healthCheckupRoutes from './routes/healthCheckup'
 import educationRequestRoutes from './routes/educationRequest'
 import { superAdminOnly } from './middleware/superAdminOnly'
 import { importRecentCalls } from './services/cpiImportService'
-import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoFixOfficeAssistantAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest, autoMigrateHealthCheckup, autoMigrateEducationRequest } from './migrations/autoMigrate'
+import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoFixOfficeAssistantAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest, autoMigrateHealthCheckup, autoMigrateEducationRequest, autoMigrateDropPayrollFileUnique } from './migrations/autoMigrate'
 import { startVacationCron } from './services/vacationCron'
 import { startSnackFixedCron } from './services/snackFixedCron'
+import { startSnackOrderReminderCron } from './services/snackOrderReminderCron'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
 import { autoMigrateExamOpenings } from './migrations/autoMigrateExamOpenings'
 import { autoMigrateExamScoring } from './migrations/autoMigrateExamScoring'
@@ -272,6 +273,7 @@ async function startServer() {
   await autoMigrateSnackRequest()
   await autoMigrateHealthCheckup()
   await autoMigrateEducationRequest()
+  await autoMigrateDropPayrollFileUnique()  // 월별 급여명세서 다중 파일 허용 (UNIQUE 제약 제거)
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`)
@@ -292,6 +294,9 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // 간식 고정 구매 자동 신청 cron (매주 월요일 00:05 JST + startup 30초 후 1회)
   startSnackFixedCron()
+
+  // 간식 발주 알림 cron (매주 월요일 09:30 JST — 전주 신청 목록을 슬랙 日本_알림방으로)
+  startSnackOrderReminderCron()
 
   // CPI 스케줄러 (외부 시스템 호출 + DB 작업)
   // - 개발서버에서는 기본 OFF (속도 흔들림/외부 호출 방지)

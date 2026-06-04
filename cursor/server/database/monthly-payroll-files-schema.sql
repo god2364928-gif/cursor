@@ -9,8 +9,8 @@ CREATE TABLE IF NOT EXISTS monthly_payroll_files (
     mime_type VARCHAR(100),
     uploaded_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (fiscal_year, month)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    -- 월별 여러 개의 급여명세서 파일을 허용 (UNIQUE 제약 없음)
 );
 
 CREATE INDEX IF NOT EXISTS idx_payroll_files_year_month ON monthly_payroll_files (fiscal_year, month);
