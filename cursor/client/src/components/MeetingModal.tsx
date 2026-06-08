@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
 import { UserTarget, MeetingLog } from '../types'
 import BulkTargetModal from './BulkTargetModal'
+import { getMarketers } from '../utils/userUtils'
 
 interface MeetingModalProps {
   isOpen: boolean
@@ -87,8 +88,8 @@ export default function MeetingModal({ isOpen, onClose, performanceData, users }
     }
   })()
 
-  // 마케터만 필터링
-  const marketers = users.filter(u => u.role === 'marketer')
+  // 마케터만 필터링 (퇴사자 제외 — 공용 유틸 사용)
+  const marketers = getMarketers(users)
 
 
   // 데이터 로드
