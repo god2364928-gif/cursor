@@ -6,6 +6,7 @@ import csv from 'csv-parser'
 import { Readable } from 'stream'
 
 const router = Router()
+const ACTIVE_OPERATOR_ROLES = ['marketer', 'office_assistant']
 
 // Multer configuration for CSV upload
 const upload = multer({ 
@@ -65,11 +66,12 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
                    AND il.updated_at >= date_trunc('week', CURRENT_TIMESTAMP) THEN 1 END) as completed_this_week
       FROM users u
       LEFT JOIN inquiry_leads il ON u.id = il.assignee_id
-      WHERE u.role != 'admin' OR il.assignee_id IS NOT NULL
+      WHERE u.role = ANY($1)
+        AND u.employment_status = '입사중'
       GROUP BY u.id, u.name
       HAVING COUNT(il.id) > 0
       ORDER BY u.name
-    `)
+    `, [ACTIVE_OPERATOR_ROLES])
 
     res.json({
       total,
@@ -289,8 +291,14 @@ router.post('/bulk-assign', authMiddleware, async (req: AuthRequest, res: Respon
       return res.status(400).json({ message: 'assigneeId is required' })
     }
 
-    // 담당자 존재 확인
-    const userResult = await pool.query('SELECT id, name FROM users WHERE id = $1', [assigneeId])
+    // 담당자 존재 확인: 입사중인 마케터/사무보조에게만 배정 가능
+    const userResult = await pool.query(`
+      SELECT id, name
+      FROM users
+      WHERE id = $1
+        AND role = ANY($2)
+        AND employment_status = '입사중'
+    `, [assigneeId, ACTIVE_OPERATOR_ROLES])
     if (userResult.rows.length === 0) {
       return res.status(404).json({ message: 'User not found' })
     }
@@ -416,12 +424,12 @@ router.get('/assignees', authMiddleware, async (req: AuthRequest, res: Response)
         ? "AND role IN ('marketer', 'office_assistant')"
         : ''
 
-    // 퇴사자는 담당자 옵션에서 제외
+    // 담당자 옵션은 입사중인 마케터/사무보조만 노출한다.
     const result = await pool.query(`
       SELECT id, name, team, role
       FROM users
       WHERE role != 'admin'
-        AND (employment_status IS NULL OR employment_status <> '퇴사')
+        AND employment_status = '입사중'
       ${roleClause}
       ORDER BY name
     `)
@@ -458,4 +466,3 @@ router.get('/prefectures', authMiddleware, async (req: AuthRequest, res: Respons
 })
 
 export default router
-
