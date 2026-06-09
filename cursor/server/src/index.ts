@@ -45,7 +45,7 @@ import healthCheckupRoutes from './routes/healthCheckup'
 import educationRequestRoutes from './routes/educationRequest'
 import { superAdminOnly } from './middleware/superAdminOnly'
 import { importRecentCalls } from './services/cpiImportService'
-import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoFixOfficeAssistantAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest, autoMigrateHealthCheckup, autoMigrateEducationRequest, autoMigrateDropPayrollFileUnique } from './migrations/autoMigrate'
+import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoFixCrmRoleAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest, autoMigrateHealthCheckup, autoMigrateEducationRequest, autoMigrateDropPayrollFileUnique } from './migrations/autoMigrate'
 import { startVacationCron } from './services/vacationCron'
 import { startSnackFixedCron } from './services/snackFixedCron'
 import { startSnackOrderReminderCron } from './services/snackOrderReminderCron'
@@ -264,7 +264,7 @@ async function startServer() {
   await autoMigrateExamOpenings()
   await autoMigrateExamScoring()
   await autoMigrateAppAccess()
-  await autoFixOfficeAssistantAppAccess()
+  await autoFixCrmRoleAppAccess()
   await autoMigrateVacation()
   await autoMigrateNotionVacationData()
   await autoMigrateNakamuraSakuraSplit()

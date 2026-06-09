@@ -350,27 +350,29 @@ export async function autoMigrateAppAccess(): Promise<void> {
   }
 }
 
-// office_assistant 역할인데 app_access 에 crm 이 빠져 있는 사용자를 일괄 보정한다.
-// 사무보조는 영업추적·문의리드·핫페퍼·설정 메뉴에 접근해야 하므로 erp 단독이면 CRM 진입이 막힌다.
+// CRM 역할인데 app_access 에 crm 이 빠져 있는 사용자를 일괄 보정한다.
+// 신규 사용자 생성 시 DB 기본값 erp 만 들어간 계정은 CRM 진입이 막힌다.
 // 멱등 — 이미 crm 이 포함된 사용자는 건드리지 않는다.
-export async function autoFixOfficeAssistantAppAccess(): Promise<void> {
+export async function autoFixCrmRoleAppAccess(): Promise<void> {
   try {
     const r = await pool.query(`
       UPDATE users
-         SET app_access = 'crm,' || app_access
-       WHERE role = 'office_assistant'
-         AND app_access IS NOT NULL
-         AND position('crm' in app_access) = 0
-       RETURNING id, email, app_access
+         SET app_access = CASE
+           WHEN app_access IS NULL OR btrim(app_access) = '' THEN 'crm,erp'
+           ELSE 'crm,' || app_access
+         END
+       WHERE role IN ('manager', 'marketer', 'office_assistant')
+         AND NOT ('crm' = ANY(regexp_split_to_array(COALESCE(app_access, ''), '\\s*,\\s*')))
+       RETURNING id, email, role, app_access
     `)
     if (r.rowCount && r.rowCount > 0) {
-      console.log(`✅ office_assistant app_access auto-fixed: ${r.rowCount} user(s)`)
-      r.rows.forEach((row) => console.log(`   - ${row.email} → ${row.app_access}`))
+      console.log(`✅ CRM role app_access auto-fixed: ${r.rowCount} user(s)`)
+      r.rows.forEach((row) => console.log(`   - ${row.email} (${row.role}) → ${row.app_access}`))
     } else {
-      console.log('✓ office_assistant app_access already consistent')
+      console.log('✓ CRM role app_access already consistent')
     }
   } catch (error: any) {
-    console.error('❌ office_assistant app_access auto-fix failed:', error.message)
+    console.error('❌ CRM role app_access auto-fix failed:', error.message)
   }
 }
 

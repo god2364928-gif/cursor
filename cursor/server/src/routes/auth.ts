@@ -6,6 +6,41 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 
 const router = Router()
 
+const CRM_ACCESS_ROLES = new Set(['manager', 'marketer', 'office_assistant'])
+
+function defaultAppAccessForRole(role: string | undefined | null): string {
+  if (role === 'admin') return 'admin,crm,erp'
+  if (role && CRM_ACCESS_ROLES.has(role)) return 'crm,erp'
+  return 'erp'
+}
+
+function parseAppAccess(appAccess: string | undefined | null): string[] {
+  return (appAccess || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+function ensureRoleAppAccess(role: string | undefined | null, appAccess: string | undefined | null): string {
+  const parts = parseAppAccess(appAccess)
+  if (parts.length === 0) {
+    return defaultAppAccessForRole(role)
+  }
+
+  if (role === 'admin') {
+    for (const area of ['admin', 'crm', 'erp']) {
+      if (!parts.includes(area)) parts.push(area)
+    }
+    return parts.join(',')
+  }
+
+  if (role && CRM_ACCESS_ROLES.has(role) && !parts.includes('crm')) {
+    parts.unshift('crm')
+  }
+
+  return parts.join(',')
+}
+
 // Login
 router.post('/login', async (req: Request, res: Response) => {
   try {
@@ -41,25 +76,14 @@ router.post('/login', async (req: Request, res: Response) => {
       [user.id]
     )
 
-    // app_access 기본값 보정 (마이그레이션 이전 사용자 대응)
-    let appAccess: string =
-      user.app_access ||
-      (user.role === 'admin' ? 'admin,crm,erp' : 'crm,erp')
-
-    // office_assistant 는 CRM 일부 메뉴(영업추적·문의리드·핫페퍼·설정)를 사용하므로
-    // app_access 에 crm 이 빠져 있으면 자동 보정한다.
-    // (사무보조 권한 사용자가 ERP 만 부여된 상태로 들어오는 사고 재발 방지)
-    if (user.role === 'office_assistant') {
-      const parts = appAccess.split(',').map((s) => s.trim()).filter(Boolean)
-      if (!parts.includes('crm')) {
-        parts.unshift('crm')
-        appAccess = parts.join(',')
-        try {
-          await pool.query('UPDATE users SET app_access = $1 WHERE id = $2', [appAccess, user.id])
-          console.log(`[auto-fix] office_assistant ${email} app_access → ${appAccess}`)
-        } catch (e) {
-          console.error('[auto-fix] failed to persist app_access:', e)
-        }
+    // app_access 기본값 보정 (마이그레이션 이전 사용자 및 신규 CRM 역할 대응)
+    const appAccess = ensureRoleAppAccess(user.role, user.app_access)
+    if (appAccess !== user.app_access) {
+      try {
+        await pool.query('UPDATE users SET app_access = $1 WHERE id = $2', [appAccess, user.id])
+        console.log(`[auto-fix] ${user.role} ${email} app_access -> ${appAccess}`)
+      } catch (e) {
+        console.error('[auto-fix] failed to persist app_access:', e)
       }
     }
 
@@ -128,11 +152,15 @@ router.post('/users', authMiddleware, async (req: AuthRequest, res: Response) =>
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
+    const finalRole = role || 'user'
+    const appAccess = defaultAppAccessForRole(finalRole)
 
     // Insert user
     const result = await pool.query(
-      'INSERT INTO users (name, email, password, team, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, team, role, created_at',
-      [name, email, hashedPassword, team || null, role || 'user']
+      `INSERT INTO users (name, email, password, team, role, app_access)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, name, email, team, role, app_access, created_at`,
+      [name, email, hashedPassword, team || null, finalRole, appAccess]
     )
 
     res.json({ user: result.rows[0] })
@@ -150,7 +178,7 @@ router.get('/users', authMiddleware, async (req: AuthRequest, res: Response) => 
   try {
     const result = await pool.query(
       `SELECT id, name, email, team, role, created_at, last_login_at,
-              department, position, employment_status, base_salary, hire_date,
+              app_access, department, position, employment_status, base_salary, hire_date,
               contract_start_date, contract_end_date, mart_id,
               transportation_route, monthly_transportation_cost,
               transportation_start_date, transportation_details
@@ -214,14 +242,12 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
 
     // role이 전달되지 않은 경우 기존 값을 유지하기 위해 현재 사용자 정보 조회
     let finalRole = role
+    const currentUserResult = await pool.query('SELECT role, app_access FROM users WHERE id = $1', [id])
+    const currentUser = currentUserResult.rows[0]
     if (role === undefined || role === null) {
-      const currentUserResult = await pool.query('SELECT role FROM users WHERE id = $1', [id])
-      if (currentUserResult.rows.length > 0) {
-        finalRole = currentUserResult.rows[0].role
-      } else {
-        finalRole = 'user' // 사용자가 없는 경우 기본값
-      }
+      finalRole = currentUser?.role || 'user'
     }
+    const finalAppAccess = ensureRoleAppAccess(finalRole, currentUser?.app_access)
 
     // Update user
     let result
@@ -232,14 +258,15 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
           department = $6, position = $7, employment_status = $8, base_salary = $9,
           hire_date = $10, contract_start_date = $11, contract_end_date = $12, mart_id = $13,
           transportation_route = $14, monthly_transportation_cost = $15,
-          transportation_start_date = $16, transportation_details = $17
-         WHERE id = $18 RETURNING *`,
+          transportation_start_date = $16, transportation_details = $17,
+          app_access = $18
+         WHERE id = $19 RETURNING *`,
         [
           name, email, hashedPassword, toNullIfEmpty(team), finalRole,
           toNullIfEmpty(department), toNullIfEmpty(position), toNullIfEmpty(employmentStatus), toNullIfEmpty(baseSalary),
           toNullIfEmpty(hireDate), toNullIfEmpty(contractStartDate), toNullIfEmpty(contractEndDate), toNullIfEmpty(martId),
           toNullIfEmpty(transportationRoute), toNullIfEmpty(monthlyTransportationCost),
-          toNullIfEmpty(transportationStartDate), toNullIfEmpty(transportationDetails),
+          toNullIfEmpty(transportationStartDate), toNullIfEmpty(transportationDetails), finalAppAccess,
           id
         ]
       )
@@ -250,14 +277,15 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
           department = $5, position = $6, employment_status = $7, base_salary = $8,
           hire_date = $9, contract_start_date = $10, contract_end_date = $11, mart_id = $12,
           transportation_route = $13, monthly_transportation_cost = $14,
-          transportation_start_date = $15, transportation_details = $16
-         WHERE id = $17 RETURNING *`,
+          transportation_start_date = $15, transportation_details = $16,
+          app_access = $17
+         WHERE id = $18 RETURNING *`,
         [
           name, email, toNullIfEmpty(team), finalRole,
           toNullIfEmpty(department), toNullIfEmpty(position), toNullIfEmpty(employmentStatus), toNullIfEmpty(baseSalary),
           toNullIfEmpty(hireDate), toNullIfEmpty(contractStartDate), toNullIfEmpty(contractEndDate), toNullIfEmpty(martId),
           toNullIfEmpty(transportationRoute), toNullIfEmpty(monthlyTransportationCost),
-          toNullIfEmpty(transportationStartDate), toNullIfEmpty(transportationDetails),
+          toNullIfEmpty(transportationStartDate), toNullIfEmpty(transportationDetails), finalAppAccess,
           id
         ]
       )
