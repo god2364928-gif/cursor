@@ -464,7 +464,7 @@ export type VacationNotifyKind = 'submitted' | 'approved' | 'rejected'
  * - 채널은 VACATION_SLACK_CHANNEL_ID 와 동일 (日本_알림방 C0B28RC26H1).
  *   SNACK_ORDER_SLACK_CHANNEL_ID 환경변수로 override 가능
  */
-const SNACK_ORDER_SLACK_CHANNEL_ID =
+export const SNACK_ORDER_SLACK_CHANNEL_ID =
   process.env.SNACK_ORDER_SLACK_CHANNEL_ID ||
   process.env.VACATION_SLACK_CHANNEL_ID ||
   'C0B28RC26H1'
@@ -551,11 +551,16 @@ export async function sendSnackOrderReminder(data: {
     })
 
     console.log(
-      `✅ Slack snack order reminder sent: week=${weekStart} items=${items.length} total=${totalAmount}`
+      `✅ Slack snack order reminder sent: week=${weekStart} items=${items.length} total=${totalAmount} channel=${SNACK_ORDER_SLACK_CHANNEL_ID}`
     )
     return true
   } catch (error: any) {
-    console.error('❌ Slack snack order reminder failed:', error.message)
+    // Slack WebClient 오류는 실제 코드가 error.data.error 에 담김 (예: not_in_channel, channel_not_found)
+    const slackErr = error?.data?.error || error?.message
+    console.error(
+      `❌ Slack snack order reminder failed (channel=${SNACK_ORDER_SLACK_CHANNEL_ID}):`,
+      slackErr
+    )
     return false
   }
 }

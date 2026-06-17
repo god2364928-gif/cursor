@@ -9,6 +9,7 @@ import {
   daysUntilDeadline,
   deadlineISO,
 } from '../lib/snackWeek'
+import { runSnackOrderReminderJob } from '../services/snackOrderReminderCron'
 
 const router = Router()
 
@@ -617,6 +618,31 @@ router.post('/admin/run-fixed-job', async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('snack/admin/run-fixed-job error:', error.message)
     res.status(500).json({ error: '固定購入ジョブ実行失敗' })
+  }
+})
+
+/** 12. 발주 알림 수동 발송 (발주 담당자) — 주간 cron 과 동일 로직.
+ *  - body.week_start 지정 시 그 주, 생략 시 발주 대상 주(직전 마감 주).
+ *  - pending 신청이 있을 때만 슬랙(日本_알림방)으로 발송.
+ *  - 배포 검증 / 누락분 재발송 / 원인 진단용. 응답의 channel·sent 로 발송 결과 확인.
+ */
+router.post('/admin/run-order-reminder', async (req: AuthRequest, res: Response) => {
+  try {
+    if (!isOrderManager(req)) {
+      return res.status(403).json({ error: '発注担当者のみ実行可能です' })
+    }
+
+    const { week_start } = (req.body || {}) as { week_start?: string }
+    const result = await runSnackOrderReminderJob(
+      week_start && /^\d{4}-\d{2}-\d{2}$/.test(week_start)
+        ? { weekStart: week_start }
+        : undefined
+    )
+
+    res.json(result)
+  } catch (error: any) {
+    console.error('snack/admin/run-order-reminder error:', error.message)
+    res.status(500).json({ error: '発注リマインダー手動実行失敗' })
   }
 })
 
