@@ -310,6 +310,11 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
         total_amount: totalAmount,
         tax_amount: taxAmount,
         user_name: userName,
+        line_items: line_items.map((item: any) => ({
+          name: item.name,
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+        })),
       }).catch(error => {
         console.error('⚠️ Slack notification failed, but invoice was created successfully:', error)
       })

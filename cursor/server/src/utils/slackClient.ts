@@ -256,6 +256,7 @@ export async function sendPaypalInvoiceNotification(invoiceData: {
   total_amount: number
   tax_amount: number
   user_name?: string
+  line_items?: Array<{ name: string; quantity?: number; unit_price?: number }>
 }): Promise<boolean> {
   const client = getSlackClient()
 
@@ -265,7 +266,7 @@ export async function sendPaypalInvoiceNotification(invoiceData: {
   }
 
   try {
-    const { invoice_number, partner_name, invoice_date, due_date, total_amount, tax_amount, user_name } = invoiceData
+    const { invoice_number, partner_name, invoice_date, due_date, total_amount, tax_amount, user_name, line_items } = invoiceData
 
     // 세전 금액 계산
     const amountExcludingTax = total_amount - tax_amount
@@ -274,6 +275,17 @@ export async function sendPaypalInvoiceNotification(invoiceData: {
     const formatAmount = (amount: number) => {
       return amount.toLocaleString('ja-JP')
     }
+
+    // 품목(摘要) 내역 텍스트 생성 (예: アカウント管理)
+    const lineItemsText = (line_items && line_items.length > 0)
+      ? line_items
+          .map((item) => {
+            const qty = Number(item.quantity) || 0
+            const unitPrice = Number(item.unit_price) || 0
+            return `• ${item.name} (${qty} × ¥${formatAmount(unitPrice)})`
+          })
+          .join('\n')
+      : null
 
     // 날짜 포맷팅 (YYYY/MM/DD)
     const formatDate = (dateStr: string) => {
@@ -319,6 +331,16 @@ export async function sendPaypalInvoiceNotification(invoiceData: {
             }
           ]
         },
+        // 품목(摘要) 내역 — line_items가 있을 때만 추가
+        ...(lineItemsText
+          ? [{
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `*품목 내역:*\n${lineItemsText}`
+              }
+            }]
+          : []),
         {
           type: 'section',
           fields: [
