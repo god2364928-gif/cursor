@@ -716,6 +716,7 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
       invoice_registration_number: invoice.template?.invoice_registration_number || 'T5013301050765',
       memo: memoFromDb || '',  // DB의 memo 사용
       tax_entry_method: (taxEntryMethodFromDb === 'inclusive' ? 'inclusive' : 'exclusive') as 'inclusive' | 'exclusive',  // DB의 tax_entry_method 사용 (기본값: 외세)
+      invoice_title: invoice.invoice_title || invoice.title,  // 件名 (freee 응답값, 없으면 PDF에서 기본 문구로 fallback)
     })
 
     console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`)

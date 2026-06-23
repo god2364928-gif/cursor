@@ -60,6 +60,7 @@ interface InvoiceData {
   invoice_registration_number?: string
   memo?: string  // 추가: 비고
   tax_entry_method?: 'inclusive' | 'exclusive'  // 추가: 내세/외세
+  invoice_title?: string  // 추가: 件名 (없으면 기본 문구)
 }
 
 interface ReceiptData {
@@ -441,10 +442,8 @@ function generateInvoiceHtml(data: InvoiceData): string {
     </div>`
   }).join('')
 
-  const emptyRows = Math.max(0, 10 - data.lines.length)
-  const emptyRowsHtml = Array(emptyRows)
-    .fill('<tr><td style="height: 18px;">&nbsp;</td><td></td><td></td><td></td></tr>')
-    .join('')
+  // 빈 행 패딩 제거: 품목표가 항목 수에 맞춰 늘어나도록 (미리보기와 동일) → 페이지 늘어남 방지
+  const emptyRowsHtml = ''
 
   return `
 <!DOCTYPE html>
@@ -673,7 +672,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
   <div class="greeting">下記の通りご請求申し上げます。</div>
   
   <div class="subject-line">
-    <strong>件名</strong>　　COCOマーケご利用料
+    <strong>件名</strong>　　${data.invoice_title || 'COCOマーケご利用料'}
   </div>
 
   <table class="amount-table">
@@ -732,8 +731,6 @@ function generateInvoiceHtml(data: InvoiceData): string {
     <div class="remarks-header">備考</div>
     <div class="remarks-box">${data.memo ? data.memo.replace(/\n/g, '<br>') : ''}</div>
   </div>
-
-  <div class="page-number">1 / 1</div>
 </body>
 </html>
   `
@@ -755,6 +752,11 @@ export async function generateInvoicePdf(invoiceData: InvoiceData): Promise<Buff
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
+      displayHeaderFooter: true,
+      headerTemplate: '<span></span>',
+      // 실제 페이지 번호 표시 (한 페이지면 "1 / 1", 두 페이지면 "1 / 2", "2 / 2")
+      footerTemplate:
+        '<div style="width:100%; text-align:center; font-size:8pt; font-family:\'Noto Sans JP\', sans-serif; color:#333;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>',
       margin: {
         top: '15mm',
         right: '20mm',
