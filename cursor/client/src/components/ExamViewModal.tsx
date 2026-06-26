@@ -7,7 +7,7 @@ import { Label } from './ui/label'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { ScrollArea } from './ui/scroll-area'
-import { Copy } from 'lucide-react'
+import { Copy, AlertTriangle } from 'lucide-react'
 
 interface ExamViewModalProps {
   open: boolean
@@ -18,6 +18,19 @@ interface ExamViewModalProps {
 }
 
 const EXAM_QUESTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+
+// 부정행위 이벤트 타입 → i18n 라벨 키
+const PROCTOR_LABEL_KEYS: Record<string, string> = {
+  paste_blocked: 'proctorPasteBlocked',
+  drop_blocked: 'proctorDropBlocked',
+  copy: 'proctorCopy',
+  cut: 'proctorCut',
+  tab_hidden: 'proctorTabHidden',
+  window_blur: 'proctorWindowBlur',
+  contextmenu: 'proctorContextmenu',
+  bulk_insert: 'proctorBulkInsert',
+  fullscreen_exit: 'proctorFullscreenExit',
+}
 
 // 문항 본문을 표/불릿/소제목/문단으로 보기 좋게 렌더링
 function QuestionContent({ text }: { text: string }) {
@@ -136,6 +149,8 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName, in
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [userInfo, setUserInfo] = useState<{ name: string; email: string; role: string } | null>(null)
+  const [proctorEvents, setProctorEvents] = useState<Array<{ eventType: string; detail: any; occurredAt: string }>>([])
+  const [proctorSummary, setProctorSummary] = useState<Record<string, number>>({})
 
   // 현재 회차의 채점 입력 상태
   const [scores, setScores] = useState<Record<number, string>>({})
@@ -147,6 +162,30 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName, in
       loadUserExamAnswers()
     }
   }, [open, userId, initialRound])
+
+  // 선택된 회차의 부정행위 감지 내역 로드
+  useEffect(() => {
+    if (!open || !userId) {
+      setProctorEvents([])
+      setProctorSummary({})
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await api.get(`/exam/user/${userId}/proctor-events?round=${selectedRound}`)
+        if (cancelled) return
+        setProctorEvents(res.data.events || [])
+        setProctorSummary(res.data.summary || {})
+      } catch (error) {
+        if (!cancelled) {
+          setProctorEvents([])
+          setProctorSummary({})
+        }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [open, userId, selectedRound])
 
   const loadUserExamAnswers = async () => {
     if (!userId) return
@@ -303,6 +342,22 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName, in
 
   const currentExam = exams.find(e => e.examRound === selectedRound)
 
+  const proctorLabel = (type: string) => t((PROCTOR_LABEL_KEYS[type] || type) as any)
+  const proctorDetailText = (ev: { detail: any }) => {
+    const d = ev.detail || {}
+    const parts: string[] = []
+    if (d.questionId) parts.push(`${t('proctorQuestion')}${d.questionId}`)
+    if (typeof d.length === 'number' && d.length > 0) parts.push(`${d.length}${t('proctorChars')}`)
+    if (d.preview) parts.push(`"${d.preview}"`)
+    return parts.join(' · ')
+  }
+  const formatProctorTime = (s: string) => {
+    if (!s) return ''
+    const d = new Date(s)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
@@ -354,6 +409,35 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName, in
             </div>
           )}
         </DialogHeader>
+
+        {/* 부정행위 감지 내역 */}
+        {proctorEvents.length > 0 && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 mt-1">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-4 h-4 text-red-600" />
+              <span className="text-sm font-bold text-red-700">{t('proctorTitle')}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {Object.entries(proctorSummary).map(([type, count]) => (
+                <span
+                  key={type}
+                  className="inline-flex items-center rounded-full bg-white border border-red-200 px-2 py-0.5 text-xs font-medium text-red-700"
+                >
+                  {proctorLabel(type)} {count}{t('proctorCountUnit')}
+                </span>
+              ))}
+            </div>
+            <div className="max-h-28 overflow-y-auto space-y-0.5 text-xs">
+              {proctorEvents.map((ev, i) => (
+                <div key={i} className="flex gap-2 items-baseline">
+                  <span className="text-gray-400 tabular-nums whitespace-nowrap">{formatProctorTime(ev.occurredAt)}</span>
+                  <span className="font-medium text-gray-700 whitespace-nowrap">{proctorLabel(ev.eventType)}</span>
+                  <span className="text-gray-500 truncate">{proctorDetailText(ev)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <ScrollArea className="h-[60vh] pr-4">
           {loading ? (

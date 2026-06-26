@@ -27,6 +27,9 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
   const answersRef = useRef(answers)    // setTimeout/flush에서 최신 답변 참조용
   const isSubmittedRef = useRef(isSubmitted)
   const currentRoundRef = useRef(currentRound)
+  // 부정행위 감지: 이벤트 버퍼 + 배치 전송용 ref
+  const proctorBufferRef = useRef<Array<{ eventType: string; detail: any; occurredAt: string }>>([])
+  const proctorSuppressRef = useRef(false)  // 저장/제출 alert·confirm로 인한 window blur 오탐 억제
 
   useEffect(() => { answersRef.current = answers }, [answers])
   useEffect(() => { isSubmittedRef.current = isSubmitted }, [isSubmitted])
@@ -95,8 +98,37 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
     }
   }
 
+  // ── 부정행위 감지 ──────────────────────────────────────────
+  // 이벤트를 버퍼에 쌓고(응시자에게 알림 없음), 주기적/이탈 시 서버에 배치 전송한다.
+  const recordProctorEvent = (eventType: string, detail?: any) => {
+    if (isSubmittedRef.current) return
+    proctorBufferRef.current.push({
+      eventType,
+      detail: detail ?? null,
+      occurredAt: new Date().toISOString(),
+    })
+  }
+
+  const flushProctorEvents = () => {
+    const buffer = proctorBufferRef.current
+    if (buffer.length === 0) return
+    proctorBufferRef.current = []
+    void api
+      .post('/exam/proctor-event', { examRound: currentRoundRef.current, events: buffer })
+      .catch((error) => {
+        console.error('Proctor flush failed:', error)
+        // 실패분은 되돌려 다음 전송에서 재시도
+        proctorBufferRef.current = buffer.concat(proctorBufferRef.current)
+      })
+  }
+
   const handleAnswerChange = (questionId: number, value: string) => {
     if (isSubmitted) return // 제출 후에는 수정 불가
+    // 타이핑 없이 한 번에 대량 입력(자동완성/우회 의심) 감지
+    const prevValue = answers[questionId] || ''
+    if (value.length - prevValue.length >= 50) {
+      recordProctorEvent('bulk_insert', { questionId, length: value.length - prevValue.length })
+    }
     setAnswers({ ...answers, [questionId]: value })
     dirtyRef.current = true
     // 입력이 1.5초간 멈추면 자동저장
@@ -123,6 +155,7 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
   const handleSave = async () => {
     if (isSubmitted) return
 
+    proctorSuppressRef.current = true
     setSaving(true)
     try {
       // 서버에 저장할 때는 키를 문자열로 변환
@@ -138,13 +171,16 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
       alert(error.response?.data?.message || t('saveFailed'))
     } finally {
       setSaving(false)
+      setTimeout(() => { proctorSuppressRef.current = false }, 500)
     }
   }
 
   const handleSubmit = async () => {
     if (isSubmitted) return
 
+    proctorSuppressRef.current = true
     if (!confirm(t('examConfirmSubmit'))) {
+      proctorSuppressRef.current = false
       return
     }
 
@@ -163,8 +199,61 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
       alert(error.response?.data?.message || t('saveFailed'))
     } finally {
       setSaving(false)
+      setTimeout(() => { proctorSuppressRef.current = false }, 500)
     }
   }
+
+  // 응시 중(모달 열림 & 미제출)에만 부정행위 이벤트를 감지·전송한다.
+  useEffect(() => {
+    if (!open || isSubmitted) return
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        recordProctorEvent('tab_hidden')
+        flushProctorEvents() // 이탈 시 즉시 전송(복귀 안 해도 유실 방지)
+      }
+    }
+    const onWindowBlur = () => {
+      if (proctorSuppressRef.current) return // 저장/제출 alert로 인한 오탐 제외
+      recordProctorEvent('window_blur')
+      flushProctorEvents()
+    }
+    const onCopy = () => {
+      const sel = document.getSelection?.()?.toString() || ''
+      recordProctorEvent('copy', sel ? { length: sel.length, preview: sel.slice(0, 100) } : null)
+    }
+    const onCut = () => {
+      const sel = document.getSelection?.()?.toString() || ''
+      recordProctorEvent('cut', sel ? { length: sel.length, preview: sel.slice(0, 100) } : null)
+    }
+    const onContextMenu = () => {
+      recordProctorEvent('contextmenu')
+    }
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        recordProctorEvent('fullscreen_exit')
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('blur', onWindowBlur)
+    document.addEventListener('copy', onCopy)
+    document.addEventListener('cut', onCut)
+    document.addEventListener('contextmenu', onContextMenu)
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    const flushInterval = setInterval(flushProctorEvents, 5000)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('blur', onWindowBlur)
+      document.removeEventListener('copy', onCopy)
+      document.removeEventListener('cut', onCut)
+      document.removeEventListener('contextmenu', onContextMenu)
+      document.removeEventListener('fullscreenchange', onFullscreenChange)
+      clearInterval(flushInterval)
+      flushProctorEvents() // 닫힘/제출 시 남은 이벤트 전송
+    }
+  }, [open, isSubmitted])
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -207,6 +296,18 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
                       id={`question-${qNum}`}
                       value={answers[qNum] || ''}
                       onChange={(e) => handleAnswerChange(qNum, e.target.value)}
+                      onPaste={(e) => {
+                        if (isSubmitted) return
+                        const text = e.clipboardData?.getData('text') || ''
+                        e.preventDefault() // 붙여넣기 차단
+                        recordProctorEvent('paste_blocked', { questionId: qNum, length: text.length, preview: text.slice(0, 100) })
+                      }}
+                      onDrop={(e) => {
+                        if (isSubmitted) return
+                        const text = e.dataTransfer?.getData('text') || ''
+                        e.preventDefault() // 드래그&드롭 입력 차단
+                        recordProctorEvent('drop_blocked', { questionId: qNum, length: text.length, preview: text.slice(0, 100) })
+                      }}
                       disabled={isSubmitted}
                       className={`min-h-[120px] ${isSubmitted ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                       placeholder={isSubmitted ? '' : t('enterContent')}

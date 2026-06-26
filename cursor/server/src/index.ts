@@ -52,6 +52,7 @@ import { startSnackOrderReminderCron } from './services/snackOrderReminderCron'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
 import { autoMigrateExamOpenings } from './migrations/autoMigrateExamOpenings'
 import { autoMigrateExamScoring } from './migrations/autoMigrateExamScoring'
+import { autoMigrateExamProctorEvents } from './migrations/autoMigrateExamProctorEvents'
 import { checkDepositEmails, markAsRead } from './services/gmailService'
 import { parseDepositEmail } from './utils/depositParser'
 import { sendDepositNotification } from './utils/slackClient'
@@ -263,6 +264,7 @@ async function startServer() {
   await autoMigrateFeatureUsage()
   await autoMigrateExamOpenings()
   await autoMigrateExamScoring()
+  await autoMigrateExamProctorEvents()
   await autoMigrateAppAccess()
   await autoFixCrmRoleAppAccess()
   await autoMigrateVacation()

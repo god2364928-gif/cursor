@@ -433,4 +433,117 @@ router.get('/my-openings', authMiddleware, async (req: AuthRequest, res: Respons
   }
 })
 
+// ──────────────────────────────────────────────────────────────
+// 부정행위 감지 (proctoring)
+// ──────────────────────────────────────────────────────────────
+
+// 허용된 이벤트 타입 (클라이언트가 보내는 임의 값 차단)
+const PROCTOR_EVENT_TYPES = [
+  'paste_blocked',
+  'drop_blocked',
+  'copy',
+  'cut',
+  'tab_hidden',
+  'window_blur',
+  'contextmenu',
+  'bulk_insert',
+  'fullscreen_exit',
+]
+
+// 응시 중 부정행위 의심 이벤트 기록 (직원용, 배치 전송 지원)
+router.post('/proctor-event', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id
+    const round = parseInt(req.body.examRound) || 1
+
+    // 배치(events 배열) 또는 단일 이벤트 모두 허용
+    const rawList = Array.isArray(req.body.events)
+      ? req.body.events
+      : (req.body.eventType
+          ? [{ eventType: req.body.eventType, detail: req.body.detail, occurredAt: req.body.occurredAt }]
+          : [])
+
+    // 허용 타입만 필터 + 남용 방지 상한
+    const valid = rawList
+      .filter((e: any) => e && PROCTOR_EVENT_TYPES.includes(e.eventType))
+      .slice(0, 100)
+
+    if (valid.length === 0) {
+      return res.json({ inserted: 0 })
+    }
+
+    const values: any[] = []
+    const placeholders: string[] = []
+    valid.forEach((e: any, i: number) => {
+      const base = i * 5
+      placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`)
+      const occurredAt = e.occurredAt ? new Date(e.occurredAt) : new Date()
+      values.push(
+        userId,
+        round,
+        e.eventType,
+        e.detail ? JSON.stringify(e.detail) : null,
+        isNaN(occurredAt.getTime()) ? new Date() : occurredAt
+      )
+    })
+
+    await pool.query(
+      `INSERT INTO exam_proctor_events (user_id, exam_round, event_type, detail, occurred_at)
+       VALUES ${placeholders.join(', ')}`,
+      values
+    )
+
+    res.json({ inserted: valid.length })
+  } catch (error) {
+    console.error('Error recording proctor events:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// 특정 사용자의 부정행위 감지 내역 조회 (어드민 전용)
+router.get('/user/:userId/proctor-events', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ message: 'Admin access required' })
+    }
+
+    const { userId } = req.params
+    const round = req.query.round ? parseInt(req.query.round as string) : null
+
+    const result = round
+      ? await pool.query(
+          `SELECT event_type, detail, occurred_at, exam_round
+           FROM exam_proctor_events
+           WHERE user_id = $1 AND exam_round = $2
+           ORDER BY occurred_at ASC`,
+          [userId, round]
+        )
+      : await pool.query(
+          `SELECT event_type, detail, occurred_at, exam_round
+           FROM exam_proctor_events
+           WHERE user_id = $1
+           ORDER BY occurred_at ASC`,
+          [userId]
+        )
+
+    const events = result.rows.map((r) => ({
+      eventType: r.event_type,
+      detail: r.detail,
+      occurredAt: r.occurred_at,
+      examRound: r.exam_round,
+    }))
+
+    // 타입별 횟수 요약
+    const summary: Record<string, number> = {}
+    events.forEach((e) => {
+      summary[e.eventType] = (summary[e.eventType] || 0) + 1
+    })
+
+    res.json({ events, summary })
+  } catch (error) {
+    console.error('Error fetching proctor events:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
 export default router
