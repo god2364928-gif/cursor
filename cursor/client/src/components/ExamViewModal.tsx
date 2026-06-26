@@ -427,12 +427,12 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName, in
                 </span>
               ))}
             </div>
-            <div className="max-h-28 overflow-y-auto space-y-0.5 text-xs">
+            <div className="max-h-28 overflow-y-auto overflow-x-hidden space-y-0.5 text-xs">
               {proctorEvents.map((ev, i) => (
-                <div key={i} className="flex gap-2 items-baseline">
-                  <span className="text-gray-400 tabular-nums whitespace-nowrap">{formatProctorTime(ev.occurredAt)}</span>
-                  <span className="font-medium text-gray-700 whitespace-nowrap">{proctorLabel(ev.eventType)}</span>
-                  <span className="text-gray-500 truncate">{proctorDetailText(ev)}</span>
+                <div key={i} className="flex gap-2 items-baseline min-w-0">
+                  <span className="text-gray-400 tabular-nums whitespace-nowrap shrink-0">{formatProctorTime(ev.occurredAt)}</span>
+                  <span className="font-medium text-gray-700 whitespace-nowrap shrink-0">{proctorLabel(ev.eventType)}</span>
+                  <span className="text-gray-500 break-words min-w-0 flex-1">{proctorDetailText(ev)}</span>
                 </div>
               ))}
             </div>
