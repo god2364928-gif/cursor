@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Receipt,
   Check,
@@ -76,7 +76,7 @@ const inputClass =
 
 export default function ExpenseApprovalsPage() {
   const { t } = useI18nStore()
-  const [statusFilter, setStatusFilter] = useState<'' | ExpenseStatus>('pending')
+  const [statusFilter, setStatusFilter] = useState<'' | ExpenseStatus>('')
   const [items, setItems] = useState<ExpenseRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -93,6 +93,8 @@ export default function ExpenseApprovalsPage() {
   // 확장 시 상세(get)로 attachments/history 로드해 행별 캐시 (리스트 응답엔 없음)
   const [details, setDetails] = useState<Record<number, ExpenseRequest>>({})
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null)
+  // 이미지 첨부 인라인 미리보기용 object URL (attachment id 별). 인증 헤더가 필요해 fetch 후 blob URL 사용.
+  const [imageUrls, setImageUrls] = useState<Record<number, string>>({})
 
   function currentFilters(): AdminListFilters {
     return {
@@ -114,6 +116,11 @@ export default function ExpenseApprovalsPage() {
       setItems(res.items)
       // 목록 갱신 시 행별 상세 캐시 무효화 (재확장 시 최신값 재로드)
       setDetails({})
+      // 이미지 미리보기 object URL 도 무효화 (누수 방지)
+      setImageUrls((prev) => {
+        for (const u of Object.values(prev)) URL.revokeObjectURL(u)
+        return {}
+      })
     } catch (e: any) {
       setError(e?.message || 'Failed')
     } finally {
@@ -126,17 +133,43 @@ export default function ExpenseApprovalsPage() {
     void load({ status: statusFilter || undefined })
   }, [statusFilter, load])
 
+  // 언마운트 시 남아 있는 이미지 미리보기 object URL 해제 (누수 방지)
+  const imageUrlsRef = useRef(imageUrls)
+  imageUrlsRef.current = imageUrls
+  useEffect(() => {
+    return () => {
+      for (const u of Object.values(imageUrlsRef.current)) URL.revokeObjectURL(u)
+    }
+  }, [])
+
+  // 이미지 첨부의 인라인 미리보기 object URL 확보 (중복 fetch 방지)
+  const loadImagePreviews = useCallback((full: ExpenseRequest) => {
+    for (const att of full.attachments || []) {
+      if (!att.mime_type?.startsWith('image/')) continue
+      setImageUrls((prev) => {
+        if (prev[att.id]) return prev
+        void downloadAttachment(att.id)
+          .then((url) => setImageUrls((m) => (m[att.id] ? m : { ...m, [att.id]: url })))
+          .catch(() => {})
+        return prev
+      })
+    }
+  }, [])
+
   async function onToggleExpand(id: number) {
     if (expandedId === id) {
       setExpandedId(null)
       return
     }
     setExpandedId(id)
-    if (!details[id]) {
+    if (details[id]) {
+      loadImagePreviews(details[id])
+    } else {
       setDetailLoadingId(id)
       try {
         const full = await get(id)
         setDetails((m) => ({ ...m, [id]: full }))
+        loadImagePreviews(full)
       } catch {
         /* 상세 로드 실패 시 기본 행만 표시 */
       } finally {
@@ -445,24 +478,40 @@ export default function ExpenseApprovalsPage() {
                         {detailLoading ? (
                           <div className="text-xs text-gray-400">{t('loading')}</div>
                         ) : (
-                          <ul className="space-y-1">
-                            {(detail.attachments || []).map((att) => (
-                              <li
-                                key={att.id}
-                                className="flex items-center justify-between text-xs"
-                              >
-                                <span className="text-gray-700 truncate">
-                                  {att.file_name} · {(att.file_size / 1024).toFixed(1)} KB
-                                </span>
-                                <button
-                                  onClick={() => onDownload(att.id, att.file_name)}
-                                  className="p-1 text-gray-500 hover:text-blue-600"
-                                  title={t('education_download')}
-                                >
-                                  <Download className="h-3.5 w-3.5" />
-                                </button>
-                              </li>
-                            ))}
+                          <ul className="space-y-2">
+                            {(detail.attachments || []).map((att) => {
+                              const isImage = att.mime_type?.startsWith('image/')
+                              const previewUrl = imageUrls[att.id]
+                              return (
+                                <li key={att.id} className="space-y-1">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-700 truncate">
+                                      {att.file_name} · {(att.file_size / 1024).toFixed(1)} KB
+                                    </span>
+                                    <button
+                                      onClick={() => onDownload(att.id, att.file_name)}
+                                      className="p-1 text-gray-500 hover:text-blue-600"
+                                      title={t('education_download')}
+                                    >
+                                      <Download className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                  {isImage && previewUrl && (
+                                    <a
+                                      href={previewUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
+                                      <img
+                                        src={previewUrl}
+                                        alt={att.file_name}
+                                        className="max-h-64 rounded border object-contain"
+                                      />
+                                    </a>
+                                  )}
+                                </li>
+                              )
+                            })}
                             {(!detail.attachments ||
                               detail.attachments.length === 0) && (
                               <li className="text-xs text-gray-400">

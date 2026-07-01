@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { X, Upload, Loader2 } from 'lucide-react'
 import { useI18nStore } from '../../i18n'
 import { Button } from '../../components/ui/button'
-import { create, update, uploadAttachment, pollOcr } from './expenseApi'
+import { create, update, uploadAttachment, pollOcr, remove } from './expenseApi'
 import type { CreateExpensePayload } from './expenseApi'
 import type {
   ExpenseRequest,
@@ -74,6 +74,11 @@ export default function ExpenseRequestModal({
   const [requestId, setRequestId] = useState<number | null>(null)
   // state 는 비동기라 같은 tick 연속 호출 시 stale 가능 → ref 로 동기 미러링해 중복 create 원천 차단.
   const requestIdRef = useRef<number | null>(null)
+  // 이 모달 세션에서 (신규 신청 중) create 로 draft row 를 만들었는지 여부.
+  // true 이고 제출 없이 취소/닫기 시 orphan draft 를 삭제한다. 기존 신청 편집이면 항상 false.
+  const sessionCreatedDraftRef = useRef(false)
+  // 제출 완료 여부 — 제출했으면 취소/닫기 시 삭제하지 않는다.
+  const submittedRef = useRef(false)
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -100,6 +105,9 @@ export default function ExpenseRequestModal({
     // 기존 신청 편집이면 그 id 를 세션 request row 로 사용, 신규면 null (첫 저장/업로드 때 create)
     setRequestId(editing ? editing.id : null)
     requestIdRef.current = editing ? editing.id : null
+    // 세션 상태 초기화: 신규 세션은 아직 draft 미생성·미제출
+    sessionCreatedDraftRef.current = false
+    submittedRef.current = false
     if (editing) {
       const cat = editing.category
       setPayType(payTypeForCategory(cat))
@@ -152,8 +160,6 @@ export default function ExpenseRequestModal({
     return meta
   }
 
-  // draft 저장·영수증 업로드 가능 조건: category 확정 (개인결제는 항목 선택 필요).
-  const canSaveDraft = !!category
   // 제출: category + 영수증 + used_at + amount(>=0) 필수. corporate 는 purpose 도 필수.
   const canSubmit =
     !!category &&
@@ -221,6 +227,8 @@ export default function ExpenseRequestModal({
     const created = await create(payload)
     requestIdRef.current = created.id
     setRequestId(created.id)
+    // 신규 신청 세션에서 방금 draft row 를 생성 → 미제출 취소 시 삭제 대상
+    if (!editing) sessionCreatedDraftRef.current = true
     return created.id
   }
 
@@ -254,16 +262,17 @@ export default function ExpenseRequestModal({
     }
   }
 
-  /** Save draft / Submit 공통 저장. asDraft=true → draft, false → 제출. */
-  async function save(asDraft: boolean) {
+  /** 제출 (submit:true 로 create/update). */
+  async function submitRequest() {
     if (submitting || uploading) return
-    if (asDraft && !canSaveDraft) return
-    if (!asDraft && !canSubmit) return
+    if (!canSubmit) return
     setSubmitting(true)
     setError('')
     try {
       // requestId 있으면 update, 없으면 create — 세션당 create 1회 보장
-      await ensureRequestId(asDraft)
+      await ensureRequestId(false)
+      // 제출 성공 → 취소/닫기 시 orphan 삭제 대상 아님
+      submittedRef.current = true
       onSubmitted()
       onClose()
     } catch (e: any) {
@@ -271,6 +280,22 @@ export default function ExpenseRequestModal({
     } finally {
       setSubmitting(false)
     }
+  }
+
+  /**
+   * 취소/닫기 처리. 이 세션에서 만든 미제출 draft 가 있으면 best-effort 로 삭제
+   * (orphan draft row 방지). 기존 신청 편집이거나 이미 제출했으면 삭제하지 않음.
+   */
+  function handleCancel() {
+    if (submitting) return
+    const id = requestIdRef.current
+    if (id != null && sessionCreatedDraftRef.current && !submittedRef.current) {
+      sessionCreatedDraftRef.current = false
+      void remove(id).catch(() => {})
+      // 부모 리스트에서 방금 만든 draft 가 사라지도록 갱신
+      onSubmitted()
+    }
+    onClose()
   }
 
   function selectTab(next: PayType) {
@@ -282,7 +307,7 @@ export default function ExpenseRequestModal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={(e) => {
-        if (e.target === e.currentTarget && !submitting) onClose()
+        if (e.target === e.currentTarget && !submitting) handleCancel()
       }}
     >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
@@ -291,7 +316,7 @@ export default function ExpenseRequestModal({
             {t('erp_expense')}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleCancel}
             disabled={submitting}
             className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
             aria-label="close"
@@ -487,20 +512,13 @@ export default function ExpenseRequestModal({
         <div className="flex justify-end gap-2 mt-6">
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={handleCancel}
             disabled={submitting || uploading}
           >
             {t('cancel')}
           </Button>
           <Button
-            variant="outline"
-            onClick={() => save(true)}
-            disabled={!canSaveDraft || submitting || uploading}
-          >
-            {t('expense_msg_save_draft')}
-          </Button>
-          <Button
-            onClick={() => save(false)}
+            onClick={() => submitRequest()}
             disabled={!canSubmit || submitting || uploading}
           >
             {t('expense_msg_submit')}
