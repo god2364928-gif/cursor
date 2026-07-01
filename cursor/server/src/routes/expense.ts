@@ -17,6 +17,7 @@ import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireAppAccess } from '../middleware/requireAppAccess'
 import { resendReceiptToFreee } from '../services/expenseFreee'
+import { sendExpenseRequestNotification } from '../utils/slackClient'
 
 const router = Router()
 router.use(authMiddleware, requireAppAccess('erp'))
@@ -315,6 +316,21 @@ router.post('/requests', async (req: AuthRequest, res: Response) => {
     await client.query('COMMIT')
 
     const created = await fetchRequest(newId)
+
+    // 제출(pending) 전이 시에만 Slack 알림 (draft 저장은 알림 X) — fire-and-forget
+    if (isSubmit && created) {
+      sendExpenseRequestNotification({
+        applicantName: created.user_name || '不明',
+        category: created.category,
+        settlementType: created.settlement_type,
+        amountInclTax: Number(created.amount_incl_tax) || 0,
+        usedAt: toISODate(created.used_at),
+        vendorName: created.vendor_name,
+        purpose: created.purpose,
+        memo: created.memo,
+      }).catch((e) => console.error('[Expense] slack notify failed:', (e as Error).message))
+    }
+
     res.json(created)
   } catch (error: any) {
     await client.query('ROLLBACK').catch(() => {})
@@ -467,6 +483,21 @@ router.patch('/requests/:id', async (req: AuthRequest, res: Response) => {
     await client.query('COMMIT')
 
     const updated = await fetchRequest(id)
+
+    // draft/awaiting_receipt → pending 제출 전이 시에만 Slack 알림 — fire-and-forget
+    if (justSubmitted && updated) {
+      sendExpenseRequestNotification({
+        applicantName: updated.user_name || '不明',
+        category: updated.category,
+        settlementType: updated.settlement_type,
+        amountInclTax: Number(updated.amount_incl_tax) || 0,
+        usedAt: toISODate(updated.used_at),
+        vendorName: updated.vendor_name,
+        purpose: updated.purpose,
+        memo: updated.memo,
+      }).catch((e) => console.error('[Expense] slack notify failed:', (e as Error).message))
+    }
+
     res.json(updated)
   } catch (error: any) {
     await client.query('ROLLBACK').catch(() => {})

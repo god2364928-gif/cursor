@@ -679,6 +679,82 @@ export async function sendEducationRequestNotification(data: {
   }
 }
 
+/**
+ * 経費申請 알림 — 신청이 제출(pending)되면 日本_領収書 채널(SLACK_CHANNEL_ID)로 전송.
+ * - 채널은 sendReceiptNotification 과 동일 (SLACK_CHANNEL_ID = 日本_領収書).
+ */
+const EXPENSE_CATEGORY_LABEL_JA: Record<string, string> = {
+  transport: '交通費',
+  dining: '会食',
+  meal: '食費',
+  reimburse: '立替経費',
+  welfare: '福利厚生',
+  health_checkup: '健康診断',
+  other: 'その他',
+  corp_card: '法人カード',
+}
+const EXPENSE_SETTLEMENT_LABEL_JA: Record<string, string> = {
+  reimburse_required: '精算あり(立替)',
+  already_paid: '精算なし(法人)',
+}
+
+export async function sendExpenseRequestNotification(data: {
+  applicantName: string
+  category: string        // transport|dining|meal|reimburse|welfare|health_checkup|other|corp_card
+  settlementType: string  // reimburse_required | already_paid
+  amountInclTax: number
+  usedAt: string | null
+  vendorName?: string | null
+  purpose?: string | null
+  memo?: string | null
+}): Promise<boolean> {
+  const client = getSlackClient()
+  if (!client) return false
+
+  try {
+    const {
+      applicantName, category, settlementType, amountInclTax,
+      usedAt, vendorName, purpose, memo,
+    } = data
+
+    const categoryLabel = EXPENSE_CATEGORY_LABEL_JA[category] || category
+    const settlementLabel = EXPENSE_SETTLEMENT_LABEL_JA[settlementType] || settlementType
+
+    const fields: { type: 'mrkdwn'; text: string }[] = [
+      { type: 'mrkdwn', text: `*申請者:*\n${applicantName}` },
+      { type: 'mrkdwn', text: `*区分:*\n${settlementLabel}` },
+      { type: 'mrkdwn', text: `*項目:*\n${categoryLabel}` },
+      { type: 'mrkdwn', text: `*金額:*\n¥${(amountInclTax || 0).toLocaleString('ja-JP')}` },
+      { type: 'mrkdwn', text: `*使用日:*\n${usedAt || '-'}` },
+      { type: 'mrkdwn', text: `*取引先:*\n${vendorName || '-'}` },
+    ]
+    if (purpose && String(purpose).trim()) {
+      fields.push({ type: 'mrkdwn', text: `*目的:*\n${String(purpose).trim()}` })
+    }
+    if (memo && String(memo).trim()) {
+      fields.push({ type: 'mrkdwn', text: `*備考:*\n${String(memo).trim()}` })
+    }
+
+    await client.chat.postMessage({
+      channel: SLACK_CHANNEL_ID,
+      text: `🧾 経費申請: ${applicantName} ${categoryLabel} (¥${(amountInclTax || 0).toLocaleString('ja-JP')})`,
+      blocks: [
+        {
+          type: 'header',
+          text: { type: 'plain_text', text: '🧾 経費申請', emoji: true },
+        },
+        { type: 'section', fields },
+      ],
+    })
+
+    console.log(`✅ Slack expense request notification sent: ${applicantName} ${categoryLabel}`)
+    return true
+  } catch (error: any) {
+    console.error('❌ Slack expense request notification failed:', error.message)
+    return false
+  }
+}
+
 export async function sendVacationNotification(data: {
   kind: VacationNotifyKind
   userName: string
