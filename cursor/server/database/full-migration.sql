@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS accounting_auto_match_rules (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   keyword VARCHAR(255) NOT NULL,
   category VARCHAR(50),
-  assigned_user_id UUID REFERENCES auth_users(id),
+  assigned_user_id UUID REFERENCES users(id),
   payment_method VARCHAR(50),
   priority INTEGER NOT NULL DEFAULT 0,
   is_active BOOLEAN NOT NULL DEFAULT true,

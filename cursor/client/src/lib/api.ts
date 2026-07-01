@@ -26,8 +26,12 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    // 일반 토큰 우선, 없으면 어드민 토큰 fallback (회계 등 어드민 전용 페이지용)
-    const token = localStorage.getItem('token') || localStorage.getItem('admin_token')
+    // /admin 하위(어드민 전용 페이지)는 admin_token 우선, 그 외 스태프 앱은 일반 token 우선.
+    // (거래내역 등 회계 페이지는 /admin 아래이며 adminOnly API를 호출하므로, 남아있는 비관리자 token으로 403 나는 것을 방지)
+    const isAdminArea = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
+    const token = isAdminArea
+      ? (localStorage.getItem('admin_token') || localStorage.getItem('token'))
+      : (localStorage.getItem('token') || localStorage.getItem('admin_token'))
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }

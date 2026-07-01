@@ -98,7 +98,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
   const fetchCategories = async () => {
     try {
       const response = await api.get('/accounting/categories')
-      setCategories(response.data)
+      setCategories(Array.isArray(response.data) ? response.data : [])
     } catch (error) {
       console.error('Categories fetch error:', error)
     }
@@ -209,8 +209,9 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
           limit: 1000  // 증가
         }
       })
-      console.log('📥 Received transactions:', response.data.length)
-      setTransactions(response.data)
+      const data = Array.isArray(response.data) ? response.data : []
+      console.log('📥 Received transactions:', data.length)
+      setTransactions(data)
     } catch (error) {
       console.error('Transactions fetch error:', error)
     } finally {
@@ -222,7 +223,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
     try {
       const response = await api.get('/auth/users')
       setNameOptions(
-        response.data.map((user: any) => ({
+        (Array.isArray(response.data) ? response.data : []).map((user: any) => ({
           id: user.id,
           name: user.name,
         }))
@@ -235,7 +236,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
   const fetchAutoMatchRules = async () => {
     try {
       const response = await api.get('/accounting/auto-match-rules')
-      setAutoMatchRules(response.data)
+      setAutoMatchRules(Array.isArray(response.data) ? response.data : [])
     } catch (error) {
       console.error('Auto match rules fetch error:', error)
     }
@@ -340,6 +341,12 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
     const memoValue = formData.get('memo')
     const itemNameValue = formData.get('itemName')
 
+    const amount = Number(formData.get('amount'))
+    if (!Number.isFinite(amount)) {
+      alert(language === 'ja' ? '金額が正しくありません' : '금액이 올바르지 않습니다')
+      return
+    }
+
     try {
       const payload = {
         transactionDate: formData.get('transactionDate'),
@@ -348,7 +355,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
         category: formData.get('category'),
         paymentMethod: formData.get('paymentMethod'),
         itemName: itemNameValue ? String(itemNameValue) : '',
-        amount: Number(formData.get('amount')),
+        amount,
         assignedUserId: assignedUserIdValue ? String(assignedUserIdValue) : null,
         memo: memoValue ? String(memoValue) : null,
       }
@@ -431,11 +438,19 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
       return
     }
 
+    // 현재 필터에 보이는 행만 대상으로 (숨겨진 행 일괄수정 방지)
+    const visibleIds = new Set(filteredTransactionsSummary.filtered.map(t => t.id))
+    const targetIds = Array.from(selectedTransactions).filter(id => visibleIds.has(id))
+    if (targetIds.length === 0) return
+
     try {
-      await api.put('/accounting/transactions/bulk-update', {
-        transactionIds: Array.from(selectedTransactions),
+      const res = await api.post('/accounting/transactions/bulk-update', {
+        transactionIds: targetIds,
         updates
       })
+      if (res.data?.failed) {
+        alert(language === 'ja' ? `${res.data.failed}件は更新できませんでした` : `${res.data.failed}건은 변경하지 못했습니다`)
+      }
       
       fetchTransactions()
       onTransactionChange?.()
@@ -451,13 +466,21 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
 
   const handleBulkDelete = async () => {
     if (selectedTransactions.size === 0) return
-    
-    if (!confirm(language === 'ja' ? `${selectedTransactions.size}件を削除しますか？` : `${selectedTransactions.size}건을 삭제하시겠습니까?`)) return
+
+    // 현재 필터에 보이는 행만 대상으로 (숨겨진 행 일괄삭제 방지)
+    const visibleIds = new Set(filteredTransactionsSummary.filtered.map(t => t.id))
+    const targetIds = Array.from(selectedTransactions).filter(id => visibleIds.has(id))
+    if (targetIds.length === 0) return
+
+    if (!confirm(language === 'ja' ? `${targetIds.length}件を削除しますか？` : `${targetIds.length}건을 삭제하시겠습니까?`)) return
 
     try {
-      await api.post('/accounting/transactions/bulk-delete', {
-        transactionIds: Array.from(selectedTransactions)
+      const res = await api.post('/accounting/transactions/bulk-delete', {
+        transactionIds: targetIds
       })
+      if (res.data?.failed) {
+        alert(language === 'ja' ? `${res.data.failed}件は削除できませんでした` : `${res.data.failed}건은 삭제하지 못했습니다`)
+      }
       
       fetchTransactions()
       onTransactionChange?.()
@@ -1084,7 +1107,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                   <th className="px-3 py-3 text-center" style={{ width: '40px' }}>
                     <input
                       type="checkbox"
-                      checked={selectedTransactions.size > 0 && filteredTransactionsSummary.filtered.length > 0}
+                      checked={filteredTransactionsSummary.filtered.length > 0 && filteredTransactionsSummary.filtered.every(t => selectedTransactions.has(t.id))}
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       className="cursor-pointer"
                     />
@@ -1401,7 +1424,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                                 <td className="px-2 py-1.5">{categoryLabel(tx.category)}</td>
                                 <td className="px-2 py-1.5 font-mono text-xs">{tx.name || '-'}</td>
                                 <td className="px-2 py-1.5">{tx.assignedUserName || '-'}</td>
-                                <td className="px-2 py-1.5 text-right whitespace-nowrap">¥{tx.amount.toLocaleString()}</td>
+                                <td className="px-2 py-1.5 text-right whitespace-nowrap">¥{Number(tx.amount ?? 0).toLocaleString()}</td>
                               </tr>
                             ))}
                           </tbody>

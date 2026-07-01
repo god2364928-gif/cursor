@@ -1,4 +1,4 @@
-import { Router, Response } from 'express'
+import { Router, Response, NextFunction } from 'express'
 import { pool } from '../../db'
 import { authMiddleware, AuthRequest } from '../../middleware/auth'
 import { adminOnly } from '../../middleware/adminOnly'
@@ -11,6 +11,11 @@ import { toJSTDateString } from '../../utils/dateHelper'
 
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage() })
+
+// accounting_transactions.id 는 UUID 이므로, /transactions/:id 라우트가
+// '/transactions/all' 같은 리터럴 경로를 삼켜 Postgres UUID 캐스팅 에러(500)를
+// 내지 않도록 UUID 형식이 아니면 다음 라우트로 넘긴다.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
@@ -61,7 +66,9 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
     }
     
     query += ` ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
-    params.push(Number(limit), Number(offset))
+    const safeLimit = Math.min(Math.max(Number.parseInt(String(limit ?? 1000), 10) || 1000, 1), 5000)
+    const safeOffset = Math.max(Number.parseInt(String(offset ?? 0), 10) || 0, 0)
+    params.push(safeLimit, safeOffset)
 
     console.log('Final SQL query:', query)
     console.log('Query params:', params)
@@ -135,6 +142,24 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
       bankName,
     } = req.body
 
+    // 필수값 검증 (NOT NULL 컬럼)
+    if (!transactionDate || !transactionType || !category || !paymentMethod || !itemName) {
+      return res.status(400).json({ error: '필수 항목이 누락되었습니다' })
+    }
+    const amountNum = Number(amount)
+    if (!Number.isFinite(amountNum)) {
+      return res.status(400).json({ error: '금액이 올바르지 않습니다' })
+    }
+    // UUID 컬럼 정규화 ('' → null, 형식 오류는 400으로 명확히)
+    const empId = employeeId ? String(employeeId) : null
+    const accId = accountId ? String(accountId) : null
+    const assId = assignedUserId ? String(assignedUserId) : null
+    for (const [val, label] of [[empId, '직원'], [accId, '계좌'], [assId, '담당자']] as const) {
+      if (val !== null && !UUID_REGEX.test(val)) {
+        return res.status(400).json({ error: `${label} ID 형식이 올바르지 않습니다` })
+      }
+    }
+
     const normalizeTime = (value?: string | null) => {
       if (!value) return null
       const trimmed = String(value).trim()
@@ -162,10 +187,10 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
         category,
         normalizedPaymentMethod,
         itemName,
-        amount,
-        employeeId || null,
-        accountId || null,
-        assignedUserId || null,
+        amountNum,
+        empId,
+        accId,
+        assId,
         memo || null,
         attachmentUrl || null,
         bankName || 'PayPay',
@@ -192,13 +217,13 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
     }
 
     // 자동화: 계좌 잔액 갱신
-    if (accountId) {
-      const balanceChange = transactionType === '입금' ? amount : -amount
+    if (accId) {
+      const balanceChange = transactionType === '입금' ? amountNum : -amountNum
       await pool.query(
         `UPDATE accounting_capital
          SET current_balance = current_balance + $1, last_updated = NOW()
          WHERE id = $2`,
-        [balanceChange, accountId]
+        [balanceChange, accId]
       )
     }
 
@@ -312,10 +337,26 @@ router.post('/transactions/bulk-update', authMiddleware, adminOnly, async (req: 
     }
     
     const { category, assignedUserId } = updates
+
+    // assignedUserId 정규화: '' → null, UUID 형식이 아니면 400
+    let normalizedAssignedUserId: string | null | undefined = undefined
+    if (assignedUserId !== undefined) {
+      normalizedAssignedUserId = assignedUserId ? String(assignedUserId) : null
+      if (normalizedAssignedUserId !== null && !UUID_REGEX.test(normalizedAssignedUserId)) {
+        return res.status(400).json({ error: '담당자 ID 형식이 올바르지 않습니다' })
+      }
+    }
+
+    const failedIds: string[] = []
     
     let updatedCount = 0
     
     for (const transactionId of transactionIds) {
+      // UUID가 아닌 id는 건너뛴다 (Postgres uuid 캐스팅 에러 방지)
+      if (typeof transactionId !== 'string' || !UUID_REGEX.test(transactionId)) {
+        failedIds.push(String(transactionId))
+        continue
+      }
       try {
         // 기존 데이터 조회
         const existingResult = await pool.query(
@@ -323,13 +364,16 @@ router.post('/transactions/bulk-update', authMiddleware, adminOnly, async (req: 
           [transactionId]
         )
         
-        if (existingResult.rows.length === 0) continue
+        if (existingResult.rows.length === 0) {
+          failedIds.push(transactionId)
+          continue
+        }
         
         const existing = existingResult.rows[0]
         
         // 업데이트할 필드 결정
         const newCategory = category || existing.category
-        const newAssignedUserId = assignedUserId !== undefined ? assignedUserId : existing.assigned_user_id
+        const newAssignedUserId = normalizedAssignedUserId !== undefined ? normalizedAssignedUserId : existing.assigned_user_id
         
         // 업데이트 실행
         await pool.query(
@@ -343,13 +387,15 @@ router.post('/transactions/bulk-update', authMiddleware, adminOnly, async (req: 
         updatedCount++
       } catch (error) {
         console.error(`Failed to update transaction ${transactionId}:`, error)
+        failedIds.push(transactionId)
       }
     }
     
     res.json({ 
       success: true, 
       updated: updatedCount,
-      message: `${updatedCount}건 업데이트 완료`
+      failed: failedIds.length,
+      message: `${updatedCount}건 업데이트 완료${failedIds.length ? `, ${failedIds.length}건 실패` : ''}`
     })
   } catch (error) {
     console.error('Bulk transaction update error:', error)
@@ -367,23 +413,51 @@ router.post('/transactions/bulk-delete', authMiddleware, adminOnly, async (req: 
     }
     
     let deletedCount = 0
-    
+    const failedIds: string[] = []
+
     for (const transactionId of transactionIds) {
+      // UUID가 아닌 id는 건너뛴다 (Postgres uuid 캐스팅 에러 방지)
+      if (typeof transactionId !== 'string' || !UUID_REGEX.test(transactionId)) {
+        failedIds.push(String(transactionId))
+        continue
+      }
       try {
-        await pool.query(
-          `DELETE FROM accounting_transactions WHERE id = $1`,
+        // 삭제 전 거래 정보 조회 (계좌 잔액 복구용)
+        const existing = await pool.query(
+          `SELECT transaction_type, amount, account_id FROM accounting_transactions WHERE id = $1`,
           [transactionId]
         )
+        if (existing.rows.length === 0) {
+          failedIds.push(transactionId)
+          continue
+        }
+
+        await pool.query(`DELETE FROM accounting_transactions WHERE id = $1`, [transactionId])
+
+        // 계좌 잔액 복구 (단건 삭제와 동일 로직)
+        const { transaction_type, amount, account_id } = existing.rows[0]
+        if (account_id) {
+          const balanceChange = transaction_type === '입금' ? -Number(amount) : Number(amount)
+          await pool.query(
+            `UPDATE accounting_capital
+             SET current_balance = current_balance + $1, last_updated = NOW()
+             WHERE id = $2`,
+            [balanceChange, account_id]
+          )
+        }
+
         deletedCount++
       } catch (error) {
         console.error(`Failed to delete transaction ${transactionId}:`, error)
+        failedIds.push(transactionId)
       }
     }
     
     res.json({ 
       success: true, 
       deleted: deletedCount,
-      message: `${deletedCount}건 삭제 완료`
+      failed: failedIds.length,
+      message: `${deletedCount}건 삭제 완료${failedIds.length ? `, ${failedIds.length}건 실패` : ''}`
     })
   } catch (error) {
     console.error('Bulk transaction delete error:', error)
@@ -391,9 +465,10 @@ router.post('/transactions/bulk-delete', authMiddleware, adminOnly, async (req: 
   }
 })
 
-router.put('/transactions/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
+    if (!UUID_REGEX.test(id)) return next()
     const {
       transactionDate,
       transactionTime,
@@ -405,6 +480,14 @@ router.put('/transactions/:id', authMiddleware, async (req: AuthRequest, res: Re
       memo,
       assignedUserId,
     } = req.body
+
+    // 담당자/금액 형식 검증 (NOT NULL·UUID 컬럼 보호)
+    if (assignedUserId !== undefined && assignedUserId !== null && assignedUserId !== '' && !UUID_REGEX.test(String(assignedUserId))) {
+      return res.status(400).json({ error: '담당자 ID 형식이 올바르지 않습니다' })
+    }
+    if (amount !== undefined && amount !== null && !Number.isFinite(Number(amount))) {
+      return res.status(400).json({ error: '금액이 올바르지 않습니다' })
+    }
 
     // 기존 데이터 조회
     const existingResult = await pool.query(
@@ -449,13 +532,13 @@ router.put('/transactions/:id', authMiddleware, async (req: AuthRequest, res: Re
        WHERE id = $10
        RETURNING *`,
       [
-        transactionDate !== undefined ? transactionDate : existing.transaction_date,
+        transactionDate != null ? transactionDate : existing.transaction_date,
         normalizedTime,
-        transactionType !== undefined ? transactionType : existing.transaction_type,
-        category !== undefined ? category : existing.category,
+        transactionType != null ? transactionType : existing.transaction_type,
+        category != null ? category : existing.category,
         normalizedPaymentMethod,
-        itemName !== undefined ? itemName : existing.item_name,
-        amount !== undefined ? amount : existing.amount,
+        itemName != null ? itemName : existing.item_name,
+        amount != null ? amount : existing.amount,
         memo !== undefined ? (memo || null) : existing.memo,
         assignedUserId !== undefined ? (assignedUserId || null) : existing.assigned_user_id,
         id,
@@ -469,10 +552,11 @@ router.put('/transactions/:id', authMiddleware, async (req: AuthRequest, res: Re
   }
 })
 
-router.delete('/transactions/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+router.delete('/transactions/:id', authMiddleware, adminOnly, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
-    
+    if (!UUID_REGEX.test(id)) return next()
+
     // 삭제 전 거래 정보 조회 (잔액 복구용)
     const transactionResult = await pool.query(
       `SELECT transaction_type, amount, account_id FROM accounting_transactions WHERE id = $1`,

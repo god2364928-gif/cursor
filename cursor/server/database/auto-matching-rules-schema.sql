@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS accounting_auto_match_rules (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   keyword VARCHAR(255) NOT NULL, -- 항목명에서 찾을 키워드 (예: "face", "PayPay" 등)
   category VARCHAR(50), -- 자동 지정할 카테고리 (예: "운영비")
-  assigned_user_id UUID REFERENCES auth_users(id), -- 자동 지정할 담당자
+  assigned_user_id UUID REFERENCES users(id), -- 자동 지정할 담당자
   payment_method VARCHAR(50), -- 자동 지정할 결제수단 (선택사항)
   priority INTEGER NOT NULL DEFAULT 0, -- 우선순위 (숫자 클수록 우선, 중복 시 사용)
   is_active BOOLEAN NOT NULL DEFAULT true, -- 활성화 여부
