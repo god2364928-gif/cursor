@@ -398,6 +398,19 @@ export default function ExpenseApprovalsPage() {
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
                           {t(`expense_item_${req.category}`)}
                         </span>
+                        {req.freee_receipt_id ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                            freee 완료
+                          </span>
+                        ) : req.freee_error ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                            freee 오류
+                          </span>
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                            freee 필요
+                          </span>
+                        )}
                         {req.invoice_number && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
                             {req.invoice_number}
