@@ -39,6 +39,7 @@
     "express-validator": "^7.0.1",
     "google-trends-api": "^4.9.2",
     "googleapis": "^170.1.0",
+    "heic-convert": "^2.1.0",
     "iconv-lite": "^0.7.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
@@ -53,6 +54,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/heic-convert": "^2.1.1",
     "node-pg-migrate": "^6.2.2",
     "tsx": "^4.6.2"
   }

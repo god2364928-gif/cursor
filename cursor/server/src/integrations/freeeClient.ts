@@ -879,3 +879,292 @@ export async function downloadReceiptPdf(companyId: number, receiptId: number): 
   // 영수증은 청구서로 저장되므로, downloadInvoicePdf와 동일한 로직 사용
   return downloadInvoicePdf(companyId, receiptId)
 }
+
+// ============================================================
+// 経費申請・精算 (expense reimbursement) — freee会計 API 확장 (design §3)
+// ============================================================
+
+// 기본 사업소 id 캐시 (모듈 레벨, DB/API 조회 최소화)
+let cachedDefaultCompanyId: number | null = null
+
+/**
+ * 기본 사업소 id — 캐시. env FREEE_COMPANY_ID 우선, 없으면 GET /companies 첫 사업소
+ */
+export async function getDefaultCompanyId(): Promise<number> {
+  if (cachedDefaultCompanyId !== null) {
+    return cachedDefaultCompanyId
+  }
+
+  // env 지정이 있으면 우선 사용
+  const envCompanyId = process.env.FREEE_COMPANY_ID
+  if (envCompanyId) {
+    const parsed = parseInt(envCompanyId, 10)
+    if (!Number.isNaN(parsed)) {
+      cachedDefaultCompanyId = parsed
+      console.log(`✅ freee default company id (env): ${parsed}`)
+      return parsed
+    }
+  }
+
+  const token = await ensureValidToken()
+
+  if (!token) {
+    throw new Error('No valid access token. Please authenticate first.')
+  }
+
+  const url = `${FREEE_API_BASE}/companies`
+  console.log(`🌐 Fetching default company id: ${url}`)
+
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error(`❌ freee API error: ${response.status}`, text)
+    throw new Error(`freee API error: ${response.status} ${text}`)
+  }
+
+  const data: any = await response.json()
+  const companies = data.companies || []
+
+  if (companies.length === 0) {
+    throw new Error('freee API error: no companies found')
+  }
+
+  const companyId = companies[0].id as number
+  cachedDefaultCompanyId = companyId
+  console.log(`✅ freee default company id: ${companyId}`)
+  return companyId
+}
+
+/**
+ * 파일박스 영수증 업로드 (멀티파트) → { id, status }
+ * POST /api/1/receipts  (company_id, receipt=file, description?)
+ * Content-Type 미지정 — undici가 multipart boundary 설정
+ */
+export async function uploadReceiptToFileBox(
+  companyId: number,
+  file: { buffer: Buffer; filename: string; mimeType: string },
+  opts?: { description?: string }
+): Promise<{ id: number; status: string }> {
+  const token = await ensureValidToken()
+
+  if (!token) {
+    throw new Error('No valid access token. Please authenticate first.')
+  }
+
+  console.log(`📤 Uploading receipt to freee file box: ${file.filename} (${file.mimeType})`)
+
+  const fd = new FormData()  // undici global (Node18+)
+  fd.append('company_id', String(companyId))
+  fd.append('receipt', new Blob([file.buffer], { type: file.mimeType }), file.filename)
+  if (opts?.description) {
+    fd.append('description', opts.description)
+  }
+
+  const response = await fetch(`${FREEE_API_BASE}/receipts`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // Content-Type 미지정 — undici가 boundary 포함 multipart 헤더 설정
+    },
+    body: fd,
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error(`❌ freee API error: ${response.status}`, text)
+    throw new Error(`freee API error: ${response.status} ${text}`)
+  }
+
+  const data: any = await response.json()
+  const receipt = data.receipt || {}
+  console.log(`✅ Receipt uploaded: id=${receipt.id}, status=${receipt.status}`)
+  return { id: receipt.id, status: receipt.status }
+}
+
+/**
+ * 영수증 단건 조회 (OCR 결과 폴링용)
+ * GET /api/1/receipts/{id}?company_id=
+ */
+export async function getReceipt(
+  companyId: number,
+  receiptId: number
+): Promise<{
+  id: number
+  status: string
+  mime_type: string
+  receipt_metadatum?: { partner_name?: string; issue_date?: string; amount?: number }
+  invoice_registration_number?: string
+  qualified_invoice?: string
+}> {
+  const token = await ensureValidToken()
+
+  if (!token) {
+    throw new Error('No valid access token. Please authenticate first.')
+  }
+
+  const url = `${FREEE_API_BASE}/receipts/${receiptId}?company_id=${companyId}`
+  console.log(`🌐 Fetching receipt: ${url}`)
+
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error(`❌ freee API error: ${response.status}`, text)
+    throw new Error(`freee API error: ${response.status} ${text}`)
+  }
+
+  const data: any = await response.json()
+  // freee returns { receipt: {...} }
+  const receipt = data.receipt || data
+  console.log(`✅ Receipt fetched: id=${receipt.id}, status=${receipt.status}`)
+  return receipt
+}
+
+/**
+ * 勘定科目 목록 (매핑 마스터용)
+ * GET /api/1/account_items?company_id=
+ */
+export async function getAccountItems(
+  companyId: number
+): Promise<Array<{ id: number; name: string }>> {
+  const token = await ensureValidToken()
+
+  if (!token) {
+    throw new Error('No valid access token. Please authenticate first.')
+  }
+
+  const url = `${FREEE_API_BASE}/account_items?company_id=${companyId}`
+  console.log(`🌐 Fetching account items: ${url}`)
+
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error(`❌ freee API error: ${response.status}`, text)
+    throw new Error(`freee API error: ${response.status} ${text}`)
+  }
+
+  const data: any = await response.json()
+  const accountItems = data.account_items || []
+  console.log(`✅ Account items fetched: ${accountItems.length} items`)
+  return accountItems.map((item: any) => ({ id: item.id, name: item.name }))
+}
+
+/**
+ * 会社別 税区分 목록 (経過措置/軽減 display_category 포함)
+ * GET /api/1/taxes/companies/{companyId}
+ */
+export async function getCompanyTaxes(
+  companyId: number
+): Promise<Array<{ code: number; name: string; display_category: string; available: boolean }>> {
+  const token = await ensureValidToken()
+
+  if (!token) {
+    throw new Error('No valid access token. Please authenticate first.')
+  }
+
+  const url = `${FREEE_API_BASE}/taxes/companies/${companyId}`
+  console.log(`🌐 Fetching company taxes: ${url}`)
+
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error(`❌ freee API error: ${response.status}`, text)
+    throw new Error(`freee API error: ${response.status} ${text}`)
+  }
+
+  const data: any = await response.json()
+  // freee returns { taxes: [...] } or an array — handle both defensively
+  const taxes = Array.isArray(data) ? data : (data.taxes || [])
+  console.log(`✅ Company taxes fetched: ${taxes.length} items`)
+  return taxes.map((tax: any) => ({
+    code: tax.code,
+    name: tax.name,
+    display_category: tax.display_category,
+    available: tax.available,
+  }))
+}
+
+/**
+ * 経費 取引 생성 (영수증 첨부) → { id }
+ * POST /api/1/deals  { company_id, issue_date, type:'expense', partner_id?, details:[...], receipt_ids:[...] }
+ */
+export async function createExpenseDeal(params: {
+  companyId: number
+  issueDate: string
+  partnerId?: number
+  details: Array<{ accountItemId: number; taxCode: number; amount: number; description?: string }>
+  receiptIds: number[]
+}): Promise<{ id: number }> {
+  const token = await ensureValidToken()
+
+  if (!token) {
+    throw new Error('No valid access token. Please authenticate first.')
+  }
+
+  const body: any = {
+    company_id: params.companyId,
+    issue_date: params.issueDate,
+    type: 'expense',
+    details: params.details.map((d) => {
+      const detail: any = {
+        account_item_id: d.accountItemId,
+        tax_code: d.taxCode,
+        amount: d.amount,
+      }
+      if (d.description) {
+        detail.description = d.description
+      }
+      return detail
+    }),
+    receipt_ids: params.receiptIds,
+  }
+
+  if (params.partnerId) {
+    body.partner_id = params.partnerId
+  }
+
+  console.log('📤 Creating expense deal:', JSON.stringify(body, null, 2))
+
+  const response = await fetch(`${FREEE_API_BASE}/deals`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error(`❌ freee API error: ${response.status}`, text)
+    throw new Error(`freee API error: ${response.status} ${text}`)
+  }
+
+  const data: any = await response.json()
+  const dealId = data.deal.id as number
+  console.log(`✅ Expense deal created: id=${dealId}`)
+  return { id: dealId }
+}

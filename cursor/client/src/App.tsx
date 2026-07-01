@@ -34,6 +34,8 @@ import SnackRequestPage from './pages/Erp/SnackRequestPage'
 import HealthCheckupPage from './pages/Erp/HealthCheckupPage'
 import EducationPage from './pages/Erp/EducationPage'
 import EducationApprovalsPage from './pages/Erp/admin/EducationApprovalsPage'
+import ExpensePage from './pages/Erp/ExpensePage'
+import ExpenseApprovalsPage from './pages/Erp/admin/ExpenseApprovalsPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token)
@@ -97,7 +99,9 @@ function App() {
           <Route path="snack-request" element={<SnackRequestPage />} />
           <Route path="health-checkup" element={<HealthCheckupPage />} />
           <Route path="education" element={<EducationPage />} />
+          <Route path="expense" element={<ExpensePage />} />
           <Route path="admin/education" element={<ErpReviewerGuard><EducationApprovalsPage /></ErpReviewerGuard>} />
+          <Route path="admin/expense" element={<ErpReviewerGuard><ExpenseApprovalsPage /></ErpReviewerGuard>} />
         </Route>
 
         {/* CRM routes */}

@@ -1,0 +1,353 @@
+import { useCallback, useEffect, useState } from 'react'
+import {
+  Receipt,
+  Plus,
+  Download,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
+} from 'lucide-react'
+import { useI18nStore } from '../../i18n'
+import { readCache, writeCache } from '../../lib/erpCache'
+import { Button } from '../../components/ui/button'
+import { list, downloadAttachment } from './expenseApi'
+import type { ExpenseRequest, ExpenseStatus } from './expenseTypes'
+import { useExpensePendingSummary } from './useExpensePendingSummary'
+import ExpenseRequestModal from './ExpenseRequestModal'
+
+function formatYen(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '—'
+  return '¥' + Number(n).toLocaleString('ja-JP')
+}
+
+function formatYmd(s?: string | null): string {
+  if (!s) return '-'
+  return s.slice(0, 10)
+}
+
+// 전체 + 신청자 관점 상태들 (design §8.3)
+const STATUS_TABS: { key: '' | ExpenseStatus; labelKey: string }[] = [
+  { key: '', labelKey: 'education_status_all' },
+  { key: 'draft', labelKey: 'expense_status_draft' },
+  { key: 'awaiting_receipt', labelKey: 'expense_status_awaiting_receipt' },
+  { key: 'pending', labelKey: 'expense_status_pending' },
+  { key: 'approved', labelKey: 'expense_status_approved' },
+  { key: 'paid', labelKey: 'expense_status_paid' },
+  { key: 'completed', labelKey: 'expense_status_completed' },
+  { key: 'rejected', labelKey: 'expense_status_rejected' },
+]
+
+function statusColor(s: ExpenseStatus): string {
+  switch (s) {
+    case 'draft':
+      return 'bg-gray-100 text-gray-700'
+    case 'awaiting_receipt':
+      return 'bg-orange-100 text-orange-800'
+    case 'pending':
+      return 'bg-amber-100 text-amber-800'
+    case 'approved':
+      return 'bg-blue-100 text-blue-800'
+    case 'payment_pending':
+      return 'bg-cyan-100 text-cyan-800'
+    case 'paid':
+      return 'bg-indigo-100 text-indigo-800'
+    case 'completed':
+      return 'bg-emerald-100 text-emerald-800'
+    case 'recorded':
+      return 'bg-teal-100 text-teal-800'
+    case 'rejected':
+      return 'bg-rose-100 text-rose-800'
+    case 'cancelled':
+      return 'bg-gray-100 text-gray-600'
+    default:
+      return 'bg-gray-100 text-gray-700'
+  }
+}
+
+interface ExpenseCache {
+  items: ExpenseRequest[]
+}
+
+export default function ExpensePage() {
+  const { t } = useI18nStore()
+  const { summary } = useExpensePendingSummary()
+
+  const [statusFilter, setStatusFilter] = useState<'' | ExpenseStatus>('')
+  const cacheKey = statusFilter || 'all'
+  const initial = readCache<ExpenseCache>('expense', cacheKey)
+  const [items, setItems] = useState<ExpenseRequest[]>(initial?.items ?? [])
+  const [loading, setLoading] = useState(!initial)
+  const [error, setError] = useState('')
+  const [showModal, setShowModal] = useState(false)
+  const [editing, setEditing] = useState<ExpenseRequest | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+
+  const loadAll = useCallback(async () => {
+    const key = statusFilter || 'all'
+    const c = readCache<ExpenseCache>('expense', key)
+    if (c) {
+      setItems(c.items)
+      setLoading(false)
+    }
+    try {
+      setError('')
+      const res = await list(statusFilter || undefined)
+      setItems(res.items)
+      writeCache<ExpenseCache>('expense', key, { items: res.items })
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load')
+    } finally {
+      setLoading(false)
+    }
+  }, [statusFilter])
+
+  useEffect(() => {
+    void loadAll()
+  }, [loadAll])
+
+  async function onDownload(attachmentId: number, fileName: string) {
+    try {
+      const url = await downloadAttachment(attachmentId)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    } catch (e: any) {
+      alert(e?.message || 'Download failed')
+    }
+  }
+
+  const awaitingCount = summary?.my_awaiting_receipt ?? 0
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Receipt className="h-6 w-6 text-gray-700" />
+            {t('erp_expense')}
+          </h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setShowModal(true)
+            }}
+            className="bg-gray-900 hover:bg-gray-800 text-white"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            {t('expense_msg_submit')}
+          </Button>
+        </div>
+      </div>
+
+      {/* Awaiting-receipt banner (design §7) */}
+      {awaitingCount > 0 && (
+        <button
+          onClick={() => setStatusFilter('awaiting_receipt')}
+          className="w-full text-left mb-4 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 flex items-start gap-2 hover:bg-orange-100 transition-colors"
+        >
+          <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+          <span className="text-sm text-orange-800">
+            {t('expense_msg_awaiting_receipt').replace('{{n}}', String(awaitingCount))}
+          </span>
+        </button>
+      )}
+
+      {/* Status tabs */}
+      <div className="mb-4 bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+        <div className="text-xs text-gray-500 mb-1">{t('education_status_filter')}</div>
+        <div className="flex flex-wrap gap-1">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.key || 'all'}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`px-3 py-1.5 rounded text-sm border transition-colors ${
+                statusFilter === tab.key
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {t(tab.labelKey)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="bg-white border border-gray-200 rounded-lg">
+        {loading ? (
+          <div className="p-12 text-center text-gray-500 text-sm">{t('loading')}</div>
+        ) : error ? (
+          <div className="p-6 text-rose-600 text-sm">{error}</div>
+        ) : items.length === 0 ? (
+          <div className="p-16 text-center">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gray-100 mb-3">
+              <Receipt className="h-7 w-7 text-gray-400" />
+            </div>
+            <div className="text-gray-900 font-medium">{t('expense_msg_no_items')}</div>
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {items.map((req) => {
+              const isExpanded = expandedId === req.id
+              const canEdit =
+                req.status === 'draft' || req.status === 'awaiting_receipt'
+              return (
+                <li key={req.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(req.status)}`}>
+                          {t(`expense_status_${req.status}`)}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                          {t(`expense_category_${req.category}`)}
+                        </span>
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {formatYen(req.amount_incl_tax)}
+                        </span>
+                        {req.vendor_name && (
+                          <span className="text-xs text-gray-500 truncate">
+                            @ {req.vendor_name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {t('expense_field_used_at')}: {formatYmd(req.used_at)}
+                        {req.invoice_number && (
+                          <span className="ml-2">
+                            {t('expense_field_invoice_number')}: {req.invoice_number}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      {canEdit && (
+                        <button
+                          onClick={() => {
+                            setEditing(req)
+                            setShowModal(true)
+                          }}
+                          className="px-2 py-1 text-xs border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+                        >
+                          {t('edit')}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : req.id)}
+                        className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded"
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="mt-3 ml-1 bg-gray-50 border border-gray-200 rounded p-3 text-sm space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
+                        <div>
+                          <span className="text-gray-500">
+                            {t('expense_settlement_reimburse_required').split('(')[0].trim()}:{' '}
+                          </span>
+                          <span className="text-gray-800">
+                            {t(`expense_settlement_${req.settlement_type}`)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">{t('expense_field_tax_rate')}: </span>
+                          <span className="text-gray-800">{req.tax_rate}%</span>
+                        </div>
+                        {req.purpose && (
+                          <div className="md:col-span-2">
+                            <span className="text-gray-500">{t('expense_field_purpose')}: </span>
+                            <span className="text-gray-800 whitespace-pre-wrap">{req.purpose}</span>
+                          </div>
+                        )}
+                        {req.memo && (
+                          <div className="md:col-span-2">
+                            <span className="text-gray-500">{t('expense_field_memo')}: </span>
+                            <span className="text-gray-800 whitespace-pre-wrap">{req.memo}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {req.reject_reason && (
+                        <div className="text-rose-700">
+                          {t('expense_msg_reject')}: {req.reject_reason}
+                        </div>
+                      )}
+
+                      {/* Attachments */}
+                      <div className="pt-2 border-t border-gray-200">
+                        <div className="font-medium text-gray-900 mb-1.5">
+                          {t('expense_field_invoice_number')}
+                        </div>
+                        <ul className="space-y-1">
+                          {(req.attachments || []).map((att) => (
+                            <li
+                              key={att.id}
+                              className="flex items-center justify-between text-xs"
+                            >
+                              <span className="text-gray-700 truncate">
+                                {att.file_name} · {(att.file_size / 1024).toFixed(1)} KB
+                              </span>
+                              <button
+                                onClick={() => onDownload(att.id, att.file_name)}
+                                className="p-1 text-gray-500 hover:text-blue-600"
+                                title={t('education_download')}
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </button>
+                            </li>
+                          ))}
+                          {(!req.attachments || req.attachments.length === 0) && (
+                            <li className="text-xs text-gray-400">{t('education_no_files')}</li>
+                          )}
+                        </ul>
+                      </div>
+
+                      {/* Status history */}
+                      {req.history && req.history.length > 0 && (
+                        <div className="pt-2 border-t border-gray-200">
+                          <ul className="space-y-0.5 text-xs text-gray-600">
+                            {req.history.map((h) => (
+                              <li key={h.id}>
+                                {formatYmd(h.created_at)} · {h.from_status ? `${t(`expense_status_${h.from_status}`)} → ` : ''}
+                                {t(`expense_status_${h.to_status}`)}
+                                {h.reason ? ` · ${h.reason}` : ''}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+
+      <ExpenseRequestModal
+        open={showModal}
+        editing={editing}
+        onClose={() => setShowModal(false)}
+        onSubmitted={() => {
+          void loadAll()
+        }}
+      />
+    </div>
+  )
+}

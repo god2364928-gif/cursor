@@ -679,6 +679,25 @@ export async function autoMigrateEducationRequest(): Promise<void> {
 }
 
 /**
+ * 経費申請・精算 (expense_requests / expense_attachments / expense_payments /
+ *   expense_subscriptions / expense_status_history / expense_freee_map)
+ * 멱등 — 6개 테이블이 모두 있으면 skip.
+ */
+export async function autoMigrateExpenseReimbursement(): Promise<void> {
+  try {
+    const check = await pool.query(`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema='public'
+        AND table_name IN ('expense_requests','expense_attachments','expense_payments',
+                           'expense_subscriptions','expense_status_history','expense_freee_map')`)
+    if (check.rows.length === 6) { console.log('[Expense] tables exist, skip'); return }
+    const sql = fs.readFileSync(path.join(__dirname, '../../migrations/add_expense_reimbursement.sql'), 'utf-8')
+    await pool.query(sql)
+    console.log('✅ [Expense] migration applied')
+  } catch (e: any) { console.error('[Expense] migration failed:', e.message) }
+}
+
+/**
  * monthly_payroll_files 의 (fiscal_year, month) UNIQUE 제약 제거 (멱등)
  * - 월별 급여명세서 파일을 여러 개 허용하기 위함.
  * - 테이블이 없으면 skip. UNIQUE 제약이 이미 없으면 skip. 기존 데이터는 보존.

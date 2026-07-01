@@ -45,10 +45,12 @@ import healthCheckupRoutes from './routes/healthCheckup'
 import educationRequestRoutes from './routes/educationRequest'
 import { superAdminOnly } from './middleware/superAdminOnly'
 import { importRecentCalls } from './services/cpiImportService'
-import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoFixCrmRoleAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest, autoMigrateHealthCheckup, autoMigrateEducationRequest, autoMigrateDropPayrollFileUnique } from './migrations/autoMigrate'
+import { autoMigrateSalesTracking, autoMigrateHotpepper, autoMigrateSalesAmountFields, autoMigrateAppAccess, autoFixCrmRoleAppAccess, autoMigrateVacation, autoMigrateNotionVacationData, autoMigrateNakamuraSakuraSplit, autoMigrateCleanupNotionLabels, autoMigrateDedupVacationData, autoMigrateSnackRequest, autoMigrateHealthCheckup, autoMigrateEducationRequest, autoMigrateDropPayrollFileUnique, autoMigrateExpenseReimbursement } from './migrations/autoMigrate'
 import { startVacationCron } from './services/vacationCron'
 import { startSnackFixedCron } from './services/snackFixedCron'
 import { startSnackOrderReminderCron } from './services/snackOrderReminderCron'
+import expenseRoutes from './routes/expense'
+import { startExpenseSubscriptionCron } from './services/expenseSubscriptionCron'
 import { autoMigrateFeatureUsage } from './migrations/autoMigrateFeatureUsage'
 import { autoMigrateExamOpenings } from './migrations/autoMigrateExamOpenings'
 import { autoMigrateExamScoring } from './migrations/autoMigrateExamScoring'
@@ -170,6 +172,7 @@ app.use('/api/admin/vacation', adminVacationRoutes)
 app.use('/api/snack', snackRequestRoutes)
 app.use('/api/health-checkup', healthCheckupRoutes)
 app.use('/api/education', educationRequestRoutes)
+app.use('/api/expense', expenseRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -280,6 +283,7 @@ async function startServer() {
   await autoMigrateDropPayrollFileUnique()  // 월별 급여명세서 다중 파일 허용 (UNIQUE 제약 제거)
   await autoMigrateAccountingCategories()   // 회계 카테고리 관리 테이블 + 기본값 seed
   await autoMigratePayrollTransport()       // 월별 급여 교통비(transport) 컬럼 추가
+  await autoMigrateExpenseReimbursement()   // 경비 신청·정산 6테이블 (経費精算)
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`)
@@ -303,6 +307,9 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // 간식 발주 알림 cron (매주 월요일 09:30 JST — 전주 신청 목록을 슬랙 日本_알림방으로)
   startSnackOrderReminderCron()
+
+  // 경비 정기결제 초안 생성 cron (매일 09:00 JST — 결제일 도래 구독 → owner 명의 영수증대기 draft)
+  startExpenseSubscriptionCron()
 
   // CPI 스케줄러 (외부 시스템 호출 + DB 작업)
   // - 개발서버에서는 기본 OFF (속도 흔들림/외부 호출 방지)
