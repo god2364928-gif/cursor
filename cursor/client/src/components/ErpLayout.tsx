@@ -52,7 +52,6 @@ const navigation: NavGroup[] = [
     items: [
       { labelKey: 'erp_health_checkup', href: '/erp/health-checkup', icon: Stethoscope, nested: true },
       { labelKey: 'erp_education', href: '/erp/education', icon: GraduationCap, nested: true },
-      { labelKey: 'erp_education_admin', href: '/erp/admin/education', icon: CheckCircle2, nested: true, reviewerOnly: true },
       { labelKey: 'erp_expense', href: '/erp/expense', icon: Receipt, nested: true },
       { labelKey: 'erp_snack_request', href: '/erp/snack-request', icon: Cookie, nested: true },
     ],

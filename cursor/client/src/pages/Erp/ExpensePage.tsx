@@ -297,15 +297,11 @@ export default function ExpensePage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
                         <div>
                           <span className="text-gray-500">
-                            {t('expense_settlement_reimburse_required').split('(')[0].trim()}:{' '}
+                            {t('expense_field_settlement')}:{' '}
                           </span>
                           <span className="text-gray-800">
                             {t(`expense_settlement_${req.settlement_type}`)}
                           </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">{t('expense_field_tax_rate')}: </span>
-                          <span className="text-gray-800">{req.tax_rate}%</span>
                         </div>
                         {req.purpose && (
                           <div className="md:col-span-2">

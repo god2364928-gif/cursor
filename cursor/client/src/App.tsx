@@ -33,7 +33,6 @@ import LeaveSchedulePage from './pages/Erp/LeaveSchedulePage'
 import SnackRequestPage from './pages/Erp/SnackRequestPage'
 import HealthCheckupPage from './pages/Erp/HealthCheckupPage'
 import EducationPage from './pages/Erp/EducationPage'
-import EducationApprovalsPage from './pages/Erp/admin/EducationApprovalsPage'
 import ExpensePage from './pages/Erp/ExpensePage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -99,7 +98,6 @@ function App() {
           <Route path="health-checkup" element={<HealthCheckupPage />} />
           <Route path="education" element={<EducationPage />} />
           <Route path="expense" element={<ExpensePage />} />
-          <Route path="admin/education" element={<ErpReviewerGuard><EducationApprovalsPage /></ErpReviewerGuard>} />
         </Route>
 
         {/* CRM routes */}

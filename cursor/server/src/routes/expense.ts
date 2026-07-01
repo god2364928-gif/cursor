@@ -16,7 +16,7 @@ import multer from 'multer'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireAppAccess } from '../middleware/requireAppAccess'
-import { pushReceiptAndOcr, resendReceiptToFreee } from '../services/expenseFreee'
+import { resendReceiptToFreee } from '../services/expenseFreee'
 
 const router = Router()
 router.use(authMiddleware, requireAppAccess('erp'))
@@ -149,7 +149,7 @@ router.get('/requests', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id
     const statusFilter = (req.query.status as string | undefined) || ''
-    const where: string[] = ['er.user_id = $1', 'er.deleted_at IS NULL']
+    const where: string[] = ['er.user_id = $1', 'er.deleted_at IS NULL', "er.status <> 'draft'"]
     const params: any[] = [userId]
     if (statusFilter) {
       where.push(`er.status = $${params.length + 1}`)
@@ -555,14 +555,8 @@ router.post(
         [id, originalName, mimeType, req.file.size, fileDataBase64, fileHash, req.user!.id]
       )
 
-      // freee 파일박스 push + OCR 폴링 — fire-and-forget (응답 블로킹 금지)
-      pushReceiptAndOcr(Number(id), {
-        buffer,
-        filename: originalName,
-        mimeType,
-      }).catch((e) =>
-        console.error(`[Expense] pushReceiptAndOcr(${id}) failed:`, (e as Error).message)
-      )
+      // freee 파일박스 업로드는 자동으로 하지 않는다. 담당자가 승인 화면에서
+      // "freee 전송" 버튼으로 수동 전송(resendReceiptToFreee). (사용자 요청)
 
       res.json(insert.rows[0])
     } catch (error: any) {
@@ -665,8 +659,11 @@ function buildAdminFilters(req: AuthRequest): { where: string; params: any[] } {
   const vendor = (req.query.vendor as string | undefined) || ''
   const minAmount = req.query.min_amount != null ? Number(req.query.min_amount) : null
   const maxAmount = req.query.max_amount != null ? Number(req.query.max_amount) : null
+  const userId = (req.query.user_id as string | undefined) || ''
+  const category = (req.query.category as string | undefined) || ''
 
-  const where: string[] = ['er.deleted_at IS NULL']
+  // draft(임시저장) 는 목록에서 제외 (내부 상태)
+  const where: string[] = ['er.deleted_at IS NULL', "er.status <> 'draft'"]
   const params: any[] = []
   let idx = 1
   if (status) {
@@ -692,6 +689,14 @@ function buildAdminFilters(req: AuthRequest): { where: string; params: any[] } {
   if (maxAmount != null && Number.isFinite(maxAmount)) {
     where.push(`er.amount_incl_tax <= $${idx++}`)
     params.push(maxAmount)
+  }
+  if (userId) {
+    where.push(`er.user_id = $${idx++}`)
+    params.push(userId)
+  }
+  if (category) {
+    where.push(`er.category = $${idx++}`)
+    params.push(category)
   }
   return { where: where.join(' AND '), params }
 }

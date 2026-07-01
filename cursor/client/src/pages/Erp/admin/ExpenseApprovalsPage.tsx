@@ -20,6 +20,7 @@ import {
   exportCsv,
   downloadAttachment,
   freeeResend,
+  getUsers,
   type AdminListFilters,
   type ExpenseAdminAction,
 } from '../expenseApi'
@@ -36,13 +37,13 @@ function formatYmd(s?: string | null): string {
 }
 
 const STATUS_TABS: { key: '' | ExpenseStatus; labelKey: string }[] = [
+  { key: '', labelKey: 'education_status_all' },
   { key: 'pending', labelKey: 'expense_status_pending' },
   { key: 'approved', labelKey: 'expense_status_approved' },
   { key: 'payment_pending', labelKey: 'expense_status_payment_pending' },
   { key: 'paid', labelKey: 'expense_status_paid' },
   { key: 'completed', labelKey: 'expense_status_completed' },
   { key: 'rejected', labelKey: 'expense_status_rejected' },
-  { key: '', labelKey: 'education_status_all' },
 ]
 
 function statusColor(s: ExpenseStatus): string {
@@ -75,6 +76,17 @@ function statusColor(s: ExpenseStatus): string {
 const inputClass =
   'border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none'
 
+const CATEGORY_OPTIONS = [
+  'transport',
+  'dining',
+  'meal',
+  'reimburse',
+  'welfare',
+  'health_checkup',
+  'other',
+  'corp_card',
+] as const
+
 export default function ExpenseApprovalsPage() {
   const { t } = useI18nStore()
   const [statusFilter, setStatusFilter] = useState<'' | ExpenseStatus>('')
@@ -90,11 +102,14 @@ export default function ExpenseApprovalsPage() {
   const [vendorSearch, setVendorSearch] = useState('')
   const [minAmount, setMinAmount] = useState<number | ''>('')
   const [maxAmount, setMaxAmount] = useState<number | ''>('')
+  const [userFilter, setUserFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([])
 
   // 확장 시 상세(get)로 attachments/history 로드해 행별 캐시 (리스트 응답엔 없음)
   const [details, setDetails] = useState<Record<number, ExpenseRequest>>({})
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null)
-  // freee 재전송 진행 중인 행 id
+  // freee 전송 진행 중인 행 id
   const [freeeResendingId, setFreeeResendingId] = useState<number | null>(null)
   // 이미지 첨부 인라인 미리보기용 object URL (attachment id 별). 인증 헤더가 필요해 fetch 후 blob URL 사용.
   const [imageUrls, setImageUrls] = useState<Record<number, string>>({})
@@ -107,6 +122,8 @@ export default function ExpenseApprovalsPage() {
       vendor: vendorSearch.trim() || undefined,
       min_amount: minAmount === '' ? undefined : minAmount,
       max_amount: maxAmount === '' ? undefined : maxAmount,
+      user_id: userFilter || undefined,
+      category: categoryFilter || undefined,
     }
   }
 
@@ -135,6 +152,13 @@ export default function ExpenseApprovalsPage() {
   useEffect(() => {
     void load({ status: statusFilter || undefined })
   }, [statusFilter, load])
+
+  // 직원 목록 로드 (필터 드롭다운용)
+  useEffect(() => {
+    getUsers()
+      .then(setUsers)
+      .catch(() => {})
+  }, [])
 
   // 언마운트 시 남아 있는 이미지 미리보기 object URL 해제 (누수 방지)
   const imageUrlsRef = useRef(imageUrls)
@@ -204,10 +228,10 @@ export default function ExpenseApprovalsPage() {
       } else if (result.error) {
         alert(`freee 업로드 오류: ${result.error}`)
       } else {
-        alert('freee 재전송 완료 (영수증 없음)')
+        alert('freee 전송 완료 (영수증 없음)')
       }
     } catch (e: any) {
-      alert(e?.message || 'freee 재전송 실패')
+      alert(e?.message || 'freee 전송 실패')
     } finally {
       // 성공/실패와 무관하게 상세 재조회로 상태 블록 갱신
       await refreshDetail(req.id)
@@ -335,6 +359,36 @@ export default function ExpenseApprovalsPage() {
             onChange={(e) => setVendorSearch(e.target.value)}
             className={inputClass}
           />
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 mb-0.5">직원</div>
+          <select
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">전체</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 mb-0.5">카테고리</div>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">전체</option>
+            {CATEGORY_OPTIONS.map((cat) => (
+              <option key={cat} value={cat}>
+                {t('expense_item_' + cat)}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <div className="text-xs text-gray-500 mb-0.5">{t('expense_field_amount')}</div>
@@ -488,13 +542,7 @@ export default function ExpenseApprovalsPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
                         <div>
                           <span className="text-gray-500">
-                            {t('expense_field_tax_rate')}:{' '}
-                          </span>
-                          <span className="text-gray-800">{req.tax_rate}%</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">
-                            {t('expense_settlement_reimburse_required').split('(')[0].trim()}:{' '}
+                            {t('expense_field_settlement')}:{' '}
                           </span>
                           <span className="text-gray-800">
                             {t(`expense_settlement_${req.settlement_type}`)}
@@ -520,7 +568,7 @@ export default function ExpenseApprovalsPage() {
                         </div>
                       )}
 
-                      {/* freee 파일박스 업로드 상태 + 재전송 (진단용) */}
+                      {/* freee 파일박스 업로드 상태 + 전송 (진단용) */}
                       <div className="pt-2 border-t border-gray-200">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="text-xs">
@@ -545,7 +593,7 @@ export default function ExpenseApprovalsPage() {
                             className="px-2 py-1 text-xs border border-gray-300 text-gray-700 rounded hover:bg-gray-50 disabled:opacity-50 inline-flex items-center gap-1"
                           >
                             <RotateCcw className="h-3 w-3" />
-                            {freeeResendingId === req.id ? '재전송 중…' : 'freee 재전송'}
+                            {freeeResendingId === req.id ? '전송 중…' : 'freee 전송'}
                           </button>
                         </div>
                       </div>

@@ -80,6 +80,8 @@ export interface AdminListFilters {
   vendor?: string
   min_amount?: number
   max_amount?: number
+  user_id?: string
+  category?: string
 }
 
 // ===== requests (본인) =====
@@ -162,6 +164,8 @@ export function adminList(filters?: AdminListFilters): Promise<{ items: ExpenseR
   if (filters?.vendor) params.set('vendor', filters.vendor)
   if (filters?.min_amount != null) params.set('min_amount', String(filters.min_amount))
   if (filters?.max_amount != null) params.set('max_amount', String(filters.max_amount))
+  if (filters?.user_id) params.set('user_id', filters.user_id)
+  if (filters?.category) params.set('category', filters.category)
   const q = params.toString() ? `?${params.toString()}` : ''
   return apiFetch<{ items: ExpenseRequest[] }>(`/admin/list${q}`)
 }
@@ -196,6 +200,8 @@ export async function exportCsv(filters?: AdminListFilters): Promise<string> {
   if (filters?.vendor) params.set('vendor', filters.vendor)
   if (filters?.min_amount != null) params.set('min_amount', String(filters.min_amount))
   if (filters?.max_amount != null) params.set('max_amount', String(filters.max_amount))
+  if (filters?.user_id) params.set('user_id', filters.user_id)
+  if (filters?.category) params.set('category', filters.category)
   const q = params.toString() ? `?${params.toString()}` : ''
   const res = await fetch(`${getApiBase()}/expense/admin/export.csv${q}`, {
     method: 'GET',
@@ -207,4 +213,17 @@ export async function exportCsv(filters?: AdminListFilters): Promise<string> {
   }
   const blob = await res.blob()
   return URL.createObjectURL(blob)
+}
+
+/** 직원(사용자) 목록 조회 → 필터 드롭다운용. /expense 가 아닌 /auth/users 를 직접 호출. */
+export async function getUsers(): Promise<{ id: string; name: string }[]> {
+  try {
+    const res = await fetch(`${getApiBase()}/auth/users`, { headers: getAuthHeader() })
+    if (!res.ok) return []
+    const rows = await res.json()
+    if (!Array.isArray(rows)) return []
+    return rows.map((u: any) => ({ id: u.id, name: u.name }))
+  } catch {
+    return []
+  }
 }

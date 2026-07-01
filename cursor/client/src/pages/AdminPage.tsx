@@ -22,6 +22,7 @@ import TotalSalesTab from './Accounting/TotalSalesTab'
 import LeaveApprovalsPage from './Erp/admin/LeaveApprovalsPage'
 import LeaveGrantsPage from './Erp/admin/LeaveGrantsPage'
 import ExpenseApprovalsPage from './Erp/admin/ExpenseApprovalsPage'
+import EducationApprovalsPage from './Erp/admin/EducationApprovalsPage'
 
 interface User {
   id: string
@@ -64,6 +65,7 @@ const TABS = [
   { id: 'accounting', label: '회계', icon: Calculator },
   { id: 'approvals', label: '신청 처리', icon: CheckCircle2 },
   { id: 'expense', label: '경비 승인', icon: Receipt },
+  { id: 'education', label: '교육비 승인', icon: GraduationCap },
   { id: 'grants', label: '휴가 부여 관리', icon: FilePlus },
   { id: 'usage', label: '기능 사용 현황', icon: BarChart2 },
   { id: 'exam', label: '시험 관리', icon: GraduationCap },
@@ -399,6 +401,9 @@ export default function AdminPage() {
 
           {/* ── 경비 승인 탭 ── */}
           {activeTab === 'expense' && <ExpenseApprovalsPage />}
+
+          {/* ── 교육비 승인 탭 ── */}
+          {activeTab === 'education' && <EducationApprovalsPage />}
 
           {/* ── 휴가 부여 관리 탭 ── */}
           {activeTab === 'grants' && <LeaveGrantsPage />}
