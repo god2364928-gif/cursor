@@ -21,6 +21,8 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
   
   // 상태
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  // 기간 전체 집계(서버 SQL) — 표시 한도 초과 감지·경고용
+  const [rangeSummary, setRangeSummary] = useState<{ count: number; incomeTotal: number; expenseTotal: number } | null>(null)
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set())
   const [updatingTransactionId, setUpdatingTransactionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -202,16 +204,24 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
     setLoading(true)
     try {
       console.log('📡 Fetching transactions:', { startDate, endDate, limit: 1000 })
-      const response = await api.get('/accounting/transactions', {
-        params: {
-          startDate,
-          endDate,
-          limit: 1000  // 증가
-        }
-      })
-      const data = Array.isArray(response.data) ? response.data : []
+      // 목록(표시 상한 5000)과 기간 전체 집계를 병렬 조회. 집계 실패가 목록 로드를 막지 않도록 allSettled.
+      const [listRes, summaryRes] = await Promise.allSettled([
+        api.get('/accounting/transactions', {
+          params: { startDate, endDate, limit: 5000 }
+        }),
+        api.get('/accounting/transactions/summary', {
+          params: { startDate, endDate }
+        }),
+      ])
+      if (listRes.status === 'rejected') throw listRes.reason
+      const data = Array.isArray(listRes.value.data) ? listRes.value.data : []
       console.log('📥 Received transactions:', data.length)
       setTransactions(data)
+      setRangeSummary(
+        summaryRes.status === 'fulfilled' && summaryRes.value.data && typeof summaryRes.value.data.count === 'number'
+          ? summaryRes.value.data
+          : null
+      )
     } catch (error) {
       console.error('Transactions fetch error:', error)
     } finally {
@@ -1065,6 +1075,24 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* 표시 상한 초과 경고 (합계·필터·전체선택이 표시분만 대상이 됨) */}
+      {rangeSummary && rangeSummary.count > transactions.length && (
+        <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div>
+            {language === 'ja'
+              ? `この期間の取引は ${rangeSummary.count.toLocaleString()} 件で、表示上限（${transactions.length.toLocaleString()} 件）を超えています。合計・フィルタ・全選択は表示中の分のみが対象です。期間を絞ってください。`
+              : `이 기간의 거래는 ${rangeSummary.count.toLocaleString()}건으로 표시 한도(${transactions.length.toLocaleString()}건)를 초과했습니다. 합계·필터·전체선택은 표시된 분만 대상입니다. 기간을 좁혀주세요.`}
+          </div>
+          <div className="mt-1 text-amber-700">
+            {language === 'ja' ? '期間全体の正確な合計' : '기간 전체 정확 합계'}
+            {' — '}
+            {language === 'ja' ? '入金' : '입금'} {formatCurrency(rangeSummary.incomeTotal)}
+            {' / '}
+            {language === 'ja' ? '出金' : '출금'} {formatCurrency(rangeSummary.expenseTotal)}
+          </div>
+        </div>
       )}
 
       {/* 입금/출금 합계 표시 */}

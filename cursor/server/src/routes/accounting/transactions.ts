@@ -124,6 +124,51 @@ router.get('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, 
   }
 })
 
+// 기간 전체 집계 (표시 한도와 무관하게 정확한 건수·입출금 합계) — 목록 상한 초과 경고용
+router.get('/transactions/summary', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
+  try {
+    const { fiscalYear, startDate, endDate } = req.query
+    const year = fiscalYear ? Number(fiscalYear) : null
+
+    const { validatedStartDate, validatedEndDate } = validateDateRange(
+      startDate as string,
+      endDate as string
+    )
+
+    const params: any[] = []
+    const conditions: string[] = []
+    if (validatedStartDate && validatedEndDate) {
+      conditions.push(`transaction_date::date >= $${params.length + 1}::date`)
+      params.push(validatedStartDate)
+      conditions.push(`transaction_date::date <= $${params.length + 1}::date`)
+      params.push(validatedEndDate)
+    } else if (year) {
+      conditions.push(`fiscal_year = $${params.length + 1}`)
+      params.push(year)
+    }
+
+    const where = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : ''
+    const result = await pool.query(
+      `SELECT
+         COUNT(*)::int AS count,
+         COALESCE(SUM(amount) FILTER (WHERE transaction_type = '입금'), 0) AS income_total,
+         COALESCE(SUM(amount) FILTER (WHERE transaction_type = '출금'), 0) AS expense_total
+       FROM accounting_transactions${where}`,
+      params
+    )
+
+    const row = result.rows[0] || {}
+    res.json({
+      count: Number(row.count) || 0,
+      incomeTotal: Number(row.income_total) || 0,
+      expenseTotal: Number(row.expense_total) || 0,
+    })
+  } catch (error) {
+    console.error('Transactions summary error:', error)
+    res.status(500).json({ error: '거래 합계를 불러오지 못했습니다' })
+  }
+})
+
 router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
     const {
@@ -175,56 +220,69 @@ router.post('/transactions', authMiddleware, adminOnly, async (req: AuthRequest,
         ? '페이팔'
         : paymentMethod
 
-    const result = await pool.query(
-      `INSERT INTO accounting_transactions 
+    const client = await pool.connect()
+    let transaction
+    try {
+      await client.query('BEGIN')
+
+      const result = await client.query(
+        `INSERT INTO accounting_transactions
        (transaction_date, transaction_time, transaction_type, category, payment_method, item_name, amount, employee_id, account_id, assigned_user_id, memo, attachment_url, bank_name)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
-      [
-        transactionDate,
-        normalizedTime,
-        transactionType,
-        category,
-        normalizedPaymentMethod,
-        itemName,
-        amountNum,
-        empId,
-        accId,
-        assId,
-        memo || null,
-        attachmentUrl || null,
-        bankName || 'PayPay',
-      ]
-    )
+        [
+          transactionDate,
+          normalizedTime,
+          transactionType,
+          category,
+          normalizedPaymentMethod,
+          itemName,
+          amountNum,
+          empId,
+          accId,
+          assId,
+          memo || null,
+          attachmentUrl || null,
+          bankName || 'PayPay',
+        ]
+      )
 
-    const transaction = result.rows[0]
+      transaction = result.rows[0]
 
-    // 자동화: 매출 카테고리면 accounting_sales에 반영
-    const salesCategories = ['셀마플', '코코마케']
-    if (transactionType === '입금' && salesCategories.includes(category)) {
-      const fiscalYear = transaction.fiscal_year
-      const dateStr = toJSTDateString(new Date(transactionDate))
-      const month = dateStr ? dateStr.slice(0, 7) + '-01' : null
-      
-      if (month) {
-        await pool.query(
-          `INSERT INTO accounting_sales (fiscal_year, transaction_month, channel, sales_category, total_amount)
+      // 자동화: 매출 카테고리면 accounting_sales에 반영
+      const salesCategories = ['셀마플', '코코마케']
+      if (transactionType === '입금' && salesCategories.includes(category)) {
+        const fiscalYear = transaction.fiscal_year
+        const dateStr = toJSTDateString(new Date(transactionDate))
+        const month = dateStr ? dateStr.slice(0, 7) + '-01' : null
+
+        if (month) {
+          await client.query(
+            `INSERT INTO accounting_sales (fiscal_year, transaction_month, channel, sales_category, total_amount)
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT DO NOTHING`,
-        [fiscalYear, month, normalizedPaymentMethod, category, amount]
-        )
+            [fiscalYear, month, normalizedPaymentMethod, category, amountNum]
+          )
+        }
       }
-    }
 
-    // 자동화: 계좌 잔액 갱신
-    if (accId) {
-      const balanceChange = transactionType === '입금' ? amountNum : -amountNum
-      await pool.query(
-        `UPDATE accounting_capital
+      // 자동화: 계좌 잔액 갱신
+      if (accId) {
+        const balanceChange = transactionType === '입금' ? amountNum : -amountNum
+        await client.query(
+          `UPDATE accounting_capital
          SET current_balance = current_balance + $1, last_updated = NOW()
          WHERE id = $2`,
-        [balanceChange, accId]
-      )
+          [balanceChange, accId]
+        )
+      }
+
+      await client.query('COMMIT')
+    } catch (e) {
+      try { await client.query('ROLLBACK') } catch {}
+      throw e
+    } finally {
+      client.release()
     }
 
     res.json({ success: true, transaction })
@@ -414,43 +472,53 @@ router.post('/transactions/bulk-delete', authMiddleware, adminOnly, async (req: 
     
     let deletedCount = 0
     const failedIds: string[] = []
+    const client = await pool.connect()
 
-    for (const transactionId of transactionIds) {
-      // UUID가 아닌 id는 건너뛴다 (Postgres uuid 캐스팅 에러 방지)
-      if (typeof transactionId !== 'string' || !UUID_REGEX.test(transactionId)) {
-        failedIds.push(String(transactionId))
-        continue
-      }
-      try {
-        // 삭제 전 거래 정보 조회 (계좌 잔액 복구용)
-        const existing = await pool.query(
-          `SELECT transaction_type, amount, account_id FROM accounting_transactions WHERE id = $1`,
-          [transactionId]
-        )
-        if (existing.rows.length === 0) {
-          failedIds.push(transactionId)
+    try {
+      for (const transactionId of transactionIds) {
+        // UUID가 아닌 id는 건너뛴다 (Postgres uuid 캐스팅 에러 방지)
+        if (typeof transactionId !== 'string' || !UUID_REGEX.test(transactionId)) {
+          failedIds.push(String(transactionId))
           continue
         }
+        try {
+          await client.query('BEGIN')
 
-        await pool.query(`DELETE FROM accounting_transactions WHERE id = $1`, [transactionId])
-
-        // 계좌 잔액 복구 (단건 삭제와 동일 로직)
-        const { transaction_type, amount, account_id } = existing.rows[0]
-        if (account_id) {
-          const balanceChange = transaction_type === '입금' ? -Number(amount) : Number(amount)
-          await pool.query(
-            `UPDATE accounting_capital
-             SET current_balance = current_balance + $1, last_updated = NOW()
-             WHERE id = $2`,
-            [balanceChange, account_id]
+          // 삭제 전 거래 정보 조회 (계좌 잔액 복구용)
+          const existing = await client.query(
+            `SELECT transaction_type, amount, account_id FROM accounting_transactions WHERE id = $1`,
+            [transactionId]
           )
-        }
+          if (existing.rows.length === 0) {
+            await client.query('ROLLBACK')
+            failedIds.push(transactionId)
+            continue
+          }
 
-        deletedCount++
-      } catch (error) {
-        console.error(`Failed to delete transaction ${transactionId}:`, error)
-        failedIds.push(transactionId)
+          await client.query(`DELETE FROM accounting_transactions WHERE id = $1`, [transactionId])
+
+          // 계좌 잔액 복구 (단건 삭제와 동일 로직)
+          const { transaction_type, amount, account_id } = existing.rows[0]
+          if (account_id) {
+            const balanceChange = transaction_type === '입금' ? -Number(amount) : Number(amount)
+            await client.query(
+              `UPDATE accounting_capital
+               SET current_balance = current_balance + $1, last_updated = NOW()
+               WHERE id = $2`,
+              [balanceChange, account_id]
+            )
+          }
+
+          await client.query('COMMIT')
+          deletedCount++
+        } catch (error) {
+          try { await client.query('ROLLBACK') } catch {}
+          console.error(`Failed to delete transaction ${transactionId}:`, error)
+          failedIds.push(transactionId)
+        }
       }
+    } finally {
+      client.release()
     }
     
     res.json({ 
@@ -517,8 +585,13 @@ router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthReque
           : paymentMethod)
       : existing.payment_method
 
-    const result = await pool.query(
-      `UPDATE accounting_transactions
+    const client = await pool.connect()
+    let updated
+    try {
+      await client.query('BEGIN')
+
+      const result = await client.query(
+        `UPDATE accounting_transactions
        SET transaction_date = $1,
            transaction_time = $2,
            transaction_type = $3,
@@ -531,21 +604,45 @@ router.put('/transactions/:id', authMiddleware, adminOnly, async (req: AuthReque
            updated_at = NOW()
        WHERE id = $10
        RETURNING *`,
-      [
-        transactionDate != null ? transactionDate : existing.transaction_date,
-        normalizedTime,
-        transactionType != null ? transactionType : existing.transaction_type,
-        category != null ? category : existing.category,
-        normalizedPaymentMethod,
-        itemName != null ? itemName : existing.item_name,
-        amount != null ? amount : existing.amount,
-        memo !== undefined ? (memo || null) : existing.memo,
-        assignedUserId !== undefined ? (assignedUserId || null) : existing.assigned_user_id,
-        id,
-      ]
-    )
+        [
+          transactionDate != null ? transactionDate : existing.transaction_date,
+          normalizedTime,
+          transactionType != null ? transactionType : existing.transaction_type,
+          category != null ? category : existing.category,
+          normalizedPaymentMethod,
+          itemName != null ? itemName : existing.item_name,
+          amount != null ? amount : existing.amount,
+          memo !== undefined ? (memo || null) : existing.memo,
+          assignedUserId !== undefined ? (assignedUserId || null) : existing.assigned_user_id,
+          id,
+        ]
+      )
+      updated = result.rows[0]
 
-    res.json({ success: true, transaction: result.rows[0] })
+      // 계좌 잔액 재동기화: (신규 기여 − 기존 기여)만큼 보정 (금액/구분 변경 반영)
+      if (existing.account_id) {
+        const oldContribution = existing.transaction_type === '입금' ? Number(existing.amount) : -Number(existing.amount)
+        const newContribution = updated.transaction_type === '입금' ? Number(updated.amount) : -Number(updated.amount)
+        const delta = newContribution - oldContribution
+        if (delta !== 0) {
+          await client.query(
+            `UPDATE accounting_capital
+             SET current_balance = current_balance + $1, last_updated = NOW()
+             WHERE id = $2`,
+            [delta, existing.account_id]
+          )
+        }
+      }
+
+      await client.query('COMMIT')
+    } catch (e) {
+      try { await client.query('ROLLBACK') } catch {}
+      throw e
+    } finally {
+      client.release()
+    }
+
+    res.json({ success: true, transaction: updated })
   } catch (error) {
     console.error('Transaction update error:', error)
     res.status(500).json({ error: '거래내역 수정에 실패했습니다' })
@@ -569,20 +666,31 @@ router.delete('/transactions/:id', authMiddleware, adminOnly, async (req: AuthRe
     
     const { transaction_type, amount, account_id } = transactionResult.rows[0]
     
-    // 삭제
-    await pool.query(`DELETE FROM accounting_transactions WHERE id = $1`, [id])
-    
-    // 잔액 복구
-    if (account_id) {
-      const balanceChange = transaction_type === '입금' ? -amount : amount
-      await pool.query(
-        `UPDATE accounting_capital
+    // 삭제 + 잔액 복구 (원자적 처리)
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+
+      await client.query(`DELETE FROM accounting_transactions WHERE id = $1`, [id])
+
+      if (account_id) {
+        const balanceChange = transaction_type === '입금' ? -Number(amount) : Number(amount)
+        await client.query(
+          `UPDATE accounting_capital
          SET current_balance = current_balance + $1, last_updated = NOW()
          WHERE id = $2`,
-        [balanceChange, account_id]
-      )
+          [balanceChange, account_id]
+        )
+      }
+
+      await client.query('COMMIT')
+    } catch (e) {
+      try { await client.query('ROLLBACK') } catch {}
+      throw e
+    } finally {
+      client.release()
     }
-    
+
     res.json({ success: true })
   } catch (error) {
     console.error('Transaction delete error:', error)
@@ -615,7 +723,7 @@ router.post('/transactions/csv-upload', authMiddleware, adminOnly, upload.single
     const applyAutoMatch = (itemName: string) => {
       const lowerItemName = itemName.toLowerCase()
       for (const rule of matchRules) {
-        if (lowerItemName.includes(rule.keyword.toLowerCase())) {
+        if (rule.keyword && lowerItemName.includes(rule.keyword.toLowerCase())) {
           console.log(`Auto-match: "${itemName}" matched with keyword "${rule.keyword}"`)
           return {
             category: rule.category || undefined,
@@ -813,7 +921,7 @@ function parseSmbcText(
   const applyAutoMatch = (itemName: string) => {
     const lower = itemName.toLowerCase()
     for (const rule of matchRules) {
-      if (lower.includes(rule.keyword.toLowerCase())) {
+      if (rule.keyword && lower.includes(rule.keyword.toLowerCase())) {
         return {
           category: rule.category || undefined,
           assignedUserId: rule.assigned_user_id || undefined,
@@ -873,6 +981,7 @@ function parseSmbcText(
 
       const dateParts = date1.split('/')
       if (dateParts.length !== 3) {
+        errors.push({ line: i, error: `날짜 파싱 실패: "${date1}"` })
         i++
         continue
       }
@@ -885,6 +994,7 @@ function parseSmbcText(
 
       const amount = Number(amountText.replace(/,/g, '').replace(/円/g, '').trim())
       if (isNaN(amount) || amount === 0) {
+        errors.push({ line: i, error: `금액 파싱 실패(정렬 이상 가능): "${amountText}"` })
         i++
         continue
       }
@@ -998,7 +1108,8 @@ router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: A
     console.log(`Parsed ${parsed.length} transactions, ${errors.length} errors`)
 
     const imported: any[] = []
-    for (const p of parsed) {
+    for (let idx = 0; idx < parsed.length; idx++) {
+      const p = parsed[idx]
       try {
         const result = await pool.query(
           `INSERT INTO accounting_transactions
@@ -1010,7 +1121,7 @@ router.post('/transactions/smbc-paste', authMiddleware, adminOnly, async (req: A
         imported.push(result.rows[0])
       } catch (insErr) {
         console.error('SMBC insert error:', insErr)
-        errors.push({ line: -1, error: String(insErr) })
+        errors.push({ line: idx, error: `저장 실패(${p.transactionDate} ${p.itemName}): ${String(insErr)}` })
       }
     }
 
