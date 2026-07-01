@@ -20,6 +20,7 @@ import {
   exportCsv,
   downloadAttachment,
   freeeResend,
+  setCategory,
   getUsers,
   type AdminListFilters,
   type ExpenseAdminAction,
@@ -85,6 +86,7 @@ const CATEGORY_OPTIONS = [
   'health_checkup',
   'other',
   'corp_card',
+  'paypay',
 ] as const
 
 export default function ExpenseApprovalsPage() {
@@ -113,6 +115,9 @@ export default function ExpenseApprovalsPage() {
   const [freeeResendingId, setFreeeResendingId] = useState<number | null>(null)
   // 이미지 첨부 인라인 미리보기용 object URL (attachment id 별). 인증 헤더가 필요해 fetch 후 blob URL 사용.
   const [imageUrls, setImageUrls] = useState<Record<number, string>>({})
+  // 카테고리 변경(관리자): 행별 select 선택값 + 저장 중인 행 id
+  const [editingCategory, setEditingCategory] = useState<Record<number, string>>({})
+  const [savingCategoryId, setSavingCategoryId] = useState<number | null>(null)
 
   function currentFilters(): AdminListFilters {
     return {
@@ -213,6 +218,20 @@ export default function ExpenseApprovalsPage() {
       loadImagePreviews(full)
     } catch {
       /* 재조회 실패 시 기존 캐시 유지 */
+    }
+  }
+
+  // 카테고리 변경(관리자): setCategory 호출 후 행 상세 + 목록(뱃지) 갱신
+  async function onChangeCategory(req: ExpenseRequest, category: string) {
+    setSavingCategoryId(req.id)
+    try {
+      await setCategory(req.id, category)
+      await refreshDetail(req.id)
+      await load(currentFilters())
+    } catch (e: any) {
+      alert(e?.message || 'Failed')
+    } finally {
+      setSavingCategoryId(null)
     }
   }
 
@@ -567,6 +586,38 @@ export default function ExpenseApprovalsPage() {
                           {t('expense_msg_reject')}: {detail.reject_reason}
                         </div>
                       )}
+
+                      {/* 카테고리 변경 (관리자 전용 — 페이지 자체가 관리자 전용) */}
+                      <div className="pt-2 border-t border-gray-200">
+                        <div className="text-xs text-gray-500 mb-1">카테고리 변경</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <select
+                            className={inputClass}
+                            value={editingCategory[req.id] ?? req.category}
+                            onChange={(e) =>
+                              setEditingCategory((m) => ({ ...m, [req.id]: e.target.value }))
+                            }
+                          >
+                            {CATEGORY_OPTIONS.map((cat) => (
+                              <option key={cat} value={cat}>
+                                {t('expense_item_' + cat)}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            disabled={savingCategoryId === req.id}
+                            onClick={() =>
+                              void onChangeCategory(
+                                req,
+                                editingCategory[req.id] ?? req.category
+                              )
+                            }
+                            className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 inline-flex items-center gap-1"
+                          >
+                            {savingCategoryId === req.id ? '변경 중…' : '변경'}
+                          </button>
+                        </div>
+                      </div>
 
                       {/* freee 파일박스 업로드 상태 + 전송 (진단용) */}
                       <div className="pt-2 border-t border-gray-200">

@@ -181,6 +181,14 @@ export function adminAction(
   })
 }
 
+/** 관리자 카테고리 변경 (reviewer only) → 요청의 category 를 변경하고 갱신된 행을 반환 */
+export async function setCategory(id: number, category: string): Promise<ExpenseRequest> {
+  return apiFetch<ExpenseRequest>(`/admin/${id}/category`, {
+    method: 'PATCH',
+    body: JSON.stringify({ category }),
+  })
+}
+
 /** freee 파일박스 재전송 (진단용) → 영수증 첨부를 freee file box 로 다시 업로드 시도 */
 export async function freeeResend(
   id: number

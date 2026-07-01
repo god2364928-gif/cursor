@@ -43,6 +43,9 @@ const ALLOWED_CATEGORIES = [
   'corp_card',
 ]
 const ALLOWED_SETTLEMENT = ['reimburse_required', 'already_paid']
+// paypay 는 어드민 전용 카테고리 — 직원 신청(POST/PATCH)엔 허용 안 하고,
+// 어드민 카테고리 변경 엔드포인트에서만 허용(직원은 선택 불가).
+const ADMIN_CATEGORY_SET = [...ALLOWED_CATEGORIES, 'paypay']
 const ALLOWED_TAX_RATES = [0, 8, 10]
 
 // multer memoryStorage 20MB, PDF/이미지/HEIC 허용 (education 패턴)
@@ -967,6 +970,29 @@ router.post('/admin/:id/freee-resend', async (req: AuthRequest, res: Response) =
   } catch (error: any) {
     console.error('expense admin freee-resend error:', error.message)
     res.status(500).json({ error: '再送信に失敗しました' })
+  }
+})
+
+/** PATCH /admin/:id/category — 어드민 전용 카테고리 변경 (paypay 포함, 직원 불가) */
+router.patch('/admin/:id/category', async (req: AuthRequest, res: Response) => {
+  try {
+    if (!isReviewer(req)) return res.status(403).json({ error: '権限がありません' })
+    const id = Number(req.params.id)
+    const category = String((req.body as any)?.category || '')
+    if (!ADMIN_CATEGORY_SET.includes(category)) {
+      return res.status(400).json({ error: 'カテゴリが正しくありません' })
+    }
+    const upd = await pool.query(
+      `UPDATE expense_requests SET category = $1, updated_at = NOW()
+        WHERE id = $2 AND deleted_at IS NULL RETURNING id`,
+      [category, id]
+    )
+    if (upd.rowCount === 0) return res.status(404).json({ error: '申請が見つかりません' })
+    const row = await fetchRequest(id)
+    res.json(row)
+  } catch (error: any) {
+    console.error('expense admin set-category error:', error.message)
+    res.status(500).json({ error: 'カテゴリの変更に失敗しました' })
   }
 })
 
