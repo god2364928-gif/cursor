@@ -8,3 +8,5 @@
 -- ============================================================
 ALTER TABLE expense_requests DROP CONSTRAINT IF EXISTS expense_requests_category_check;
 ALTER TABLE expense_requests ALTER COLUMN used_at DROP NOT NULL;
+-- 3) freee 파일박스 업로드 실패 사유 저장 컬럼 (진단용). ADD IF NOT EXISTS 라 멱등.
+ALTER TABLE expense_requests ADD COLUMN IF NOT EXISTS freee_error TEXT;

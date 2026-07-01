@@ -111,6 +111,7 @@ export interface ExpenseRequest {
   meta: ExpenseMeta
   freee_receipt_id: number | null
   freee_deal_id: number | null
+  freee_error?: string | null
   ocr_status: ExpenseOcrStatus
   subscription_id: number | null
   billing_month: string | null

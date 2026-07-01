@@ -16,7 +16,7 @@ import multer from 'multer'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireAppAccess } from '../middleware/requireAppAccess'
-import { pushReceiptAndOcr } from '../services/expenseFreee'
+import { pushReceiptAndOcr, resendReceiptToFreee } from '../services/expenseFreee'
 
 const router = Router()
 router.use(authMiddleware, requireAppAccess('erp'))
@@ -96,7 +96,7 @@ const REQUEST_SELECT = `
   er.category, er.settlement_type, er.used_at, er.amount_incl_tax,
   er.tax_rate, er.amount_tax, er.reduced_tax, er.vendor_name, er.invoice_number,
   er.account_item_id, er.tax_code, er.purpose, er.memo, er.status, er.meta,
-  er.freee_receipt_id, er.freee_deal_id, er.ocr_status,
+  er.freee_receipt_id, er.freee_deal_id, er.ocr_status, er.freee_error,
   er.subscription_id, er.billing_month, er.approver_id, er.approved_at,
   er.reject_reason, er.created_at, er.updated_at, er.deleted_at
 `
@@ -915,6 +915,22 @@ router.patch('/admin/:id', async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: '更新に失敗しました' })
   } finally {
     client.release()
+  }
+})
+
+/**
+ * POST /admin/:id/freee-resend — 영수증을 freee 파일박스로 동기 재전송 (진단용)
+ *   실제 도달 여부/실패 사유를 즉시 확인. resendReceiptToFreee 는 절대 throw 하지 않음.
+ */
+router.post('/admin/:id/freee-resend', async (req: AuthRequest, res: Response) => {
+  try {
+    if (!isReviewer(req)) return res.status(403).json({ error: '権限がありません' })
+    const id = Number(req.params.id)
+    const r = await resendReceiptToFreee(id)
+    res.json(r)
+  } catch (error: any) {
+    console.error('expense admin freee-resend error:', error.message)
+    res.status(500).json({ error: '再送信に失敗しました' })
   }
 })
 

@@ -177,6 +177,16 @@ export function adminAction(
   })
 }
 
+/** freee 파일박스 재전송 (진단용) → 영수증 첨부를 freee file box 로 다시 업로드 시도 */
+export async function freeeResend(
+  id: number
+): Promise<{ receipt_id: number | null; error: string | null; already: boolean; ocr_status: string }> {
+  return apiFetch<{ receipt_id: number | null; error: string | null; already: boolean; ocr_status: string }>(
+    `/admin/${id}/freee-resend`,
+    { method: 'POST' }
+  )
+}
+
 /** 電帳法 CSV export → blob object URL (호출측이 URL.revokeObjectURL로 해제) */
 export async function exportCsv(filters?: AdminListFilters): Promise<string> {
   const params = new URLSearchParams()

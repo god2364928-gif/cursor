@@ -19,6 +19,7 @@ import {
   get,
   exportCsv,
   downloadAttachment,
+  freeeResend,
   type AdminListFilters,
   type ExpenseAdminAction,
 } from '../expenseApi'
@@ -93,6 +94,8 @@ export default function ExpenseApprovalsPage() {
   // 확장 시 상세(get)로 attachments/history 로드해 행별 캐시 (리스트 응답엔 없음)
   const [details, setDetails] = useState<Record<number, ExpenseRequest>>({})
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null)
+  // freee 재전송 진행 중인 행 id
+  const [freeeResendingId, setFreeeResendingId] = useState<number | null>(null)
   // 이미지 첨부 인라인 미리보기용 object URL (attachment id 별). 인증 헤더가 필요해 fetch 후 blob URL 사용.
   const [imageUrls, setImageUrls] = useState<Record<number, string>>({})
 
@@ -175,6 +178,40 @@ export default function ExpenseApprovalsPage() {
       } finally {
         setDetailLoadingId((cur) => (cur === id ? null : cur))
       }
+    }
+  }
+
+  // resend 후 해당 행의 상세를 재조회해 freee_receipt_id/ocr_status/freee_error 최신화
+  async function refreshDetail(id: number) {
+    try {
+      const full = await get(id)
+      setDetails((m) => ({ ...m, [id]: full }))
+      loadImagePreviews(full)
+    } catch {
+      /* 재조회 실패 시 기존 캐시 유지 */
+    }
+  }
+
+  async function onFreeeResend(req: ExpenseRequest) {
+    setFreeeResendingId(req.id)
+    try {
+      const result = await freeeResend(req.id)
+      if (result.receipt_id) {
+        alert(
+          `freee 업로드 성공 (#${result.receipt_id})` +
+            (result.already ? ' · 이미 업로드됨' : '')
+        )
+      } else if (result.error) {
+        alert(`freee 업로드 오류: ${result.error}`)
+      } else {
+        alert('freee 재전송 완료 (영수증 없음)')
+      }
+    } catch (e: any) {
+      alert(e?.message || 'freee 재전송 실패')
+    } finally {
+      // 성공/실패와 무관하게 상세 재조회로 상태 블록 갱신
+      await refreshDetail(req.id)
+      setFreeeResendingId(null)
     }
   }
 
@@ -469,6 +506,36 @@ export default function ExpenseApprovalsPage() {
                           {t('expense_msg_reject')}: {detail.reject_reason}
                         </div>
                       )}
+
+                      {/* freee 파일박스 업로드 상태 + 재전송 (진단용) */}
+                      <div className="pt-2 border-t border-gray-200">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="text-xs">
+                            {detail.freee_receipt_id ? (
+                              <span className="text-emerald-700">
+                                ✅ freee 파일박스 업로드됨 (#{detail.freee_receipt_id})
+                                {detail.ocr_status
+                                  ? ` · OCR: ${detail.ocr_status}`
+                                  : ''}
+                              </span>
+                            ) : detail.freee_error ? (
+                              <span className="text-rose-700">
+                                ⚠️ freee 업로드 오류: {detail.freee_error}
+                              </span>
+                            ) : (
+                              <span className="text-gray-500">freee 미업로드</span>
+                            )}
+                          </div>
+                          <button
+                            disabled={freeeResendingId === req.id}
+                            onClick={() => void onFreeeResend(req)}
+                            className="px-2 py-1 text-xs border border-gray-300 text-gray-700 rounded hover:bg-gray-50 disabled:opacity-50 inline-flex items-center gap-1"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            {freeeResendingId === req.id ? '재전송 중…' : 'freee 재전송'}
+                          </button>
+                        </div>
+                      </div>
 
                       {/* attachments (receipt preview/download) */}
                       <div className="pt-2 border-t border-gray-200">

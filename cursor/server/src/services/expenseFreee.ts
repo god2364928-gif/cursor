@@ -77,7 +77,7 @@ export async function pushReceiptAndOcr(
 
     await pool.query(
       `UPDATE expense_requests
-         SET freee_receipt_id = $1, ocr_status = 'pending', updated_at = NOW()
+         SET freee_receipt_id = $1, ocr_status = 'pending', freee_error = NULL, updated_at = NOW()
        WHERE id = $2`,
       [receiptId, requestId]
     )
@@ -170,9 +170,9 @@ export async function pushReceiptAndOcr(
     try {
       await pool.query(
         `UPDATE expense_requests
-           SET ocr_status = 'failed', updated_at = NOW()
-         WHERE id = $1`,
-        [requestId]
+           SET ocr_status = 'failed', freee_error = $1, updated_at = NOW()
+         WHERE id = $2`,
+        [(err as Error).message, requestId]
       )
     } catch (updErr) {
       console.error(
@@ -180,5 +180,104 @@ export async function pushReceiptAndOcr(
         (updErr as Error).message
       )
     }
+  }
+}
+
+/**
+ * 동기 재전송 (진단용) — 영수증을 freee 파일박스로 다시 올려 실제 도달 여부를 확인한다.
+ * 절대 throw 하지 않는다 — 항상 결과 객체를 반환한다.
+ *   - freee_receipt_id 가 이미 있으면 재업로드하지 않음 (중복 영수증 방지).
+ *   - freee 오류(예: "No valid access token", multipart 오류)를 그대로 freee_error 에 저장·반환.
+ */
+export async function resendReceiptToFreee(
+  requestId: number
+): Promise<{ receipt_id: number | null; error: string | null; already: boolean; ocr_status: string }> {
+  // 1) 이미 파일박스에 올라간 영수증이면 재업로드 금지 (중복 방지)
+  const reqRes = await pool.query(
+    `SELECT freee_receipt_id, ocr_status
+       FROM expense_requests WHERE id = $1`,
+    [requestId]
+  )
+  const reqRow = reqRes.rows[0] || {}
+  const ocrStatus: string = reqRow.ocr_status || 'none'
+
+  if (reqRow.freee_receipt_id) {
+    return {
+      receipt_id: reqRow.freee_receipt_id,
+      error: null,
+      already: true,
+      ocr_status: ocrStatus,
+    }
+  }
+
+  // 2) 첫 번째 첨부(영수증) 조회
+  const attRes = await pool.query(
+    `SELECT file_data, mime_type, file_name
+       FROM expense_attachments
+      WHERE request_id = $1
+      ORDER BY uploaded_at, id
+      LIMIT 1`,
+    [requestId]
+  )
+  if (attRes.rows.length === 0) {
+    return { receipt_id: null, error: '領収書がありません', already: false, ocr_status: ocrStatus }
+  }
+  const att = attRes.rows[0]
+
+  try {
+    // 3) base64 → Buffer, HEIC/HEIF → JPEG 변환 (pushReceiptAndOcr 과 동일 로직)
+    let buffer = Buffer.from(att.file_data, 'base64')
+    let filename: string = att.file_name
+    let mimeType: string = att.mime_type
+
+    const isHeic =
+      /heic|heif/i.test(mimeType) || /\.(heic|heif)$/i.test(filename)
+    if (isHeic) {
+      try {
+        const out = await convert({ buffer, format: 'JPEG', quality: 0.9 })
+        buffer = Buffer.from(out)
+        filename = filename.replace(/\.(heic|heif)$/i, '') + '.jpg'
+        mimeType = 'image/jpeg'
+        console.log(`✅ [Expense Resend] HEIC→JPEG 변환 완료: ${filename}`)
+      } catch (convErr) {
+        console.error(
+          '[Expense Resend] HEIC 변환 실패, 원본으로 진행:',
+          (convErr as Error).message
+        )
+      }
+    }
+
+    // 4) 파일박스 업로드
+    const companyId = await getDefaultCompanyId()
+    const uploaded = await uploadReceiptToFileBox(companyId, { buffer, filename, mimeType })
+
+    await pool.query(
+      `UPDATE expense_requests
+         SET freee_receipt_id = $1, ocr_status = 'pending', freee_error = NULL, updated_at = NOW()
+       WHERE id = $2`,
+      [uploaded.id, requestId]
+    )
+    // OCR prefill 은 최초 업로드 경로에서 이미 수행됨 — 여기선 도달 확인이 목적이라
+    // ocr_status='pending' 만 남기고 재폴링하지 않는다 (재업로드 회피).
+    console.log(`✅ [Expense Resend] request ${requestId} → freee receipt ${uploaded.id}`)
+    return { receipt_id: uploaded.id, error: null, already: false, ocr_status: 'pending' }
+  } catch (err) {
+    // freee 오류를 그대로 저장·반환하여 UI 에서 원인 파악 가능하게 함
+    const message = (err as Error).message
+    console.error(`[Expense Resend] request ${requestId} 실패:`, message)
+    try {
+      await pool.query(
+        `UPDATE expense_requests
+           SET ocr_status = 'failed', freee_error = $1, updated_at = NOW()
+         WHERE id = $2`,
+        [message, requestId]
+      )
+    } catch (updErr) {
+      console.error(
+        '[Expense Resend] freee_error 갱신 실패:',
+        (updErr as Error).message
+      )
+    }
+    return { receipt_id: null, error: message, already: false, ocr_status: 'failed' }
   }
 }
