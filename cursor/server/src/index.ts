@@ -54,6 +54,7 @@ import { autoMigrateExamOpenings } from './migrations/autoMigrateExamOpenings'
 import { autoMigrateExamScoring } from './migrations/autoMigrateExamScoring'
 import { autoMigrateExamProctorEvents } from './migrations/autoMigrateExamProctorEvents'
 import { autoMigrateAccountingCategories } from './migrations/autoMigrateAccountingCategories'
+import { autoMigratePayrollTransport } from './migrations/autoMigratePayrollTransport'
 import { checkDepositEmails, markAsRead } from './services/gmailService'
 import { parseDepositEmail } from './utils/depositParser'
 import { sendDepositNotification } from './utils/slackClient'
@@ -278,6 +279,7 @@ async function startServer() {
   await autoMigrateEducationRequest()
   await autoMigrateDropPayrollFileUnique()  // 월별 급여명세서 다중 파일 허용 (UNIQUE 제약 제거)
   await autoMigrateAccountingCategories()   // 회계 카테고리 관리 테이블 + 기본값 seed
+  await autoMigratePayrollTransport()       // 월별 급여 교통비(transport) 컬럼 추가
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`)

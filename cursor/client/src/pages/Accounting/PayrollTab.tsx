@@ -451,6 +451,9 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
                     {language === 'ja' ? '家賃' : '집세'}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {language === 'ja' ? '交通費' : '교통비'}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
                     {language === 'ja' ? 'その他' : '기타'}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide bg-emerald-50">
@@ -474,6 +477,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
                     {renderEditableCell(row, 'incentive', row.incentive)}
                     {renderEditableCell(row, 'business_trip', row.business_trip)}
                     {renderEditableCell(row, 'rent', row.rent)}
+                    {renderEditableCell(row, 'transport', row.transport)}
                     {renderEditableCell(row, 'other', row.other)}
                     <td className="px-4 py-3 text-right font-semibold bg-emerald-50 tabular-nums">
                       {formatCurrency(
@@ -482,6 +486,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
                         (parseFloat(row.incentive) || 0) +
                         (parseFloat(row.business_trip) || 0) +
                         (parseFloat(row.rent) || 0) +
+                        (parseFloat(row.transport) || 0) +
                         (parseFloat(row.other) || 0)
                       )}
                     </td>
@@ -511,6 +516,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
                   <td className="px-4 py-3 text-right"></td>
                   <td className="px-4 py-3 text-right"></td>
                   <td className="px-4 py-3 text-right"></td>
+                  <td className="px-4 py-3 text-right"></td>
                   <td className="px-4 py-3 text-right bg-emerald-100 text-emerald-900 tabular-nums">
                     {formatCurrency(
                       monthlyPayrollData.reduce((sum, r) =>
@@ -520,6 +526,7 @@ const PayrollTab: React.FC<PayrollTabProps> = ({ language, isAdmin }) => {
                         (parseFloat(r.incentive) || 0) +
                         (parseFloat(r.business_trip) || 0) +
                         (parseFloat(r.rent) || 0) +
+                        (parseFloat(r.transport) || 0) +
                         (parseFloat(r.other) || 0), 0
                       )
                     )}
