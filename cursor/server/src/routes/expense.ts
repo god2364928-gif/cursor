@@ -202,24 +202,47 @@ router.post('/requests', async (req: AuthRequest, res: Response) => {
       submit,
     } = b
 
+    const isSubmit = submit === true
+
+    // category·settlement_type 은 draft/submit 공통 필수
     if (!ALLOWED_CATEGORIES.includes(category)) {
       return res.status(400).json({ error: 'カテゴリが正しくありません' })
     }
     if (!ALLOWED_SETTLEMENT.includes(settlement_type)) {
       return res.status(400).json({ error: '精算区分が正しくありません' })
     }
-    if (!used_at || !/^\d{4}-\d{2}-\d{2}$/.test(used_at)) {
-      return res.status(400).json({ error: '使用日が正しくありません' })
-    }
-    if (!Number.isInteger(amount_incl_tax) || amount_incl_tax < 0) {
-      return res.status(400).json({ error: '金額は0以上の整数で入力してください' })
+
+    // used_at / amount_incl_tax 은 제출 시에만 필수 (draft 는 OCR prefill 대기 → 비워둘 수 있음)
+    if (isSubmit) {
+      if (!used_at || !/^\d{4}-\d{2}-\d{2}$/.test(used_at)) {
+        return res.status(400).json({ error: '使用日が正しくありません' })
+      }
+      if (!Number.isInteger(amount_incl_tax) || amount_incl_tax < 0) {
+        return res.status(400).json({ error: '金額は0以上の整数で入力してください' })
+      }
+    } else {
+      // draft: 값이 있으면 형식만 검증, 없으면 통과 (NULL / 0 으로 저장)
+      if (used_at != null && !/^\d{4}-\d{2}-\d{2}$/.test(used_at)) {
+        return res.status(400).json({ error: '使用日が正しくありません' })
+      }
+      if (
+        amount_incl_tax != null &&
+        (!Number.isInteger(amount_incl_tax) || amount_incl_tax < 0)
+      ) {
+        return res.status(400).json({ error: '金額は0以上の整数で入力してください' })
+      }
     }
     const rate = tax_rate == null ? 10 : Number(tax_rate)
     if (!ALLOWED_TAX_RATES.includes(rate)) {
       return res.status(400).json({ error: '税率が正しくありません' })
     }
 
-    const status = submit ? 'pending' : 'draft'
+    // draft 는 used_at NULL / amount 0 허용
+    const usedAtValue =
+      used_at && /^\d{4}-\d{2}-\d{2}$/.test(used_at) ? used_at : null
+    const amountValue = Number.isInteger(amount_incl_tax) ? amount_incl_tax : 0
+
+    const status = isSubmit ? 'pending' : 'draft'
     const metaObj = meta && typeof meta === 'object' ? meta : {}
 
     await client.query('BEGIN')
@@ -234,8 +257,8 @@ router.post('/requests', async (req: AuthRequest, res: Response) => {
         userId,
         category,
         settlement_type,
-        used_at,
-        amount_incl_tax,
+        usedAtValue,
+        amountValue,
         rate,
         !!reduced_tax,
         vendor_name ? String(vendor_name).trim() : null,
@@ -268,7 +291,8 @@ router.patch('/requests/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
     const existing = await pool.query(
-      `SELECT id, user_id, status FROM expense_requests WHERE id = $1 AND deleted_at IS NULL`,
+      `SELECT id, user_id, status, used_at, amount_incl_tax
+         FROM expense_requests WHERE id = $1 AND deleted_at IS NULL`,
       [id]
     )
     if (existing.rows.length === 0) {
@@ -340,6 +364,22 @@ router.patch('/requests/:id', async (req: AuthRequest, res: Response) => {
     // submit 플래그: draft/awaiting_receipt → pending 제출
     const justSubmitted =
       body.submit === true && ['draft', 'awaiting_receipt'].includes(row.status)
+
+    // 제출 시에는 최종값(요청 바디 우선, 없으면 DB 저장값=OCR prefill 포함)에 대해 전체 검증
+    if (justSubmitted) {
+      const effUsedAt =
+        body.used_at !== undefined ? body.used_at : toISODate(row.used_at)
+      const effAmount =
+        body.amount_incl_tax !== undefined
+          ? body.amount_incl_tax
+          : row.amount_incl_tax
+      if (!effUsedAt || !/^\d{4}-\d{2}-\d{2}$/.test(effUsedAt)) {
+        return res.status(400).json({ error: '使用日が正しくありません' })
+      }
+      if (!Number.isInteger(Number(effAmount)) || Number(effAmount) < 0) {
+        return res.status(400).json({ error: '金額は0以上の整数で入力してください' })
+      }
+    }
 
     await client.query('BEGIN')
 

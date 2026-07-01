@@ -10,7 +10,7 @@ import {
 import { useI18nStore } from '../../i18n'
 import { readCache, writeCache } from '../../lib/erpCache'
 import { Button } from '../../components/ui/button'
-import { list, downloadAttachment } from './expenseApi'
+import { list, get, downloadAttachment } from './expenseApi'
 import type { ExpenseRequest, ExpenseStatus } from './expenseTypes'
 import { useExpensePendingSummary } from './useExpensePendingSummary'
 import ExpenseRequestModal from './ExpenseRequestModal'
@@ -81,6 +81,28 @@ export default function ExpensePage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ExpenseRequest | null>(null)
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  // 리스트 응답에는 attachments/history 가 없어 확장 시 상세(get)를 별도 로드해 행별 캐시.
+  const [details, setDetails] = useState<Record<number, ExpenseRequest>>({})
+  const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null)
+
+  async function onToggleExpand(id: number) {
+    if (expandedId === id) {
+      setExpandedId(null)
+      return
+    }
+    setExpandedId(id)
+    if (!details[id]) {
+      setDetailLoadingId(id)
+      try {
+        const full = await get(id)
+        setDetails((m) => ({ ...m, [id]: full }))
+      } catch {
+        /* 상세 로드 실패 시 기본 행만 표시 */
+      } finally {
+        setDetailLoadingId((cur) => (cur === id ? null : cur))
+      }
+    }
+  }
 
   const loadAll = useCallback(async () => {
     const key = statusFilter || 'all'
@@ -94,6 +116,8 @@ export default function ExpensePage() {
       const res = await list(statusFilter || undefined)
       setItems(res.items)
       writeCache<ExpenseCache>('expense', key, { items: res.items })
+      // 목록 갱신 시 행별 상세 캐시 무효화 (재확장 시 최신 attachments/history 재로드)
+      setDetails({})
     } catch (e: any) {
       setError(e?.message || 'Failed to load')
     } finally {
@@ -198,6 +222,9 @@ export default function ExpensePage() {
               const isExpanded = expandedId === req.id
               const canEdit =
                 req.status === 'draft' || req.status === 'awaiting_receipt'
+              // 확장 시 상세 로드분을 우선 사용 (attachments/history 포함)
+              const detail = details[req.id] ?? req
+              const detailLoading = detailLoadingId === req.id
               return (
                 <li key={req.id} className="px-4 py-3">
                   <div className="flex items-center justify-between gap-4">
@@ -241,7 +268,7 @@ export default function ExpensePage() {
                         </button>
                       )}
                       <button
-                        onClick={() => setExpandedId(isExpanded ? null : req.id)}
+                        onClick={() => void onToggleExpand(req.id)}
                         className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded"
                       >
                         {isExpanded ? (
@@ -282,9 +309,15 @@ export default function ExpensePage() {
                         )}
                       </div>
 
-                      {req.reject_reason && (
+                      {detail.reject_reason && (
                         <div className="text-rose-700">
-                          {t('expense_msg_reject')}: {req.reject_reason}
+                          {t('expense_msg_reject')}: {detail.reject_reason}
+                        </div>
+                      )}
+
+                      {detailLoading && (
+                        <div className="text-xs text-gray-400 pt-1">
+                          {t('loading')}
                         </div>
                       )}
 
@@ -294,7 +327,7 @@ export default function ExpensePage() {
                           {t('expense_field_invoice_number')}
                         </div>
                         <ul className="space-y-1">
-                          {(req.attachments || []).map((att) => (
+                          {(detail.attachments || []).map((att) => (
                             <li
                               key={att.id}
                               className="flex items-center justify-between text-xs"
@@ -311,17 +344,21 @@ export default function ExpensePage() {
                               </button>
                             </li>
                           ))}
-                          {(!req.attachments || req.attachments.length === 0) && (
-                            <li className="text-xs text-gray-400">{t('education_no_files')}</li>
-                          )}
+                          {!detailLoading &&
+                            (!detail.attachments ||
+                              detail.attachments.length === 0) && (
+                              <li className="text-xs text-gray-400">
+                                {t('education_no_files')}
+                              </li>
+                            )}
                         </ul>
                       </div>
 
                       {/* Status history */}
-                      {req.history && req.history.length > 0 && (
+                      {detail.history && detail.history.length > 0 && (
                         <div className="pt-2 border-t border-gray-200">
                           <ul className="space-y-0.5 text-xs text-gray-600">
-                            {req.history.map((h) => (
+                            {detail.history.map((h) => (
                               <li key={h.id}>
                                 {formatYmd(h.created_at)} · {h.from_status ? `${t(`expense_status_${h.from_status}`)} → ` : ''}
                                 {t(`expense_status_${h.to_status}`)}

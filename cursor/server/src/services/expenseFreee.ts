@@ -265,25 +265,33 @@ export async function createDealForRequest(requestId: number): Promise<number> {
     throw new Error('no account_item mapping')
   }
 
-  // 4) tax_code 확정: taxDisplayCategory 로 family 결정 → getCompanyTaxes 에서 매칭
+  // 4) tax_code 확정
+  //    - 담당자가 승인 UI 에서 tax_code 를 직접 지정했으면(row.tax_code 非 null) 그 값을 그대로 사용
+  //    - 지정하지 않았을 때만 taxDisplayCategory → family → getCompanyTaxes 로 자동 산출
   const usedAtYmd = toYmd(row.used_at)
+  // used_at 은 取引 issue_date 로도 반드시 필요하므로 두 경로 공통으로 요구
   if (!usedAtYmd) {
-    throw new Error('used_at is required to resolve tax_code')
+    throw new Error('used_at is required to create deal')
   }
-  const family = taxDisplayCategory(
-    usedAtYmd,
-    Number(row.tax_rate),
-    !!row.reduced_tax
-  )
+  let taxCode: number
+  if (row.tax_code != null) {
+    taxCode = Number(row.tax_code)
+  } else {
+    const family = taxDisplayCategory(
+      usedAtYmd,
+      Number(row.tax_rate),
+      !!row.reduced_tax
+    )
 
-  const taxes = await getCompanyTaxes(companyId)
-  const matched = taxes.find(
-    (t) => t.available === true && t.display_category === family
-  )
-  if (!matched) {
-    throw new Error('no matching tax_code for ' + family)
+    const taxes = await getCompanyTaxes(companyId)
+    const matched = taxes.find(
+      (t) => t.available === true && t.display_category === family
+    )
+    if (!matched) {
+      throw new Error('no matching tax_code for ' + family)
+    }
+    taxCode = matched.code
   }
-  const taxCode = matched.code
 
   // 5) 経費 取引 생성
   const amount = Number(row.amount_incl_tax)

@@ -123,8 +123,15 @@ export default function ExpenseRequestModal({
   const [recurring, setRecurring] = useState(false)
 
   // upload / ocr
-  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [uploadedFileName, setUploadedFileName] = useState('')
   const [ocrPending, setOcrPending] = useState(false)
+  const [uploading, setUploading] = useState(false)
+
+  // 이 모달 세션에서 사용하는 단일 request row id. null 이면 아직 create 전.
+  // 한 세션당 create 는 정확히 1회만 발생 (id 설정 후에는 항상 update).
+  const [requestId, setRequestId] = useState<number | null>(null)
+  // state 는 비동기라 같은 tick 연속 호출 시 stale 가능 → ref 로 동기 미러링해 중복 create 원천 차단.
+  const requestIdRef = useRef<number | null>(null)
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -141,8 +148,16 @@ export default function ExpenseRequestModal({
     // reset / prefill from editing
     setError('')
     setSubmitting(false)
-    setPendingFile(null)
+    setUploadedFileName('')
+    setUploading(false)
     setOcrPending(false)
+    if (ocrTimer.current) {
+      window.clearTimeout(ocrTimer.current)
+      ocrTimer.current = null
+    }
+    // 기존 신청 편집이면 그 id 를 세션 request row 로 사용, 신규면 null (첫 저장/업로드 때 create)
+    setRequestId(editing ? editing.id : null)
+    requestIdRef.current = editing ? editing.id : null
     if (editing) {
       setCategory(editing.category)
       setSettlementType(editing.settlement_type)
@@ -257,15 +272,15 @@ export default function ExpenseRequestModal({
     return {}
   }
 
-  const isValid =
-    !!category &&
-    !!usedAt &&
-    typeof amount === 'number' &&
-    amount >= 0
+  // 카테고리만 있으면 draft 저장·영수증 업로드 가능 (used_at/amount 는 OCR/수동 후채움).
+  const canSaveDraft = !!category
+  // 제출은 used_at/amount 필수 (server 도 submit 시에만 검증).
+  const canSubmit =
+    !!category && !!usedAt && typeof amount === 'number' && amount >= 0
 
-  async function pollOcrLoop(requestId: number, attempts: number) {
+  async function pollOcrLoop(reqId: number, attempts: number) {
     try {
-      const r = await pollOcr(requestId)
+      const r = await pollOcr(reqId)
       if (r.ocr_status === 'done') {
         if (r.amount_incl_tax != null) setAmount(r.amount_incl_tax)
         if (r.used_at) setUsedAt(r.used_at.slice(0, 10))
@@ -286,56 +301,86 @@ export default function ExpenseRequestModal({
       return
     }
     ocrTimer.current = window.setTimeout(
-      () => pollOcrLoop(requestId, attempts + 1),
+      () => pollOcrLoop(reqId, attempts + 1),
       5000
     )
   }
 
-  async function submit(asDraft: boolean) {
-    if (!isValid || submitting) return
+  /** 현재 폼 값으로 create/update payload 구성. asDraft=false 면 submit 플래그 on. */
+  function buildPayload(asDraft: boolean): CreateExpensePayload {
+    return {
+      category: category as ExpenseCategory,
+      settlement_type: settlementType,
+      // draft 는 비어 있어도 서버가 허용 (submit 시에만 필수 검증)
+      used_at: usedAt || undefined,
+      amount_incl_tax: typeof amount === 'number' ? amount : undefined,
+      tax_rate: taxRate,
+      reduced_tax: taxRate === 8,
+      vendor_name: vendor.trim() || null,
+      invoice_number: showInvoiceNumber ? invoiceNumber.trim() || null : null,
+      purpose: purpose.trim() || null,
+      memo: memo.trim() || null,
+      meta: buildMeta(),
+      submit: !asDraft,
+    }
+  }
+
+  /**
+   * 세션 request row 를 보장한다.
+   * - 이미 있으면 (requestId) update 로 최신 필드 반영.
+   * - 없으면 create(draft) → 반환 id 저장. create 는 세션당 최대 1회.
+   * 반환값: 확정된 request id (실패 시 null).
+   */
+  async function ensureRequestId(asDraft: boolean): Promise<number | null> {
+    const payload = buildPayload(asDraft)
+    // ref 로 동기 판정 → 같은 tick 연속 호출에도 create 는 1회만.
+    const existingId = requestIdRef.current
+    if (existingId != null) {
+      const saved = await update(existingId, payload)
+      return saved.id
+    }
+    const created = await create(payload)
+    requestIdRef.current = created.id
+    setRequestId(created.id)
+    return created.id
+  }
+
+  /** 영수증 업로드 (upload-first): request row 확보 → 업로드 → OCR 폴링 prefill. */
+  async function handleFile(file: File) {
+    if (uploading || submitting) return
+    setUploading(true)
+    setError('')
+    try {
+      // 업로드 단계에서는 항상 draft 로 row 확보 (아직 제출 아님)
+      const id = await ensureRequestId(true)
+      if (id == null) return
+      await uploadAttachment(id, file)
+      setUploadedFileName(file.name)
+      // 부모 리스트 갱신 (새 draft 노출)
+      onSubmitted()
+      // OCR 폴링 시작 → prefill
+      setOcrPending(true)
+      if (ocrTimer.current) window.clearTimeout(ocrTimer.current)
+      void pollOcrLoop(id, 0)
+    } catch (e: any) {
+      setError(e?.message || 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  /** Save draft / Submit 공통 저장. asDraft=true → draft, false → 제출. */
+  async function save(asDraft: boolean) {
+    if (submitting || uploading) return
+    if (asDraft && !canSaveDraft) return
+    if (!asDraft && !canSubmit) return
     setSubmitting(true)
     setError('')
     try {
-      const payload: CreateExpensePayload = {
-        category: category as ExpenseCategory,
-        settlement_type: settlementType,
-        used_at: usedAt,
-        amount_incl_tax: amount as number,
-        tax_rate: taxRate,
-        reduced_tax: taxRate === 8,
-        vendor_name: vendor.trim() || null,
-        invoice_number: showInvoiceNumber ? invoiceNumber.trim() || null : null,
-        purpose: purpose.trim() || null,
-        memo: memo.trim() || null,
-        meta: buildMeta(),
-        submit: !asDraft,
-      }
-
-      let saved: ExpenseRequest
-      if (editing) {
-        saved = await update(editing.id, payload)
-      } else {
-        saved = await create(payload)
-      }
-
-      // 영수증 업로드 → OCR 폴링 prefill
-      let keepOpenForOcr = false
-      if (pendingFile) {
-        try {
-          await uploadAttachment(saved.id, pendingFile)
-          setOcrPending(true)
-          keepOpenForOcr = true
-          void pollOcrLoop(saved.id, 0)
-        } catch (e: any) {
-          // 업로드 실패해도 신청 자체는 저장됨
-          setError(e?.message || 'Upload failed')
-        }
-      }
-
+      // requestId 있으면 update, 없으면 create — 세션당 create 1회 보장
+      await ensureRequestId(asDraft)
       onSubmitted()
-      // OCR 폴링 중이면 prefill 확인을 위해 모달 유지, 아니면 닫기
-      if (!keepOpenForOcr) onClose()
-      else setPendingFile(null)
+      onClose()
     } catch (e: any) {
       setError(e?.message || 'Failed')
     } finally {
@@ -418,23 +463,34 @@ export default function ExpenseRequestModal({
             <div className="mb-4">
               <div className={labelClass}>{t('expense_field_invoice_number')}</div>
               <div className="flex items-center gap-2 flex-wrap">
-                <label className="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded cursor-pointer hover:bg-gray-100 bg-white">
-                  <Upload className="h-4 w-4" />
+                <label
+                  className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded bg-white ${
+                    uploading || submitting
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'cursor-pointer hover:bg-gray-100'
+                  }`}
+                >
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
                   {t('education_upload_receipt')}
                   <input
                     type="file"
                     className="hidden"
+                    disabled={uploading || submitting}
                     accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.webp"
                     onChange={(e) => {
                       const f = e.target.files?.[0]
-                      if (f) setPendingFile(f)
                       e.target.value = ''
+                      if (f) void handleFile(f)
                     }}
                   />
                 </label>
-                {pendingFile && (
+                {uploadedFileName && (
                   <span className="text-xs text-gray-600 truncate">
-                    {pendingFile.name}
+                    {uploadedFileName}
                   </span>
                 )}
                 {ocrPending && (
@@ -756,17 +812,24 @@ export default function ExpenseRequestModal({
         )}
 
         <div className="flex justify-end gap-2 mt-6">
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={submitting || uploading}
+          >
             {t('cancel')}
           </Button>
           <Button
             variant="outline"
-            onClick={() => submit(true)}
-            disabled={!isValid || submitting}
+            onClick={() => save(true)}
+            disabled={!canSaveDraft || submitting || uploading}
           >
             {t('expense_msg_save_draft')}
           </Button>
-          <Button onClick={() => submit(false)} disabled={!isValid || submitting}>
+          <Button
+            onClick={() => save(false)}
+            disabled={!canSubmit || submitting || uploading}
+          >
             {t('expense_msg_submit')}
           </Button>
         </div>

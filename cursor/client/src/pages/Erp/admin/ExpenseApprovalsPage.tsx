@@ -18,6 +18,7 @@ import { Button } from '../../../components/ui/button'
 import {
   adminList,
   adminAction,
+  get,
   exportCsv,
   downloadAttachment,
   listSubscriptions,
@@ -27,8 +28,10 @@ import {
   getAccountItems,
   getMap,
   putMap,
+  getUsers,
   type AdminListFilters,
   type ExpenseAdminAction,
+  type UserRow,
 } from '../expenseApi'
 import type {
   ExpenseRequest,
@@ -109,6 +112,10 @@ export default function ExpenseApprovalsPage() {
   const [editAccount, setEditAccount] = useState<Record<number, number | ''>>({})
   const [editTax, setEditTax] = useState<Record<number, number | ''>>({})
 
+  // 확장 시 상세(get)로 attachments/history 로드해 행별 캐시 (리스트 응답엔 없음)
+  const [details, setDetails] = useState<Record<number, ExpenseRequest>>({})
+  const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null)
+
   function currentFilters(): AdminListFilters {
     return {
       status: statusFilter || undefined,
@@ -120,22 +127,45 @@ export default function ExpenseApprovalsPage() {
     }
   }
 
-  const load = useCallback(async () => {
+  // 항상 전달받은 필터로 조회. 미전달 시 상태탭만으로 조회 (탭 전환용).
+  // search 버튼은 currentFilters() 를 넘겨 최신 입력값(from/to/vendor/min/max)을 반영 → stale 방지.
+  const load = useCallback(async (filters?: AdminListFilters) => {
     try {
       setError('')
-      const res = await adminList(currentFilters())
+      const res = await adminList(filters)
       setItems(res.items)
+      // 목록 갱신 시 행별 상세 캐시 무효화 (재확장 시 최신값 재로드)
+      setDetails({})
     } catch (e: any) {
       setError(e?.message || 'Failed')
     } finally {
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter])
+  }, [])
 
+  // 상태탭 변경 시 재조회. 검색 입력값은 stale 방지를 위해 여기서 직접 읽지 않음.
   useEffect(() => {
-    void load()
-  }, [load])
+    void load({ status: statusFilter || undefined })
+  }, [statusFilter, load])
+
+  async function onToggleExpand(id: number) {
+    if (expandedId === id) {
+      setExpandedId(null)
+      return
+    }
+    setExpandedId(id)
+    if (!details[id]) {
+      setDetailLoadingId(id)
+      try {
+        const full = await get(id)
+        setDetails((m) => ({ ...m, [id]: full }))
+      } catch {
+        /* 상세 로드 실패 시 기본 행만 표시 */
+      } finally {
+        setDetailLoadingId((cur) => (cur === id ? null : cur))
+      }
+    }
+  }
 
   async function act(req: ExpenseRequest, action: ExpenseAdminAction) {
     setBusyId(req.id)
@@ -165,7 +195,8 @@ export default function ExpenseApprovalsPage() {
       if ((updated as any).freee_error) {
         alert(`freee: ${(updated as any).freee_error}`)
       }
-      await load()
+      // 현재 화면의 필터(상태·검색조건)를 유지한 채 재조회
+      await load(currentFilters())
     } catch (e: any) {
       alert(e?.message || 'Failed')
     } finally {
@@ -290,7 +321,11 @@ export default function ExpenseApprovalsPage() {
             />
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void load()}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void load(currentFilters())}
+        >
           <Search className="h-4 w-4 mr-1" />
           {t('expense_admin_search')}
         </Button>
@@ -311,6 +346,9 @@ export default function ExpenseApprovalsPage() {
             {items.map((req) => {
               const isExpanded = expandedId === req.id
               const freeeReflected = !!req.freee_deal_id
+              // 확장 시 상세 로드분 우선 (attachments/history 포함)
+              const detail = details[req.id] ?? req
+              const detailLoading = detailLoadingId === req.id
               return (
                 <li key={req.id} className="px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
@@ -387,7 +425,7 @@ export default function ExpenseApprovalsPage() {
                         </button>
                       )}
                       <button
-                        onClick={() => setExpandedId(isExpanded ? null : req.id)}
+                        onClick={() => void onToggleExpand(req.id)}
                         className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded"
                       >
                         {isExpanded ? (
@@ -477,9 +515,9 @@ export default function ExpenseApprovalsPage() {
                         </div>
                       )}
 
-                      {req.reject_reason && (
+                      {detail.reject_reason && (
                         <div className="text-rose-700">
-                          {t('expense_msg_reject')}: {req.reject_reason}
+                          {t('expense_msg_reject')}: {detail.reject_reason}
                         </div>
                       )}
 
@@ -488,37 +526,42 @@ export default function ExpenseApprovalsPage() {
                         <div className="font-medium text-gray-900 mb-1.5">
                           {t('expense_field_invoice_number')}
                         </div>
-                        <ul className="space-y-1">
-                          {(req.attachments || []).map((att) => (
-                            <li
-                              key={att.id}
-                              className="flex items-center justify-between text-xs"
-                            >
-                              <span className="text-gray-700 truncate">
-                                {att.file_name} · {(att.file_size / 1024).toFixed(1)} KB
-                              </span>
-                              <button
-                                onClick={() => onDownload(att.id, att.file_name)}
-                                className="p-1 text-gray-500 hover:text-blue-600"
-                                title={t('education_download')}
+                        {detailLoading ? (
+                          <div className="text-xs text-gray-400">{t('loading')}</div>
+                        ) : (
+                          <ul className="space-y-1">
+                            {(detail.attachments || []).map((att) => (
+                              <li
+                                key={att.id}
+                                className="flex items-center justify-between text-xs"
                               >
-                                <Download className="h-3.5 w-3.5" />
-                              </button>
-                            </li>
-                          ))}
-                          {(!req.attachments || req.attachments.length === 0) && (
-                            <li className="text-xs text-gray-400">
-                              {t('education_no_files')}
-                            </li>
-                          )}
-                        </ul>
+                                <span className="text-gray-700 truncate">
+                                  {att.file_name} · {(att.file_size / 1024).toFixed(1)} KB
+                                </span>
+                                <button
+                                  onClick={() => onDownload(att.id, att.file_name)}
+                                  className="p-1 text-gray-500 hover:text-blue-600"
+                                  title={t('education_download')}
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                </button>
+                              </li>
+                            ))}
+                            {(!detail.attachments ||
+                              detail.attachments.length === 0) && (
+                              <li className="text-xs text-gray-400">
+                                {t('education_no_files')}
+                              </li>
+                            )}
+                          </ul>
+                        )}
                       </div>
 
                       {/* status history */}
-                      {req.history && req.history.length > 0 && (
+                      {detail.history && detail.history.length > 0 && (
                         <div className="pt-2 border-t border-gray-200">
                           <ul className="space-y-0.5 text-xs text-gray-600">
-                            {req.history.map((h) => (
+                            {detail.history.map((h) => (
                               <li key={h.id}>
                                 {formatYmd(h.created_at)} ·{' '}
                                 {h.from_status
@@ -560,6 +603,8 @@ function SubscriptionsSection() {
   const [billingDay, setBillingDay] = useState<number>(1)
   const [amount, setAmount] = useState<number | ''>('')
   const [cycle, setCycle] = useState<'month' | 'year'>('month')
+  const [ownerUserId, setOwnerUserId] = useState('')
+  const [users, setUsers] = useState<UserRow[]>([])
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
@@ -578,8 +623,18 @@ function SubscriptionsSection() {
     if (open) void load()
   }, [open, load])
 
+  // owner 선택용 사용자 목록 로드 (섹션 최초 확장 시 1회)
+  useEffect(() => {
+    if (!open || users.length > 0) return
+    getUsers()
+      .then(setUsers)
+      .catch(() => {
+        /* ignore */
+      })
+  }, [open, users.length])
+
   async function onCreate() {
-    if (!serviceName.trim() || busy) return
+    if (!serviceName.trim() || !ownerUserId || busy) return
     setBusy(true)
     try {
       await createSubscription({
@@ -588,11 +643,14 @@ function SubscriptionsSection() {
         billing_day: billingDay,
         amount: amount === '' ? null : amount,
         cycle,
+        // 영수증 리마인더 대상 owner. 미지정 시 서버가 생성 admin 으로 기본설정되므로 명시 필수.
+        owner_user_id: ownerUserId,
       })
       setServiceName('')
       setCardLabel('')
       setAmount('')
       setBillingDay(1)
+      setOwnerUserId('')
       await load()
     } catch (e: any) {
       alert(e?.message || 'Failed')
@@ -689,7 +747,31 @@ function SubscriptionsSection() {
                 className={`${inputClass} w-28`}
               />
             </div>
-            <Button size="sm" onClick={onCreate} disabled={busy}>
+            <div>
+              <div className="text-xs text-gray-500 mb-0.5">
+                {t('assignee')}
+              </div>
+              <select
+                value={ownerUserId}
+                onChange={(e) => setOwnerUserId(e.target.value)}
+                className={`${inputClass} min-w-[10rem]`}
+              >
+                <option value="">
+                  {t('selectOption')}
+                </option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                    {u.email ? ` (${u.email})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              size="sm"
+              onClick={onCreate}
+              disabled={busy || !serviceName.trim() || !ownerUserId}
+            >
               <Plus className="h-4 w-4 mr-1" />
               {t('expense_admin_add')}
             </Button>

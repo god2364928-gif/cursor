@@ -51,8 +51,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export interface CreateExpensePayload {
   category: ExpenseCategory
   settlement_type: ExpenseRequest['settlement_type']
-  used_at: string
-  amount_incl_tax: number
+  // used_at / amount_incl_tax 은 draft 생성 시 비워둘 수 있음 (OCR prefill 대기).
+  // submit 시에만 서버가 필수 검증 (server: expense.ts POST /requests).
+  used_at?: string
+  amount_incl_tax?: number
   tax_rate?: number
   reduced_tax?: boolean
   vendor_name?: string | null
@@ -61,6 +63,7 @@ export interface CreateExpensePayload {
   purpose?: string | null
   memo?: string | null
   meta?: Record<string, any>
+  // 제출 의도 플래그 (server expense.ts: `submit === true`)
   submit?: boolean
 }
 
@@ -99,6 +102,17 @@ export interface AdminListFilters {
   vendor?: string
   min_amount?: number
   max_amount?: number
+}
+
+// GET /auth/users 응답 행 (auth.ts:177 SELECT 컬럼 매칭). owner picker 용으로 id/name/email만 사용.
+export interface UserRow {
+  id: string
+  name: string
+  email: string
+  team: string | null
+  role: string
+  department?: string | null
+  position?: string | null
 }
 
 // ===== requests (본인) =====
@@ -163,6 +177,21 @@ export async function downloadAttachment(id: number): Promise<string> {
 
 export function pollOcr(id: number): Promise<OcrResult> {
   return apiFetch<OcrResult>(`/requests/${id}/ocr`)
+}
+
+// ===== users (owner picker) =====
+
+/** GET /auth/users — 정기결제 owner 선택용. /expense apiFetch 가 아닌 raw fetch. 응답은 유저 행 배열. */
+export async function getUsers(): Promise<UserRow[]> {
+  const res = await fetch(`${getApiBase()}/auth/users`, {
+    method: 'GET',
+    headers: { ...getAuthHeader() },
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Users fetch failed ${res.status}: ${text || res.statusText}`)
+  }
+  return res.json() as Promise<UserRow[]>
 }
 
 // ===== pending-summary (§7) =====
