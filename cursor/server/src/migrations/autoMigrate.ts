@@ -707,8 +707,8 @@ export async function autoMigrateExpenseCategoryRelax(): Promise<void> {
   try {
     const sql = fs.readFileSync(path.join(__dirname, '../../migrations/relax_expense_category.sql'), 'utf-8')
     await pool.query(sql)
-    console.log('✅ [Expense] category CHECK relaxed')
-  } catch (e: any) { console.error('[Expense] category relax failed:', e.message) }
+    console.log('✅ [Expense] schema relaxed (category CHECK + used_at NOT NULL)')
+  } catch (e: any) { console.error('[Expense] schema relax failed:', e.message) }
 }
 
 /**
