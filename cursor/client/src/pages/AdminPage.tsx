@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Edit2, Trash2, X, RefreshCw, LogOut, Users, BarChart2, UserCheck, FileKey, Calculator, GraduationCap, FileText, CheckCircle2, FilePlus } from 'lucide-react'
+import { Edit2, Trash2, X, RefreshCw, LogOut, Users, BarChart2, UserCheck, FileKey, Calculator, GraduationCap, FileText, CheckCircle2, FilePlus, Receipt } from 'lucide-react'
 import ExamViewModal from '../components/ExamViewModal'
 import AppSwitcher from '../components/AppSwitcher'
 import DashboardTab from './Accounting/DashboardTab'
@@ -21,6 +21,7 @@ import PayPayTab from './Accounting/PayPayTab'
 import TotalSalesTab from './Accounting/TotalSalesTab'
 import LeaveApprovalsPage from './Erp/admin/LeaveApprovalsPage'
 import LeaveGrantsPage from './Erp/admin/LeaveGrantsPage'
+import ExpenseApprovalsPage from './Erp/admin/ExpenseApprovalsPage'
 
 interface User {
   id: string
@@ -62,6 +63,7 @@ const FEATURE_LABELS: Record<string, string> = {
 const TABS = [
   { id: 'accounting', label: '회계', icon: Calculator },
   { id: 'approvals', label: '신청 처리', icon: CheckCircle2 },
+  { id: 'expense', label: '경비 승인', icon: Receipt },
   { id: 'grants', label: '휴가 부여 관리', icon: FilePlus },
   { id: 'usage', label: '기능 사용 현황', icon: BarChart2 },
   { id: 'exam', label: '시험 관리', icon: GraduationCap },
@@ -394,6 +396,9 @@ export default function AdminPage() {
 
           {/* ── 신청 처리 탭 ── */}
           {activeTab === 'approvals' && <LeaveApprovalsPage />}
+
+          {/* ── 경비 승인 탭 ── */}
+          {activeTab === 'expense' && <ExpenseApprovalsPage />}
 
           {/* ── 휴가 부여 관리 탭 ── */}
           {activeTab === 'grants' && <LeaveGrantsPage />}
