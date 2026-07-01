@@ -4,10 +4,8 @@ import type {
   ExpenseAttachment,
   ExpenseStatus,
   ExpenseCategory,
-  ExpenseSubscription,
+  SettlementType,
   PendingSummary,
-  ExpenseFreeeMap,
-  FreeeAccountItem,
   OcrResult,
 } from './expenseTypes'
 
@@ -49,17 +47,13 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 // ===== Payload types =====
 
 export interface CreateExpensePayload {
+  // 2탭 설계: 개인결제(reimburse_required)/법인결제(already_paid) 에 따라 category·settlement_type 자동 결정.
   category: ExpenseCategory
-  settlement_type: ExpenseRequest['settlement_type']
+  settlement_type: SettlementType
   // used_at / amount_incl_tax 은 draft 생성 시 비워둘 수 있음 (OCR prefill 대기).
   // submit 시에만 서버가 필수 검증 (server: expense.ts POST /requests).
   used_at?: string
   amount_incl_tax?: number
-  tax_rate?: number
-  reduced_tax?: boolean
-  vendor_name?: string | null
-  invoice_number?: string | null
-  account_item_id?: number | null
   purpose?: string | null
   memo?: string | null
   meta?: Record<string, any>
@@ -68,22 +62,6 @@ export interface CreateExpensePayload {
 }
 
 export type UpdateExpensePayload = Partial<CreateExpensePayload>
-
-export interface CreateSubscriptionPayload {
-  service_name: string
-  card_label?: string | null
-  category?: string
-  cycle?: 'month' | 'year'
-  billing_day: number
-  amount?: number | null
-  tax_rate?: number
-  active?: boolean
-  start_date?: string | null
-  end_date?: string | null
-  owner_user_id?: string
-}
-
-export type UpdateSubscriptionPayload = Partial<CreateSubscriptionPayload>
 
 export type ExpenseAdminAction = 'approve' | 'reject' | 'mark_paid' | 'reopen'
 
@@ -102,17 +80,6 @@ export interface AdminListFilters {
   vendor?: string
   min_amount?: number
   max_amount?: number
-}
-
-// GET /auth/users 응답 행 (auth.ts:177 SELECT 컬럼 매칭). owner picker 용으로 id/name/email만 사용.
-export interface UserRow {
-  id: string
-  name: string
-  email: string
-  team: string | null
-  role: string
-  department?: string | null
-  position?: string | null
 }
 
 // ===== requests (본인) =====
@@ -179,21 +146,6 @@ export function pollOcr(id: number): Promise<OcrResult> {
   return apiFetch<OcrResult>(`/requests/${id}/ocr`)
 }
 
-// ===== users (owner picker) =====
-
-/** GET /auth/users — 정기결제 owner 선택용. /expense apiFetch 가 아닌 raw fetch. 응답은 유저 행 배열. */
-export async function getUsers(): Promise<UserRow[]> {
-  const res = await fetch(`${getApiBase()}/auth/users`, {
-    method: 'GET',
-    headers: { ...getAuthHeader() },
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Users fetch failed ${res.status}: ${text || res.statusText}`)
-  }
-  return res.json() as Promise<UserRow[]>
-}
-
 // ===== pending-summary (§7) =====
 
 export function pendingSummary(): Promise<PendingSummary> {
@@ -245,57 +197,4 @@ export async function exportCsv(filters?: AdminListFilters): Promise<string> {
   }
   const blob = await res.blob()
   return URL.createObjectURL(blob)
-}
-
-// ===== subscriptions (정기결제 마스터) =====
-
-export function listSubscriptions(): Promise<{ items: ExpenseSubscription[] }> {
-  return apiFetch<{ items: ExpenseSubscription[] }>('/subscriptions')
-}
-
-export function createSubscription(
-  body: CreateSubscriptionPayload
-): Promise<ExpenseSubscription> {
-  return apiFetch<ExpenseSubscription>('/subscriptions', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-}
-
-export function updateSubscription(
-  id: number,
-  body: UpdateSubscriptionPayload
-): Promise<ExpenseSubscription> {
-  return apiFetch<ExpenseSubscription>(`/subscriptions/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  })
-}
-
-export function deleteSubscription(id: number): Promise<{ message: string }> {
-  return apiFetch<{ message: string }>(`/subscriptions/${id}`, { method: 'DELETE' })
-}
-
-// ===== freee =====
-
-export function getAccountItems(): Promise<{ items: FreeeAccountItem[] }> {
-  return apiFetch<{ items: FreeeAccountItem[] }>('/freee/account-items')
-}
-
-export function getMap(): Promise<{ items: ExpenseFreeeMap[] }> {
-  return apiFetch<{ items: ExpenseFreeeMap[] }>('/freee/map')
-}
-
-export function putMap(
-  body: Array<{
-    category: string
-    subtype?: string | null
-    account_item_id: number
-    account_item_name?: string | null
-  }>
-): Promise<{ items: ExpenseFreeeMap[] }> {
-  return apiFetch<{ items: ExpenseFreeeMap[] }>('/freee/map', {
-    method: 'PUT',
-    body: JSON.stringify({ map: body }),
-  })
 }

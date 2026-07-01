@@ -698,6 +698,20 @@ export async function autoMigrateExpenseReimbursement(): Promise<void> {
 }
 
 /**
+ * expense_requests.category CHECK 제약 완화 (멱등)
+ * - 신규 카테고리 값(dining/welfare/health_checkup/other 등)을 허용하기 위해
+ *   기존 CHECK 제약을 제거한다. 카테고리 검증은 앱 계층에서 수행.
+ * - DROP CONSTRAINT IF EXISTS 이므로 몇 번 실행해도 안전(비파괴적).
+ */
+export async function autoMigrateExpenseCategoryRelax(): Promise<void> {
+  try {
+    const sql = fs.readFileSync(path.join(__dirname, '../../migrations/relax_expense_category.sql'), 'utf-8')
+    await pool.query(sql)
+    console.log('✅ [Expense] category CHECK relaxed')
+  } catch (e: any) { console.error('[Expense] category relax failed:', e.message) }
+}
+
+/**
  * monthly_payroll_files 의 (fiscal_year, month) UNIQUE 제약 제거 (멱등)
  * - 월별 급여명세서 파일을 여러 개 허용하기 위함.
  * - 테이블이 없으면 skip. UNIQUE 제약이 이미 없으면 skip. 기존 데이터는 보존.

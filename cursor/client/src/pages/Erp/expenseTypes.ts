@@ -1,7 +1,15 @@
 // ===== 経費申請・精算 (Expense reimbursement) types =====
 // design §1 / §1.1 / §7 / §8.1
 
-export type ExpenseCategory = 'transport' | 'meal' | 'reimburse' | 'corp_card'
+export type ExpenseCategory =
+  | 'transport'
+  | 'dining'
+  | 'meal'
+  | 'reimburse'
+  | 'welfare'
+  | 'health_checkup'
+  | 'other'
+  | 'corp_card'
 
 export type SettlementType = 'reimburse_required' | 'already_paid'
 

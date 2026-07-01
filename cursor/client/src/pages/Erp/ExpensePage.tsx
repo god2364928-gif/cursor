@@ -5,14 +5,12 @@ import {
   Download,
   ChevronDown,
   ChevronUp,
-  AlertTriangle,
 } from 'lucide-react'
 import { useI18nStore } from '../../i18n'
 import { readCache, writeCache } from '../../lib/erpCache'
 import { Button } from '../../components/ui/button'
 import { list, get, downloadAttachment } from './expenseApi'
 import type { ExpenseRequest, ExpenseStatus } from './expenseTypes'
-import { useExpensePendingSummary } from './useExpensePendingSummary'
 import ExpenseRequestModal from './ExpenseRequestModal'
 
 function formatYen(n: number | null | undefined): string {
@@ -29,7 +27,6 @@ function formatYmd(s?: string | null): string {
 const STATUS_TABS: { key: '' | ExpenseStatus; labelKey: string }[] = [
   { key: '', labelKey: 'education_status_all' },
   { key: 'draft', labelKey: 'expense_status_draft' },
-  { key: 'awaiting_receipt', labelKey: 'expense_status_awaiting_receipt' },
   { key: 'pending', labelKey: 'expense_status_pending' },
   { key: 'approved', labelKey: 'expense_status_approved' },
   { key: 'paid', labelKey: 'expense_status_paid' },
@@ -70,7 +67,6 @@ interface ExpenseCache {
 
 export default function ExpensePage() {
   const { t } = useI18nStore()
-  const { summary } = useExpensePendingSummary()
 
   const [statusFilter, setStatusFilter] = useState<'' | ExpenseStatus>('')
   const cacheKey = statusFilter || 'all'
@@ -144,8 +140,6 @@ export default function ExpensePage() {
     }
   }
 
-  const awaitingCount = summary?.my_awaiting_receipt ?? 0
-
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -169,19 +163,6 @@ export default function ExpensePage() {
           </Button>
         </div>
       </div>
-
-      {/* Awaiting-receipt banner (design §7) */}
-      {awaitingCount > 0 && (
-        <button
-          onClick={() => setStatusFilter('awaiting_receipt')}
-          className="w-full text-left mb-4 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 flex items-start gap-2 hover:bg-orange-100 transition-colors"
-        >
-          <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
-          <span className="text-sm text-orange-800">
-            {t('expense_msg_awaiting_receipt').replace('{{n}}', String(awaitingCount))}
-          </span>
-        </button>
-      )}
 
       {/* Status tabs */}
       <div className="mb-4 bg-white border border-gray-200 rounded-lg px-3 py-2.5">
@@ -220,8 +201,7 @@ export default function ExpensePage() {
           <ul className="divide-y divide-gray-100">
             {items.map((req) => {
               const isExpanded = expandedId === req.id
-              const canEdit =
-                req.status === 'draft' || req.status === 'awaiting_receipt'
+              const canEdit = req.status === 'draft'
               // 확장 시 상세 로드분을 우선 사용 (attachments/history 포함)
               const detail = details[req.id] ?? req
               const detailLoading = detailLoadingId === req.id
@@ -234,7 +214,7 @@ export default function ExpensePage() {
                           {t(`expense_status_${req.status}`)}
                         </span>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-                          {t(`expense_category_${req.category}`)}
+                          {t(`expense_item_${req.category}`)}
                         </span>
                         <span className="text-sm font-medium text-gray-900 truncate">
                           {formatYen(req.amount_incl_tax)}

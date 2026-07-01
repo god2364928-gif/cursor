@@ -2,18 +2,16 @@
  * 経費申請・精算 — freee 연동 서비스 (design 02 §4)
  *
  * - pushReceiptAndOcr: 업로드 시 파일박스 push + OCR 폴링 (fire-and-forget, 절대 throw 안 함)
- * - createDealForRequest: 승인 시 계정과목·税区分 확정 → 取引 생성 (멱등)
+ *   OCR 결과로 amount/used_at/vendor/invoice_number prefill.
+ *   ★승인 시 freee 取引 자동생성은 하지 않는다(회계 담당자/freee 가 처리).
  */
 
 import convert from 'heic-convert'
 import { pool } from '../db'
-import { taxDisplayCategory } from '../lib/expenseTax'
 import {
   getDefaultCompanyId,
   uploadReceiptToFileBox,
   getReceipt,
-  getCompanyTaxes,
-  createExpenseDeal,
 } from '../integrations/freeeClient'
 
 /** 지연 헬퍼 */
@@ -33,20 +31,6 @@ function toYmd(value: unknown): string | null {
   }
   // string: 'YYYY-MM-DD' 또는 ISO — 앞 10자만 사용
   return String(value).slice(0, 10)
-}
-
-/** meta JSONB (Object | string | null) → 안전한 record */
-function parseMeta(meta: unknown): Record<string, unknown> {
-  if (!meta) return {}
-  if (typeof meta === 'string') {
-    try {
-      return JSON.parse(meta) as Record<string, unknown>
-    } catch {
-      return {}
-    }
-  }
-  if (typeof meta === 'object') return meta as Record<string, unknown>
-  return {}
 }
 
 /**
@@ -197,128 +181,4 @@ export async function pushReceiptAndOcr(
       )
     }
   }
-}
-
-/**
- * 승인 시: 계정과목·税区分 확정 → freee 取引 생성.
- * 멱등: freee_deal_id 가 이미 있으면 재생성하지 않고 그대로 반환.
- */
-export async function createDealForRequest(requestId: number): Promise<number> {
-  // 1) 신청 row 조회
-  const { rows } = await pool.query(
-    `SELECT id, category, used_at, amount_incl_tax, tax_rate, reduced_tax,
-            vendor_name, purpose, account_item_id, tax_code,
-            freee_receipt_id, freee_deal_id, meta
-       FROM expense_requests
-      WHERE id = $1`,
-    [requestId]
-  )
-  const row = rows[0]
-  if (!row) {
-    throw new Error('expense request not found: ' + requestId)
-  }
-
-  // 이미 生成된 取引 있으면 멱등 반환
-  if (row.freee_deal_id != null) {
-    return Number(row.freee_deal_id)
-  }
-
-  // 2) 영수증 없으면 진행 불가
-  if (row.freee_receipt_id == null) {
-    throw new Error('no freee receipt for request')
-  }
-
-  const companyId = await getDefaultCompanyId()
-  const meta = parseMeta(row.meta)
-
-  // 3) account_item_id 확정: 요청값 우선, 없으면 expense_freee_map (category, subtype)
-  let accountItemId: number | null =
-    row.account_item_id != null ? Number(row.account_item_id) : null
-
-  if (accountItemId == null) {
-    // subtype 결정
-    let subtype: string | null = null
-    if (row.category === 'meal') {
-      const mealPurpose = meta.meal_purpose
-      if (mealPurpose === 'meeting' || mealPurpose === 'entertainment') {
-        subtype = mealPurpose
-      }
-    } else if (row.category === 'transport') {
-      subtype = meta.method === 'taxi' ? 'taxi' : null
-    }
-
-    // subtype 은 DB 에서 '' 로 저장될 수 있음 (NULL-unique gotcha) → COALESCE 로 매칭
-    const mapRes = await pool.query(
-      `SELECT account_item_id
-         FROM expense_freee_map
-        WHERE category = $1
-          AND COALESCE(subtype, '') = COALESCE($2, '')
-        LIMIT 1`,
-      [row.category, subtype]
-    )
-    if (mapRes.rows[0]?.account_item_id != null) {
-      accountItemId = Number(mapRes.rows[0].account_item_id)
-    }
-  }
-
-  if (accountItemId == null) {
-    throw new Error('no account_item mapping')
-  }
-
-  // 4) tax_code 확정
-  //    - 담당자가 승인 UI 에서 tax_code 를 직접 지정했으면(row.tax_code 非 null) 그 값을 그대로 사용
-  //    - 지정하지 않았을 때만 taxDisplayCategory → family → getCompanyTaxes 로 자동 산출
-  const usedAtYmd = toYmd(row.used_at)
-  // used_at 은 取引 issue_date 로도 반드시 필요하므로 두 경로 공통으로 요구
-  if (!usedAtYmd) {
-    throw new Error('used_at is required to create deal')
-  }
-  let taxCode: number
-  if (row.tax_code != null) {
-    taxCode = Number(row.tax_code)
-  } else {
-    const family = taxDisplayCategory(
-      usedAtYmd,
-      Number(row.tax_rate),
-      !!row.reduced_tax
-    )
-
-    const taxes = await getCompanyTaxes(companyId)
-    const matched = taxes.find(
-      (t) => t.available === true && t.display_category === family
-    )
-    if (!matched) {
-      throw new Error('no matching tax_code for ' + family)
-    }
-    taxCode = matched.code
-  }
-
-  // 5) 経費 取引 생성
-  const amount = Number(row.amount_incl_tax)
-  const description: string =
-    (row.vendor_name as string) || (row.purpose as string) || ''
-
-  const deal = await createExpenseDeal({
-    companyId,
-    issueDate: usedAtYmd,
-    details: [
-      {
-        accountItemId,
-        taxCode,
-        amount,
-        description: description || undefined,
-      },
-    ],
-    receiptIds: [Number(row.freee_receipt_id)],
-  })
-
-  // 6) freee_deal_id, tax_code, account_item_id 저장
-  await pool.query(
-    `UPDATE expense_requests
-        SET freee_deal_id = $1, tax_code = $2, account_item_id = $3, updated_at = NOW()
-      WHERE id = $4`,
-    [deal.id, taxCode, accountItemId, requestId]
-  )
-
-  return deal.id
 }

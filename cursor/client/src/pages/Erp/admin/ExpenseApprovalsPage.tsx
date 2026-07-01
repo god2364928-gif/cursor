@@ -10,8 +10,6 @@ import {
   Download,
   Search,
   FileSpreadsheet,
-  Plus,
-  Trash2,
 } from 'lucide-react'
 import { useI18nStore } from '../../../i18n'
 import { Button } from '../../../components/ui/button'
@@ -21,25 +19,10 @@ import {
   get,
   exportCsv,
   downloadAttachment,
-  listSubscriptions,
-  createSubscription,
-  updateSubscription,
-  deleteSubscription,
-  getAccountItems,
-  getMap,
-  putMap,
-  getUsers,
   type AdminListFilters,
   type ExpenseAdminAction,
-  type UserRow,
 } from '../expenseApi'
-import type {
-  ExpenseRequest,
-  ExpenseStatus,
-  ExpenseSubscription,
-  ExpenseFreeeMap,
-  FreeeAccountItem,
-} from '../expenseTypes'
+import type { ExpenseRequest, ExpenseStatus } from '../expenseTypes'
 
 function formatYen(n: number | null | undefined): string {
   if (n === null || n === undefined) return '—'
@@ -58,7 +41,6 @@ const STATUS_TABS: { key: '' | ExpenseStatus; labelKey: string }[] = [
   { key: 'paid', labelKey: 'expense_status_paid' },
   { key: 'completed', labelKey: 'expense_status_completed' },
   { key: 'rejected', labelKey: 'expense_status_rejected' },
-  { key: 'awaiting_receipt', labelKey: 'expense_status_awaiting_receipt' },
   { key: '', labelKey: 'education_status_all' },
 ]
 
@@ -107,10 +89,6 @@ export default function ExpenseApprovalsPage() {
   const [vendorSearch, setVendorSearch] = useState('')
   const [minAmount, setMinAmount] = useState<number | ''>('')
   const [maxAmount, setMaxAmount] = useState<number | ''>('')
-
-  // editable account/tax per row (frejust before approve)
-  const [editAccount, setEditAccount] = useState<Record<number, number | ''>>({})
-  const [editTax, setEditTax] = useState<Record<number, number | ''>>({})
 
   // 확장 시 상세(get)로 attachments/history 로드해 행별 캐시 (리스트 응답엔 없음)
   const [details, setDetails] = useState<Record<number, ExpenseRequest>>({})
@@ -184,17 +162,8 @@ export default function ExpenseApprovalsPage() {
           return
         }
         extra.paid_amount = Math.round(n)
-      } else if (action === 'approve') {
-        const acc = editAccount[req.id]
-        const tax = editTax[req.id]
-        if (acc !== undefined && acc !== '') extra.account_item_id = acc
-        if (tax !== undefined && tax !== '') extra.tax_code = tax
       }
-      const updated = await adminAction(req.id, action, extra as any)
-      // freee 반영 실패 시 서버가 freee_error를 반환할 수 있음
-      if ((updated as any).freee_error) {
-        alert(`freee: ${(updated as any).freee_error}`)
-      }
+      await adminAction(req.id, action, extra as any)
       // 현재 화면의 필터(상태·검색조건)를 유지한 채 재조회
       await load(currentFilters())
     } catch (e: any) {
@@ -345,7 +314,6 @@ export default function ExpenseApprovalsPage() {
           <ul className="divide-y divide-gray-100">
             {items.map((req) => {
               const isExpanded = expandedId === req.id
-              const freeeReflected = !!req.freee_deal_id
               // 확장 시 상세 로드분 우선 (attachments/history 포함)
               const detail = details[req.id] ?? req
               const detailLoading = detailLoadingId === req.id
@@ -358,16 +326,11 @@ export default function ExpenseApprovalsPage() {
                           {t(`expense_status_${req.status}`)}
                         </span>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-                          {t(`expense_category_${req.category}`)}
+                          {t(`expense_item_${req.category}`)}
                         </span>
                         {req.invoice_number && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
                             {req.invoice_number}
-                          </span>
-                        )}
-                        {freeeReflected && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                            freee ✓
                           </span>
                         )}
                         <span className="text-sm font-medium text-gray-900">
@@ -468,53 +431,6 @@ export default function ExpenseApprovalsPage() {
                         )}
                       </div>
 
-                      {/* editable account_item / tax_code */}
-                      {req.status === 'pending' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-gray-200">
-                          <div>
-                            <label className="text-xs text-gray-500 block mb-0.5">
-                              account_item_id (freee)
-                            </label>
-                            <input
-                              type="number"
-                              value={
-                                editAccount[req.id] ??
-                                (req.account_item_id ?? '')
-                              }
-                              onChange={(e) =>
-                                setEditAccount((m) => ({
-                                  ...m,
-                                  [req.id]:
-                                    e.target.value === ''
-                                      ? ''
-                                      : Number(e.target.value),
-                                }))
-                              }
-                              className={`${inputClass} w-full`}
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500 block mb-0.5">
-                              tax_code (freee)
-                            </label>
-                            <input
-                              type="number"
-                              value={editTax[req.id] ?? (req.tax_code ?? '')}
-                              onChange={(e) =>
-                                setEditTax((m) => ({
-                                  ...m,
-                                  [req.id]:
-                                    e.target.value === ''
-                                      ? ''
-                                      : Number(e.target.value),
-                                }))
-                              }
-                              className={`${inputClass} w-full`}
-                            />
-                          </div>
-                        </div>
-                      )}
-
                       {detail.reject_reason && (
                         <div className="text-rose-700">
                           {t('expense_msg_reject')}: {detail.reject_reason}
@@ -582,418 +498,6 @@ export default function ExpenseApprovalsPage() {
           </ul>
         )}
       </div>
-
-      {/* secondary sections */}
-      <SubscriptionsSection />
-      <FreeeMapSection />
-    </div>
-  )
-}
-
-// ============================================================
-// 정기결제 마스터 관리 (collapsible)
-// ============================================================
-function SubscriptionsSection() {
-  const { t } = useI18nStore()
-  const [open, setOpen] = useState(false)
-  const [items, setItems] = useState<ExpenseSubscription[]>([])
-  const [loading, setLoading] = useState(false)
-  const [serviceName, setServiceName] = useState('')
-  const [cardLabel, setCardLabel] = useState('')
-  const [billingDay, setBillingDay] = useState<number>(1)
-  const [amount, setAmount] = useState<number | ''>('')
-  const [cycle, setCycle] = useState<'month' | 'year'>('month')
-  const [ownerUserId, setOwnerUserId] = useState('')
-  const [users, setUsers] = useState<UserRow[]>([])
-  const [busy, setBusy] = useState(false)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await listSubscriptions()
-      setItems(res.items)
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (open) void load()
-  }, [open, load])
-
-  // owner 선택용 사용자 목록 로드 (섹션 최초 확장 시 1회)
-  useEffect(() => {
-    if (!open || users.length > 0) return
-    getUsers()
-      .then(setUsers)
-      .catch(() => {
-        /* ignore */
-      })
-  }, [open, users.length])
-
-  async function onCreate() {
-    if (!serviceName.trim() || !ownerUserId || busy) return
-    setBusy(true)
-    try {
-      await createSubscription({
-        service_name: serviceName.trim(),
-        card_label: cardLabel.trim() || null,
-        billing_day: billingDay,
-        amount: amount === '' ? null : amount,
-        cycle,
-        // 영수증 리마인더 대상 owner. 미지정 시 서버가 생성 admin 으로 기본설정되므로 명시 필수.
-        owner_user_id: ownerUserId,
-      })
-      setServiceName('')
-      setCardLabel('')
-      setAmount('')
-      setBillingDay(1)
-      setOwnerUserId('')
-      await load()
-    } catch (e: any) {
-      alert(e?.message || 'Failed')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function onToggleActive(sub: ExpenseSubscription) {
-    try {
-      await updateSubscription(sub.id, { active: !sub.active })
-      await load()
-    } catch (e: any) {
-      alert(e?.message || 'Failed')
-    }
-  }
-
-  async function onDelete(id: number) {
-    if (!confirm(t('expense_admin_confirm_delete'))) return
-    try {
-      await deleteSubscription(id)
-      await load()
-    } catch (e: any) {
-      alert(e?.message || 'Failed')
-    }
-  }
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg mb-4">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left"
-      >
-        <span className="font-medium text-gray-900">
-          {t('expense_category_corp_card')} — {t('expense_admin_subscription_master')}
-        </span>
-        {open ? (
-          <ChevronUp className="h-4 w-4 text-gray-500" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-gray-500" />
-        )}
-      </button>
-      {open && (
-        <div className="px-4 pb-4 space-y-3">
-          <div className="flex flex-wrap items-end gap-2 border-t border-gray-100 pt-3">
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">{t('expense_field_service_name')}</div>
-              <input
-                value={serviceName}
-                onChange={(e) => setServiceName(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">{t('expense_field_card_label')}</div>
-              <input
-                value={cardLabel}
-                onChange={(e) => setCardLabel(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">{t('expense_admin_billing_day')}</div>
-              <input
-                type="number"
-                min={1}
-                max={31}
-                value={billingDay}
-                onChange={(e) => setBillingDay(Number(e.target.value) || 1)}
-                className={`${inputClass} w-20`}
-              />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">{t('expense_admin_cycle')}</div>
-              <select
-                value={cycle}
-                onChange={(e) => setCycle(e.target.value as 'month' | 'year')}
-                className={inputClass}
-              >
-                <option value="month">{t('expense_admin_cycle_month')}</option>
-                <option value="year">{t('expense_admin_cycle_year')}</option>
-              </select>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">
-                {t('expense_field_amount')}
-              </div>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) =>
-                  setAmount(e.target.value === '' ? '' : Number(e.target.value))
-                }
-                className={`${inputClass} w-28`}
-              />
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">
-                {t('assignee')}
-              </div>
-              <select
-                value={ownerUserId}
-                onChange={(e) => setOwnerUserId(e.target.value)}
-                className={`${inputClass} min-w-[10rem]`}
-              >
-                <option value="">
-                  {t('selectOption')}
-                </option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                    {u.email ? ` (${u.email})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <Button
-              size="sm"
-              onClick={onCreate}
-              disabled={busy || !serviceName.trim() || !ownerUserId}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              {t('expense_admin_add')}
-            </Button>
-          </div>
-
-          {loading ? (
-            <div className="text-sm text-gray-500">{t('loading')}</div>
-          ) : (
-            <ul className="divide-y divide-gray-100">
-              {items.map((sub) => (
-                <li
-                  key={sub.id}
-                  className="flex items-center justify-between py-2 text-sm"
-                >
-                  <div>
-                    <span className="font-medium text-gray-900">
-                      {sub.service_name}
-                    </span>
-                    <span className="text-xs text-gray-500 ml-2">
-                      {sub.card_label ? `${sub.card_label} · ` : ''}
-                      {sub.cycle === 'month'
-                        ? t('expense_admin_cycle_monthly')
-                        : t('expense_admin_cycle_yearly')}{' '}
-                      {sub.billing_day}
-                      {t('expense_admin_day_suffix')} ·{' '}
-                      {formatYen(sub.amount)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => onToggleActive(sub)}
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        sub.active
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {sub.active ? t('expense_admin_active') : t('expense_admin_inactive')}
-                    </button>
-                    <button
-                      onClick={() => onDelete(sub.id)}
-                      className="p-1 text-gray-400 hover:text-rose-600"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </li>
-              ))}
-              {items.length === 0 && (
-                <li className="py-2 text-xs text-gray-400">—</li>
-              )}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================================
-// freee 매핑 마스터 (collapsible)
-// ============================================================
-interface MapRow {
-  category: string
-  subtype: string
-  account_item_id: number | ''
-  account_item_name: string
-}
-
-function FreeeMapSection() {
-  const { t } = useI18nStore()
-  const [open, setOpen] = useState(false)
-  const [rows, setRows] = useState<MapRow[]>([])
-  const [accountItems, setAccountItems] = useState<FreeeAccountItem[]>([])
-  const [loading, setLoading] = useState(false)
-  const [busy, setBusy] = useState(false)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [mapRes, accRes] = await Promise.all([getMap(), getAccountItems()])
-      setRows(
-        mapRes.items.map((m: ExpenseFreeeMap) => ({
-          category: m.category,
-          subtype: m.subtype || '',
-          account_item_id: m.account_item_id,
-          account_item_name: m.account_item_name || '',
-        }))
-      )
-      setAccountItems(accRes.items)
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (open) void load()
-  }, [open, load])
-
-  function addRow() {
-    setRows((r) => [
-      ...r,
-      { category: 'meal', subtype: '', account_item_id: '', account_item_name: '' },
-    ])
-  }
-
-  function updateRow(idx: number, patch: Partial<MapRow>) {
-    setRows((r) => r.map((row, i) => (i === idx ? { ...row, ...patch } : row)))
-  }
-
-  function removeRow(idx: number) {
-    setRows((r) => r.filter((_, i) => i !== idx))
-  }
-
-  async function save() {
-    setBusy(true)
-    try {
-      const payload = rows
-        .filter((r) => r.category && r.account_item_id !== '')
-        .map((r) => ({
-          category: r.category,
-          subtype: r.subtype.trim() || null,
-          account_item_id: r.account_item_id as number,
-          account_item_name:
-            accountItems.find((a) => a.id === r.account_item_id)?.name ||
-            r.account_item_name ||
-            null,
-        }))
-      await putMap(payload)
-      await load()
-    } catch (e: any) {
-      alert(e?.message || 'Failed')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg mb-4">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left"
-      >
-        <span className="font-medium text-gray-900">{t('expense_admin_freee_mapping')}</span>
-        {open ? (
-          <ChevronUp className="h-4 w-4 text-gray-500" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-gray-500" />
-        )}
-      </button>
-      {open && (
-        <div className="px-4 pb-4 space-y-2 border-t border-gray-100 pt-3">
-          {loading ? (
-            <div className="text-sm text-gray-500">{t('loading')}</div>
-          ) : (
-            <>
-              <ul className="space-y-2">
-                {rows.map((row, idx) => (
-                  <li key={idx} className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={row.category}
-                      onChange={(e) => updateRow(idx, { category: e.target.value })}
-                      className={inputClass}
-                    >
-                      <option value="transport">
-                        {t('expense_category_transport')}
-                      </option>
-                      <option value="meal">{t('expense_category_meal')}</option>
-                      <option value="reimburse">
-                        {t('expense_category_reimburse')}
-                      </option>
-                      <option value="corp_card">
-                        {t('expense_category_corp_card')}
-                      </option>
-                    </select>
-                    <input
-                      value={row.subtype}
-                      onChange={(e) => updateRow(idx, { subtype: e.target.value })}
-                      placeholder={t('expense_admin_subtype_placeholder')}
-                      className={inputClass}
-                    />
-                    <select
-                      value={row.account_item_id}
-                      onChange={(e) =>
-                        updateRow(idx, {
-                          account_item_id:
-                            e.target.value === '' ? '' : Number(e.target.value),
-                        })
-                      }
-                      className={`${inputClass} min-w-[12rem]`}
-                    >
-                      <option value="">{t('expense_admin_select_account_item')}</option>
-                      {accountItems.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => removeRow(idx)}
-                      className="p-1 text-gray-400 hover:text-rose-600"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex items-center gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={addRow}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t('expense_admin_add_row')}
-                </Button>
-                <Button size="sm" onClick={save} disabled={busy}>
-                  {t('expense_admin_save')}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
     </div>
   )
 }

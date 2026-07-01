@@ -16,9 +16,7 @@ import multer from 'multer'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireAppAccess } from '../middleware/requireAppAccess'
-import { pushReceiptAndOcr, createDealForRequest } from '../services/expenseFreee'
-import { getAccountItems, getDefaultCompanyId } from '../integrations/freeeClient'
-import { runExpenseSubscriptionJob } from '../services/expenseSubscriptionCron'
+import { pushReceiptAndOcr } from '../services/expenseFreee'
 
 const router = Router()
 router.use(authMiddleware, requireAppAccess('erp'))
@@ -31,7 +29,18 @@ function isReviewer(req: AuthRequest): boolean {
   return ['admin', 'office_assistant'].includes(req.user!.role)
 }
 
-const ALLOWED_CATEGORIES = ['transport', 'meal', 'reimburse', 'corp_card']
+// 신규 모델: 개인결제(reimburse_required) + 법인결제(already_paid → corp_card)
+// 카테고리 검증은 앱 계층에서 수행 (DB CHECK 는 relax_expense_category.sql 로 제거됨)
+const ALLOWED_CATEGORIES = [
+  'transport',
+  'dining',
+  'meal',
+  'reimburse',
+  'welfare',
+  'health_checkup',
+  'other',
+  'corp_card',
+]
 const ALLOWED_SETTLEMENT = ['reimburse_required', 'already_paid']
 const ALLOWED_TAX_RATES = [0, 8, 10]
 
@@ -101,6 +110,18 @@ async function fetchRequest(id: number | string): Promise<any | null> {
     [id]
   )
   return result.rows[0] || null
+}
+
+// 제출 시 첨부(영수증) 최소 1건 필수 — 첨부 개수 조회
+async function countAttachments(
+  client: { query: (q: string, p?: any[]) => Promise<any> },
+  requestId: number | string
+): Promise<number> {
+  const r = await client.query(
+    `SELECT COUNT(*)::int AS cnt FROM expense_attachments WHERE request_id = $1`,
+    [requestId]
+  )
+  return Number(r.rows[0]?.cnt || 0)
 }
 
 // 상태 이력 INSERT (트랜잭션 client 또는 pool)
@@ -220,6 +241,13 @@ router.post('/requests', async (req: AuthRequest, res: Response) => {
       if (!Number.isInteger(amount_incl_tax) || amount_incl_tax < 0) {
         return res.status(400).json({ error: '金額は0以上の整数で入力してください' })
       }
+      // 목적·용도(purpose): 기타(other) 또는 법인결제(already_paid) 는 제출 시 필수
+      if (
+        (category === 'other' || settlement_type === 'already_paid') &&
+        (!purpose || !String(purpose).trim())
+      ) {
+        return res.status(400).json({ error: '目的・用途を入力してください' })
+      }
     } else {
       // draft: 값이 있으면 형식만 검증, 없으면 통과 (NULL / 0 으로 저장)
       if (used_at != null && !/^\d{4}-\d{2}-\d{2}$/.test(used_at)) {
@@ -271,6 +299,18 @@ router.post('/requests', async (req: AuthRequest, res: Response) => {
       ]
     )
     const newId = insert.rows[0].id
+
+    // 제출 시 영수증(첨부) 최소 1건 필수
+    if (isSubmit) {
+      const attCount = await countAttachments(client, newId)
+      if (attCount === 0) {
+        await client.query('ROLLBACK')
+        return res
+          .status(400)
+          .json({ error: '領収書を添付してください（提出には添付が必須です）' })
+      }
+    }
+
     await insertHistory(client, newId, null, status, userId, null)
     await client.query('COMMIT')
 
@@ -291,7 +331,7 @@ router.patch('/requests/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
     const existing = await pool.query(
-      `SELECT id, user_id, status, used_at, amount_incl_tax
+      `SELECT id, user_id, status, used_at, amount_incl_tax, category, settlement_type, purpose
          FROM expense_requests WHERE id = $1 AND deleted_at IS NULL`,
       [id]
     )
@@ -373,11 +413,33 @@ router.patch('/requests/:id', async (req: AuthRequest, res: Response) => {
         body.amount_incl_tax !== undefined
           ? body.amount_incl_tax
           : row.amount_incl_tax
+      const effCategory =
+        body.category !== undefined ? body.category : row.category
+      const effSettlement =
+        body.settlement_type !== undefined
+          ? body.settlement_type
+          : row.settlement_type
+      const effPurpose =
+        body.purpose !== undefined ? body.purpose : row.purpose
       if (!effUsedAt || !/^\d{4}-\d{2}-\d{2}$/.test(effUsedAt)) {
         return res.status(400).json({ error: '使用日が正しくありません' })
       }
       if (!Number.isInteger(Number(effAmount)) || Number(effAmount) < 0) {
         return res.status(400).json({ error: '金額は0以上の整数で入力してください' })
+      }
+      // 목적·용도(purpose): 기타(other) 또는 법인결제(already_paid) 는 제출 시 필수
+      if (
+        (effCategory === 'other' || effSettlement === 'already_paid') &&
+        (!effPurpose || !String(effPurpose).trim())
+      ) {
+        return res.status(400).json({ error: '目的・用途を入力してください' })
+      }
+      // 영수증(첨부) 최소 1건 필수
+      const attCount = await countAttachments(pool, id)
+      if (attCount === 0) {
+        return res
+          .status(400)
+          .json({ error: '領収書を添付してください（提出には添付が必須です）' })
       }
     }
 
@@ -570,34 +632,18 @@ router.get('/attachments/:id/download', async (req: AuthRequest, res: Response) 
   }
 })
 
-/** GET /pending-summary — in-app 알림 카운트 (§7) */
+/** GET /pending-summary — in-app 알림 카운트 (reviewer=승인 대기 건수) */
 router.get('/pending-summary', async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user!.id
-
-    // 직원: 내가 owner 인 정기결제 미첨부(awaiting_receipt) 건수
-    const mine = await pool.query(
-      `SELECT COUNT(*)::int AS cnt
-         FROM expense_requests
-        WHERE user_id = $1 AND status = 'awaiting_receipt' AND deleted_at IS NULL`,
-      [userId]
-    )
-    const summary: {
-      my_awaiting_receipt: number
-      admin_pending_approval?: number
-      admin_awaiting_receipt?: number
-    } = { my_awaiting_receipt: Number(mine.rows[0]?.cnt || 0) }
+    const summary: { admin_pending_approval?: number } = {}
 
     if (isReviewer(req)) {
       const totals = await pool.query(
-        `SELECT
-           COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_approval,
-           COUNT(*) FILTER (WHERE status = 'awaiting_receipt')::int AS awaiting_receipt
-         FROM expense_requests
-        WHERE deleted_at IS NULL`
+        `SELECT COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_approval
+           FROM expense_requests
+          WHERE deleted_at IS NULL`
       )
       summary.admin_pending_approval = Number(totals.rows[0]?.pending_approval || 0)
-      summary.admin_awaiting_receipt = Number(totals.rows[0]?.awaiting_receipt || 0)
     }
 
     res.json(summary)
@@ -672,7 +718,7 @@ router.get('/admin/list', async (req: AuthRequest, res: Response) => {
 
 /**
  * PATCH /admin/:id — 상태 전이 (educationRequest action 패턴, 트랜잭션)
- *   action=approve   → approved (+ createDealForRequest; already_paid→recorded, reimburse_required→payment_pending)
+ *   action=approve   → approved → (already_paid→recorded, reimburse_required→payment_pending). freee 取引 자동생성 없음
  *   action=reject    → rejected (+ reject_reason)
  *   action=mark_paid → expense_payments.paid + paid → completed
  *   action=reopen    → 직전 상태 복귀
@@ -710,10 +756,16 @@ router.patch('/admin/:id', async (req: AuthRequest, res: Response) => {
     const row = existing.rows[0]
 
     // ---- approve ----
+    // freee 取引 자동생성 없음 — 영수증은 업로드 시 파일박스에 push 됨.
+    //   reimburse_required(개인결제) → payment_pending (지급 대기)
+    //   already_paid(법인결제)       → recorded (기표 완료)
     if (action === 'approve') {
       if (row.status !== 'pending') {
         return res.status(400).json({ error: '承認待ちの申請のみ承認できます' })
       }
+
+      const nextStatus =
+        row.settlement_type === 'already_paid' ? 'recorded' : 'payment_pending'
 
       await client.query('BEGIN')
       transactionOpen = true
@@ -740,64 +792,19 @@ router.patch('/admin/:id', async (req: AuthRequest, res: Response) => {
         preParams
       )
       await insertHistory(client, id, row.status, 'approved', actorId, null)
+
+      // 승인 후 정산구분에 따라 즉시 전이 (payment_pending / recorded)
+      await client.query(
+        `UPDATE expense_requests SET status = $2, updated_at = NOW() WHERE id = $1`,
+        [id, nextStatus]
+      )
+      await insertHistory(client, id, 'approved', nextStatus, actorId, null)
+
       await client.query('COMMIT')
       transactionOpen = false
 
-      // freee 取引 생성 — 실패해도 승인은 유지 (200 + freee_error)
-      let freeeError: string | null = null
-      try {
-        await createDealForRequest(Number(id))
-        // 성공: already_paid → recorded
-        if (row.settlement_type === 'already_paid') {
-          const c2 = await pool.connect()
-          try {
-            await c2.query('BEGIN')
-            await c2.query(
-              `UPDATE expense_requests SET status = 'recorded', updated_at = NOW() WHERE id = $1`,
-              [id]
-            )
-            await insertHistory(c2, id, 'approved', 'recorded', actorId, 'freee deal created')
-            await c2.query('COMMIT')
-          } catch (e) {
-            await c2.query('ROLLBACK').catch(() => {})
-            throw e
-          } finally {
-            c2.release()
-          }
-        }
-      } catch (e) {
-        freeeError = (e as Error).message
-        console.error(`[Expense] createDealForRequest(${id}) failed:`, freeeError)
-      }
-
-      // freee 성공이든 실패든, reimburse_required 는 payment_pending 로 (지급 대기)
-      if (row.settlement_type === 'reimburse_required') {
-        const c3 = await pool.connect()
-        try {
-          const cur = await c3.query(
-            `SELECT status FROM expense_requests WHERE id = $1`,
-            [id]
-          )
-          const curStatus = cur.rows[0]?.status
-          if (curStatus === 'approved') {
-            await c3.query('BEGIN')
-            await c3.query(
-              `UPDATE expense_requests SET status = 'payment_pending', updated_at = NOW() WHERE id = $1`,
-              [id]
-            )
-            await insertHistory(c3, id, 'approved', 'payment_pending', actorId, null)
-            await c3.query('COMMIT')
-          }
-        } catch (e) {
-          await c3.query('ROLLBACK').catch(() => {})
-          console.error(`[Expense] payment_pending transition(${id}) failed:`, (e as Error).message)
-        } finally {
-          c3.release()
-        }
-      }
-
       const updated = await fetchRequest(id)
-      return res.json(freeeError ? { ...updated, freee_error: freeeError } : updated)
+      return res.json(updated)
     }
 
     // ---- reject ----
@@ -966,317 +973,6 @@ router.get('/admin/export.csv', async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('expense/admin/export.csv error:', error.message)
     res.status(500).json({ error: 'エクスポートに失敗しました' })
-  }
-})
-
-// ============================================================
-// 정기결제 마스터 (subscriptions)
-// ============================================================
-
-const SUBSCRIPTION_SELECT = `
-  s.id, s.owner_user_id, u.name AS owner_name, s.service_name, s.card_label,
-  s.category, s.cycle, s.billing_day, s.amount, s.tax_rate, s.active,
-  s.start_date, s.end_date, s.created_at
-`
-
-/** GET /subscriptions — 본인=owner 것만 / reviewer=전체 */
-router.get('/subscriptions', async (req: AuthRequest, res: Response) => {
-  try {
-    const reviewer = isReviewer(req)
-    const params: any[] = []
-    let where = ''
-    if (!reviewer) {
-      where = 'WHERE s.owner_user_id = $1'
-      params.push(req.user!.id)
-    }
-    const result = await pool.query(
-      `SELECT ${SUBSCRIPTION_SELECT}
-         FROM expense_subscriptions s
-         JOIN users u ON u.id = s.owner_user_id
-         ${where}
-        ORDER BY s.created_at DESC`,
-      params
-    )
-    res.json({ items: result.rows })
-  } catch (error: any) {
-    console.error('expense/subscriptions list error:', error.message)
-    res.status(500).json({ error: '一覧の取得に失敗しました' })
-  }
-})
-
-/** POST /subscriptions — 마스터 생성 */
-router.post('/subscriptions', async (req: AuthRequest, res: Response) => {
-  try {
-    const b = req.body as Record<string, any>
-    const {
-      service_name,
-      card_label,
-      category,
-      cycle,
-      billing_day,
-      amount,
-      tax_rate,
-      active,
-      start_date,
-      end_date,
-      owner_user_id,
-    } = b
-
-    if (!service_name || !String(service_name).trim()) {
-      return res.status(400).json({ error: 'サービス名は必須です' })
-    }
-    if (!Number.isInteger(billing_day) || billing_day < 1 || billing_day > 31) {
-      return res.status(400).json({ error: '請求日は1〜31で入力してください' })
-    }
-    if (cycle && !['month', 'year'].includes(cycle)) {
-      return res.status(400).json({ error: 'サイクルが正しくありません' })
-    }
-    // owner: reviewer 는 타인 지정 가능, 아니면 본인
-    const owner =
-      isReviewer(req) && owner_user_id ? String(owner_user_id) : req.user!.id
-
-    const insert = await pool.query(
-      `INSERT INTO expense_subscriptions
-         (owner_user_id, service_name, card_label, category, cycle, billing_day,
-          amount, tax_rate, active, start_date, end_date)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-       RETURNING id`,
-      [
-        owner,
-        String(service_name).trim(),
-        card_label ? String(card_label).trim() : null,
-        category ? String(category) : 'corp_card',
-        cycle || 'month',
-        billing_day,
-        amount != null ? Number(amount) : null,
-        tax_rate != null ? Number(tax_rate) : 10,
-        active != null ? !!active : true,
-        start_date && /^\d{4}-\d{2}-\d{2}$/.test(start_date) ? start_date : null,
-        end_date && /^\d{4}-\d{2}-\d{2}$/.test(end_date) ? end_date : null,
-      ]
-    )
-    const result = await pool.query(
-      `SELECT ${SUBSCRIPTION_SELECT}
-         FROM expense_subscriptions s JOIN users u ON u.id = s.owner_user_id
-        WHERE s.id = $1`,
-      [insert.rows[0].id]
-    )
-    res.json(result.rows[0])
-  } catch (error: any) {
-    console.error('expense/subscriptions POST error:', error.message)
-    res.status(500).json({ error: '作成に失敗しました' })
-  }
-})
-
-/** PATCH /subscriptions/:id — 수정 (owner 또는 reviewer) */
-router.patch('/subscriptions/:id', async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params
-    const existing = await pool.query(
-      `SELECT id, owner_user_id FROM expense_subscriptions WHERE id = $1`,
-      [id]
-    )
-    if (existing.rows.length === 0) {
-      return res.status(404).json({ error: '定期決済が見つかりません' })
-    }
-    if (String(existing.rows[0].owner_user_id) !== req.user!.id && !isReviewer(req)) {
-      return res.status(403).json({ error: '権限がありません' })
-    }
-
-    const body = req.body as Record<string, any>
-    const allowed = [
-      'service_name',
-      'card_label',
-      'category',
-      'cycle',
-      'billing_day',
-      'amount',
-      'tax_rate',
-      'active',
-      'start_date',
-      'end_date',
-    ]
-    const fields: string[] = []
-    const params: any[] = []
-    let idx = 1
-    for (const k of allowed) {
-      if (body[k] === undefined) continue
-      if (k === 'billing_day') {
-        if (!Number.isInteger(body[k]) || body[k] < 1 || body[k] > 31) {
-          return res.status(400).json({ error: '請求日は1〜31で入力してください' })
-        }
-      }
-      if (k === 'cycle' && !['month', 'year'].includes(body[k])) {
-        return res.status(400).json({ error: 'サイクルが正しくありません' })
-      }
-      if (k === 'active') {
-        fields.push(`active = $${idx++}`)
-        params.push(!!body[k])
-        continue
-      }
-      if (k === 'amount' || k === 'tax_rate' || k === 'billing_day') {
-        fields.push(`${k} = $${idx++}`)
-        params.push(body[k] != null ? Number(body[k]) : null)
-        continue
-      }
-      if (k === 'start_date' || k === 'end_date') {
-        const valid = body[k] && /^\d{4}-\d{2}-\d{2}$/.test(body[k]) ? body[k] : null
-        fields.push(`${k} = $${idx++}`)
-        params.push(valid)
-        continue
-      }
-      fields.push(`${k} = $${idx++}`)
-      params.push(typeof body[k] === 'string' ? body[k].trim() : body[k])
-    }
-    if (fields.length === 0) {
-      return res.status(400).json({ error: '更新する内容がありません' })
-    }
-    params.push(id)
-    await pool.query(
-      `UPDATE expense_subscriptions SET ${fields.join(', ')} WHERE id = $${idx}`,
-      params
-    )
-    const result = await pool.query(
-      `SELECT ${SUBSCRIPTION_SELECT}
-         FROM expense_subscriptions s JOIN users u ON u.id = s.owner_user_id
-        WHERE s.id = $1`,
-      [id]
-    )
-    res.json(result.rows[0])
-  } catch (error: any) {
-    console.error('expense/subscriptions PATCH error:', error.message)
-    res.status(500).json({ error: '更新に失敗しました' })
-  }
-})
-
-/** DELETE /subscriptions/:id — 삭제 (owner 또는 reviewer) */
-router.delete('/subscriptions/:id', async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params
-    const existing = await pool.query(
-      `SELECT id, owner_user_id FROM expense_subscriptions WHERE id = $1`,
-      [id]
-    )
-    if (existing.rows.length === 0) {
-      return res.status(404).json({ error: '定期決済が見つかりません' })
-    }
-    if (String(existing.rows[0].owner_user_id) !== req.user!.id && !isReviewer(req)) {
-      return res.status(403).json({ error: '権限がありません' })
-    }
-    await pool.query(`DELETE FROM expense_subscriptions WHERE id = $1`, [id])
-    res.json({ message: 'deleted' })
-  } catch (error: any) {
-    console.error('expense/subscriptions DELETE error:', error.message)
-    res.status(500).json({ error: '削除に失敗しました' })
-  }
-})
-
-// ============================================================
-// freee 매핑 마스터 (reviewer)
-// ============================================================
-
-/** GET /freee/account-items — freee 계정과목 (매핑 UI) */
-router.get('/freee/account-items', async (req: AuthRequest, res: Response) => {
-  try {
-    if (!isReviewer(req)) return res.status(403).json({ error: '権限がありません' })
-    const companyId = await getDefaultCompanyId()
-    const items = await getAccountItems(companyId)
-    res.json({ items })
-  } catch (error: any) {
-    console.error('expense/freee/account-items error:', error.message)
-    res.status(500).json({ error: error.message || '勘定科目の取得に失敗しました' })
-  }
-})
-
-/** GET /freee/map — 매핑 조회 */
-router.get('/freee/map', async (req: AuthRequest, res: Response) => {
-  try {
-    if (!isReviewer(req)) return res.status(403).json({ error: '権限がありません' })
-    const result = await pool.query(
-      `SELECT id, category, subtype, account_item_id, account_item_name, updated_by, updated_at
-         FROM expense_freee_map
-        ORDER BY category, subtype`
-    )
-    res.json({ items: result.rows })
-  } catch (error: any) {
-    console.error('expense/freee/map GET error:', error.message)
-    res.status(500).json({ error: 'マッピングの取得に失敗しました' })
-  }
-})
-
-/** PUT /freee/map — 매핑 저장 (upsert; subtype 없으면 '' 로 저장) */
-router.put('/freee/map', async (req: AuthRequest, res: Response) => {
-  const client = await pool.connect()
-  let transactionOpen = false
-  try {
-    if (!isReviewer(req)) return res.status(403).json({ error: '権限がありません' })
-    const { map } = req.body as {
-      map?: Array<{
-        category: string
-        subtype?: string | null
-        account_item_id: number
-        account_item_name?: string | null
-      }>
-    }
-    if (!Array.isArray(map)) {
-      return res.status(400).json({ error: 'map は配列である必要があります' })
-    }
-
-    await client.query('BEGIN')
-    transactionOpen = true
-    for (const m of map) {
-      if (!m.category || m.account_item_id == null) continue
-      // subtype 없으면 '' 로 저장 (NULL-unique gotcha 회피)
-      const subtype = m.subtype == null ? '' : String(m.subtype)
-      await client.query(
-        `INSERT INTO expense_freee_map
-           (category, subtype, account_item_id, account_item_name, updated_by, updated_at)
-         VALUES ($1, $2, $3, $4, $5, NOW())
-         ON CONFLICT (category, subtype)
-         DO UPDATE SET account_item_id = EXCLUDED.account_item_id,
-                       account_item_name = EXCLUDED.account_item_name,
-                       updated_by = EXCLUDED.updated_by,
-                       updated_at = NOW()`,
-        [
-          String(m.category),
-          subtype,
-          Number(m.account_item_id),
-          m.account_item_name != null ? String(m.account_item_name) : null,
-          req.user!.id,
-        ]
-      )
-    }
-    await client.query('COMMIT')
-    transactionOpen = false
-
-    const result = await pool.query(
-      `SELECT id, category, subtype, account_item_id, account_item_name, updated_by, updated_at
-         FROM expense_freee_map
-        ORDER BY category, subtype`
-    )
-    res.json({ items: result.rows })
-  } catch (error: any) {
-    if (transactionOpen) await client.query('ROLLBACK').catch(() => {})
-    console.error('expense/freee/map PUT error:', error.message)
-    res.status(500).json({ error: 'マッピングの保存に失敗しました' })
-  } finally {
-    client.release()
-  }
-})
-
-// ============================================================
-// 정기결제 크론 수동실행 (디버그, reviewer)
-// ============================================================
-
-/** POST /admin/run-subscription-job — 크론 잡 수동실행 */
-router.post('/admin/run-subscription-job', async (req: AuthRequest, res: Response) => {
-  try {
-    if (!isReviewer(req)) return res.status(403).json({ error: '権限がありません' })
-    const result = await runExpenseSubscriptionJob()
-    res.json(result)
-  } catch (error: any) {
-    console.error('expense/admin/run-subscription-job error:', error.message)
-    res.status(500).json({ error: 'ジョブの実行に失敗しました' })
   }
 })
 
