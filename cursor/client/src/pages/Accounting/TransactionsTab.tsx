@@ -3,9 +3,9 @@ import api from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Upload, Trash2, TrendingUp, TrendingDown, Pencil, RotateCcw } from 'lucide-react'
+import { Plus, Upload, Trash2, TrendingUp, TrendingDown, Pencil, RotateCcw, ChevronUp, ChevronDown, X, Tags } from 'lucide-react'
 import { useAccountingStore } from '@/store/accountingStore'
-import { Transaction, SimpleUser, AutoMatchRule } from './types'
+import { Transaction, SimpleUser, AutoMatchRule, AccountingCategory } from './types'
 import { CATEGORY_OPTIONS } from './constants'
 import { formatCurrency, formatDateOnly } from './utils'
 import { DatePickerInput } from '@/components/ui/date-picker-input'
@@ -49,7 +49,17 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
   const [showAutoMatchDialog, setShowAutoMatchDialog] = useState(false)
   const [autoMatchRules, setAutoMatchRules] = useState<AutoMatchRule[]>([])
   const [editingRule, setEditingRule] = useState<AutoMatchRule | null>(null)
-  
+
+  // 카테고리 관리
+  const [categories, setCategories] = useState<AccountingCategory[]>([])
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false)
+  const [newCatKo, setNewCatKo] = useState('')
+  const [newCatJa, setNewCatJa] = useState('')
+  const [editingCatId, setEditingCatId] = useState<string | null>(null)
+  const [editCatKo, setEditCatKo] = useState('')
+  const [editCatJa, setEditCatJa] = useState('')
+  const [catSaving, setCatSaving] = useState(false)
+
   // CSV 업로드
   const [uploadingCsv, setUploadingCsv] = useState(false)
   
@@ -79,6 +89,114 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
     fetchNameOptions()
     fetchAutoMatchRules()
   }, [startDate, endDate])
+
+  // 카테고리는 날짜와 무관하므로 최초 1회만 로드
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/accounting/categories')
+      setCategories(response.data)
+    } catch (error) {
+      console.error('Categories fetch error:', error)
+    }
+  }
+
+  // 드롭다운/표시에서 공통으로 쓰는 카테고리 옵션 (DB 우선, 실패 시 하드코딩 fallback)
+  const categoryOptions = useMemo(() => (
+    categories.length > 0
+      ? categories.map(c => ({ value: c.value, labelJa: c.label_ja, labelKo: c.label_ko }))
+      : CATEGORY_OPTIONS
+  ), [categories])
+
+  // 저장된 value 를 현재 언어 라벨로 변환 (원본 표시용)
+  const categoryLabel = useCallback((value?: string | null): string => {
+    if (!value) return '-'
+    const found = categoryOptions.find(o => o.value === value)
+    return found ? (language === 'ja' ? found.labelJa : found.labelKo) : value
+  }, [categoryOptions, language])
+
+  // ===== 카테고리 관리 핸들러 =====
+  const handleAddCategory = async () => {
+    const ko = newCatKo.trim()
+    if (!ko) {
+      alert(language === 'ja' ? 'カテゴリ名を入力してください' : '카테고리명을 입력하세요')
+      return
+    }
+    setCatSaving(true)
+    try {
+      await api.post('/accounting/categories', { labelKo: ko, labelJa: newCatJa.trim() })
+      setNewCatKo('')
+      setNewCatJa('')
+      await fetchCategories()
+    } catch (error: any) {
+      alert(error?.response?.data?.error || (language === 'ja' ? '追加に失敗しました' : '추가에 실패했습니다'))
+    } finally {
+      setCatSaving(false)
+    }
+  }
+
+  const startEditCategory = (cat: AccountingCategory) => {
+    setEditingCatId(cat.id)
+    setEditCatKo(cat.label_ko)
+    setEditCatJa(cat.label_ja)
+  }
+
+  const cancelEditCategory = () => {
+    setEditingCatId(null)
+    setEditCatKo('')
+    setEditCatJa('')
+  }
+
+  const handleUpdateCategory = async (id: string) => {
+    const ko = editCatKo.trim()
+    if (!ko) {
+      alert(language === 'ja' ? 'カテゴリ名を入力してください' : '카테고리명을 입력하세요')
+      return
+    }
+    setCatSaving(true)
+    try {
+      await api.put(`/accounting/categories/${id}`, { labelKo: ko, labelJa: editCatJa.trim() })
+      cancelEditCategory()
+      await fetchCategories()
+    } catch (error: any) {
+      alert(error?.response?.data?.error || (language === 'ja' ? '修正に失敗しました' : '수정에 실패했습니다'))
+    } finally {
+      setCatSaving(false)
+    }
+  }
+
+  const handleDeleteCategory = async (cat: AccountingCategory) => {
+    if (!confirm(language === 'ja'
+      ? `「${cat.label_ja}」を削除しますか？`
+      : `'${cat.label_ko}' 카테고리를 삭제할까요?`)) return
+    setCatSaving(true)
+    try {
+      await api.delete(`/accounting/categories/${cat.id}`)
+      await fetchCategories()
+    } catch (error: any) {
+      alert(error?.response?.data?.error || (language === 'ja' ? '削除に失敗しました' : '삭제에 실패했습니다'))
+    } finally {
+      setCatSaving(false)
+    }
+  }
+
+  const handleMoveCategory = async (index: number, direction: -1 | 1) => {
+    const target = index + direction
+    if (target < 0 || target >= categories.length) return
+    const reordered = [...categories]
+    const [moved] = reordered.splice(index, 1)
+    reordered.splice(target, 0, moved)
+    setCategories(reordered) // 낙관적 업데이트
+    try {
+      await api.put('/accounting/categories/reorder', { ids: reordered.map(c => c.id) })
+    } catch (error) {
+      console.error('Category reorder error:', error)
+      await fetchCategories() // 실패 시 서버 상태로 복구
+    }
+  }
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true)
@@ -621,7 +739,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                 className="w-full border rounded px-3 py-2"
               >
                 <option value="all">{language === 'ja' ? '全て' : '전체'}</option>
-                {CATEGORY_OPTIONS.map(opt => (
+                {categoryOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>
                     {language === 'ja' ? opt.labelJa : opt.labelKo}
                   </option>
@@ -696,6 +814,13 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                 className="h-9 w-9 text-gray-500 hover:text-gray-800"
               >
                 <RotateCcw className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowCategoryDialog(true)}
+              >
+                <Tags className="h-4 w-4 mr-2" />
+                {language === 'ja' ? 'カテゴリ管理' : '카테고리 관리'}
               </Button>
               <Button
                 variant="outline"
@@ -796,7 +921,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                   required
                   defaultValue={editingTransaction?.category || '지정없음'}
                 >
-                  {CATEGORY_OPTIONS.map((option) => (
+                  {categoryOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {language === 'ja' ? option.labelJa : option.labelKo}
                     </option>
@@ -1014,7 +1139,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                         disabled={updatingTransactionId === tx.id}
                         className={`w-full border rounded px-2 py-1 text-sm ${updatingTransactionId === tx.id ? 'opacity-60 cursor-wait' : ''}`}
                       >
-                        {CATEGORY_OPTIONS.map((option) => (
+                        {categoryOptions.map((option) => (
                           <option key={option.value} value={option.value}>
                             {language === 'ja' ? option.labelJa : option.labelKo}
                           </option>
@@ -1142,7 +1267,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                     className="w-full border rounded px-3 py-2"
                   >
                     <option value="">{language === 'ja' ? '変更しない' : '변경하지 않음'}</option>
-                    {CATEGORY_OPTIONS.map((option) => (
+                    {categoryOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {language === 'ja' ? option.labelJa : option.labelKo}
                       </option>
@@ -1273,7 +1398,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                                     {tx.transactionType === '입금' ? (language === 'ja' ? '入' : '입') : (language === 'ja' ? '出' : '출')}
                                   </span>
                                 </td>
-                                <td className="px-2 py-1.5">{tx.category}</td>
+                                <td className="px-2 py-1.5">{categoryLabel(tx.category)}</td>
                                 <td className="px-2 py-1.5 font-mono text-xs">{tx.name || '-'}</td>
                                 <td className="px-2 py-1.5">{tx.assignedUserName || '-'}</td>
                                 <td className="px-2 py-1.5 text-right whitespace-nowrap">¥{tx.amount.toLocaleString()}</td>
@@ -1324,6 +1449,167 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
         </div>
       )}
 
+      {/* 카테고리 관리 팝업 */}
+      {showCategoryDialog && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowCategoryDialog(false)
+              cancelEditCategory()
+            }
+          }}
+        >
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-auto">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>{language === 'ja' ? 'カテゴリ管理' : '카테고리 관리'}</CardTitle>
+                <p className="text-sm text-gray-600 mt-2">
+                  {language === 'ja'
+                    ? 'カテゴリの追加・修正・削除・並び替えができます。使用中のカテゴリは削除できません。'
+                    : '카테고리를 추가·수정·삭제·순서변경할 수 있습니다. 사용 중인 카테고리는 삭제할 수 없습니다.'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => { setShowCategoryDialog(false); cancelEditCategory() }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* 신규 추가 폼 */}
+              <div className="border rounded p-4 bg-gray-50">
+                <h3 className="font-semibold mb-3">{language === 'ja' ? '新規カテゴリ追加' : '신규 카테고리 추가'}</h3>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="block text-sm font-medium mb-1">
+                      {language === 'ja' ? 'カテゴリ名(韓)' : '카테고리명(한)'} <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={newCatKo}
+                      onChange={(e) => setNewCatKo(e.target.value)}
+                      placeholder={language === 'ja' ? '例: 広告費' : '예: 광고비'}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="block text-sm font-medium mb-1">
+                      {language === 'ja' ? '日本語(任意)' : '일본어(선택)'}
+                    </label>
+                    <Input
+                      value={newCatJa}
+                      onChange={(e) => setNewCatJa(e.target.value)}
+                      placeholder={language === 'ja' ? '例: 広告費' : '예: 広告費'}
+                    />
+                  </div>
+                  <Button onClick={handleAddCategory} disabled={catSaving}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    {language === 'ja' ? '追加' : '추가'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* 카테고리 목록 */}
+              <div className="border rounded overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-3 py-2 text-left w-20">{language === 'ja' ? '並び替え' : '순서'}</th>
+                      <th className="px-3 py-2 text-left">{language === 'ja' ? 'カテゴリ名(韓)' : '카테고리명(한)'}</th>
+                      <th className="px-3 py-2 text-left">{language === 'ja' ? '日本語' : '일본어'}</th>
+                      <th className="px-3 py-2 text-right w-28">{language === 'ja' ? '操作' : '조작'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categories.map((cat, index) => (
+                      <tr key={cat.id} className="border-t">
+                        <td className="px-3 py-2">
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveCategory(index, -1)}
+                              disabled={index === 0}
+                              className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
+                              title={language === 'ja' ? '上へ' : '위로'}
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveCategory(index, 1)}
+                              disabled={index === categories.length - 1}
+                              className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
+                              title={language === 'ja' ? '下へ' : '아래로'}
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                        {editingCatId === cat.id ? (
+                          <>
+                            <td className="px-3 py-2">
+                              <Input value={editCatKo} onChange={(e) => setEditCatKo(e.target.value)} className="h-8" />
+                            </td>
+                            <td className="px-3 py-2">
+                              <Input value={editCatJa} onChange={(e) => setEditCatJa(e.target.value)} className="h-8" />
+                            </td>
+                            <td className="px-3 py-2 text-right whitespace-nowrap">
+                              <Button size="sm" onClick={() => handleUpdateCategory(cat.id)} disabled={catSaving} className="h-7 px-2 mr-1">
+                                {language === 'ja' ? '保存' : '저장'}
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={cancelEditCategory} className="h-7 px-2">
+                                {language === 'ja' ? '取消' : '취소'}
+                              </Button>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-3 py-2">
+                              {cat.label_ko}
+                              {cat.is_system && (
+                                <span className="ml-2 text-xs text-gray-400">{language === 'ja' ? '(基本)' : '(기본)'}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-gray-600">{cat.label_ja}</td>
+                            <td className="px-3 py-2 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => startEditCategory(cat)}
+                                className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
+                                title={language === 'ja' ? '修正' : '수정'}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCategory(cat)}
+                                disabled={cat.is_system}
+                                className="p-1.5 rounded hover:bg-red-50 text-red-500 disabled:opacity-30 disabled:hover:bg-transparent"
+                                title={cat.is_system ? (language === 'ja' ? '基本カテゴリは削除不可' : '기본 카테고리는 삭제 불가') : (language === 'ja' ? '削除' : '삭제')}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                    {categories.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-6 text-center text-gray-400">
+                          {language === 'ja' ? 'カテゴリがありません' : '카테고리가 없습니다'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* 자동 매칭 설정 팝업 */}
       {showAutoMatchDialog && (
         <div 
@@ -1366,7 +1652,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                     </label>
                     <select name="category" className="w-full border rounded px-3 py-2" defaultValue={editingRule?.category || ''}>
                       <option value="">{language === 'ja' ? '指定なし' : '지정 없음'}</option>
-                      {CATEGORY_OPTIONS.map(opt => (
+                      {categoryOptions.map(opt => (
                         <option key={opt.value} value={opt.value}>
                           {language === 'ja' ? opt.labelJa : opt.labelKo}
                         </option>
@@ -1440,7 +1726,7 @@ const TransactionsTab: React.FC<TransactionsTabProps> = ({ language, isAdmin, on
                       {autoMatchRules.map(rule => (
                         <tr key={rule.id} className="border-t">
                           <td className="px-3 py-2 font-mono text-blue-600">{rule.keyword}</td>
-                          <td className="px-3 py-2">{rule.category || '-'}</td>
+                          <td className="px-3 py-2">{rule.category ? categoryLabel(rule.category) : '-'}</td>
                           <td className="px-3 py-2">{rule.assigned_user_name || '-'}</td>
                           <td className="px-3 py-2">{rule.payment_method || '-'}</td>
                           <td className="px-3 py-2 text-center">{rule.priority}</td>

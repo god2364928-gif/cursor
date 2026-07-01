@@ -4,6 +4,7 @@ import transactionsRouter from './transactions'
 import employeesRouter from './employees'
 import payrollRouter from './payroll'
 import capitalRouter from './capital'
+import categoriesRouter from './categories'
 import totalSalesRouter from './totalSales'
 
 const router = Router()
@@ -22,6 +23,9 @@ router.use('/', payrollRouter)
 
 // 자본금, 정기지출, 보증금, 자동매칭 규칙
 router.use('/', capitalRouter)
+
+// 카테고리 관리
+router.use('/', categoriesRouter)
 
 // 전체 매출
 router.use('/total-sales', totalSalesRouter)

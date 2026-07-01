@@ -131,5 +131,15 @@ export interface AutoMatchRule {
   priority: number
 }
 
+export interface AccountingCategory {
+  id: string
+  value: string
+  label_ja: string
+  label_ko: string
+  sort_order: number
+  is_default: boolean
+  is_system: boolean
+}
+
 export type ActiveTab = 'dashboard' | 'transactions' | 'paypay' | 'totalsales' | 'employees' | 'payroll' | 'recurring' | 'capital'
 
