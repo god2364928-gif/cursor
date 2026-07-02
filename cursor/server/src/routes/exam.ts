@@ -445,6 +445,7 @@ const PROCTOR_EVENT_TYPES = [
   'cut',
   'tab_hidden',
   'window_blur',
+  'focus_return',
   'contextmenu',
   'bulk_insert',
   'fullscreen_exit',

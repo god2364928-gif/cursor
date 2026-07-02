@@ -30,6 +30,7 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
   // 부정행위 감지: 이벤트 버퍼 + 배치 전송용 ref
   const proctorBufferRef = useRef<Array<{ eventType: string; detail: any; occurredAt: string }>>([])
   const proctorSuppressRef = useRef(false)  // 저장/제출 alert·confirm로 인한 window blur 오탐 억제
+  const awaySinceRef = useRef<number | null>(null)  // 자리비움 시작 시각(복귀 시 자리비움 시간 계산용, null이면 현재 자리에 있음)
 
   useEffect(() => { answersRef.current = answers }, [answers])
   useEffect(() => { isSubmittedRef.current = isSubmitted }, [isSubmitted])
@@ -207,16 +208,37 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
   useEffect(() => {
     if (!open || isSubmitted) return
 
+    // 자리비움 시작 마킹(이미 away면 갱신하지 않음 → blur+visibilitychange 중복 방지)
+    const markAway = () => {
+      if (awaySinceRef.current == null) awaySinceRef.current = Date.now()
+    }
+    // 복귀 마킹(away 상태였을 때만 자리비움 시간 기록)
+    const markReturn = () => {
+      if (awaySinceRef.current != null) {
+        const awayMs = Date.now() - awaySinceRef.current
+        recordProctorEvent('focus_return', { awayMs })
+        awaySinceRef.current = null
+        flushProctorEvents() // 복귀 시 즉시 전송
+      }
+    }
+
     const onVisibilityChange = () => {
       if (document.hidden) {
+        markAway()
         recordProctorEvent('tab_hidden')
         flushProctorEvents() // 이탈 시 즉시 전송(복귀 안 해도 유실 방지)
+      } else {
+        markReturn()
       }
     }
     const onWindowBlur = () => {
-      if (proctorSuppressRef.current) return // 저장/제출 alert로 인한 오탐 제외
+      if (proctorSuppressRef.current) return // 저장/제출 alert로 인한 오탐 제외(away 시작으로도 치지 않음)
+      markAway()
       recordProctorEvent('window_blur')
       flushProctorEvents()
+    }
+    const onWindowFocus = () => {
+      markReturn()
     }
     const onCopy = () => {
       const sel = document.getSelection?.()?.toString() || ''
@@ -237,6 +259,7 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
 
     document.addEventListener('visibilitychange', onVisibilityChange)
     window.addEventListener('blur', onWindowBlur)
+    window.addEventListener('focus', onWindowFocus)
     document.addEventListener('copy', onCopy)
     document.addEventListener('cut', onCut)
     document.addEventListener('contextmenu', onContextMenu)
@@ -246,6 +269,7 @@ export default function ExamModal({ open, onOpenChange, examRound = 1 }: ExamMod
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('blur', onWindowBlur)
+      window.removeEventListener('focus', onWindowFocus)
       document.removeEventListener('copy', onCopy)
       document.removeEventListener('cut', onCut)
       document.removeEventListener('contextmenu', onContextMenu)

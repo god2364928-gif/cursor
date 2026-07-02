@@ -27,6 +27,7 @@ const PROCTOR_LABEL_KEYS: Record<string, string> = {
   cut: 'proctorCut',
   tab_hidden: 'proctorTabHidden',
   window_blur: 'proctorWindowBlur',
+  focus_return: 'proctorFocusReturn',
   contextmenu: 'proctorContextmenu',
   bulk_insert: 'proctorBulkInsert',
   fullscreen_exit: 'proctorFullscreenExit',
@@ -343,12 +344,21 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName, in
   const currentExam = exams.find(e => e.examRound === selectedRound)
 
   const proctorLabel = (type: string) => t((PROCTOR_LABEL_KEYS[type] || type) as any)
+  // 자리비움 시간 포맷(언어 무관, 숫자+단위 키 사용): 60초 미만은 "N초", 이상은 "M분 N초"
+  const formatAway = (ms: number) => {
+    const sec = Math.round(ms / 1000)
+    if (sec < 60) return `${sec}${t('proctorSecUnit')}`
+    const min = Math.floor(sec / 60)
+    const rem = sec % 60
+    return `${min}${t('proctorMinUnit')} ${rem}${t('proctorSecUnit')}`
+  }
   const proctorDetailText = (ev: { detail: any }) => {
     const d = ev.detail || {}
     const parts: string[] = []
     if (d.questionId) parts.push(`${t('proctorQuestion')}${d.questionId}`)
     if (typeof d.length === 'number' && d.length > 0) parts.push(`${d.length}${t('proctorChars')}`)
     if (d.preview) parts.push(`"${d.preview}"`)
+    if (typeof d.awayMs === 'number') parts.push(`${t('proctorAwayFor')} ${formatAway(d.awayMs)}`)
     return parts.join(' · ')
   }
   const formatProctorTime = (s: string) => {
@@ -426,6 +436,19 @@ export default function ExamViewModal({ open, onOpenChange, userId, userName, in
                   {proctorLabel(type)} {count}{t('proctorCountUnit')}
                 </span>
               ))}
+              {/* 최대 자리비움: focus_return 이벤트의 awayMs 최댓값(값이 있을 때만 렌더) */}
+              {(() => {
+                const maxAwayMs = proctorEvents.reduce((max, ev) => {
+                  const ms = ev.eventType === 'focus_return' && typeof ev.detail?.awayMs === 'number' ? ev.detail.awayMs : 0
+                  return ms > max ? ms : max
+                }, 0)
+                if (maxAwayMs <= 0) return null
+                return (
+                  <span className="inline-flex items-center rounded-full bg-white border border-red-200 px-2 py-0.5 text-xs font-medium text-red-700">
+                    {t('proctorMaxAway')} {formatAway(maxAwayMs)}
+                  </span>
+                )
+              })()}
             </div>
             <div className="max-h-28 overflow-y-auto overflow-x-hidden space-y-0.5 text-xs">
               {proctorEvents.map((ev, i) => (
