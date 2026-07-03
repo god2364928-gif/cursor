@@ -212,17 +212,23 @@ CREATE INDEX IF NOT EXISTS idx_payments_payment_type ON payments(payment_type_id
 CREATE TABLE IF NOT EXISTS invoices (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id),
-  company_id INTEGER NOT NULL,
-  partner_id INTEGER,
+  company_id BIGINT NOT NULL,
+  partner_id BIGINT,
   partner_name VARCHAR(255) NOT NULL,
   invoice_number VARCHAR(100) NOT NULL,
-  freee_invoice_id INTEGER,
+  freee_invoice_id BIGINT,
   invoice_date DATE NOT NULL,
   due_date DATE NOT NULL,
   total_amount INTEGER NOT NULL,
   tax_amount INTEGER NOT NULL,
   tax_entry_method VARCHAR(20) NOT NULL,
   receipt_id UUID,
+  memo TEXT,
+  payment_bank_info TEXT,
+  is_cancelled BOOLEAN DEFAULT FALSE,
+  cancelled_at TIMESTAMP,
+  cancelled_by_user_id UUID,
+  line_items JSONB,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

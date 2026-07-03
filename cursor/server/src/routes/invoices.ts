@@ -213,6 +213,33 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
       return res.status(400).json({ error: 'Maximum 5 line items allowed' })
     }
 
+    // 각 품목 입력 유효성 검사 (freee 호출 전에 차단)
+    for (const item of line_items) {
+      const quantity = Number(item?.quantity)
+      const unitPrice = Number(item?.unit_price)
+
+      if (!item?.name || typeof item.name !== 'string' || item.name.trim().length === 0) {
+        return res.status(400).json({ error: '품목명이 비어 있습니다 / 品目名が空です' })
+      }
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return res.status(400).json({ error: '수량은 0보다 큰 숫자여야 합니다 / 数量は0より大きい数値である必要があります' })
+      }
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+        return res.status(400).json({ error: '단가는 0 이상의 숫자여야 합니다 / 単価は0以上の数値である必要があります' })
+      }
+      if (item.tax_rate !== undefined && item.tax_rate !== null && !Number.isFinite(Number(item.tax_rate))) {
+        return res.status(400).json({ error: '세율이 올바르지 않습니다 / 税率が正しくありません' })
+      }
+      if (item.tax !== undefined && item.tax !== null && !Number.isFinite(Number(item.tax))) {
+        return res.status(400).json({ error: '세액이 올바르지 않습니다 / 税額が正しくありません' })
+      }
+    }
+
+    // tax_entry_method 유효성 검사
+    if (tax_entry_method !== undefined && tax_entry_method !== null && tax_entry_method !== 'inclusive' && tax_entry_method !== 'exclusive') {
+      return res.status(400).json({ error: "tax_entry_method must be 'inclusive' or 'exclusive'" })
+    }
+
     // freee API 형식으로 변환
     const invoiceData: FreeeInvoiceRequest = {
       company_id: Number(company_id),
@@ -255,49 +282,66 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
     
     const totalAmount = tax_entry_method === 'inclusive' ? subtotal : subtotal + taxAmount
 
-    // 사용자 정보 조회
-    const userResult = await pool.query(
-      'SELECT name FROM users WHERE id = $1',
-      [req.user!.id]
-    )
-    const userName = userResult.rows[0]?.name || '알 수 없음'
+    // ⚠️ freee 청구서는 이미 생성됨. 아래 DB 작업 실패 시 고아(orphan)가 되므로 보상 처리 필요.
+    let dbInvoiceId: number
+    let userName: string
+    try {
+      // 사용자 정보 조회
+      const userResult = await pool.query(
+        'SELECT name FROM users WHERE id = $1',
+        [req.user!.id]
+      )
+      userName = userResult.rows[0]?.name || '알 수 없음'
 
-    // DB에 청구서 정보 저장
-    const insertResult = await pool.query(
-      `INSERT INTO invoices (
-        user_id,
-        company_id,
-        partner_id,
-        partner_name, 
-        invoice_number,
-        freee_invoice_id, 
-        invoice_date, 
-        due_date, 
-        total_amount, 
-        tax_amount,
-        tax_entry_method,
-        memo,
-        payment_bank_info
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-      [
-        req.user!.id,
-        company_id,
-        partner_id,
-        partner_name + (partner_title || ''),
-        result.invoice.invoice_number || invoiceId,
-        invoiceId,
-        invoice_date,
-        due_date,
-        totalAmount,
-        taxAmount,
-        tax_entry_method || 'exclusive',
-        memo,  // 추가: 비고
-        payment_bank_info,  // 추가: 입금처 정보
-      ]
-    )
+      // DB에 청구서 정보 저장
+      const insertResult = await pool.query(
+        `INSERT INTO invoices (
+          user_id,
+          company_id,
+          partner_id,
+          partner_name,
+          invoice_number,
+          freee_invoice_id,
+          invoice_date,
+          due_date,
+          total_amount,
+          tax_amount,
+          tax_entry_method,
+          memo,
+          payment_bank_info,
+          line_items
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+        [
+          req.user!.id,
+          company_id,
+          partner_id ? Number(partner_id) : null,  // freee에 보낸 값과 동일하게 강제 변환
+          partner_name + (partner_title || ''),
+          result.invoice.invoice_number || invoiceId,
+          invoiceId,
+          invoice_date,
+          due_date,
+          totalAmount,
+          taxAmount,
+          tax_entry_method || 'exclusive',
+          memo,  // 추가: 비고
+          payment_bank_info,  // 추가: 입금처 정보
+          JSON.stringify(line_items),  // 추가: PDF 폴백용 품목 (JSONB)
+        ]
+      )
 
-    const dbInvoiceId = insertResult.rows[0].id
-    
+      dbInvoiceId = insertResult.rows[0].id
+    } catch (dbError: any) {
+      // freee 청구서는 이미 발행되었으나 CRM DB 기록에 실패 → 고아 청구서. 재발행 금지.
+      const orphanNumber = result.invoice.invoice_number || invoiceId
+      console.error(`❌ ORPHAN: freee invoice ${invoiceId} created but DB insert failed`, dbError)
+      return res.status(500).json({
+        error: `청구서가 freee에 발행(번호: ${orphanNumber}, freee ID: ${invoiceId})되었으나 CRM에 기록하지 못했습니다. 절대 재시도하지 마시고 관리자에게 문의하세요. / 請求書はfreeeで発行済み（番号: ${orphanNumber}、freee ID: ${invoiceId}）ですが、CRMへの記録に失敗しました。再試行せず、管理者にお問い合わせください。`,
+        freee_invoice_id: invoiceId,
+        freee_invoice_number: orphanNumber,
+        orphaned: true,
+      })
+    }
+
     console.log(`✅ Invoice created: freee_id=${invoiceId}, db_id=${dbInvoiceId}, partner=${partner_name}, user=${userName}, payment_method=${payment_method}`)
 
     // 카드결제(PayPal) 청구서인 경우 日本_領収書 슬랙 채널에 알림 전송
@@ -437,15 +481,15 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
 
     console.log(`📥 [PDF Download] Request for invoice ID: ${id} by user: ${userId}`)
 
-    // DB에서 청구서 조회하여 freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method 가져오기
-    const result = await pool.query('SELECT freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method FROM invoices WHERE id = $1', [id])
-    
+    // DB에서 청구서 조회하여 freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items 가져오기
+    const result = await pool.query('SELECT freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items FROM invoices WHERE id = $1', [id])
+
     if (result.rows.length === 0) {
       console.error(`❌ Invoice not found in DB: ${id}`)
       return res.status(404).json({ error: 'Invoice not found' })
     }
 
-    const { freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method } = result.rows[0]
+    const { freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items } = result.rows[0]
 
     console.log(`📋 Invoice details: freee_id=${freee_invoice_id}, company_id=${company_id}, due_date=${due_date}, payment_info=${payment_bank_info ? 'present' : 'default'}, tax_entry_method=${tax_entry_method}`)
 
@@ -456,7 +500,7 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
 
     console.log(`📥 Calling downloadInvoicePdf with company_id=${company_id}, invoice_id=${freee_invoice_id}, memo=${memo ? 'present' : 'none'}, payment_info=${payment_bank_info ? 'custom' : 'default'}, tax_entry_method=${tax_entry_method}`)
 
-    const pdfBuffer = await downloadInvoicePdf(Number(company_id), Number(freee_invoice_id), due_date, memo, payment_bank_info, tax_entry_method)
+    const pdfBuffer = await downloadInvoicePdf(Number(company_id), Number(freee_invoice_id), due_date, memo, payment_bank_info, tax_entry_method, line_items || undefined)
     
     if (!pdfBuffer || pdfBuffer.length === 0) {
       console.error(`❌ PDF buffer is empty`)
@@ -476,13 +520,18 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
     if (error.message?.includes('No valid access token')) {
       return res.status(401).json({ error: 'Not authenticated. Please authenticate first.' })
     }
-    
-    if (error.message?.includes('freee PDF download error')) {
-      const statusMatch = error.message.match(/error: (\d+)/)
-      const status = statusMatch ? parseInt(statusMatch[1]) : 500
+
+    if (error.message?.includes('FREEE_REAUTH_REQUIRED')) {
+      return res.status(401).json({ error: 'freee re-authentication required. Please authenticate again.' })
+    }
+
+    // freeeClient가 실제로 던지는 문자열: "Failed to fetch invoice: <status>"
+    const fetchMatch = error.message?.match(/Failed to fetch invoice: (\d+)/)
+    if (fetchMatch) {
+      const status = parseInt(fetchMatch[1], 10)
       return res.status(status).json({ error: error.message })
     }
-    
+
     res.status(500).json({ error: error.message || 'Failed to download PDF' })
   }
 })

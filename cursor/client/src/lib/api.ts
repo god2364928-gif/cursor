@@ -52,7 +52,16 @@ api.interceptors.response.use(
   (error) => {
     // Only redirect to login if already authenticated and token expired
     // Don't redirect during login attempts
-    if (error.response?.status === 401 && localStorage.getItem('token') && !error.config?.url?.includes('/login')) {
+    // freee 연동 엔드포인트(/invoices/*, /receipts/*)의 401은 앱 세션 만료가 아니라
+    // freee 재인증이 필요하다는 뜻이므로 앱을 로그아웃시키지 않는다.
+    const url = error.config?.url || ''
+    const isFreeeEndpoint = url.includes('/invoices/') || url.includes('/receipts/')
+    if (
+      error.response?.status === 401 &&
+      localStorage.getItem('token') &&
+      !url.includes('/login') &&
+      !isFreeeEndpoint
+    ) {
       localStorage.removeItem('token')
       window.location.href = '/login'
     }
@@ -96,9 +105,10 @@ export const invoiceAPI = {
   createInvoice: (data: any) => api.post('/invoices/create', data),
   
   // PDF 다운로드 (invoice DB id 사용)
-  downloadPdf: (invoiceDbId: string | number) => 
-    api.get(`/invoices/${invoiceDbId}/pdf`, { 
-      responseType: 'blob' 
+  downloadPdf: (invoiceDbId: string | number) =>
+    api.get(`/invoices/${invoiceDbId}/pdf`, {
+      responseType: 'blob',
+      timeout: 90000  // 서버 PDF 생성(Puppeteer)이 오래 걸릴 수 있음. 초과 시 무한 대기 대신 에러로 처리
     }),
   
   // 청구서 취소

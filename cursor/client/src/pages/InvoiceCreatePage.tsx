@@ -323,6 +323,8 @@ export default function InvoiceCreatePage() {
 
   // 실제 발급 처리
   const handleConfirmInvoice = async () => {
+    // 빠른 더블클릭으로 인한 중복 청구서 생성 방지
+    if (isSubmitting) return
     setError('')
     setSuccess('')
     setIsSubmitting(true)
@@ -347,6 +349,18 @@ export default function InvoiceCreatePage() {
 
       setSuccess(language === 'ja' ? `請求書を発行しました (ID: ${invoiceId})` : `청구서가 발행되었습니다 (ID: ${invoiceId})`)
 
+      // dbId가 없으면 PDF 다운로드를 시도하지 않고(잘못된 요청 방지) 안내 메시지로 대체
+      if (!dbId) {
+        setSuccess(language === 'ja'
+          ? `請求書を発行しました (ID: ${invoiceId})。PDFの自動ダウンロードができないため、「請求書管理」からダウンロードしてください。`
+          : `청구서가 발행되었습니다 (ID: ${invoiceId}). PDF 자동 다운로드가 불가능하니 "청구서 관리"에서 다운로드해 주세요.`)
+        setShowPreview(false)
+        setTimeout(() => {
+          navigate('/invoices')
+        }, 2000)
+        return
+      }
+
       // PDF 자동 다운로드 (DB ID 사용)
       try {
         const pdfResponse = await invoiceAPI.downloadPdf(dbId)
@@ -367,7 +381,10 @@ export default function InvoiceCreatePage() {
         window.URL.revokeObjectURL(url)
       } catch (pdfError) {
         console.error('PDF download error:', pdfError)
-        // PDF 다운로드 실패는 무시하고 계속 진행
+        // 청구서는 이미 발행됨 → 조용히 넘어가지 말고 목록에서 재다운로드하도록 안내
+        setSuccess(language === 'ja'
+          ? `請求書を発行しました (ID: ${invoiceId})。PDFの自動ダウンロードに失敗したため、「請求書管理」から再度ダウンロードしてください。`
+          : `청구서가 발행되었습니다 (ID: ${invoiceId}). PDF 자동 다운로드에 실패했으니 "청구서 관리"에서 다시 다운로드해 주세요.`)
       }
 
       // 미리보기 닫기
@@ -926,6 +943,7 @@ export default function InvoiceCreatePage() {
         companyInfo={companyInfo}
         isSubmitting={isSubmitting}
         language={language}
+        error={error}
       />
 
       {/* 제외 거래처 관리 모달 (어드민만) */}

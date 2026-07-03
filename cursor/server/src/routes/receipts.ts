@@ -3,6 +3,7 @@ import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { generateReceiptPdf } from '../utils/pdfGenerator'
 import { sendReceiptNotification } from '../utils/slackClient'
+import { getValidFreeeToken } from '../integrations/freeeClient'
 
 const router = Router()
 
@@ -11,24 +12,18 @@ const router = Router()
  */
 async function getInvoiceDetailsFromFreee(companyId: number, invoiceId: number): Promise<any> {
   try {
-    // freee 토큰 가져오기
-    const tokenResult = await pool.query('SELECT access_token FROM freee_tokens ORDER BY id DESC LIMIT 1')
-    
-    if (tokenResult.rows.length === 0) {
-      console.log('⚠️ No freee token found')
-      return null
-    }
-    
-    const accessToken = tokenResult.rows[0].access_token
+    // freee 유효 토큰 가져오기 (필요 시 자동 갱신, 재인증 필요 시 throw)
+    const accessToken = await getValidFreeeToken()
     const url = `https://api.freee.co.jp/iv/invoices/${invoiceId}?company_id=${companyId}`
-    
+
     console.log(`📋 Fetching invoice details from freee: ${url}`)
-    
+
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(15000),
     })
     
     if (!response.ok) {
@@ -39,7 +34,11 @@ async function getInvoiceDetailsFromFreee(companyId: number, invoiceId: number):
     const data: any = await response.json()
     return data.invoice
   } catch (error: any) {
-    console.error('⚠️ Error fetching invoice from freee:', error.message)
+    if (error?.message === 'FREEE_REAUTH_REQUIRED') {
+      console.error('⚠️ freee re-auth required — cannot fetch invoice details (falling back)')
+    } else {
+      console.error('⚠️ Error fetching invoice from freee:', error.message)
+    }
     return null
   }
 }

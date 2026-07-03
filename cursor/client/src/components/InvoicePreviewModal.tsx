@@ -16,6 +16,7 @@ interface InvoicePreviewModalProps {
   }
   isSubmitting: boolean
   language: 'ja' | 'ko'
+  error?: string
 }
 
 export default function InvoicePreviewModal({
@@ -26,6 +27,7 @@ export default function InvoicePreviewModal({
   companyInfo,
   isSubmitting,
   language,
+  error,
 }: InvoicePreviewModalProps) {
   // ESC 키 처리
   useEffect(() => {
@@ -249,6 +251,11 @@ export default function InvoicePreviewModal({
             </div>
           )}
         </div>
+
+        {/* 발행 실패 에러 (모달 내부에 표시하여 미리보기에 가려지지 않도록) */}
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded mx-6 mb-2">{error}</div>
+        )}
 
         {/* 푸터 버튼 */}
         <div className="sticky bottom-0 bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">

@@ -56,6 +56,7 @@ import { autoMigrateExamScoring } from './migrations/autoMigrateExamScoring'
 import { autoMigrateExamProctorEvents } from './migrations/autoMigrateExamProctorEvents'
 import { autoMigrateAccountingCategories } from './migrations/autoMigrateAccountingCategories'
 import { autoMigratePayrollTransport } from './migrations/autoMigratePayrollTransport'
+import { autoMigrateInvoices } from './migrations/autoMigrateInvoices'
 import { checkDepositEmails, markAsRead } from './services/gmailService'
 import { parseDepositEmail } from './utils/depositParser'
 import { sendDepositNotification } from './utils/slackClient'
@@ -284,6 +285,7 @@ async function startServer() {
   await autoMigratePayrollTransport()       // 월별 급여 교통비(transport) 컬럼 추가
   await autoMigrateExpenseReimbursement()   // 경비 신청·정산 6테이블 (経費精算)
   await autoMigrateExpenseCategoryRelax()    // category CHECK 완화 (신규 카테고리 허용, 앱 계층 검증)
+  await autoMigrateInvoices()  // 청구서 누락 컬럼/BIGINT/line_items 보장
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`)

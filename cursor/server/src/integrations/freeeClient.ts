@@ -18,6 +18,10 @@ let cachedToken: {
   expiresAt: number
 } | null = null
 
+// 동시 갱신 직렬화 (single-flight): 여러 요청이 동시에 refresh를 호출해
+// 서로의 회전 토큰을 무효화하지 않도록 진행 중인 갱신 프라미스를 공유
+let refreshInFlight: Promise<boolean> | null = null
+
 export interface FreeeInvoiceLineItem {
   name: string
   quantity: number
@@ -87,16 +91,26 @@ async function loadTokenFromDB(): Promise<boolean> {
  */
 async function saveTokenToDB(accessToken: string, refreshToken: string, expiresAt: number): Promise<void> {
   try {
-    // 기존 토큰 삭제 후 새로 삽입
-    await pool.query('DELETE FROM freee_tokens')
-    await pool.query(
-      'INSERT INTO freee_tokens (access_token, refresh_token, expires_at) VALUES ($1, $2, $3)',
-      [accessToken, refreshToken, expiresAt]
-    )
-    
-    // 캐시 업데이트
+    // 기존 토큰 삭제 후 새로 삽입 — 단일 트랜잭션으로 원자성 보장
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query('DELETE FROM freee_tokens')
+      await client.query(
+        'INSERT INTO freee_tokens (access_token, refresh_token, expires_at) VALUES ($1, $2, $3)',
+        [accessToken, refreshToken, expiresAt]
+      )
+      await client.query('COMMIT')
+    } catch (e) {
+      await client.query('ROLLBACK')
+      throw e
+    } finally {
+      client.release()
+    }
+
+    // 캐시 업데이트 (커밋 후)
     cachedToken = { accessToken, refreshToken, expiresAt }
-    
+
     console.log('✅ freee token saved to DB')
   } catch (error) {
     console.error('Error saving token to DB:', error)
@@ -141,6 +155,7 @@ export async function exchangeCodeForToken(code: string): Promise<{ success: boo
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
+      signal: AbortSignal.timeout(15000),
     })
 
     if (!response.ok) {
@@ -188,23 +203,35 @@ async function refreshAccessToken(): Promise<boolean> {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
+      signal: AbortSignal.timeout(15000),
     })
 
     if (!response.ok) {
-      console.error('Token refresh failed:', response.status)
+      const body = await response.text()
+      console.error('Token refresh failed:', response.status, body)
+      // 400/401 = invalid_grant (회전/만료된 refresh token) → 복구 불가, 죽은 토큰 제거
+      if (response.status === 400 || response.status === 401) {
+        cachedToken = null
+        try {
+          await pool.query('DELETE FROM freee_tokens')
+        } catch (delErr) {
+          console.error('Error clearing dead token from DB:', delErr)
+        }
+      }
       return false
     }
 
     const data: any = await response.json()
-    
+
     const expiresAt = Date.now() + (data.expires_in * 1000)
-    
+
     // DB에 저장
     await saveTokenToDB(data.access_token, data.refresh_token, expiresAt)
-    
+
     console.log('✅ freee token refreshed and saved successfully')
     return true
   } catch (error) {
+    // 5xx/네트워크/타임아웃 등 일시적 오류 — 토큰 유지, 재시도 가능
     console.error('Token refresh error:', error)
     return false
   }
@@ -227,15 +254,35 @@ async function ensureValidToken(): Promise<string | null> {
     return null
   }
 
-  // 토큰이 5분 이내에 만료되면 갱신
+  // 토큰이 5분 이내에 만료되면 갱신 (single-flight로 동시 갱신 직렬화)
   if (cachedToken.expiresAt - Date.now() < 5 * 60 * 1000) {
-    const refreshed = await refreshAccessToken()
-    if (!refreshed) {
+    let refreshed: boolean
+    if (refreshInFlight) {
+      refreshed = await refreshInFlight
+    } else {
+      try {
+        refreshInFlight = refreshAccessToken()
+        refreshed = await refreshInFlight
+      } finally {
+        refreshInFlight = null
+      }
+    }
+    if (!refreshed || !cachedToken) {
       return null
     }
   }
 
   return cachedToken.accessToken
+}
+
+/**
+ * 유효한 freee 토큰 반환 (인터페이스 계약 §5)
+ * 토큰이 없거나 재인증이 필요하면 Error('FREEE_REAUTH_REQUIRED') throw
+ */
+export async function getValidFreeeToken(): Promise<string> {
+  const t = await ensureValidToken()
+  if (!t) throw new Error('FREEE_REAUTH_REQUIRED')
+  return t
 }
 
 /**
@@ -259,6 +306,7 @@ async function callFreeeAPI(endpoint: string, options: RequestInit = {}): Promis
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -290,6 +338,7 @@ export async function getCompanies(): Promise<any> {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -319,6 +368,7 @@ export async function getInvoiceTemplates(companyId: number): Promise<any> {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -358,6 +408,7 @@ export async function getPartners(companyId: number, keyword?: string): Promise<
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(15000),
     })
 
     if (!response.ok) {
@@ -383,6 +434,7 @@ export async function getPartners(companyId: number, keyword?: string): Promise<
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(15000),
     })
 
     if (!response.ok) {
@@ -453,6 +505,7 @@ export async function createPartner(companyId: number, partnerName: string): Pro
       name: partnerName,
       // code는 보내지 않음 - freee가 자동으로 관리
     }),
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -581,11 +634,11 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
 
   const partnerName = invoiceData.partner_name + (invoiceData.partner_title || '')
   
-  // 청구서 번호 자동 생성 (YYYYMMDDHHMM 형식, 한국시간 KST, 분까지만)
+  // 청구서 번호 자동 생성 (YYYYMMDDHHMMSS 형식, 한국시간 KST, 초까지 — 분 단위 충돌 방지)
   const now = new Date()
   const kstOffset = 9 * 60 // KST는 UTC+9
   const kstTime = new Date(now.getTime() + kstOffset * 60 * 1000)
-  const invoiceNumber = kstTime.toISOString().replace(/[-:T]/g, '').slice(0, 12) // YYYYMMDDHHmm
+  const invoiceNumber = kstTime.toISOString().replace(/[-:T]/g, '').slice(0, 14) // YYYYMMDDHHMMSS
   
   // freee請求書 API 페이로드 (공식 스펙에 따라 필수 필드 포함)
   const freeePayload: any = {
@@ -597,13 +650,13 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
     billing_date: invoiceData.invoice_date,  // 필수: 청구일
     due_date: invoiceData.due_date,
     tax_entry_method: invoiceData.tax_entry_method === 'inclusive' ? 'in' : 'out',  // 필수: in/out
-    tax_fraction: 'round',  // 필수: 세금 단수 처리 (round/floor/ceil)
+    tax_fraction: 'floor',  // 필수: 세금 단수 처리 — 앱/PDF(현행 floor)와 통일
     withholding_tax_entry_method: invoiceData.tax_entry_method === 'inclusive' ? 'in' : 'out',  // 필수: 원천징수 표시 방법 (tax_entry_method와 동일해야 함)
     lines: invoiceData.invoice_contents.map((item) => ({  // 필수: lines (invoice_contents 대신)
       description: item.name,
       quantity: String(item.quantity),  // 문자열로 변환
       unit_price: String(item.unit_price),  // 문자열로 변환
-      tax_rate: item.tax_rate || 10,  // 세율 (0, 8, 10)
+      tax_rate: item.tax_rate ?? 10,  // 세율 (0, 8, 10) — 0% 라인 보존을 위해 ??
     })),
   }
 
@@ -633,6 +686,7 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(freeePayload),
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -655,7 +709,7 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
  * 청구서 PDF 다운로드 (freee請求書 API)
  * freee 請求書 API는 /reports/ 경로를 사용
  */
-export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string, memoFromDb?: string, paymentBankInfoFromDb?: string, taxEntryMethodFromDb?: string): Promise<Buffer> {
+export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string, memoFromDb?: string, paymentBankInfoFromDb?: string, taxEntryMethodFromDb?: string, fallbackLines?: Array<{ description: string; quantity: number; unit_price: number; tax_rate: number }>): Promise<Buffer> {
   console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}, memo=${memoFromDb ? 'present' : 'none'}, payment_info=${paymentBankInfoFromDb ? 'custom' : 'default'}, tax_entry_method=${taxEntryMethodFromDb}`)
 
   const token = await ensureValidToken()
@@ -672,6 +726,7 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
     headers: {
       Authorization: `Bearer ${token}`,
     },
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!detailResponse.ok) {
@@ -683,7 +738,10 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
   const data: any = await detailResponse.json()
   const invoice = data.invoice
 
-  console.log(`📋 Invoice: ${invoice.invoice_number}`)
+  console.log(`📋 Invoice: ${invoice?.invoice_number}`)
+
+  // freee 상세조회에 lines가 있으면 그 값, 없으면 DB 저장 품목(fallbackLines)으로 폴백
+  const rawLines = (invoice?.lines && invoice.lines.length > 0) ? invoice.lines : (fallbackLines ?? [])
 
   // 2단계: 청구서 데이터로 직접 PDF 생성
   console.log(`📄 Step 2: Generating PDF from invoice data...`)
@@ -705,12 +763,12 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
       due_date: dueDateFromDb || invoice.due_date,
       total_amount: invoice.total_amount,
       amount_tax: invoice.amount_tax,
-      amount_excluding_tax: invoice.amount_excluding_tax || invoice.total_amount - invoice.amount_tax,
-      lines: invoice.lines.map((line: any) => ({
-        description: line.description,
-        quantity: parseFloat(line.quantity),
-        unit_price: parseFloat(line.unit_price),
-        tax_rate: line.tax_rate,
+      amount_excluding_tax: invoice.amount_excluding_tax ?? (Number(invoice.total_amount || 0) - Number(invoice.amount_tax || 0)),
+      lines: rawLines.map((l: any) => ({
+        description: String(l.description ?? ''),
+        quantity: Number(l.quantity) || 0,
+        unit_price: Number(l.unit_price) || 0,
+        tax_rate: Number(l.tax_rate) || 10,
       })),
       payment_bank_info: paymentInfo,  // DB의 payment_bank_info 사용
       invoice_registration_number: invoice.template?.invoice_registration_number || 'T5013301050765',
@@ -855,6 +913,7 @@ export async function createReceipt(receiptData: FreeeReceiptRequest): Promise<a
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(freeePayload),
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -920,6 +979,7 @@ export async function getDefaultCompanyId(): Promise<number> {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -973,6 +1033,7 @@ export async function uploadReceiptToFileBox(
       // Content-Type 미지정 — undici가 boundary 포함 multipart 헤더 설정
     },
     body: fd,
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -1016,6 +1077,7 @@ export async function getReceipt(
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -1052,6 +1114,7 @@ export async function getAccountItems(
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -1087,6 +1150,7 @@ export async function getCompanyTaxes(
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {
@@ -1155,6 +1219,7 @@ export async function createExpenseDeal(params: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15000),
   })
 
   if (!response.ok) {

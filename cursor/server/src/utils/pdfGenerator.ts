@@ -2,6 +2,14 @@ import puppeteer from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
 import fs from 'fs'
 
+function esc(v: unknown): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 async function launchBrowser() {
   if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) {
     console.log('☁️ Railway detected — using @sparticuz/chromium')
@@ -391,13 +399,15 @@ function generateInvoiceHtml(data: InvoiceData): string {
   // 세율별 금액 계산
   const taxRateGroups: { [key: number]: { subtotal: number; tax: number; taxExcluding: number } } = {}
   
-  data.lines.forEach((line) => {
-    const lineSubtotal = line.quantity * line.unit_price
-    const taxRate = line.tax_rate || 10  // 기본값 10%
-    
+  ;(data.lines ?? []).forEach((line) => {
+    const qty = Number(line.quantity) || 0
+    const price = Number(line.unit_price) || 0
+    const lineSubtotal = qty * price
+    const taxRate = Number(line.tax_rate) || 10  // 기본값 10% (비숫자/freee enum 문자열 방어)
+
     let lineTax: number
     let lineTaxExcluding: number
-    
+
     if (isInclusive) {
       // 내세: 입력 금액에서 세금을 역산 (세금 포함 가격 / 1.1 * 0.1)
       lineTax = Math.floor(lineSubtotal * taxRate / (100 + taxRate))
@@ -648,7 +658,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
   <div class="title">請求書</div>
   
   <div class="header">
-    <div class="partner-name">${data.partner_name} ${data.partner_title}</div>
+    <div class="partner-name">${esc(data.partner_name)} ${esc(data.partner_title)}</div>
     <div class="header-right">
       <div class="header-right-row">
         <span class="header-right-label">請求日</span>
@@ -656,15 +666,15 @@ function generateInvoiceHtml(data: InvoiceData): string {
       </div>
       <div class="header-right-row">
         <span class="header-right-label">請求書番号</span>
-        <span class="header-right-value">${data.invoice_number}</span>
+        <span class="header-right-value">${esc(data.invoice_number)}</span>
       </div>
       <div class="header-right-row">
         <span class="header-right-label">登録番号</span>
-        <span class="header-right-value">${data.invoice_registration_number || 'T5013301050765'}</span>
+        <span class="header-right-value">${esc(data.invoice_registration_number || 'T5013301050765')}</span>
       </div>
       <div class="company-info">
-        <div style="font-weight: bold; margin-top: 20px;">${data.company_name}</div>
-        <div style="margin-top: 10px;">${data.company_address.replace(/\n/g, '<br>')}</div>
+        <div style="font-weight: bold; margin-top: 20px;">${esc(data.company_name)}</div>
+        <div style="margin-top: 10px;">${esc(data.company_address).replace(/\n/g, '<br>')}</div>
       </div>
     </div>
   </div>
@@ -672,7 +682,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
   <div class="greeting">下記の通りご請求申し上げます。</div>
   
   <div class="subject-line">
-    <strong>件名</strong>　　${data.invoice_title || 'COCOマーケご利用料'}
+    <strong>件名</strong>　　${data.invoice_title ? esc(data.invoice_title) : 'COCOマーケご利用料'}
   </div>
 
   <table class="amount-table">
@@ -693,7 +703,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
       <td class="label" style="width: 12%;">入金期日</td>
       <td class="content" style="width: 38%;">${formatDate(data.due_date) || '&nbsp;'}</td>
       <td class="label" style="width: 12%;">振込先</td>
-      <td class="content" style="width: 38%;">${data.payment_bank_info ? data.payment_bank_info.replace(/\n/g, '<br>') : '&nbsp;'}</td>
+      <td class="content" style="width: 38%;">${data.payment_bank_info ? esc(data.payment_bank_info).replace(/\n/g, '<br>') : '&nbsp;'}</td>
     </tr>
   </table>
 
@@ -707,16 +717,20 @@ function generateInvoiceHtml(data: InvoiceData): string {
       </tr>
     </thead>
     <tbody>
-      ${data.lines
+      ${(data.lines ?? [])
         .map(
-          (line) => `
+          (line) => {
+            const qty = Number(line.quantity) || 0
+            const price = Number(line.unit_price) || 0
+            return `
       <tr>
-        <td class="col-item">${line.description}</td>
-        <td class="col-qty">${line.quantity}</td>
-        <td class="col-price">${line.unit_price.toLocaleString()}</td>
-        <td class="col-amount">${(line.quantity * line.unit_price).toLocaleString()}</td>
+        <td class="col-item">${esc(line.description)}</td>
+        <td class="col-qty">${qty}</td>
+        <td class="col-price">${price.toLocaleString()}</td>
+        <td class="col-amount">${(qty * price).toLocaleString()}</td>
       </tr>
       `
+          }
         )
         .join('')}
       ${emptyRowsHtml}
@@ -729,7 +743,7 @@ function generateInvoiceHtml(data: InvoiceData): string {
 
   <div class="remarks">
     <div class="remarks-header">備考</div>
-    <div class="remarks-box">${data.memo ? data.memo.replace(/\n/g, '<br>') : ''}</div>
+    <div class="remarks-box">${data.memo ? esc(data.memo).replace(/\n/g, '<br>') : ''}</div>
   </div>
 </body>
 </html>
@@ -746,8 +760,12 @@ export async function generateInvoicePdf(invoiceData: InvoiceData): Promise<Buff
 
   try {
     const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
-    await page.evaluateHandle('document.fonts.ready')
+    await page.setContent(html, { waitUntil: 'load', timeout: 20000 })
+    // 폰트 로딩을 기다리되 최대 8초 상한 — 외부 폰트(Google Fonts) 지연/차단 시 무한 대기 방지
+    await Promise.race([
+      page.evaluateHandle('document.fonts.ready'),
+      new Promise((resolve) => setTimeout(resolve, 8000)),
+    ])
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -1142,8 +1160,12 @@ export async function generateQuotePdf(quoteData: QuoteData): Promise<Buffer> {
 
   try {
     const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
-    await page.evaluateHandle('document.fonts.ready')
+    await page.setContent(html, { waitUntil: 'load', timeout: 20000 })
+    // 폰트 로딩을 기다리되 최대 8초 상한 — 외부 폰트(Google Fonts) 지연/차단 시 무한 대기 방지
+    await Promise.race([
+      page.evaluateHandle('document.fonts.ready'),
+      new Promise((resolve) => setTimeout(resolve, 8000)),
+    ])
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -1172,8 +1194,12 @@ export async function generateReceiptPdf(receiptData: ReceiptData): Promise<Buff
 
   try {
     const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
-    await page.evaluateHandle('document.fonts.ready')
+    await page.setContent(html, { waitUntil: 'load', timeout: 20000 })
+    // 폰트 로딩을 기다리되 최대 8초 상한 — 외부 폰트(Google Fonts) 지연/차단 시 무한 대기 방지
+    await Promise.race([
+      page.evaluateHandle('document.fonts.ready'),
+      new Promise((resolve) => setTimeout(resolve, 8000)),
+    ])
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
