@@ -650,7 +650,7 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
     billing_date: invoiceData.invoice_date,  // 필수: 청구일
     due_date: invoiceData.due_date,
     tax_entry_method: invoiceData.tax_entry_method === 'inclusive' ? 'in' : 'out',  // 필수: in/out
-    tax_fraction: 'floor',  // 필수: 세금 단수 처리 — 앱/PDF(현행 floor)와 통일
+    tax_fraction: 'omit',  // 필수: 세금 단수 처리. freee 허용값은 omit(切り捨て=버림)/round_up/round 뿐 — 'floor'는 400 에러. PDF의 Math.floor(버림)와 일치하는 값이 'omit'
     withholding_tax_entry_method: invoiceData.tax_entry_method === 'inclusive' ? 'in' : 'out',  // 필수: 원천징수 표시 방법 (tax_entry_method와 동일해야 함)
     lines: invoiceData.invoice_contents.map((item) => ({  // 필수: lines (invoice_contents 대신)
       description: item.name,
