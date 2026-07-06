@@ -716,6 +716,7 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
   // PDF는 서버에서 로컬 생성(generateInvoicePdf)하므로 freee 조회는 "보강용"이다.
   // 조회가 실패(403/404/네트워크/토큰없음)해도 dbFallback이 있으면 죽지 않고 DB 값으로 PDF를 만든다.
   let invoice: any = null
+  let freeeFetchError: string | null = null
   try {
     const token = await ensureValidToken()
 
@@ -748,12 +749,20 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
     if (!dbFallback) {
       throw fetchErr
     }
-    console.warn(`⚠️ [downloadInvoicePdf] freee 상세조회 실패 → DB 저장값으로 PDF 생성: ${fetchErr.message}`)
+    freeeFetchError = fetchErr.message
+    console.warn(`⚠️ [downloadInvoicePdf] freee 상세조회 실패 → DB 저장 품목으로 폴백 시도: ${fetchErr.message}`)
     invoice = null
   }
 
   // freee 상세조회에 lines가 있으면 그 값, 없으면 DB 저장 품목(fallbackLines)으로 폴백
   const rawLines = (invoice?.lines && invoice.lines.length > 0) ? invoice.lines : (fallbackLines ?? [])
+
+  // ⚠️ 청구서 PDF는 小計·消費税·請求金額·明細을 전부 lines에서 계산한다(total_amount는 무시됨).
+  // 품목이 한 줄도 없으면 = freee 조회 실패 + DB 미저장(07/03 이전 청구서) 또는 freee 빈 응답.
+  // 이 경우 0원 빈 청구서가 조용히 만들어져 오배포되므로, PDF를 만들지 말고 명확히 에러를 낸다.
+  if (rawLines.length === 0) {
+    throw new Error(`청구서 품목(明細)을 가져올 수 없어 PDF를 생성할 수 없습니다. freee 재인증(올바른 사업소 선택)이 필요할 수 있습니다.${freeeFetchError ? ` (freee 오류: ${freeeFetchError})` : ''}`)
+  }
 
   // 2단계: 청구서 데이터로 직접 PDF 생성
   console.log(`📄 Step 2: Generating PDF from invoice data...`)
