@@ -709,36 +709,48 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
  * 청구서 PDF 다운로드 (freee請求書 API)
  * freee 請求書 API는 /reports/ 경로를 사용
  */
-export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string, memoFromDb?: string, paymentBankInfoFromDb?: string, taxEntryMethodFromDb?: string, fallbackLines?: Array<{ description: string; quantity: number; unit_price: number; tax_rate: number }>): Promise<Buffer> {
+export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string, memoFromDb?: string, paymentBankInfoFromDb?: string, taxEntryMethodFromDb?: string, fallbackLines?: Array<{ description: string; quantity: number; unit_price: number; tax_rate: number }>, dbFallback?: { partner_name?: string; invoice_number?: string; billing_date?: string; total_amount?: number; amount_tax?: number }): Promise<Buffer> {
   console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}, memo=${memoFromDb ? 'present' : 'none'}, payment_info=${paymentBankInfoFromDb ? 'custom' : 'default'}, tax_entry_method=${taxEntryMethodFromDb}`)
 
-  const token = await ensureValidToken()
+  // 1단계: freee 청구서 상세 조회.
+  // PDF는 서버에서 로컬 생성(generateInvoicePdf)하므로 freee 조회는 "보강용"이다.
+  // 조회가 실패(403/404/네트워크/토큰없음)해도 dbFallback이 있으면 죽지 않고 DB 값으로 PDF를 만든다.
+  let invoice: any = null
+  try {
+    const token = await ensureValidToken()
 
-  if (!token) {
-    throw new Error('No valid access token. Please authenticate first.')
+    if (!token) {
+      throw new Error('No valid access token. Please authenticate first.')
+    }
+
+    console.log(`📋 Step 1: Fetching invoice details...`)
+    const detailUrl = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}?company_id=${companyId}`
+
+    const detailResponse = await fetch(detailUrl, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      signal: AbortSignal.timeout(15000),
+    })
+
+    if (!detailResponse.ok) {
+      const errorText = await detailResponse.text()
+      console.error(`❌ Failed to fetch invoice: ${detailResponse.status}`, errorText)
+      // errorText를 메시지에 포함 → 상위/로그에서 freee 실제 사유 확인 가능 (regex는 상태코드만 캡처)
+      throw new Error(`Failed to fetch invoice: ${detailResponse.status} ${errorText}`)
+    }
+
+    const data: any = await detailResponse.json()
+    invoice = data.invoice
+    console.log(`📋 Invoice: ${invoice?.invoice_number}`)
+  } catch (fetchErr: any) {
+    // 폴백 정보가 없으면(예: 영수증 경로) 기존 동작 유지 — 상위 라우트가 상태코드로 매핑
+    if (!dbFallback) {
+      throw fetchErr
+    }
+    console.warn(`⚠️ [downloadInvoicePdf] freee 상세조회 실패 → DB 저장값으로 PDF 생성: ${fetchErr.message}`)
+    invoice = null
   }
-
-  // 1단계: 청구서 상세 조회
-  console.log(`📋 Step 1: Fetching invoice details...`)
-  const detailUrl = `${FREEE_INVOICE_API_BASE}/invoices/${invoiceId}?company_id=${companyId}`
-  
-  const detailResponse = await fetch(detailUrl, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    signal: AbortSignal.timeout(15000),
-  })
-
-  if (!detailResponse.ok) {
-    const errorText = await detailResponse.text()
-    console.error(`❌ Failed to fetch invoice: ${detailResponse.status}`, errorText)
-    throw new Error(`Failed to fetch invoice: ${detailResponse.status}`)
-  }
-
-  const data: any = await detailResponse.json()
-  const invoice = data.invoice
-
-  console.log(`📋 Invoice: ${invoice?.invoice_number}`)
 
   // freee 상세조회에 lines가 있으면 그 값, 없으면 DB 저장 품목(fallbackLines)으로 폴백
   const rawLines = (invoice?.lines && invoice.lines.length > 0) ? invoice.lines : (fallbackLines ?? [])
@@ -749,21 +761,26 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
   try {
     // DB의 payment_bank_info 우선 사용, 없으면 기본값
     const defaultPaymentInfo = '三井住友銀行\nトランクＮＯＲＴＨ支店（403）\n普通　0122078\n(株) ホットセラー'
-    const paymentInfo = paymentBankInfoFromDb || invoice.bank_account_to_transfer || defaultPaymentInfo
-    
+    const paymentInfo = paymentBankInfoFromDb || invoice?.bank_account_to_transfer || defaultPaymentInfo
+
     console.log(`💳 Using payment info: ${paymentInfo.substring(0, 30)}...`)
 
+    // freee 상세(invoice)가 있으면 그 값, 없으면(조회 실패) DB 저장값(dbFallback)을 사용
+    const totalAmount = invoice ? invoice.total_amount : (dbFallback?.total_amount ?? 0)
+    const amountTax = invoice ? invoice.amount_tax : (dbFallback?.amount_tax ?? 0)
+
     const pdfBuffer = await generateInvoicePdf({
-      invoice_number: invoice.invoice_number,
-      company_name: invoice.company_name || '株式会社ホットセラー',
-      company_address: invoice.company_description || '〒104-0053\n東京都中央区晴海一丁目8番10号\n晴海アイランドトリトンスクエア\nオフィスタワーX棟8階',
-      partner_name: invoice.partner_display_name || invoice.partner_name,
-      partner_title: invoice.partner_title || '御中',
-      billing_date: invoice.billing_date,
-      due_date: dueDateFromDb || invoice.due_date,
-      total_amount: invoice.total_amount,
-      amount_tax: invoice.amount_tax,
-      amount_excluding_tax: invoice.amount_excluding_tax ?? (Number(invoice.total_amount || 0) - Number(invoice.amount_tax || 0)),
+      invoice_number: invoice ? invoice.invoice_number : (dbFallback?.invoice_number || ''),
+      company_name: invoice?.company_name || '株式会社ホットセラー',
+      company_address: invoice?.company_description || '〒104-0053\n東京都中央区晴海一丁目8番10号\n晴海アイランドトリトンスクエア\nオフィスタワーX棟8階',
+      // DB partner_name에는 이미 敬称(御中 등)이 포함되어 저장되므로, 폴백 시 partner_title은 비워 중복 방지
+      partner_name: invoice ? (invoice.partner_display_name || invoice.partner_name) : (dbFallback?.partner_name || ''),
+      partner_title: invoice ? (invoice.partner_title || '御中') : '',
+      billing_date: invoice ? invoice.billing_date : (dbFallback?.billing_date || ''),
+      due_date: dueDateFromDb || invoice?.due_date || '',
+      total_amount: totalAmount,
+      amount_tax: amountTax,
+      amount_excluding_tax: invoice?.amount_excluding_tax ?? (Number(totalAmount || 0) - Number(amountTax || 0)),
       lines: rawLines.map((l: any) => ({
         description: String(l.description ?? ''),
         quantity: Number(l.quantity) || 0,
@@ -771,10 +788,10 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
         tax_rate: Number(l.tax_rate) || 10,
       })),
       payment_bank_info: paymentInfo,  // DB의 payment_bank_info 사용
-      invoice_registration_number: invoice.template?.invoice_registration_number || 'T5013301050765',
+      invoice_registration_number: invoice?.template?.invoice_registration_number || 'T5013301050765',
       memo: memoFromDb || '',  // DB의 memo 사용
       tax_entry_method: (taxEntryMethodFromDb === 'inclusive' ? 'inclusive' : 'exclusive') as 'inclusive' | 'exclusive',  // DB의 tax_entry_method 사용 (기본값: 외세)
-      invoice_title: invoice.invoice_title || invoice.title,  // 件名 (freee 응답값, 없으면 PDF에서 기본 문구로 fallback)
+      invoice_title: invoice?.invoice_title || invoice?.title,  // 件名 (freee 응답값, 없으면 PDF에서 기본 문구로 fallback)
     })
 
     console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`)

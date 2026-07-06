@@ -226,6 +226,21 @@ export default function InvoicePage() {
     }
   }
 
+  // responseType:'blob' 요청의 에러는 error.response.data가 Blob이라 .error로 못 읽는다.
+  // Blob이면 텍스트로 풀어 서버가 준 { error } 메시지를 꺼낸다. (없으면 error.message)
+  const extractServerError = async (error: any): Promise<string> => {
+    const data = error?.response?.data
+    try {
+      if (data instanceof Blob) {
+        const text = await data.text()
+        try { return JSON.parse(text)?.error || text || error.message } catch { return text || error.message }
+      }
+      return data?.error || error.message
+    } catch {
+      return error.message
+    }
+  }
+
   const handleDownloadPdf = async (invoice: FreeeInvoice) => {
     try {
       console.log('📥 Downloading PDF for invoice:', invoice.id, invoice.freee_invoice_id)
@@ -254,7 +269,8 @@ export default function InvoicePage() {
         response: error.response?.data,
         status: error.response?.status
       })
-      setError(language === 'ja' ? `PDFのダウンロードに失敗しました: ${error.response?.data?.error || error.message}` : `PDF 다운로드 실패: ${error.response?.data?.error || error.message}`)
+      const serverMsg = await extractServerError(error)
+      setError(language === 'ja' ? `PDFのダウンロードに失敗しました: ${serverMsg}` : `PDF 다운로드 실패: ${serverMsg}`)
     }
   }
 
@@ -281,7 +297,8 @@ export default function InvoicePage() {
       window.URL.revokeObjectURL(url)
     } catch (error: any) {
       console.error('Receipt PDF download error:', error)
-      setError(language === 'ja' ? '領収書PDFのダウンロードに失敗しました' : '영수증 PDF 다운로드 실패')
+      const serverMsg = await extractServerError(error)
+      setError(language === 'ja' ? `領収書PDFのダウンロードに失敗しました: ${serverMsg}` : `영수증 PDF 다운로드 실패: ${serverMsg}`)
     }
   }
 

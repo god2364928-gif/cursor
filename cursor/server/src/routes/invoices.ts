@@ -481,15 +481,16 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
 
     console.log(`📥 [PDF Download] Request for invoice ID: ${id} by user: ${userId}`)
 
-    // DB에서 청구서 조회하여 freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items 가져오기
-    const result = await pool.query('SELECT freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items FROM invoices WHERE id = $1', [id])
+    // DB에서 청구서 조회. freee 조회 실패 시 PDF를 DB 값만으로 생성하기 위해
+    // partner_name/invoice_number/invoice_date/total_amount/tax_amount도 함께 가져온다.
+    const result = await pool.query('SELECT freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items, partner_name, invoice_number, invoice_date, total_amount, tax_amount FROM invoices WHERE id = $1', [id])
 
     if (result.rows.length === 0) {
       console.error(`❌ Invoice not found in DB: ${id}`)
       return res.status(404).json({ error: 'Invoice not found' })
     }
 
-    const { freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items } = result.rows[0]
+    const { freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items, partner_name, invoice_number, invoice_date, total_amount, tax_amount } = result.rows[0]
 
     console.log(`📋 Invoice details: freee_id=${freee_invoice_id}, company_id=${company_id}, due_date=${due_date}, payment_info=${payment_bank_info ? 'present' : 'default'}, tax_entry_method=${tax_entry_method}`)
 
@@ -500,7 +501,13 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
 
     console.log(`📥 Calling downloadInvoicePdf with company_id=${company_id}, invoice_id=${freee_invoice_id}, memo=${memo ? 'present' : 'none'}, payment_info=${payment_bank_info ? 'custom' : 'default'}, tax_entry_method=${tax_entry_method}`)
 
-    const pdfBuffer = await downloadInvoicePdf(Number(company_id), Number(freee_invoice_id), due_date, memo, payment_bank_info, tax_entry_method, line_items || undefined)
+    const pdfBuffer = await downloadInvoicePdf(Number(company_id), Number(freee_invoice_id), due_date, memo, payment_bank_info, tax_entry_method, line_items || undefined, {
+      partner_name,
+      invoice_number,
+      billing_date: invoice_date || undefined,  // due_date와 동일하게 pg 원본값 전달 (generateInvoicePdf가 포맷) — toISOString 변환은 타임존 하루 밀림 위험
+      total_amount: total_amount != null ? Number(total_amount) : undefined,
+      amount_tax: tax_amount != null ? Number(tax_amount) : undefined,
+    })
     
     if (!pdfBuffer || pdfBuffer.length === 0) {
       console.error(`❌ PDF buffer is empty`)
