@@ -24,7 +24,7 @@ export default function BulkAssignModal({ onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // 배정 대상: 마케터 + 사무보조(office_assistant)
+  // 배정 대상: 어드민 + 마케터 + 사무보조(office_assistant)
   useEffect(() => {
     const fetchAssignees = async () => {
       try {

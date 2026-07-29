@@ -6,7 +6,9 @@ import csv from 'csv-parser'
 import { Readable } from 'stream'
 
 const router = Router()
-const ACTIVE_OPERATOR_ROLES = ['marketer', 'office_assistant']
+// 문의 배정을 실제로 수행하는 역할.
+// 어드민도 오전 문의 배정 업무를 직접 담당하므로 배정 대상에 포함한다.
+const ACTIVE_OPERATOR_ROLES = ['admin', 'marketer', 'office_assistant']
 
 // Multer configuration for CSV upload
 const upload = multer({ 
@@ -410,29 +412,24 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 /**
  * 담당자 목록 조회
  * GET /api/inquiry-leads/assignees
- * ?marketersOnly=true 로 마케터만 조회 (일괄 배정용)
- * ?operatorsOnly=true 로 마케터 + 사무보조 조회 (필터 옵션용)
+ * ?marketersOnly=true 로 마케터만 조회
+ * ?operatorsOnly=true 는 기본값과 동일 (어드민 + 마케터 + 사무보조) — 하위호환용
  */
 router.get('/assignees', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const marketersOnly = req.query.marketersOnly === 'true'
-    const operatorsOnly = req.query.operatorsOnly === 'true'
 
-    const roleClause = marketersOnly
-      ? "AND role = 'marketer'"
-      : operatorsOnly
-        ? "AND role IN ('marketer', 'office_assistant')"
-        : ''
+    const roleClause = marketersOnly ? "AND role = 'marketer'" : ''
 
-    // 담당자 옵션은 입사중인 마케터/사무보조만 노출한다.
+    // 담당자 옵션은 입사중인 배정 담당 역할(어드민/마케터/사무보조)만 노출한다.
     const result = await pool.query(`
       SELECT id, name, team, role
       FROM users
-      WHERE role != 'admin'
+      WHERE role = ANY($1)
         AND employment_status = '입사중'
       ${roleClause}
       ORDER BY name
-    `)
+    `, [ACTIVE_OPERATOR_ROLES])
 
     res.json(result.rows.map(row => ({
       id: row.id,

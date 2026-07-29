@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import { useI18nStore } from '../i18n'
@@ -95,15 +95,28 @@ export default function InquiryLeadsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [uploading, setUploading] = useState(false)
 
+  // 담당자 필터 기본값은 최초 1회만 설정한다 (이후 사용자가 고른 필터를 덮어쓰지 않도록)
+  const defaultAssigneeApplied = useRef(false)
+
   // Fetch stats
   const fetchStats = useCallback(async () => {
     try {
       const response = await api.get('/inquiry-leads/stats')
       setStats(response.data)
+
+      // 어드민은 기본이 전체 보기지만, 본인에게 배정된 건이 있는 어드민(= 직접 배정 업무를 하는 경우)은
+      // 마케터와 동일하게 담당자 필터를 본인으로 기본 설정한다.
+      if (!defaultAssigneeApplied.current && user?.role === 'admin' && user?.id) {
+        defaultAssigneeApplied.current = true
+        const rows: { id: string }[] = response.data?.assigneeStats ?? []
+        if (rows.some(r => r.id === user.id)) {
+          setAssigneeFilter(user.id)
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch stats:', error)
     }
-  }, [])
+  }, [user])
 
   // Fetch leads
   const fetchLeads = useCallback(async (page = 1) => {
@@ -128,7 +141,7 @@ export default function InquiryLeadsPage() {
     }
   }, [assigneeFilter, statusFilter, prefectureFilter, searchQuery, showToast])
 
-  // Fetch assignees (마케터 + 사무보조 — 담당자 필터 옵션)
+  // Fetch assignees (어드민 + 마케터 + 사무보조 — 담당자 필터 옵션)
   const fetchAssignees = useCallback(async () => {
     try {
       const response = await api.get('/inquiry-leads/assignees?operatorsOnly=true')
