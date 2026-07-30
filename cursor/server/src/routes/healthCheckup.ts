@@ -3,6 +3,7 @@ import multer from 'multer'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireAppAccess } from '../middleware/requireAppAccess'
+import { hireDateSql } from '../lib/employment'
 
 const router = Router()
 router.use(authMiddleware, requireAppAccess('erp'))
@@ -77,11 +78,15 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id
     const userInfo = await pool.query(
-      `SELECT contract_start_date, employment_status FROM users WHERE id = $1`,
+      // 입사일 정본은 hire_date 이고 contract_start_date(계약 시작일)는 폴백이다.
+      // 기존에는 contract_start_date 만 봤는데 이 컬럼은 전 직원이 비어 있어서
+      // "입사 후 6개월" 규칙과 1회차 수검 마감 안내가 전원 무력화돼 있었다
+      // (클라이언트가 입사일 없음 → 일반 안내 폴백으로 떨어짐).
+      `SELECT ${hireDateSql()} AS hire_date, employment_status FROM users WHERE id = $1`,
       [userId]
     )
-    const hireDate: string | null = userInfo.rows[0]?.contract_start_date
-      ? new Date(userInfo.rows[0].contract_start_date).toISOString().slice(0, 10)
+    const hireDate: string | null = userInfo.rows[0]?.hire_date
+      ? new Date(userInfo.rows[0].hire_date).toISOString().slice(0, 10)
       : null
 
     const latest = await pool.query(

@@ -2,6 +2,7 @@ import { pool } from '../db'
 import { fetchFirstOutCalls } from '../integrations/cpiClient'
 import { formatPhoneNumber } from '../utils/nullSafe'
 import { getJSTTodayString } from '../utils/dateHelper'
+import { activeEmploymentSql } from '../lib/employment'
 
 // CPI created_at은 KST 형식 문자열(예: 2025-11-07T11:13:25.xxx)로 반환됨.
 // 타임존 오프셋을 추가하지 않고 'YYYY-MM-DD'만 안정적으로 추출한다.
@@ -56,7 +57,7 @@ export async function importRecentCalls(since: Date, until: Date): Promise<{ ins
            INNER JOIN users u ON st.user_id = u.id
            WHERE st.external_source = 'cpi'
              AND regexp_replace(st.phone, '[^0-9]', '', 'g') = $1
-             AND COALESCE(u.employment_status, '입사중') != '퇴사'
+             AND ${activeEmploymentSql('u.employment_status')}
            LIMIT 1`,
           [rawPhoneDigits]
         )

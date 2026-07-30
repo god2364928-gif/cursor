@@ -5,6 +5,8 @@ import { adminOnly } from '../middleware/adminOnly'
 import fs from 'fs'
 import path from 'path'
 import { expiryDate, calcServiceYearsAtGrant, calcBalance, calcMandatoryStatus, calcConsumedDays, type GrantType, type LeaveType } from '../lib/vacation'
+import { activeEmploymentSql, hireDateSql } from '../lib/employment'
+import { runVacationGrantCheck } from '../services/vacationCron'
 import { sendVacationNotification } from '../utils/slackClient'
 import { getUserIdSqlType, buildVacationSchemaSql } from '../migrations/autoMigrate'
 
@@ -523,18 +525,21 @@ router.delete('/grants/:id', async (req: AuthRequest, res: Response) => {
 })
 
 /** 직원별 잔여 요약 (부여 관리 페이지의 직원 리스트용)
- * - 퇴사자 (employment_status: 退社/退職/퇴사/퇴직) 제외
+ * - 재직 판정은 lib/employment 표준을 따른다 (퇴사·입사전 제외)
  * - 의무 5일 취득 상태 포함
+ *
+ * 입사일이 비어 있어도 목록에 포함한다. 과거에는 `hire_date IS NOT NULL` 로 걸러서
+ * 입사일 미등록 직원이 화면에서 통째로 사라졌고(= 연차 자동부여도 함께 누락됐다),
+ * 관리자가 그 사실을 인지할 방법이 없었다. 숨기지 말고 노출해 수정을 유도한다.
  */
 router.get('/summary', async (req: AuthRequest, res: Response) => {
   try {
     const usersResult = await pool.query(`
-      SELECT id, name, email, department, team, hire_date, employment_status
+      SELECT id, name, email, department, team,
+             ${hireDateSql()} AS hire_date, employment_status
       FROM users
-      WHERE hire_date IS NOT NULL
-        AND (employment_status IS NULL
-             OR employment_status NOT IN ('退社', '退職', '퇴사', '퇴직'))
-      ORDER BY department NULLS LAST, hire_date DESC
+      WHERE ${activeEmploymentSql('employment_status')}
+      ORDER BY department NULLS LAST, ${hireDateSql()} DESC NULLS LAST
     `)
     if (usersResult.rows.length === 0) {
       return res.json([])
@@ -592,6 +597,46 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('admin summary error:', error.message)
     res.status(500).json({ error: '집계 실패' })
+  }
+})
+
+/** 연차 자동부여 수동 실행 (어드민)
+ * POST /api/admin/vacation/run-grant-check
+ *
+ * 크론(24시간 주기)은 1회 실행에서 사용자당 **한 회차**만 부여한다. 입사일이 뒤늦게
+ * 등록된 직원은 소급 부여가 여러 회차 필요해 정상화까지 며칠이 걸리므로, 더 부여할 것이
+ * 없어질 때까지 반복 실행하는 관리자용 통로를 둔다.
+ *
+ * 중복 부여는 planAnnualGrant 가 마지막 부여일을 기준으로 다음 부여일을 계산하므로
+ * 발생하지 않는다. 여러 번 호출해도 안전하다.
+ */
+router.post('/run-grant-check', async (req: AuthRequest, res: Response) => {
+  const MAX_PASSES = 20
+  try {
+    const passes: number[] = []
+    let totalGranted = 0
+
+    for (let i = 0; i < MAX_PASSES; i++) {
+      const { granted } = await runVacationGrantCheck()
+      passes.push(granted)
+      totalGranted += granted
+      if (granted === 0) break
+    }
+
+    const exhausted = passes.length === MAX_PASSES && passes[passes.length - 1] > 0
+    res.json({
+      success: true,
+      totalGranted,
+      passes,
+      // 상한에 걸렸다면 아직 소급이 남아 있다 → 한 번 더 호출해야 한다
+      exhausted,
+      message: exhausted
+        ? `${totalGranted}건 부여. 반복 상한(${MAX_PASSES}회)에 도달해 아직 남아 있을 수 있습니다 — 한 번 더 실행해주세요.`
+        : `${totalGranted}건 부여 완료.`,
+    })
+  } catch (error: any) {
+    console.error('manual grant check error:', error.message)
+    res.status(500).json({ error: '연차 부여 실행 실패' })
   }
 })
 

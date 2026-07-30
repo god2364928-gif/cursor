@@ -1,6 +1,7 @@
 import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { activeEmploymentSql } from '../lib/employment'
 import multer from 'multer'
 import csv from 'csv-parser'
 import { Readable } from 'stream'
@@ -69,7 +70,7 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
       FROM users u
       LEFT JOIN inquiry_leads il ON u.id = il.assignee_id
       WHERE u.role = ANY($1)
-        AND u.employment_status = '입사중'
+        AND ${activeEmploymentSql('u.employment_status', { excludeOnLeave: true })}
       GROUP BY u.id, u.name
       HAVING COUNT(il.id) > 0
       ORDER BY u.name
@@ -299,7 +300,7 @@ router.post('/bulk-assign', authMiddleware, async (req: AuthRequest, res: Respon
       FROM users
       WHERE id = $1
         AND role = ANY($2)
-        AND employment_status = '입사중'
+        AND ${activeEmploymentSql('employment_status', { excludeOnLeave: true })}
     `, [assigneeId, ACTIVE_OPERATOR_ROLES])
     if (userResult.rows.length === 0) {
       return res.status(404).json({ message: 'User not found' })
@@ -426,7 +427,7 @@ router.get('/assignees', authMiddleware, async (req: AuthRequest, res: Response)
       SELECT id, name, team, role
       FROM users
       WHERE role = ANY($1)
-        AND employment_status = '입사중'
+        AND ${activeEmploymentSql('employment_status', { excludeOnLeave: true })}
       ${roleClause}
       ORDER BY name
     `, [ACTIVE_OPERATOR_ROLES])

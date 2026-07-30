@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { pool } from '../db'
 import { planAnnualGrant, expiryDate, calcServiceYearsAtGrant } from '../lib/vacation'
+import { activeEmploymentSql, hireDateSql } from '../lib/employment'
 
 /** 일본 공휴일 시드 데이터 로딩 (startup 시 1번) */
 export async function seedJpHolidaysIfEmpty(): Promise<void> {
@@ -32,16 +33,15 @@ export async function runVacationGrantCheck(): Promise<{ granted: number; skippe
   let skipped = 0
 
   try {
-    // 재직 중 + 입사일 있는 사용자만
+    // 재직 중 + 입사일 있는 사용자만.
+    // 휴직자는 제외하지 않는다 — 휴직 기간에도 연차는 발생한다.
+    // 입사일이 비어 있으면 부여일을 계산할 수 없어 불가피하게 건너뛴다 (관리자가
+    // 휴가 부여 관리 화면에서 입사일 미등록자를 확인할 수 있다).
     const usersResult = await pool.query(`
-      SELECT id, hire_date, employment_status
+      SELECT id, ${hireDateSql()} AS hire_date, employment_status
       FROM users
-      WHERE hire_date IS NOT NULL
-        AND (employment_status IS NULL
-             OR employment_status = ''
-             OR employment_status = '입사중'
-             OR employment_status = '在籍中'
-             OR employment_status = '在職中')
+      WHERE ${hireDateSql()} IS NOT NULL
+        AND ${activeEmploymentSql('employment_status')}
     `)
 
     const today = new Date()

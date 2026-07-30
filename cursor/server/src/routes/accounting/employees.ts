@@ -8,6 +8,9 @@ import { decodeFileName } from '../../utils/fileHelper'
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage() })
 
+// 직원관리 목록은 퇴사자까지 모두 보여주는 관리 화면이다.
+// 기존 `WHERE employment_status IS NOT NULL` 은 입사현황이 비어 있는 계정을 목록에서
+// 숨겨버려, 정작 값을 채워줘야 할 계정이 관리자 눈에 안 보이는 문제가 있었다 → 필터 제거.
 router.get('/employees', authMiddleware, adminOnly, async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(
@@ -18,9 +21,8 @@ router.get('/employees', authMiddleware, adminOnly, async (req: AuthRequest, res
         mart_id, transportation_route, monthly_transportation_cost,
         transportation_start_date, transportation_details,
         hire_date, created_at, updated_at
-       FROM users 
-       WHERE employment_status IS NOT NULL
-       ORDER BY employment_status, hire_date`
+       FROM users
+       ORDER BY employment_status NULLS FIRST, hire_date`
     )
     
     res.json(result.rows.map((r: any) => ({

@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { pool } from '../../db'
 import { authMiddleware, AuthRequest } from '../../middleware/auth'
 import { adminOnly } from '../../middleware/adminOnly'
+import { activeEmploymentSql } from '../../lib/employment'
 
 const router = Router()
 
@@ -55,9 +56,17 @@ router.post('/payroll/generate', authMiddleware, adminOnly, async (req: AuthRequ
       return res.status(400).json({ error: '지급월을 입력해 주세요' })
     }
 
-    // 재직 중인 직원 목록
+    // 재직 중인 직원 목록.
+    //
+    // 이 테이블의 employment_status 는 두 경로로 쓰여 값 도메인이 섞여 있다.
+    //  - 경리 직원 등록(POST /accounting/employees): 컬럼 DEFAULT 인 '재직'
+    //  - 회원관리 저장 시 users 동기화(auth.ts): users 값인 '입사중'/'입사전'/'퇴사'
+    // 기존 `= '재직'` 조건은 동기화가 한 번이라도 돈 행을 전부 놓쳐 급여 생성이
+    // 항상 "등록된 직원이 없습니다" 로 실패했다 → 두 도메인을 함께 인식하는 표준 헬퍼 사용.
     const employeesResult = await pool.query(
-      `SELECT id, name, base_salary, incentive_rate FROM accounting_employees WHERE employment_status = '재직'`
+      `SELECT id, name, base_salary, incentive_rate
+       FROM accounting_employees
+       WHERE ${activeEmploymentSql('employment_status', { excludeOnLeave: true })}`
     )
 
     // 해당 월 매출 합계

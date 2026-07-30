@@ -32,6 +32,14 @@ interface User {
   created_at: string
   last_login_at?: string | null
   employment_status?: string | null
+  hire_date?: string | null
+  department?: string | null
+}
+
+/** PG 가 돌려주는 날짜(ISO 문자열)를 <input type="date"> 가 받는 YYYY-MM-DD 로 변환 */
+function toDateInputValue(value: string | null | undefined): string {
+  if (!value) return ''
+  return String(value).slice(0, 10)
 }
 
 interface UsageRow {
@@ -119,7 +127,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user', employmentStatus: '입사중' })
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user', employmentStatus: '입사중', hireDate: '', department: '' })
   const [savingUser, setSavingUser] = useState(false)
   const [userStatusFilter, setUserStatusFilter] = useState<string>('입사중')
 
@@ -248,13 +256,16 @@ export default function AdminPage() {
       password: '',
       role: u.role,
       employmentStatus: u.employment_status || '입사중',
+      // 기존 값을 반드시 채워 넣는다 — 폼이 보내는 값이 그대로 저장되므로 비워두면 지워진다.
+      hireDate: toDateInputValue(u.hire_date),
+      department: u.department || '',
     })
     setShowAddForm(false)
   }
 
   const cancelEdit = () => {
     setEditingId(null)
-    setFormData({ name: '', email: '', password: '', role: 'user', employmentStatus: '입사중' })
+    setFormData({ name: '', email: '', password: '', role: 'user', employmentStatus: '입사중', hireDate: '', department: '' })
   }
 
   const handleUserSubmit = async (e: React.FormEvent) => {
@@ -765,6 +776,25 @@ export default function AdminPage() {
                         <option value="입사전">입사전</option>
                         <option value="퇴사">퇴사</option>
                       </select>
+                    </div>
+                    <div>
+                      <Label>입사일</Label>
+                      <Input
+                        type="date"
+                        value={formData.hireDate}
+                        onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        연차 자동부여·건강검진 자격 판정의 기준입니다. 비워두면 연차가 부여되지 않습니다.
+                      </p>
+                    </div>
+                    <div>
+                      <Label>부서</Label>
+                      <Input
+                        value={formData.department}
+                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                        placeholder="예: マーケティング事業部"
+                      />
                     </div>
                     <div className="flex gap-2">
                       <Button type="submit" disabled={savingUser}>

@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { pool } from '../db'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireAppAccess } from '../middleware/requireAppAccess'
+import { activeEmploymentSql } from '../lib/employment'
 import {
   calcWeekStart,
   calcOrderTargetWeek,
@@ -174,11 +175,10 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
         [startStr, endStr]
       ),
       pool.query(
+        // 1인당 평균 산출용 재직자 수. 기존 조건은 '在職中' 표기를 빠뜨려 해당 표기가 섞이면
+        // 재직자가 과소 집계됐다 → 표준 헬퍼로 통일.
         `SELECT COUNT(*) AS cnt FROM users
-         WHERE employment_status IS NULL
-            OR employment_status = ''
-            OR employment_status = '입사중'
-            OR employment_status = '在籍中'`
+         WHERE ${activeEmploymentSql('employment_status')}`
       ),
     ])
 

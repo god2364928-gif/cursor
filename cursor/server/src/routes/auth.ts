@@ -3,10 +3,21 @@ import { pool } from '../db'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { EMPLOYMENT_STATUS_ACTIVE } from '../lib/employment'
 
 const router = Router()
 
 const CRM_ACCESS_ROLES = new Set(['manager', 'marketer', 'office_assistant'])
+
+/** 빈 문자열은 NULL 로 저장한다 (날짜/숫자 컬럼에 '' 이 들어가면 캐스팅 에러) */
+function toNullIfEmpty(value: any): any {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed || null
+  }
+  return value
+}
 
 function defaultAppAccessForRole(role: string | undefined | null): string {
   if (role === 'admin') return 'admin,crm,erp'
@@ -144,7 +155,7 @@ router.post('/users', authMiddleware, async (req: AuthRequest, res: Response) =>
       return res.status(403).json({ message: 'Admin access required' })
     }
 
-    const { name, email, password, team, role } = req.body
+    const { name, email, password, team, role, employmentStatus, hireDate, department, position } = req.body
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required' })
@@ -155,12 +166,23 @@ router.post('/users', authMiddleware, async (req: AuthRequest, res: Response) =>
     const finalRole = role || 'user'
     const appAccess = defaultAppAccessForRole(finalRole)
 
+    // employment_status 는 컬럼 DEFAULT 가 없어, 넘어오지 않으면 NULL 로 저장된다.
+    // NULL 계정은 어드민 화면에서는 '입사중' 처럼 보이지만 재직 판정 쿼리에서는 탈락해
+    // 담당자 목록·급여·연차에서 조용히 사라진다 → 반드시 표준값으로 채운다.
+    const finalEmploymentStatus = toNullIfEmpty(employmentStatus) || EMPLOYMENT_STATUS_ACTIVE
+
     // Insert user
+    // hire_date 는 연차 자동부여·건강검진 자격 판정의 기준이므로 생성 시점에 함께 받는다.
     const result = await pool.query(
-      `INSERT INTO users (name, email, password, team, role, app_access)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, name, email, team, role, app_access, created_at`,
-      [name, email, hashedPassword, team || null, finalRole, appAccess]
+      `INSERT INTO users (name, email, password, team, role, app_access,
+                          employment_status, hire_date, department, position)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, name, email, team, role, app_access,
+                 employment_status, hire_date, department, position, created_at`,
+      [
+        name, email, hashedPassword, toNullIfEmpty(team), finalRole, appAccess,
+        finalEmploymentStatus, toNullIfEmpty(hireDate), toNullIfEmpty(department), toNullIfEmpty(position)
+      ]
     )
 
     res.json({ user: result.rows[0] })
@@ -200,38 +222,10 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
     }
 
     const { id } = req.params
-    const {
-      name,
-      email,
-      password,
-      team,
-      role,
-      department,
-      position,
-      employmentStatus,
-      baseSalary,
-      hireDate,
-      contractStartDate,
-      contractEndDate,
-      martId,
-      transportationRoute,
-      monthlyTransportationCost,
-      transportationStartDate,
-      transportationDetails
-    } = req.body
+    const { name, email, password, role } = req.body
 
     if (!name || !email) {
       return res.status(400).json({ message: 'Name and email are required' })
-    }
-
-    // Helper function to convert empty strings to null
-    const toNullIfEmpty = (value: any): any => {
-      if (value === null || value === undefined) return null
-      if (typeof value === 'string') {
-        const trimmed = value.trim()
-        return trimmed || null
-      }
-      return value
     }
 
     // If password is provided, hash it
@@ -249,82 +243,95 @@ router.put('/users/:id', authMiddleware, async (req: AuthRequest, res: Response)
     }
     const finalAppAccess = ensureRoleAppAccess(finalRole, currentUser?.app_access)
 
-    // Update user
-    let result
-    if (hashedPassword) {
-      result = await pool.query(
-        `UPDATE users SET 
-          name = $1, email = $2, password = $3, team = $4, role = $5,
-          department = $6, position = $7, employment_status = $8, base_salary = $9,
-          hire_date = $10, contract_start_date = $11, contract_end_date = $12, mart_id = $13,
-          transportation_route = $14, monthly_transportation_cost = $15,
-          transportation_start_date = $16, transportation_details = $17,
-          app_access = $18
-         WHERE id = $19 RETURNING *`,
-        [
-          name, email, hashedPassword, toNullIfEmpty(team), finalRole,
-          toNullIfEmpty(department), toNullIfEmpty(position), toNullIfEmpty(employmentStatus), toNullIfEmpty(baseSalary),
-          toNullIfEmpty(hireDate), toNullIfEmpty(contractStartDate), toNullIfEmpty(contractEndDate), toNullIfEmpty(martId),
-          toNullIfEmpty(transportationRoute), toNullIfEmpty(monthlyTransportationCost),
-          toNullIfEmpty(transportationStartDate), toNullIfEmpty(transportationDetails), finalAppAccess,
-          id
-        ]
-      )
-    } else {
-      result = await pool.query(
-        `UPDATE users SET 
-          name = $1, email = $2, team = $3, role = $4,
-          department = $5, position = $6, employment_status = $7, base_salary = $8,
-          hire_date = $9, contract_start_date = $10, contract_end_date = $11, mart_id = $12,
-          transportation_route = $13, monthly_transportation_cost = $14,
-          transportation_start_date = $15, transportation_details = $16,
-          app_access = $17
-         WHERE id = $18 RETURNING *`,
-        [
-          name, email, toNullIfEmpty(team), finalRole,
-          toNullIfEmpty(department), toNullIfEmpty(position), toNullIfEmpty(employmentStatus), toNullIfEmpty(baseSalary),
-          toNullIfEmpty(hireDate), toNullIfEmpty(contractStartDate), toNullIfEmpty(contractEndDate), toNullIfEmpty(martId),
-          toNullIfEmpty(transportationRoute), toNullIfEmpty(monthlyTransportationCost),
-          toNullIfEmpty(transportationStartDate), toNullIfEmpty(transportationDetails), finalAppAccess,
-          id
-        ]
-      )
+    // ⚠️ 부분 업데이트 (요청 본문에 있는 필드만 UPDATE).
+    //
+    // 과거에는 17개 컬럼을 무조건 전부 덮어쓰는 full-replace UPDATE 였다. 그런데 어드민
+    // 회원관리 폼(AdminPage)은 name/email/password/role/employmentStatus 5개만 전송하므로,
+    // 역할만 바꿔 저장해도 department·position·base_salary·hire_date·계약일·교통비가
+    // 전부 NULL 로 지워졌다. hire_date 가 지워지면 연차 자동부여 대상에서도 빠져
+    // 조용히 연차가 미부여되는 2차 피해까지 발생했다.
+    // → 이제 본문에 키가 존재하는 필드만 건드린다.
+    const updates: string[] = []
+    const params: any[] = []
+    let paramIndex = 1
+
+    const pushUpdate = (column: string, value: any) => {
+      updates.push(`${column} = $${paramIndex++}`)
+      params.push(value)
     }
+
+    // 요청 본문 키 → 컬럼 매핑. 여기에 없는 컬럼은 이 API 로 수정할 수 없다.
+    const OPTIONAL_FIELDS: Array<[string, string]> = [
+      ['team', 'team'],
+      ['department', 'department'],
+      ['position', 'position'],
+      ['employmentStatus', 'employment_status'],
+      ['baseSalary', 'base_salary'],
+      ['hireDate', 'hire_date'],
+      ['contractStartDate', 'contract_start_date'],
+      ['contractEndDate', 'contract_end_date'],
+      ['martId', 'mart_id'],
+      ['transportationRoute', 'transportation_route'],
+      ['monthlyTransportationCost', 'monthly_transportation_cost'],
+      ['transportationStartDate', 'transportation_start_date'],
+      ['transportationDetails', 'transportation_details'],
+    ]
+
+    pushUpdate('name', name)
+    pushUpdate('email', email)
+    if (hashedPassword) pushUpdate('password', hashedPassword)
+    pushUpdate('role', finalRole)
+    pushUpdate('app_access', finalAppAccess)
+
+    for (const [bodyKey, column] of OPTIONAL_FIELDS) {
+      if (!(bodyKey in req.body)) continue
+      pushUpdate(column, toNullIfEmpty(req.body[bodyKey]))
+    }
+
+    params.push(id)
+    const result = await pool.query(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      params
+    )
 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'User not found' })
     }
 
     // accounting_employees 테이블도 동기화 (이름으로 매칭)
-    // 기본급이나 고용상태가 변경된 경우 accounting_employees도 업데이트
+    //
+    // 값은 요청 본문이 아니라 UPDATE 의 RETURNING 결과에서 읽는다. 부분 업데이트가 되면서
+    // 본문에 baseSalary 가 없는 요청(예: 역할만 변경)도 정상 케이스가 됐는데, 예전처럼
+    // `baseSalary || 0` 을 쓰면 그런 요청마다 경리 기본급이 0 으로 덮어써진다.
+    //
+    // employment_status 는 변환 없이 그대로 넘긴다. 기존 변환 로직은 '재직' → '입사중' 을
+    // 기대했지만 실제 UI 가 저장하는 값은 '입사중'/'입사전'/'퇴사' 라 변환이 무의미했고,
+    // 오히려 '입사전' 을 '입사중' 으로 바꿔 넣는 부작용이 있었다.
     try {
       const updatedUser = result.rows[0]
-      
-      // employment_status를 accounting_employees 형식으로 변환
-      let employmentStatusForAccounting = '입사중'
-      if (updatedUser.employment_status === '재직') {
-        employmentStatusForAccounting = '입사중'
-      } else if (updatedUser.employment_status === '퇴사') {
-        employmentStatusForAccounting = '퇴사'
-      } else if (updatedUser.employment_status === '휴직') {
-        employmentStatusForAccounting = '휴직'
-      }
-      
-      // accounting_employees 테이블에 동일한 이름의 직원이 있으면 업데이트
-      await pool.query(
+
+      const sync = await pool.query(
         `UPDATE accounting_employees
-         SET base_salary = $1, 
+         SET base_salary = $1,
              employment_status = $2,
              updated_at = NOW()
          WHERE name = $3`,
         [
-          toNullIfEmpty(baseSalary) || 0,
-          employmentStatusForAccounting,
-          name
+          updatedUser.base_salary ?? 0,
+          updatedUser.employment_status ?? EMPLOYMENT_STATUS_ACTIVE,
+          updatedUser.name
         ]
       )
-      
-      console.log(`[직원 동기화] ${name}의 기본급을 accounting_employees 테이블에 반영했습니다 (${toNullIfEmpty(baseSalary) || 0})`)
+
+      // 두 테이블은 이름으로만 연결돼 있어, 경리 직원 등록이 안 된 사람이나 이름이 바뀐
+      // 사람은 조용히 0건 업데이트로 끝난다. 무음 실패를 남기지 않도록 경고를 찍는다.
+      // (accounting_employees 는 급여대장·거래가 FK 로 참조하는 회계 테이블이라
+      //  여기서 임의로 행을 생성하지 않는다 — 경리 직원관리 화면에서 등록해야 한다.)
+      if (sync.rowCount === 0) {
+        console.warn(`[직원 동기화] accounting_employees 에 '${updatedUser.name}' 행이 없어 반영하지 못했습니다 (경리 직원관리에서 등록 필요)`)
+      } else {
+        console.log(`[직원 동기화] ${updatedUser.name} → accounting_employees 반영 (기본급 ${updatedUser.base_salary ?? 0}, 상태 ${updatedUser.employment_status ?? EMPLOYMENT_STATUS_ACTIVE})`)
+      }
     } catch (syncError) {
       // accounting_employees 동기화 실패는 로그만 남기고 사용자 업데이트는 성공으로 처리
       console.error('Error syncing to accounting_employees:', syncError)

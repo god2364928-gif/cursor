@@ -2,11 +2,16 @@
  * 사용자 관련 유틸리티 함수
  */
 
-// 퇴사자는 어떤 담당자/매니저 옵션에도 노출되지 않아야 한다.
-// employment_status 가 '퇴사' 면 제외. null/undefined/'입사중' 등은 현직으로 간주.
+// 재직 판정 기준은 서버 `lib/employment.ts` 와 일치시킨다.
+// - 미설정(null / 빈 문자열)은 재직으로 간주 (어드민 화면 표시와 동일)
+// - '퇴사'류와 '입사전'(아직 입사하지 않음)은 어떤 담당자/매니저 옵션에도 노출하지 않는다
+const RESIGNED_STATUSES = new Set(['퇴사', '퇴직', '退社', '退職'])
+const PRE_HIRE_STATUSES = new Set(['입사전', '入社前'])
+
 function isActive(u: any): boolean {
   const status = (u?.employment_status ?? u?.employmentStatus ?? '').toString().trim()
-  return status !== '퇴사'
+  if (!status) return true
+  return !RESIGNED_STATUSES.has(status) && !PRE_HIRE_STATUSES.has(status)
 }
 
 /**
@@ -45,10 +50,11 @@ export function isMarketer(name: string, users: any[]): boolean {
   return normalizedRole === 'marketer'
 }
 
-// 영업 담당 + 사무보조(office_assistant) — 사무보조도 영업이력/문의/핫페퍼 페이지에 접근해서
-// 본인이 담당한 건을 필터링할 필요가 있으므로 마케터와 동일하게 옵션으로 노출한다.
-// 퇴사자는 제외.
-const OPERATOR_ROLES = new Set(['marketer', 'office_assistant'])
+// 실무 담당자 역할 — 영업이력/문의/핫페퍼 페이지에서 "본인이 담당한 건" 필터 옵션으로 노출된다.
+// 사무보조(office_assistant)뿐 아니라 **어드민도 포함**한다: 어드민 역할이 관리자 전용이 아니라
+// 실제로 문의 배정 등 실무를 직접 담당하고 있어서, 배제하면 승진과 동시에 본인 업무 데이터에
+// 접근할 수 없게 된다.
+const OPERATOR_ROLES = new Set(['admin', 'marketer', 'office_assistant'])
 
 export function getOperatorNames(users: any[]): string[] {
   return users

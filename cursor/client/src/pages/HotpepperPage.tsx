@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input'
 import RestaurantDrawer from '../components/RestaurantDrawer'
 import SalesActivityModal from '../components/SalesActivityModal'
 import { useI18nStore } from '../i18n'
+import { getOperators } from '../utils/userUtils'
 import { 
   Search, Phone, Globe, Instagram, Mail, ChevronRight, 
   Loader2, Copy, ExternalLink, ChevronDown, X, AlertTriangle,
@@ -192,13 +193,9 @@ export default function HotpepperPage() {
   const loadUsers = async () => {
     try {
       const response = await api.get('/auth/users')
-      // 담당자 필터: 마케터 + 사무보조(office_assistant), 단 퇴사자는 제외
-      const operators = (response.data || []).filter((u: User & { role?: string; employment_status?: string | null }) => {
-        const isOperator = u.role === 'marketer' || u.role === 'office_assistant'
-        const isResigned = (u.employment_status ?? '').toString().trim() === '퇴사'
-        return isOperator && !isResigned
-      })
-      setUsers(operators)
+      // 담당자 필터 옵션은 공용 헬퍼로 통일한다 (어드민 + 마케터 + 사무보조, 퇴사·입사전 제외).
+      // 인라인으로 따로 구현했던 탓에 어드민이 빠지고 '입사전' 이 포함되는 차이가 있었다.
+      setUsers(getOperators(response.data || []))
     } catch (error) {
       console.error('Failed to load users:', error)
     }

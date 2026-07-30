@@ -1,6 +1,7 @@
 import { Router, Response } from 'express'
 import { AuthRequest, authMiddleware } from '../middleware/auth'
 import { pool } from '../db'
+import { activeEmploymentSql } from '../lib/employment'
 import multer from 'multer'
 
 const router = Router()
@@ -206,7 +207,7 @@ router.post('/generate', authMiddleware, adminOnly, async (req: AuthRequest, res
          name,
          COALESCE(base_salary, 0) as base_salary
        FROM users
-       WHERE employment_status = '입사중'
+       WHERE ${activeEmploymentSql('employment_status', { excludeOnLeave: true })}
        ORDER BY name`
     )
     
@@ -288,7 +289,7 @@ router.post('/fix-base-salary', authMiddleware, adminOnly, async (req: AuthReque
          name,
          COALESCE(base_salary, 0) as base_salary
        FROM users 
-       WHERE employment_status = '입사중'
+       WHERE ${activeEmploymentSql('employment_status', { excludeOnLeave: true })}
        ORDER BY name`
     )
     
