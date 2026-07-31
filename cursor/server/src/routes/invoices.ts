@@ -309,8 +309,9 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
           tax_entry_method,
           memo,
           payment_bank_info,
-          line_items
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+          line_items,
+          invoice_title
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
         [
           req.user!.id,
           company_id,
@@ -326,6 +327,8 @@ router.post('/create', authMiddleware, async (req: AuthRequest, res: Response) =
           memo,  // 추가: 비고
           payment_bank_info,  // 추가: 입금처 정보
           JSON.stringify(line_items),  // 추가: PDF 폴백용 품목 (JSONB)
+          // 件名: PDF는 이 값을 최우선으로 쓴다. 빈 값이면 PDF에서 기본 문구로 폴백되도록 null 저장
+          typeof invoice_title === 'string' && invoice_title.trim() ? invoice_title.trim() : null,
         ]
       )
 
@@ -483,14 +486,14 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
 
     // DB에서 청구서 조회. freee 조회 실패 시 PDF를 DB 값만으로 생성하기 위해
     // partner_name/invoice_number/invoice_date/total_amount/tax_amount도 함께 가져온다.
-    const result = await pool.query('SELECT freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items, partner_name, invoice_number, invoice_date, total_amount, tax_amount FROM invoices WHERE id = $1', [id])
+    const result = await pool.query('SELECT freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items, partner_name, invoice_number, invoice_date, total_amount, tax_amount, invoice_title FROM invoices WHERE id = $1', [id])
 
     if (result.rows.length === 0) {
       console.error(`❌ Invoice not found in DB: ${id}`)
       return res.status(404).json({ error: 'Invoice not found' })
     }
 
-    const { freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items, partner_name, invoice_number, invoice_date, total_amount, tax_amount } = result.rows[0]
+    const { freee_invoice_id, company_id, due_date, memo, payment_bank_info, tax_entry_method, line_items, partner_name, invoice_number, invoice_date, total_amount, tax_amount, invoice_title } = result.rows[0]
 
     console.log(`📋 Invoice details: freee_id=${freee_invoice_id}, company_id=${company_id}, due_date=${due_date}, payment_info=${payment_bank_info ? 'present' : 'default'}, tax_entry_method=${tax_entry_method}`)
 
@@ -507,6 +510,8 @@ router.get('/:id/pdf', authMiddleware, async (req: AuthRequest, res: Response) =
       billing_date: invoice_date || undefined,  // due_date와 동일하게 pg 원본값 전달 (generateInvoicePdf가 포맷) — toISOString 변환은 타임존 하루 밀림 위험
       total_amount: total_amount != null ? Number(total_amount) : undefined,
       amount_tax: tax_amount != null ? Number(tax_amount) : undefined,
+      // 件名은 CRM 입력값이 정본 — freee 응답보다 우선한다 (freee가 값을 돌려주지 않거나 상세조회가 실패해도 유지)
+      invoice_title: invoice_title || undefined,
     })
     
     if (!pdfBuffer || pdfBuffer.length === 0) {

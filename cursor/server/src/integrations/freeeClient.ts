@@ -709,7 +709,7 @@ export async function createInvoice(invoiceData: FreeeInvoiceRequest): Promise<a
  * 청구서 PDF 다운로드 (freee請求書 API)
  * freee 請求書 API는 /reports/ 경로를 사용
  */
-export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string, memoFromDb?: string, paymentBankInfoFromDb?: string, taxEntryMethodFromDb?: string, fallbackLines?: Array<{ description: string; quantity: number; unit_price: number; tax_rate: number }>, dbFallback?: { partner_name?: string; invoice_number?: string; billing_date?: string; total_amount?: number; amount_tax?: number }): Promise<Buffer> {
+export async function downloadInvoicePdf(companyId: number, invoiceId: number, dueDateFromDb?: string, memoFromDb?: string, paymentBankInfoFromDb?: string, taxEntryMethodFromDb?: string, fallbackLines?: Array<{ description: string; quantity: number; unit_price: number; tax_rate: number }>, dbFallback?: { partner_name?: string; invoice_number?: string; billing_date?: string; total_amount?: number; amount_tax?: number; invoice_title?: string }): Promise<Buffer> {
   console.log(`📥 [downloadInvoicePdf] company_id=${companyId}, invoice_id=${invoiceId}, due_date=${dueDateFromDb}, memo=${memoFromDb ? 'present' : 'none'}, payment_info=${paymentBankInfoFromDb ? 'custom' : 'default'}, tax_entry_method=${taxEntryMethodFromDb}`)
 
   // 1단계: freee 청구서 상세 조회.
@@ -800,7 +800,9 @@ export async function downloadInvoicePdf(companyId: number, invoiceId: number, d
       invoice_registration_number: invoice?.template?.invoice_registration_number || 'T5013301050765',
       memo: memoFromDb || '',  // DB의 memo 사용
       tax_entry_method: (taxEntryMethodFromDb === 'inclusive' ? 'inclusive' : 'exclusive') as 'inclusive' | 'exclusive',  // DB의 tax_entry_method 사용 (기본값: 외세)
-      invoice_title: invoice?.invoice_title || invoice?.title,  // 件名 (freee 응답값, 없으면 PDF에서 기본 문구로 fallback)
+      // 件名: CRM 입력값(DB)이 정본 → freee 응답 → (둘 다 없으면) PDF 기본 문구.
+      // freee가 invoice_title을 돌려주지 않거나 상세조회가 실패해도 사용자가 입력한 件名이 유지되어야 한다.
+      invoice_title: dbFallback?.invoice_title || invoice?.invoice_title || invoice?.title,
     })
 
     console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`)

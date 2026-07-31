@@ -5,6 +5,7 @@ import { pool } from '../db'
  * - 라우트(목록/생성/PDF/취소)가 필요로 하는 컬럼을 멱등하게 보장
  * - freee ID 계열 컬럼을 BIGINT 로 확장하여 32-bit 오버플로 방지
  * - line_items(JSONB) 저장으로 PDF 폴백 확보
+ * - invoice_title(件名) 저장 — freee 응답에만 의존하면 PDF가 기본 문구로 고정됨
  * - freee_invoice_id 부분 UNIQUE 인덱스로 중복 청구서 방지
  * 멱등: ADD COLUMN IF NOT EXISTS / (integer 일 때만) ALTER TYPE BIGINT / CREATE INDEX IF NOT EXISTS
  */
@@ -12,7 +13,7 @@ export async function autoMigrateInvoices(): Promise<void> {
   try {
     console.log('Checking invoices table hardening columns...')
 
-    // 1) 누락 컬럼 보장 (memo/은행정보/취소계열/품목)
+    // 1) 누락 컬럼 보장 (memo/은행정보/취소계열/품목/件名)
     await pool.query(`
       ALTER TABLE invoices ADD COLUMN IF NOT EXISTS memo TEXT;
       ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_bank_info TEXT;
@@ -20,6 +21,7 @@ export async function autoMigrateInvoices(): Promise<void> {
       ALTER TABLE invoices ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP;
       ALTER TABLE invoices ADD COLUMN IF NOT EXISTS cancelled_by_user_id UUID;
       ALTER TABLE invoices ADD COLUMN IF NOT EXISTS line_items JSONB;
+      ALTER TABLE invoices ADD COLUMN IF NOT EXISTS invoice_title TEXT;
     `)
 
     // 2) ID 계열 BIGINT 확장 — 현재 타입이 'integer' 일 때만 실행 (불필요한 테이블 재작성 방지)
