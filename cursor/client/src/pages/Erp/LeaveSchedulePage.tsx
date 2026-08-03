@@ -308,7 +308,7 @@ function CalendarView({
                     )}
                   </div>
                   <div className="space-y-0.5">
-                    {dayItems.slice(0, 3).map((it) => (
+                    {dayItems.map((it) => (
                       <div
                         key={`${it.id}-${key}`}
                         className={`px-1.5 py-0.5 rounded text-[11px] truncate ${
@@ -321,11 +321,6 @@ function CalendarView({
                         {it.user_name} · {leaveTypeLabel(it.leave_type)}
                       </div>
                     ))}
-                    {dayItems.length > 3 && (
-                      <div className="text-[10px] text-gray-500 px-1.5">
-                        +{dayItems.length - 3}{t('unit_count')}
-                      </div>
-                    )}
                   </div>
                 </div>
               )
